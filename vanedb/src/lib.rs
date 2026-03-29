@@ -1,13 +1,3 @@
-pub fn hello() -> &'static str {
-    "vanedb"
-}
+pub mod error;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        assert_eq!(hello(), "vanedb");
-    }
-}
+pub use error::{Result, VaneError};
