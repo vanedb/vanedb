@@ -1,6 +1,8 @@
 pub mod scalar;
 #[cfg(target_arch = "aarch64")]
 pub mod neon;
+#[cfg(target_arch = "x86_64")]
+pub mod avx2;
 
 /// Distance metric for vector comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,7 +36,15 @@ fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     {
         neon::l2_squared(a, b)
     }
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+            unsafe { avx2::l2_squared(a, b) }
+        } else {
+            scalar::l2_squared(a, b)
+        }
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     {
         scalar::l2_squared(a, b)
     }
@@ -45,7 +55,15 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     {
         neon::cosine_distance(a, b)
     }
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+            unsafe { avx2::cosine_distance(a, b) }
+        } else {
+            scalar::cosine_distance(a, b)
+        }
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     {
         scalar::cosine_distance(a, b)
     }
@@ -56,7 +74,15 @@ fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
     {
         neon::dot_distance(a, b)
     }
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
+    {
+        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+            unsafe { avx2::dot_distance(a, b) }
+        } else {
+            scalar::dot_distance(a, b)
+        }
+    }
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
     {
         scalar::dot_distance(a, b)
     }
