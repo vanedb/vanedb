@@ -1,4 +1,6 @@
 pub mod scalar;
+#[cfg(target_arch = "aarch64")]
+pub mod neon;
 
 /// Distance metric for vector comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,13 +30,34 @@ pub fn distance_fn(metric: DistanceMetric) -> DistanceFn {
 }
 
 fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    scalar::l2_squared(a, b)
+    #[cfg(target_arch = "aarch64")]
+    {
+        neon::l2_squared(a, b)
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        scalar::l2_squared(a, b)
+    }
 }
 
 fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    scalar::cosine_distance(a, b)
+    #[cfg(target_arch = "aarch64")]
+    {
+        neon::cosine_distance(a, b)
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        scalar::cosine_distance(a, b)
+    }
 }
 
 fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    scalar::dot_distance(a, b)
+    #[cfg(target_arch = "aarch64")]
+    {
+        neon::dot_distance(a, b)
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        scalar::dot_distance(a, b)
+    }
 }
