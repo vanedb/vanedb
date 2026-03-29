@@ -1,0 +1,20 @@
+[package]
+name = "vanedb"
+version = "0.1.0"
+edition = "2021"
+description = "Embeddable vector database for edge AI"
+license = "MIT"
+repository = "https://github.com/vanedb/vanedb"
+keywords = ["vector", "database", "embeddings", "simd", "similarity-search"]
+categories = ["database", "science"]
+
+[features]
+default = []
+mmap = ["dep:memmap2"]
+
+[dependencies]
+parking_lot = "0.12"
+memmap2 = { version = "0.9", optional = true }
+
+[dev-dependencies]
+proptest = "1.6"
