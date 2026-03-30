@@ -15,6 +15,10 @@ unsafe fn hsum_avx2(v: __m256) -> f32 {
     _mm_cvtss_f32(_mm_add_ss(sum64, _mm_movehl_ps(shuf, sum64)))
 }
 
+/// Squared L2 distance using AVX2+FMA intrinsics.
+///
+/// # Safety
+/// Caller must ensure the CPU supports AVX2 and FMA (use `is_x86_feature_detected!`).
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
@@ -40,6 +44,10 @@ pub unsafe fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     sum
 }
 
+/// Cosine distance using AVX2+FMA intrinsics.
+///
+/// # Safety
+/// Caller must ensure the CPU supports AVX2 and FMA (use `is_x86_feature_detected!`).
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
@@ -78,6 +86,10 @@ pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     1.0 - sim.clamp(-1.0, 1.0)
 }
 
+/// Negative dot product distance using AVX2+FMA intrinsics.
+///
+/// # Safety
+/// Caller must ensure the CPU supports AVX2 and FMA (use `is_x86_feature_detected!`).
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
