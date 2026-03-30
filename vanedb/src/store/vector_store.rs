@@ -4,6 +4,7 @@ use parking_lot::RwLock;
 
 use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
 use crate::error::{Result, VaneError};
+use crate::store::SearchResult;
 
 pub struct VectorStore {
     dim: usize,
@@ -106,6 +107,35 @@ impl VectorStore {
     pub fn metric(&self) -> DistanceMetric {
         self.metric
     }
+
+    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        if query.len() != self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: self.dim,
+                got: query.len(),
+            });
+        }
+        if k == 0 {
+            return Err(VaneError::InvalidK);
+        }
+        let inner = self.inner.read();
+        let n = inner.ids.len();
+        if n == 0 {
+            return Ok(Vec::new());
+        }
+
+        let mut results: Vec<SearchResult> = (0..n)
+            .map(|i| {
+                let start = i * self.dim;
+                let vec = &inner.data[start..start + self.dim];
+                SearchResult::new(inner.ids[i], (self.dist_fn)(query, vec))
+            })
+            .collect();
+
+        results.sort();
+        results.truncate(k);
+        Ok(results)
+    }
 }
 
 #[cfg(test)]
@@ -186,5 +216,65 @@ mod tests {
         store.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(!store.is_empty());
         assert_eq!(store.len(), 1);
+    }
+
+    #[test]
+    fn search_l2_finds_nearest() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        store.add(1, &[0.0, 0.0]).unwrap();
+        store.add(2, &[1.0, 0.0]).unwrap();
+        store.add(3, &[10.0, 10.0]).unwrap();
+
+        let results = store.search(&[0.0, 0.1], 2).unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].id, 1);
+        assert_eq!(results[1].id, 2);
+    }
+
+    #[test]
+    fn search_cosine_finds_similar() {
+        let store = VectorStore::new(2, DistanceMetric::Cosine).unwrap();
+        store.add(1, &[1.0, 0.0]).unwrap();
+        store.add(2, &[0.0, 1.0]).unwrap();
+        store.add(3, &[-1.0, 0.0]).unwrap();
+
+        let results = store.search(&[0.9, 0.1], 1).unwrap();
+        assert_eq!(results[0].id, 1);
+    }
+
+    #[test]
+    fn search_k_larger_than_store() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        store.add(1, &[0.0, 0.0]).unwrap();
+        let results = store.search(&[1.0, 1.0], 10).unwrap();
+        assert_eq!(results.len(), 1);
+    }
+
+    #[test]
+    fn search_empty_store() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        let results = store.search(&[1.0, 1.0], 5).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_wrong_dimension() {
+        let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
+        assert!(matches!(
+            store.search(&[1.0, 2.0], 5),
+            Err(VaneError::DimensionMismatch {
+                expected: 3,
+                got: 2
+            })
+        ));
+    }
+
+    #[test]
+    fn search_k_zero() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        assert!(matches!(
+            store.search(&[1.0, 2.0], 0),
+            Err(VaneError::InvalidK)
+        ));
     }
 }
