@@ -277,4 +277,48 @@ mod tests {
             Err(VaneError::InvalidK)
         ));
     }
+
+    #[test]
+    fn concurrent_add_and_search() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let store = Arc::new(VectorStore::new(3, DistanceMetric::L2).unwrap());
+        let mut handles = vec![];
+
+        // 10 writer threads
+        for i in 0..10u64 {
+            let store = Arc::clone(&store);
+            handles.push(thread::spawn(move || {
+                let v = vec![i as f32; 3];
+                store.add(i, &v).unwrap();
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        assert_eq!(store.len(), 10);
+
+        // 10 reader threads searching concurrently
+        let mut handles = vec![];
+        for _ in 0..10 {
+            let store = Arc::clone(&store);
+            handles.push(thread::spawn(move || {
+                let results = store.search(&[5.0, 5.0, 5.0], 3).unwrap();
+                assert_eq!(results.len(), 3);
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn store_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<VectorStore>();
+    }
 }
