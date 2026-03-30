@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn search_results_sort_by_distance() {
-        let mut results = vec![
+        let mut results = [
             SearchResult::new(1, 5.0),
             SearchResult::new(2, 1.0),
             SearchResult::new(3, 3.0),
