@@ -1,8 +1,8 @@
-pub mod scalar;
-#[cfg(target_arch = "aarch64")]
-pub mod neon;
 #[cfg(target_arch = "x86_64")]
 pub mod avx2;
+#[cfg(target_arch = "aarch64")]
+pub mod neon;
+pub mod scalar;
 
 /// Distance metric for vector comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -31,7 +31,10 @@ mod tests {
 
     #[test]
     fn error_display_dimension_mismatch() {
-        let err = VaneError::DimensionMismatch { expected: 768, got: 512 };
+        let err = VaneError::DimensionMismatch {
+            expected: 768,
+            got: 512,
+        };
         assert_eq!(err.to_string(), "dimension mismatch: expected 768, got 512");
     }
 

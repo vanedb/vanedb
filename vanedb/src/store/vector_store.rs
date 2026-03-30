@@ -181,10 +181,7 @@ mod tests {
     #[test]
     fn get_missing_id() {
         let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
-        assert!(matches!(
-            store.get(42),
-            Err(VaneError::NotFound { id: 42 })
-        ));
+        assert!(matches!(store.get(42), Err(VaneError::NotFound { id: 42 })));
     }
 
     #[test]
