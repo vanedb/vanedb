@@ -263,6 +263,66 @@ impl HnswIndex {
         Ok(())
     }
 
+    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        if query.len() != self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: self.dim,
+                got: query.len(),
+            });
+        }
+        if k == 0 {
+            return Err(VaneError::InvalidK);
+        }
+        let inner = self.inner.read();
+        if inner.count == 0 {
+            return Ok(Vec::new());
+        }
+
+        let mut curr = inner.entry_point.unwrap();
+        let mut d = (self.dist_fn)(query, Self::get_vec(&inner.vectors, curr, self.dim));
+
+        // Greedy descent through upper layers
+        for l in (1..=inner.max_level).rev() {
+            let lu = l as usize;
+            let mut changed = true;
+            while changed {
+                changed = false;
+                if lu < inner.neighbors[curr].len() {
+                    for &n in &inner.neighbors[curr][lu] {
+                        let nd = (self.dist_fn)(query, Self::get_vec(&inner.vectors, n, self.dim));
+                        if nd < d {
+                            d = nd;
+                            curr = n;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Search at layer 0 with ef = max(ef_search, k)
+        let ef = self.ef_search.load(Ordering::Relaxed).max(k);
+        let top = Self::search_layer(
+            &inner.vectors,
+            self.dist_fn,
+            self.dim,
+            &inner.neighbors,
+            query,
+            curr,
+            ef,
+            0,
+        );
+
+        let mut results: Vec<SearchResult> = top
+            .into_iter()
+            .take(k)
+            .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
+            .collect();
+        results.sort();
+        results.truncate(k);
+        Ok(results)
+    }
+
     /// Generate a random level using exponential distribution.
     fn get_level(rng: &mut StdRng, mult: f64) -> i32 {
         use rand::Rng;
@@ -577,5 +637,54 @@ mod tests {
         idx.add(0, &[0.0, 0.0]).unwrap();
         idx.add(1, &[1.0, 1.0]).unwrap();
         assert!(matches!(idx.add(2, &[2.0, 2.0]), Err(VaneError::IndexFull)));
+    }
+
+    #[test]
+    fn search_finds_exact_match() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .seed(42)
+            .build()
+            .unwrap();
+        idx.add(1, &[0.0, 0.0, 0.0]).unwrap();
+        idx.add(2, &[10.0, 10.0, 10.0]).unwrap();
+        idx.add(3, &[20.0, 20.0, 20.0]).unwrap();
+
+        let results = idx.search(&[0.0, 0.0, 0.0], 1).unwrap();
+        assert_eq!(results[0].id, 1);
+        assert!(results[0].distance < 1e-6);
+    }
+
+    #[test]
+    fn search_returns_k_results() {
+        let idx = HnswIndex::builder(2, DistanceMetric::L2)
+            .capacity(100)
+            .seed(42)
+            .build()
+            .unwrap();
+        for i in 0..20u64 {
+            idx.add(i, &[i as f32, 0.0]).unwrap();
+        }
+        let results = idx.search(&[5.0, 0.0], 3).unwrap();
+        assert_eq!(results.len(), 3);
+    }
+
+    #[test]
+    fn search_empty_index() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        let results = idx.search(&[1.0, 2.0, 3.0], 5).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn search_wrong_dimension() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        assert!(idx.search(&[1.0, 2.0], 5).is_err());
     }
 }
