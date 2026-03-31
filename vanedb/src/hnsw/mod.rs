@@ -118,6 +118,289 @@ impl HnswIndex {
     pub fn get_ef_search(&self) -> usize {
         self.ef_search.load(Ordering::Relaxed)
     }
+
+    /// Insert a vector into the HNSW graph.
+    pub fn add(&self, id: u64, vector: &[f32]) -> Result<()> {
+        if vector.len() != self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: self.dim,
+                got: vector.len(),
+            });
+        }
+
+        let mut inner = self.inner.write();
+
+        if inner.count >= self.max_elements {
+            return Err(VaneError::IndexFull);
+        }
+        if inner.id_map.contains_key(&id) {
+            return Err(VaneError::DuplicateId { id });
+        }
+
+        let iid = inner.count;
+        inner.count += 1;
+
+        // Copy vector data
+        let start = iid * self.dim;
+        inner.vectors[start..start + self.dim].copy_from_slice(vector);
+        inner.ext_ids[iid] = id;
+        inner.id_map.insert(id, iid);
+
+        // Generate random level
+        let level = Self::get_level(&mut inner.rng, self.mult);
+        inner.levels[iid] = level;
+
+        // Allocate neighbor lists for each layer
+        inner.neighbors[iid] = (0..=level as usize).map(|_| Vec::new()).collect();
+
+        // First vector: set as entry point and return
+        if iid == 0 {
+            inner.entry_point = Some(0);
+            inner.max_level = level;
+            return Ok(());
+        }
+
+        let mut cur_ep = inner.entry_point.unwrap();
+        let cur_max_level = inner.max_level;
+
+        // Greedy descent through upper layers (above new node's level)
+        for lev in (((level + 1) as usize)..=(cur_max_level as usize)).rev() {
+            let d = (self.dist_fn)(Self::get_vec(&inner.vectors, cur_ep, self.dim), vector);
+            let mut cur_dist = d;
+
+            let mut changed = true;
+            while changed {
+                changed = false;
+                let neighbor_list = inner.neighbors[cur_ep]
+                    .get(lev)
+                    .cloned()
+                    .unwrap_or_default();
+                for &nb in &neighbor_list {
+                    let nb_dist =
+                        (self.dist_fn)(Self::get_vec(&inner.vectors, nb, self.dim), vector);
+                    if nb_dist < cur_dist {
+                        cur_dist = nb_dist;
+                        cur_ep = nb;
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        // Insert at layers from min(level, max_level) down to 0
+        let insert_from = std::cmp::min(level, cur_max_level) as usize;
+        let mut ep_for_layer = cur_ep;
+
+        for lev in (0..=insert_from).rev() {
+            let results = Self::search_layer(
+                &inner.vectors,
+                self.dist_fn,
+                self.dim,
+                &inner.neighbors,
+                vector,
+                ep_for_layer,
+                self.ef_construction,
+                lev,
+            );
+
+            let m_for_layer = if lev == 0 { self.m_max0 } else { self.m_max };
+            let neighbors_to_add = Self::select_neighbors(
+                &inner.vectors,
+                self.dist_fn,
+                self.dim,
+                &results,
+                m_for_layer,
+            );
+
+            // Set neighbors for the new node at this layer
+            if lev < inner.neighbors[iid].len() {
+                inner.neighbors[iid][lev] = neighbors_to_add.iter().map(|&(_, n)| n).collect();
+            }
+
+            // Add bidirectional links and prune if needed
+            for &(_, nb) in &neighbors_to_add {
+                // Ensure neighbor has this layer
+                if lev < inner.neighbors[nb].len() {
+                    inner.neighbors[nb][lev].push(iid);
+                    // Prune if over capacity
+                    if inner.neighbors[nb][lev].len() > m_for_layer {
+                        let nb_vec = Self::get_vec(&inner.vectors, nb, self.dim);
+                        let mut candidates: Vec<(f32, usize)> = inner.neighbors[nb][lev]
+                            .iter()
+                            .map(|&n| {
+                                let d = (self.dist_fn)(
+                                    nb_vec,
+                                    Self::get_vec(&inner.vectors, n, self.dim),
+                                );
+                                (d, n)
+                            })
+                            .collect();
+                        candidates.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+                        let pruned = Self::select_neighbors(
+                            &inner.vectors,
+                            self.dist_fn,
+                            self.dim,
+                            &candidates,
+                            m_for_layer,
+                        );
+                        inner.neighbors[nb][lev] = pruned.iter().map(|&(_, n)| n).collect();
+                    }
+                }
+            }
+
+            // Use the closest result as entry point for the next layer down
+            if !results.is_empty() {
+                ep_for_layer = results[0].1;
+            }
+        }
+
+        // Update entry point if new level is higher
+        if level > cur_max_level {
+            inner.entry_point = Some(iid);
+            inner.max_level = level;
+        }
+
+        Ok(())
+    }
+
+    /// Generate a random level using exponential distribution.
+    fn get_level(rng: &mut StdRng, mult: f64) -> i32 {
+        use rand::Rng;
+        let r: f64 = rng.random::<f64>().max(MIN_LEVEL_RANDOM);
+        let level = (-r.ln() * mult) as i32;
+        level.min(MAX_LEVEL)
+    }
+
+    /// Get a vector slice by internal ID.
+    fn get_vec(vectors: &[f32], iid: usize, dim: usize) -> &[f32] {
+        let start = iid * dim;
+        &vectors[start..start + dim]
+    }
+
+    /// Beam search on a single graph layer.
+    /// Returns results sorted by distance ascending.
+    fn search_layer(
+        vectors: &[f32],
+        dist_fn: DistanceFn,
+        dim: usize,
+        neighbors: &[Vec<Vec<usize>>],
+        query: &[f32],
+        entry: usize,
+        ef: usize,
+        level: usize,
+    ) -> Vec<(f32, usize)> {
+        let entry_dist = dist_fn(Self::get_vec(vectors, entry, dim), query);
+
+        // Min-heap of candidates (closest first)
+        let mut candidates: BinaryHeap<Reverse<(FloatOrd, usize)>> = BinaryHeap::new();
+        candidates.push(Reverse((FloatOrd(entry_dist), entry)));
+
+        // Max-heap of results (farthest first, capped at ef)
+        let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
+        results.push((FloatOrd(entry_dist), entry));
+
+        let mut visited = HashSet::new();
+        visited.insert(entry);
+
+        while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
+            // Stop if closest candidate is farther than farthest result
+            if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                if c_dist > f_dist {
+                    break;
+                }
+            }
+
+            // Expand candidate's neighbors at this layer
+            let nb_list = neighbors[c_id].get(level).cloned().unwrap_or_default();
+            for &nb in &nb_list {
+                if visited.contains(&nb) {
+                    continue;
+                }
+                visited.insert(nb);
+
+                let nb_dist = dist_fn(Self::get_vec(vectors, nb, dim), query);
+
+                let should_add = if results.len() < ef {
+                    true
+                } else if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                    nb_dist < f_dist
+                } else {
+                    true
+                };
+
+                if should_add {
+                    candidates.push(Reverse((FloatOrd(nb_dist), nb)));
+                    results.push((FloatOrd(nb_dist), nb));
+                    if results.len() > ef {
+                        results.pop();
+                    }
+                }
+            }
+        }
+
+        // Convert to sorted vec (ascending distance)
+        let mut result_vec: Vec<(f32, usize)> = results
+            .into_iter()
+            .map(|(FloatOrd(d), id)| (d, id))
+            .collect();
+        result_vec.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+        result_vec
+    }
+
+    /// Heuristic neighbor selection (Algorithm 4 from HNSW paper).
+    fn select_neighbors(
+        vectors: &[f32],
+        dist_fn: DistanceFn,
+        dim: usize,
+        candidates: &[(f32, usize)],
+        m: usize,
+    ) -> Vec<(f32, usize)> {
+        if candidates.len() <= m {
+            return candidates.to_vec();
+        }
+
+        let mut sorted = candidates.to_vec();
+        sorted.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+
+        let mut selected: Vec<(f32, usize)> = Vec::with_capacity(m);
+        let mut remaining: Vec<(f32, usize)> = Vec::new();
+
+        for &(dist, cid) in &sorted {
+            if selected.len() >= m {
+                break;
+            }
+
+            // Heuristic: include only if not closer to any already-selected neighbor
+            let is_diverse = selected.iter().all(|&(_, sid)| {
+                let inter_dist = dist_fn(
+                    Self::get_vec(vectors, cid, dim),
+                    Self::get_vec(vectors, sid, dim),
+                );
+                inter_dist >= dist
+            });
+
+            if is_diverse {
+                selected.push((dist, cid));
+            } else {
+                remaining.push((dist, cid));
+            }
+        }
+
+        // Fill remaining slots with closest candidates not yet selected
+        if selected.len() < m {
+            let selected_set: HashSet<usize> = selected.iter().map(|&(_, id)| id).collect();
+            for &(dist, cid) in &remaining {
+                if selected.len() >= m {
+                    break;
+                }
+                if !selected_set.contains(&cid) {
+                    selected.push((dist, cid));
+                }
+            }
+        }
+
+        selected
+    }
 }
 
 impl HnswIndexBuilder {
@@ -237,5 +520,62 @@ mod tests {
         let idx = HnswIndex::builder(64, DistanceMetric::L2).build().unwrap();
         idx.set_ef_search(100);
         assert_eq!(idx.get_ef_search(), 100);
+    }
+
+    #[test]
+    fn add_single_vector() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
+        assert_eq!(idx.size(), 1);
+        assert!(idx.contains(1));
+        assert_eq!(idx.get_vector(1).unwrap(), vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn add_multiple_vectors() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        for i in 0..50u64 {
+            idx.add(i, &[i as f32, 0.0, 0.0]).unwrap();
+        }
+        assert_eq!(idx.size(), 50);
+        for i in 0..50u64 {
+            assert!(idx.contains(i));
+        }
+    }
+
+    #[test]
+    fn add_rejects_duplicate() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
+        assert!(idx.add(1, &[4.0, 5.0, 6.0]).is_err());
+    }
+
+    #[test]
+    fn add_rejects_wrong_dim() {
+        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
+        assert!(idx.add(1, &[1.0, 2.0]).is_err());
+    }
+
+    #[test]
+    fn add_rejects_when_full() {
+        let idx = HnswIndex::builder(2, DistanceMetric::L2)
+            .capacity(2)
+            .build()
+            .unwrap();
+        idx.add(0, &[0.0, 0.0]).unwrap();
+        idx.add(1, &[1.0, 1.0]).unwrap();
+        assert!(matches!(idx.add(2, &[2.0, 2.0]), Err(VaneError::IndexFull)));
     }
 }
