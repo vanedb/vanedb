@@ -70,3 +70,49 @@ fn hnsw_cosine_search() {
     let results = idx.search(&[0.9, 0.1, 0.0], 1).unwrap();
     assert_eq!(results[0].id, 1);
 }
+
+#[test]
+fn hnsw_save_load_roundtrip() {
+    let dim = 8;
+    let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");
+
+    // Build and populate index
+    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+        .capacity(100)
+        .seed(42)
+        .build()
+        .unwrap();
+    for i in 0..20u64 {
+        let v: Vec<f32> = (0..dim).map(|d| (i * 10 + d as u64) as f32).collect();
+        idx.add(i, &v).unwrap();
+    }
+    idx.set_ef_search(100);
+
+    // Save
+    idx.save(&path).unwrap();
+
+    // Load
+    let loaded = HnswIndex::load(&path).unwrap();
+
+    // Verify metadata
+    assert_eq!(loaded.dimension(), dim);
+    assert_eq!(loaded.size(), 20);
+    assert_eq!(loaded.get_ef_search(), 100);
+
+    // Verify vectors
+    for i in 0..20u64 {
+        assert_eq!(idx.get_vector(i).unwrap(), loaded.get_vector(i).unwrap());
+    }
+
+    // Verify search produces same results
+    let query = vec![5.0; dim];
+    let orig_results = idx.search(&query, 5).unwrap();
+    let load_results = loaded.search(&query, 5).unwrap();
+    assert_eq!(orig_results.len(), load_results.len());
+    for (a, b) in orig_results.iter().zip(load_results.iter()) {
+        assert_eq!(a.id, b.id);
+    }
+
+    // Cleanup
+    let _ = std::fs::remove_file(&path);
+}

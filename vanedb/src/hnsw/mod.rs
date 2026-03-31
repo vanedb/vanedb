@@ -10,6 +10,8 @@ use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
+mod persistence;
+
 /// Wrapper for f32 that implements Ord (needed for BinaryHeap).
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct FloatOrd(f32);
