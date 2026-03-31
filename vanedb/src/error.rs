@@ -5,6 +5,9 @@ pub enum VaneError {
     NotFound { id: u64 },
     DuplicateId { id: u64 },
     InvalidK,
+    IndexFull,
+    InvalidParameter(&'static str),
+    Io(String),
 }
 
 impl std::fmt::Display for VaneError {
@@ -17,6 +20,9 @@ impl std::fmt::Display for VaneError {
             Self::NotFound { id } => write!(f, "vector not found: {id}"),
             Self::DuplicateId { id } => write!(f, "duplicate id: {id}"),
             Self::InvalidK => write!(f, "k must be > 0"),
+            Self::IndexFull => write!(f, "index is full"),
+            Self::InvalidParameter(msg) => write!(f, "invalid parameter: {msg}"),
+            Self::Io(msg) => write!(f, "I/O error: {msg}"),
         }
     }
 }
@@ -48,5 +54,16 @@ mod tests {
     fn error_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<VaneError>();
+    }
+
+    #[test]
+    fn error_display_index_full() {
+        assert_eq!(VaneError::IndexFull.to_string(), "index is full");
+    }
+
+    #[test]
+    fn error_display_invalid_parameter() {
+        let err = VaneError::InvalidParameter("M must be >= 2");
+        assert_eq!(err.to_string(), "invalid parameter: M must be >= 2");
     }
 }
