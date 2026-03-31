@@ -341,6 +341,7 @@ impl HnswIndex {
 
     /// Beam search on a single graph layer.
     /// Returns results sorted by distance ascending.
+    #[allow(clippy::too_many_arguments)]
     fn search_layer(
         vectors: &[f32],
         dist_fn: DistanceFn,

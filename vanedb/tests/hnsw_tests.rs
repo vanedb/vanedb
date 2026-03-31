@@ -116,3 +116,44 @@ fn hnsw_save_load_roundtrip() {
     // Cleanup
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn hnsw_concurrent_search() {
+    use std::sync::Arc;
+    use std::thread;
+
+    let idx = Arc::new(
+        HnswIndex::builder(8, DistanceMetric::L2)
+            .capacity(200)
+            .seed(42)
+            .build()
+            .unwrap(),
+    );
+
+    // Add vectors sequentially
+    for i in 0..100u64 {
+        let v: Vec<f32> = (0..8).map(|d| (i + d as u64) as f32).collect();
+        idx.add(i, &v).unwrap();
+    }
+
+    // 10 concurrent search threads
+    let mut handles = vec![];
+    for t in 0..10u64 {
+        let idx = Arc::clone(&idx);
+        handles.push(thread::spawn(move || {
+            let query: Vec<f32> = (0..8).map(|d| (t * 10 + d as u64) as f32).collect();
+            let results = idx.search(&query, 5).unwrap();
+            assert_eq!(results.len(), 5);
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+}
+
+#[test]
+fn hnsw_is_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<HnswIndex>();
+}
