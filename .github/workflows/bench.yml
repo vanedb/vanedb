@@ -1,0 +1,39 @@
+name: Benchmark
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install critcmp
+        run: cargo install critcmp
+
+      - name: Benchmark (PR branch)
+        run: cargo bench -- --save-baseline pr
+
+      - name: Checkout main
+        run: git checkout origin/main
+
+      - name: Benchmark (main baseline)
+        run: cargo bench -- --save-baseline main
+
+      - name: Compare benchmarks
+        run: |
+          echo "## Benchmark Comparison (main vs PR)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          critcmp main pr >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          critcmp main pr --threshold 5
