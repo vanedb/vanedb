@@ -21,3 +21,16 @@ bincode = "1.3"
 
 [dev-dependencies]
 proptest = "1.6"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "distance_bench"
+harness = false
+
+[[bench]]
+name = "store_bench"
+harness = false
+
+[[bench]]
+name = "hnsw_bench"
+harness = false
