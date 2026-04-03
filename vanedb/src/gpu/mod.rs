@@ -3,6 +3,9 @@ pub mod cuda;
 #[cfg(feature = "gpu-metal")]
 pub mod metal;
 
+#[cfg(feature = "gpu-metal")]
+pub use self::metal::MetalCompute;
+
 use crate::distance::DistanceMetric;
 
 /// GPU distance metric (maps from DistanceMetric).
