@@ -1,5 +1,7 @@
 pub mod distance;
 pub mod error;
+#[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
+pub mod gpu;
 pub mod hnsw;
 #[cfg(feature = "mmap")]
 pub mod mmap;
