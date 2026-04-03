@@ -134,7 +134,7 @@ impl MetalCompute {
     /// Upload vectors to GPU memory. Vectors is a flat array of n * dim floats.
     /// Dimension must be divisible by 4.
     pub fn upload(&self, vectors: &[f32], n: usize, dim: usize) -> Result<GpuBuffer> {
-        if dim % 4 != 0 {
+        if !dim.is_multiple_of(4) {
             return Err(VaneError::InvalidParameter("GPU requires dim % 4 == 0"));
         }
         if vectors.len() != n * dim {
@@ -145,7 +145,7 @@ impl MetalCompute {
         }
         let buffer = self.device.new_buffer_with_data(
             vectors.as_ptr() as *const _,
-            (vectors.len() * std::mem::size_of::<f32>()) as NSUInteger,
+            std::mem::size_of_val(vectors) as NSUInteger,
             MTLResourceOptions::StorageModeShared,
         );
         Ok(GpuBuffer { buffer, n, dim })
