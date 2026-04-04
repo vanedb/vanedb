@@ -2,6 +2,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use ::vanedb::distance::DistanceMetric;
+use ::vanedb::hnsw::HnswIndex;
 use ::vanedb::store::VectorStore;
 use ::vanedb::VaneError;
 
@@ -74,10 +75,91 @@ impl PyVectorStore {
     }
 }
 
+/// HNSW approximate nearest-neighbor index.
+#[pyclass]
+struct PyHnswIndex {
+    inner: HnswIndex,
+}
+
+#[pymethods]
+impl PyHnswIndex {
+    #[new]
+    #[pyo3(signature = (dim, metric=PyDistanceMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
+    fn new(
+        dim: usize,
+        metric: PyDistanceMetric,
+        capacity: usize,
+        m: usize,
+        ef_construction: usize,
+        seed: u64,
+    ) -> PyResult<Self> {
+        let inner = HnswIndex::builder(dim, metric.into())
+            .capacity(capacity)
+            .m(m)
+            .ef_construction(ef_construction)
+            .seed(seed)
+            .build()
+            .map_err(to_pyerr)?;
+        Ok(Self { inner })
+    }
+
+    fn add(&self, id: u64, vector: Vec<f32>) -> PyResult<()> {
+        self.inner.add(id, &vector).map_err(to_pyerr)
+    }
+
+    fn search(&self, query: Vec<f32>, k: usize) -> PyResult<Vec<(u64, f32)>> {
+        let results = self.inner.search(&query, k).map_err(to_pyerr)?;
+        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+    }
+
+    fn get_vector(&self, id: u64) -> PyResult<Vec<f32>> {
+        self.inner.get_vector(id).map_err(to_pyerr)
+    }
+
+    fn contains(&self, id: u64) -> bool {
+        self.inner.contains(id)
+    }
+
+    fn save(&self, path: &str) -> PyResult<()> {
+        self.inner.save(path).map_err(to_pyerr)
+    }
+
+    #[staticmethod]
+    fn load(path: &str) -> PyResult<Self> {
+        let inner = HnswIndex::load(path).map_err(to_pyerr)?;
+        Ok(Self { inner })
+    }
+
+    #[getter]
+    fn ef_search(&self) -> usize {
+        self.inner.get_ef_search()
+    }
+
+    #[setter]
+    fn set_ef_search(&self, ef: usize) {
+        self.inner.set_ef_search(ef);
+    }
+
+    fn __len__(&self) -> usize {
+        self.inner.size()
+    }
+
+    #[getter]
+    fn dimension(&self) -> usize {
+        self.inner.dimension()
+    }
+
+    #[getter]
+    fn capacity(&self) -> usize {
+        self.inner.capacity()
+    }
+}
+
 #[pymodule]
 fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.1.0")?;
     m.add_class::<PyDistanceMetric>()?;
     m.add_class::<PyVectorStore>()?;
+    m.add_class::<PyHnswIndex>()?;
     Ok(())
 }
