@@ -1,0 +1,13 @@
+[package]
+name = "vanedb-py"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "vanedb"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+vanedb = { path = "../vanedb" }
