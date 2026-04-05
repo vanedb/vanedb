@@ -1,6 +1,9 @@
 /target
 Cargo.lock
 
+# WASM build output
+vanedb-wasm/pkg/
+
 # Python
 __pycache__/
 *.py[cod]
