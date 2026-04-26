@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use parking_lot::RwLock;
 
-use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
+use crate::distance::DistanceMetric;
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
 pub struct VectorStore {
     dim: usize,
     metric: DistanceMetric,
-    dist_fn: DistanceFn,
     inner: RwLock<Inner>,
 }
 
@@ -27,7 +26,6 @@ impl VectorStore {
         Ok(Self {
             dim,
             metric,
-            dist_fn: distance_fn(metric),
             inner: RwLock::new(Inner {
                 ids: Vec::new(),
                 data: Vec::new(),
@@ -124,16 +122,37 @@ impl VectorStore {
             return Ok(Vec::new());
         }
 
-        let mut results: Vec<SearchResult> = (0..n)
-            .map(|i| {
-                let start = i * self.dim;
-                let vec = &inner.data[start..start + self.dim];
-                SearchResult::new(inner.ids[i], (self.dist_fn)(query, vec))
-            })
-            .collect();
+        use crate::distance as d;
+        let mut results: Vec<SearchResult> = match self.metric {
+            DistanceMetric::L2 => (0..n)
+                .map(|i| {
+                    let start = i * self.dim;
+                    let vec = &inner.data[start..start + self.dim];
+                    SearchResult::new(inner.ids[i], d::l2_squared(query, vec))
+                })
+                .collect(),
+            DistanceMetric::Cosine => (0..n)
+                .map(|i| {
+                    let start = i * self.dim;
+                    let vec = &inner.data[start..start + self.dim];
+                    SearchResult::new(inner.ids[i], d::cosine_distance(query, vec))
+                })
+                .collect(),
+            DistanceMetric::Dot => (0..n)
+                .map(|i| {
+                    let start = i * self.dim;
+                    let vec = &inner.data[start..start + self.dim];
+                    SearchResult::new(inner.ids[i], d::dot_distance(query, vec))
+                })
+                .collect(),
+        };
 
+        let m = k.min(results.len());
+        if m > 0 && m < results.len() {
+            results.select_nth_unstable(m - 1);
+            results.truncate(m);
+        }
         results.sort();
-        results.truncate(k);
         Ok(results)
     }
 }
