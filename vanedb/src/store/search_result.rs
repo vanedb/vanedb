@@ -23,9 +23,12 @@ impl PartialOrd for SearchResult {
 
 impl Ord for SearchResult {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Tie-break by id so unstable top-k (select_nth_unstable) is deterministic
+        // and ties resolve to the lowest id, matching the GPU path.
         self.distance
             .partial_cmp(&other.distance)
             .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| self.id.cmp(&other.id))
     }
 }
 

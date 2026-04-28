@@ -237,7 +237,7 @@ impl HnswIndex {
                                 (d, n)
                             })
                             .collect();
-                        candidates.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+                        candidates.sort_by_key(|a| FloatOrd(a.0));
                         let pruned = Self::select_neighbors(
                             &inner.vectors,
                             self.dist_fn,
@@ -406,7 +406,7 @@ impl HnswIndex {
             .into_iter()
             .map(|(FloatOrd(d), id)| (d, id))
             .collect();
-        result_vec.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+        result_vec.sort_by_key(|a| FloatOrd(a.0));
         result_vec
     }
 
@@ -423,7 +423,7 @@ impl HnswIndex {
         }
 
         let mut sorted = candidates.to_vec();
-        sorted.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+        sorted.sort_by_key(|a| FloatOrd(a.0));
 
         let mut selected: Vec<(f32, usize)> = Vec::with_capacity(m);
         let mut remaining: Vec<(f32, usize)> = Vec::new();
