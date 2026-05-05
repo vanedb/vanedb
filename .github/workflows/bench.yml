@@ -21,14 +21,17 @@ jobs:
       - name: Install critcmp
         run: cargo install critcmp
 
+      # Pass explicit --bench targets so cargo bench skips the lib's
+      # libtest harness (which doesn't accept --save-baseline) regardless
+      # of Cargo.toml settings on either branch.
       - name: Benchmark (PR branch)
-        run: cargo bench -- --save-baseline pr
+        run: cargo bench --bench distance_bench --bench store_bench --bench hnsw_bench -- --save-baseline pr
 
       - name: Checkout main
         run: git checkout origin/main
 
       - name: Benchmark (main baseline)
-        run: cargo bench -- --save-baseline main
+        run: cargo bench --bench distance_bench --bench store_bench --bench hnsw_bench -- --save-baseline main
 
       - name: Compare benchmarks
         run: |
