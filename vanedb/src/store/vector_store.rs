@@ -123,34 +123,22 @@ impl VectorStore {
         }
 
         use crate::distance as d;
+        let vecs = inner.data.chunks_exact(self.dim).zip(&inner.ids);
         let mut results: Vec<SearchResult> = match self.metric {
-            DistanceMetric::L2 => (0..n)
-                .map(|i| {
-                    let start = i * self.dim;
-                    let vec = &inner.data[start..start + self.dim];
-                    SearchResult::new(inner.ids[i], d::l2_squared(query, vec))
-                })
+            DistanceMetric::L2 => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::l2_squared(query, v)))
                 .collect(),
-            DistanceMetric::Cosine => (0..n)
-                .map(|i| {
-                    let start = i * self.dim;
-                    let vec = &inner.data[start..start + self.dim];
-                    SearchResult::new(inner.ids[i], d::cosine_distance(query, vec))
-                })
+            DistanceMetric::Cosine => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::cosine_distance(query, v)))
                 .collect(),
-            DistanceMetric::Dot => (0..n)
-                .map(|i| {
-                    let start = i * self.dim;
-                    let vec = &inner.data[start..start + self.dim];
-                    SearchResult::new(inner.ids[i], d::dot_distance(query, vec))
-                })
+            DistanceMetric::Dot => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::dot_distance(query, v)))
                 .collect(),
         };
 
-        let m = k.min(results.len());
-        if m > 0 && m < results.len() {
-            results.select_nth_unstable(m - 1);
-            results.truncate(m);
+        if k < results.len() {
+            results.select_nth_unstable(k - 1);
+            results.truncate(k);
         }
         results.sort();
         Ok(results)
