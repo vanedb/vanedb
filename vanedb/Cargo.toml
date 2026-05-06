@@ -29,6 +29,8 @@ proptest = "1.6"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [lib]
+# Skip the libtest harness under `cargo bench`; it doesn't accept criterion
+# CLI flags like --save-baseline that the [[bench]] targets need.
 bench = false
 
 [[bench]]

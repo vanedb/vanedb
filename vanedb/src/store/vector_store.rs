@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use parking_lot::RwLock;
 
-use crate::distance::DistanceMetric;
+use crate::distance::{self as d, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
@@ -122,7 +122,7 @@ impl VectorStore {
             return Ok(Vec::new());
         }
 
-        use crate::distance as d;
+        debug_assert_eq!(inner.data.len(), n * self.dim);
         let vecs = inner.data.chunks_exact(self.dim).zip(&inner.ids);
         let mut results: Vec<SearchResult> = match self.metric {
             DistanceMetric::L2 => vecs
@@ -140,7 +140,7 @@ impl VectorStore {
             results.select_nth_unstable(k - 1);
             results.truncate(k);
         }
-        results.sort();
+        results.sort_unstable();
         Ok(results)
     }
 }
