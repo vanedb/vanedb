@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,6 +12,52 @@ use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
 mod persistence;
+
+// Versioned thread-local visited tracker. `marks[i] == epoch` means visited;
+// the epoch is bumped each `search_layer` call, so the per-search work stays
+// O(visited) instead of O(N) (which a fresh-bitmap-per-call or HashSet
+// becomes at scale). On the rare epoch wrap (every 65k searches with u16
+// the buffer is reset once. Buffer is shared across HnswIndex instances on
+// a thread (monotonic epoch keeps cross-index marks distinct) and is
+// retained across calls so we pay the allocation cost at most once.
+//
+// Mirrors the optimization in vanedb-cpp src/core/hnsw_index.h.
+thread_local! {
+    static VISITED: RefCell<VisitedBuffer> = const { RefCell::new(VisitedBuffer::new()) };
+}
+
+struct VisitedBuffer {
+    marks: Vec<u16>,
+    epoch: u16,
+}
+
+impl VisitedBuffer {
+    const fn new() -> Self {
+        Self {
+            marks: Vec::new(),
+            epoch: 0,
+        }
+    }
+
+    /// Begin a new search pass over `total` nodes. Returns the epoch tag for
+    /// this call; callers compare `marks[i] == ep` to test visited.
+    fn begin(&mut self, total: usize) -> u16 {
+        if self.marks.len() < total {
+            self.marks.resize(total, 0);
+        }
+        self.epoch = self.epoch.wrapping_add(1);
+        if self.epoch == 0 {
+            // Wrap: zero the active range so stale marks can't masquerade as
+            // current. uint16 wraps every 65536 searches, frequently enough
+            // that a real test exercises this path.
+            for m in self.marks.iter_mut().take(total) {
+                *m = 0;
+            }
+            self.epoch = 1;
+        }
+        self.epoch
+    }
+}
 
 /// Wrapper for f32 that implements Ord (needed for BinaryHeap).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,7 +79,7 @@ impl Ord for FloatOrd {
     }
 }
 
-const MAX_LEVEL: i32 = 32;
+pub(super) const MAX_LEVEL: i32 = 32;
 const MIN_LEVEL_RANDOM: f64 = 1e-9;
 
 pub struct HnswIndex {
@@ -46,6 +93,9 @@ pub struct HnswIndex {
     pub(super) ef_construction: usize,
     pub(super) ef_search: AtomicUsize,
     pub(super) mult: f64,
+    /// Original RNG seed; persisted on save and used to deterministically
+    /// rewind the RNG to its post-`count`-inserts state on load.
+    pub(super) seed: u64,
     pub(super) inner: RwLock<Inner>,
 }
 
@@ -203,6 +253,7 @@ impl HnswIndex {
                 ep_for_layer,
                 self.ef_construction,
                 lev,
+                inner.count,
             );
 
             let m_for_layer = if lev == 0 { self.m_max0 } else { self.m_max };
@@ -237,7 +288,7 @@ impl HnswIndex {
                                 (d, n)
                             })
                             .collect();
-                        candidates.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+                        candidates.sort_by_key(|a| FloatOrd(a.0));
                         let pruned = Self::select_neighbors(
                             &inner.vectors,
                             self.dist_fn,
@@ -313,6 +364,7 @@ impl HnswIndex {
             curr,
             ef,
             0,
+            inner.count,
         );
 
         let mut results: Vec<SearchResult> = top
@@ -326,7 +378,7 @@ impl HnswIndex {
     }
 
     /// Generate a random level using exponential distribution.
-    fn get_level(rng: &mut StdRng, mult: f64) -> i32 {
+    pub(super) fn get_level(rng: &mut StdRng, mult: f64) -> i32 {
         use rand::Rng;
         let r: f64 = rng.random::<f64>().max(MIN_LEVEL_RANDOM);
         let level = (-r.ln() * mult) as i32;
@@ -341,6 +393,9 @@ impl HnswIndex {
 
     /// Beam search on a single graph layer.
     /// Returns results sorted by distance ascending.
+    ///
+    /// `total` is the number of live nodes (== `inner.count`) and bounds the
+    /// thread-local visited bitmap. Caller must guarantee `entry < total`.
     #[allow(clippy::too_many_arguments)]
     fn search_layer(
         vectors: &[f32],
@@ -351,63 +406,70 @@ impl HnswIndex {
         entry: usize,
         ef: usize,
         level: usize,
+        total: usize,
     ) -> Vec<(f32, usize)> {
-        let entry_dist = dist_fn(Self::get_vec(vectors, entry, dim), query);
+        debug_assert!(entry < total, "search_layer: entry out of range");
 
-        // Min-heap of candidates (closest first)
-        let mut candidates: BinaryHeap<Reverse<(FloatOrd, usize)>> = BinaryHeap::new();
-        candidates.push(Reverse((FloatOrd(entry_dist), entry)));
+        VISITED.with_borrow_mut(|vb| {
+            let epoch = vb.begin(total);
 
-        // Max-heap of results (farthest first, capped at ef)
-        let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
-        results.push((FloatOrd(entry_dist), entry));
+            let entry_dist = dist_fn(Self::get_vec(vectors, entry, dim), query);
 
-        let mut visited = HashSet::new();
-        visited.insert(entry);
+            // Min-heap of candidates (closest first)
+            let mut candidates: BinaryHeap<Reverse<(FloatOrd, usize)>> = BinaryHeap::new();
+            candidates.push(Reverse((FloatOrd(entry_dist), entry)));
 
-        while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
-            // Stop if closest candidate is farther than farthest result
-            if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
-                if c_dist > f_dist {
-                    break;
+            // Max-heap of results (farthest first, capped at ef)
+            let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
+            results.push((FloatOrd(entry_dist), entry));
+
+            vb.marks[entry] = epoch;
+
+            while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
+                // Stop if closest candidate is farther than farthest result
+                if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                    if c_dist > f_dist {
+                        break;
+                    }
                 }
-            }
 
-            // Expand candidate's neighbors at this layer
-            let nb_list = neighbors[c_id].get(level).cloned().unwrap_or_default();
-            for &nb in &nb_list {
-                if visited.contains(&nb) {
+                let Some(nb_list) = neighbors[c_id].get(level) else {
                     continue;
-                }
-                visited.insert(nb);
-
-                let nb_dist = dist_fn(Self::get_vec(vectors, nb, dim), query);
-
-                let should_add = if results.len() < ef {
-                    true
-                } else if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
-                    nb_dist < f_dist
-                } else {
-                    true
                 };
+                for &nb in nb_list {
+                    if vb.marks[nb] == epoch {
+                        continue;
+                    }
+                    vb.marks[nb] = epoch;
 
-                if should_add {
-                    candidates.push(Reverse((FloatOrd(nb_dist), nb)));
-                    results.push((FloatOrd(nb_dist), nb));
-                    if results.len() > ef {
-                        results.pop();
+                    let nb_dist = dist_fn(Self::get_vec(vectors, nb, dim), query);
+
+                    let should_add = if results.len() < ef {
+                        true
+                    } else if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                        nb_dist < f_dist
+                    } else {
+                        true
+                    };
+
+                    if should_add {
+                        candidates.push(Reverse((FloatOrd(nb_dist), nb)));
+                        results.push((FloatOrd(nb_dist), nb));
+                        if results.len() > ef {
+                            results.pop();
+                        }
                     }
                 }
             }
-        }
 
-        // Convert to sorted vec (ascending distance)
-        let mut result_vec: Vec<(f32, usize)> = results
-            .into_iter()
-            .map(|(FloatOrd(d), id)| (d, id))
-            .collect();
-        result_vec.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
-        result_vec
+            // Convert to sorted vec (ascending distance)
+            let mut result_vec: Vec<(f32, usize)> = results
+                .into_iter()
+                .map(|(FloatOrd(d), id)| (d, id))
+                .collect();
+            result_vec.sort_by_key(|a| FloatOrd(a.0));
+            result_vec
+        })
     }
 
     /// Heuristic neighbor selection (Algorithm 4 from HNSW paper).
@@ -423,7 +485,7 @@ impl HnswIndex {
         }
 
         let mut sorted = candidates.to_vec();
-        sorted.sort_by(|a, b| FloatOrd(a.0).cmp(&FloatOrd(b.0)));
+        sorted.sort_by_key(|a| FloatOrd(a.0));
 
         let mut selected: Vec<(f32, usize)> = Vec::with_capacity(m);
         let mut remaining: Vec<(f32, usize)> = Vec::new();
@@ -514,6 +576,7 @@ impl HnswIndexBuilder {
             ef_construction,
             ef_search: AtomicUsize::new(50),
             mult,
+            seed: self.seed,
             inner: RwLock::new(Inner {
                 vectors: vec![0.0; self.capacity * self.dim],
                 ext_ids: vec![0; self.capacity],

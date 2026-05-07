@@ -105,6 +105,11 @@ impl MmapVectorStoreBuilder {
 
         f.flush()
             .map_err(|e| VaneError::Io(format!("flush: {e}")))?;
+        // Durability: fsync data + metadata before rename so a crash mid-write
+        // can't leave a half-written file in place. Mirrors fsync_file in
+        // vanedb-cpp src/core/detail/file_utils.h.
+        f.sync_all()
+            .map_err(|e| VaneError::Io(format!("sync: {e}")))?;
         drop(f);
 
         fs::rename(&tmp, path).map_err(|e| VaneError::Io(format!("rename: {e}")))?;
