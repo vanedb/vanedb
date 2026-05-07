@@ -157,3 +157,38 @@ fn hnsw_is_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<HnswIndex>();
 }
+
+/// Drive the thread-local visited bitmap through at least one u16 epoch wrap
+/// (~65k searches) and verify the zero-out fallback path still produces
+/// correct nearest-neighbor results. Mirrors the wrap test from
+/// vanedb-cpp PR #8 ("search_layer epoch wrap").
+#[test]
+fn hnsw_visited_bitmap_epoch_wrap_correctness() {
+    let dim = 4;
+    let n = 100usize;
+    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+        .capacity(n)
+        .seed(42)
+        .build()
+        .unwrap();
+    for i in 0..n as u64 {
+        let v: Vec<f32> = (0..dim).map(|d| (i + d as u64) as f32).collect();
+        idx.add(i, &v).unwrap();
+    }
+
+    // First search establishes a baseline before any wrap.
+    let query: Vec<f32> = vec![5.0, 5.0, 5.0, 5.0];
+    let baseline = idx.search(&query, 5).unwrap();
+
+    // Drive the per-thread epoch counter past the u16 boundary. 70_000 searches
+    // wraps once and exercises the zero-out fallback inside `VisitedBuffer::begin`.
+    for _ in 0..70_000 {
+        let _ = idx.search(&query, 5).unwrap();
+    }
+
+    let after_wrap = idx.search(&query, 5).unwrap();
+    assert_eq!(baseline.len(), after_wrap.len());
+    for (a, b) in baseline.iter().zip(after_wrap.iter()) {
+        assert_eq!(a.id, b.id, "result drifted across epoch wrap");
+    }
+}
