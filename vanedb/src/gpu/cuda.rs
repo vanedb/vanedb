@@ -1,9 +1,15 @@
+//! EXPERIMENTAL / UNIMPLEMENTED: this is a stub. Every method returns an error.
+//! There is no NVIDIA hardware in CI to validate a real implementation, so CUDA
+//! is intentionally unimplemented. Metal (`gpu::metal`) is the supported GPU path.
+//! Mirrors the dormant `cuda_distance.cuh` in the C++ implementation — neither
+//! has a working CUDA backend today.
+
 use crate::error::{Result, VaneError};
 use crate::gpu::GpuMetric;
 use crate::store::SearchResult;
 
-/// CUDA GPU compute for distance calculations.
-/// Requires NVIDIA GPU with CUDA toolkit installed.
+/// Unimplemented CUDA compute stub. Construction always fails — see the module
+/// docs. Requires NVIDIA GPU + CUDA toolkit and a real implementation first.
 pub struct CudaCompute {
     _private: (),
 }
