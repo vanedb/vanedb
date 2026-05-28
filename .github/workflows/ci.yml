@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: every job here only reads the repo and runs builds/tests.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -57,3 +61,32 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Test WASM
         run: cd vanedb-wasm && wasm-pack test --node
+
+  build-ios:
+    name: Build (iOS arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      # Cross-compile only: there is no iOS test runner, mirroring the
+      # build-only verification the C++ repo uses for mobile.
+      - run: cargo build -p vanedb --target aarch64-apple-ios --features mmap --release
+
+  build-android:
+    name: Build (Android arm64-v8a, x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Cross-compile core for Android
+        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features mmap --release
