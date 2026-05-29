@@ -35,3 +35,43 @@ pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim
     // return the raw product to match vanedb_cpp_dot_product, which returns +a·b.
     -distance_fn(DistanceMetric::Dot)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut VectorStore {
+    match VectorStore::new(dim, to_metric(metric)) {
+        Ok(s) => Box::into_raw(Box::new(s)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_add(s: *mut VectorStore, id: u64, v: *const f32) -> i32 {
+    if s.is_null() { return 1; }
+    let store = &*s;
+    let vec = slice::from_raw_parts(v, store.dimension());
+    match store.add(id, vec) { Ok(()) => 0, Err(_) => 1 }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_search(
+    s: *mut VectorStore, q: *const f32, k: usize, out_ids: *mut u64, out_dists: *mut f32,
+) -> usize {
+    if s.is_null() { return 0; }
+    let store = &*s;
+    let query = slice::from_raw_parts(q, store.dimension());
+    match store.search(query, k) {
+        Ok(res) => {
+            for (i, r) in res.iter().enumerate() {
+                *out_ids.add(i) = r.id;
+                *out_dists.add(i) = r.distance;
+            }
+            res.len()
+        }
+        Err(_) => 0,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut VectorStore) {
+    if !s.is_null() { drop(Box::from_raw(s)); }
+}
