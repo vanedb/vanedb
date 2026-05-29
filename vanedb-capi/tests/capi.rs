@@ -1,6 +1,42 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
 #[test]
+fn hnsw() {
+    let v0 = [0.0f32, 0.0];
+    let v1 = [1.0f32, 1.0];
+    let q = [0.1f32, 0.1];
+    let path = std::ffi::CString::new("rs_capi_hnsw.bin").unwrap();
+    unsafe {
+        let h = vanedb_capi::vanedb_rs_hnsw_new(2, 0, 100, 16, 200, 42);
+        assert!(!h.is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_add(h, 10, v0.as_ptr()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_add(h, 20, v1.as_ptr()), 0);
+        let mut ids = [0u64; 2];
+        let mut ds = [0.0f32; 2];
+        let n = vanedb_capi::vanedb_rs_hnsw_search(h, q.as_ptr(), 2, 50, ids.as_mut_ptr(), ds.as_mut_ptr());
+        assert_eq!(n, 2);
+        assert_eq!(ids[0], 10);
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_save(h, path.as_ptr()), 0);
+        vanedb_capi::vanedb_rs_hnsw_free(h);
+
+        let h2 = vanedb_capi::vanedb_rs_hnsw_load(path.as_ptr());
+        assert!(!h2.is_null());
+        let mut ids2 = [0u64; 1];
+        let mut ds2 = [0.0f32; 1];
+        let n2 = vanedb_capi::vanedb_rs_hnsw_search(h2, q.as_ptr(), 1, 50, ids2.as_mut_ptr(), ds2.as_mut_ptr());
+        assert_eq!(n2, 1);
+        assert_eq!(ids2[0], 10);
+        vanedb_capi::vanedb_rs_hnsw_free(h2);
+        // negative paths
+        assert!(vanedb_capi::vanedb_rs_hnsw_new(0, 0, 100, 16, 200, 42).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_add(std::ptr::null_mut(), 1, v0.as_ptr()), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_search(std::ptr::null_mut(), q.as_ptr(), 1, 50, ids2.as_mut_ptr(), ds2.as_mut_ptr()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_hnsw_save(std::ptr::null_mut(), path.as_ptr()), 1);
+    }
+    let _ = std::fs::remove_file("rs_capi_hnsw.bin");
+}
+
+#[test]
 fn distance() {
     let a = [1.0f32, 2.0, 3.0, 4.0];
     let b = [1.0f32, 2.0, 3.0, 5.0];

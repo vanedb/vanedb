@@ -75,3 +75,70 @@ pub unsafe extern "C" fn vanedb_rs_store_search(
 pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut VectorStore) {
     if !s.is_null() { drop(Box::from_raw(s)); }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_new(
+    dim: usize, metric: u32, capacity: usize, m: usize, ef_construction: usize, seed: u64,
+) -> *mut HnswIndex {
+    match HnswIndex::builder(dim, to_metric(metric))
+        .capacity(capacity).m(m).ef_construction(ef_construction).seed(seed).build()
+    {
+        Ok(h) => Box::into_raw(Box::new(h)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_add(h: *mut HnswIndex, id: u64, v: *const f32) -> i32 {
+    if h.is_null() { return 1; }
+    let idx = &*h;
+    let vec = slice::from_raw_parts(v, idx.dimension());
+    match idx.add(id, vec) { Ok(()) => 0, Err(_) => 1 }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_search(
+    h: *mut HnswIndex, q: *const f32, k: usize, ef_search: usize,
+    out_ids: *mut u64, out_dists: *mut f32,
+) -> usize {
+    if h.is_null() { return 0; }
+    let idx = &*h;
+    idx.set_ef_search(ef_search);
+    let query = slice::from_raw_parts(q, idx.dimension());
+    match idx.search(query, k) {
+        Ok(res) => {
+            for (i, r) in res.iter().enumerate() {
+                *out_ids.add(i) = r.id;
+                *out_dists.add(i) = r.distance;
+            }
+            res.len()
+        }
+        Err(_) => 0,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_save(h: *mut HnswIndex, path: *const c_char) -> i32 {
+    if h.is_null() { return 1; }
+    let idx = &*h;
+    match CStr::from_ptr(path).to_str() {
+        Ok(p) => match idx.save(p) { Ok(()) => 0, Err(_) => 1 },
+        Err(_) => 1,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_load(path: *const c_char) -> *mut HnswIndex {
+    match CStr::from_ptr(path).to_str() {
+        Ok(p) => match HnswIndex::load(p) {
+            Ok(h) => Box::into_raw(Box::new(h)),
+            Err(_) => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_free(h: *mut HnswIndex) {
+    if !h.is_null() { drop(Box::from_raw(h)); }
+}
