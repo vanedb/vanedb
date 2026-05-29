@@ -17,3 +17,21 @@ fn to_metric(m: u32) -> DistanceMetric {
         _ => DistanceMetric::L2,
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_l2_sq(a: *const f32, b: *const f32, dim: usize) -> f32 {
+    distance_fn(DistanceMetric::L2)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_cosine_distance(a: *const f32, b: *const f32, dim: usize) -> f32 {
+    distance_fn(DistanceMetric::Cosine)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim: usize) -> f32 {
+    // Negate to get the raw inner product (+a·b). The core's distance_fn(Dot) returns the
+    // negated distance form (-a·b, lower=closer) for search ranking. This C ABI function must
+    // return the raw product to match vanedb_cpp_dot_product, which returns +a·b.
+    -distance_fn(DistanceMetric::Dot)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
+}
