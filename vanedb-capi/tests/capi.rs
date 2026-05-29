@@ -13,7 +13,14 @@ fn hnsw() {
         assert_eq!(vanedb_capi::vanedb_rs_hnsw_add(h, 20, v1.as_ptr()), 0);
         let mut ids = [0u64; 2];
         let mut ds = [0.0f32; 2];
-        let n = vanedb_capi::vanedb_rs_hnsw_search(h, q.as_ptr(), 2, 50, ids.as_mut_ptr(), ds.as_mut_ptr());
+        let n = vanedb_capi::vanedb_rs_hnsw_search(
+            h,
+            q.as_ptr(),
+            2,
+            50,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10);
         assert_eq!(vanedb_capi::vanedb_rs_hnsw_save(h, path.as_ptr()), 0);
@@ -23,15 +30,38 @@ fn hnsw() {
         assert!(!h2.is_null());
         let mut ids2 = [0u64; 1];
         let mut ds2 = [0.0f32; 1];
-        let n2 = vanedb_capi::vanedb_rs_hnsw_search(h2, q.as_ptr(), 1, 50, ids2.as_mut_ptr(), ds2.as_mut_ptr());
+        let n2 = vanedb_capi::vanedb_rs_hnsw_search(
+            h2,
+            q.as_ptr(),
+            1,
+            50,
+            ids2.as_mut_ptr(),
+            ds2.as_mut_ptr(),
+        );
         assert_eq!(n2, 1);
         assert_eq!(ids2[0], 10);
         vanedb_capi::vanedb_rs_hnsw_free(h2);
         // negative paths
         assert!(vanedb_capi::vanedb_rs_hnsw_new(0, 0, 100, 16, 200, 42).is_null());
-        assert_eq!(vanedb_capi::vanedb_rs_hnsw_add(std::ptr::null_mut(), 1, v0.as_ptr()), 1);
-        assert_eq!(vanedb_capi::vanedb_rs_hnsw_search(std::ptr::null_mut(), q.as_ptr(), 1, 50, ids2.as_mut_ptr(), ds2.as_mut_ptr()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_hnsw_save(std::ptr::null_mut(), path.as_ptr()), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add(std::ptr::null_mut(), 1, v0.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_search(
+                std::ptr::null_mut(),
+                q.as_ptr(),
+                1,
+                50,
+                ids2.as_mut_ptr(),
+                ds2.as_mut_ptr()
+            ),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_save(std::ptr::null_mut(), path.as_ptr()),
+            1
+        );
     }
     let _ = std::fs::remove_file("rs_capi_hnsw.bin");
 }
@@ -44,19 +74,36 @@ fn mmap() {
     let path = std::ffi::CString::new("rs_capi_mmap.bin").unwrap();
     unsafe {
         assert_eq!(
-            vanedb_capi::vanedb_rs_mmap_build(path.as_ptr(), 2, 0, ids_in.as_ptr(), vecs.as_ptr(), 2),
+            vanedb_capi::vanedb_rs_mmap_build(
+                path.as_ptr(),
+                2,
+                0,
+                ids_in.as_ptr(),
+                vecs.as_ptr(),
+                2
+            ),
             0
         );
         let m = vanedb_capi::vanedb_rs_mmap_open(path.as_ptr());
         assert!(!m.is_null());
         let mut ids = [0u64; 2];
         let mut ds = [0.0f32; 2];
-        let n = vanedb_capi::vanedb_rs_mmap_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
+        let n =
+            vanedb_capi::vanedb_rs_mmap_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10);
         vanedb_capi::vanedb_rs_mmap_free(m);
         // negative path
-        assert_eq!(vanedb_capi::vanedb_rs_mmap_search(std::ptr::null_mut(), q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr()), 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_mmap_search(
+                std::ptr::null_mut(),
+                q.as_ptr(),
+                2,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
+            0
+        );
     }
     let _ = std::fs::remove_file("rs_capi_mmap.bin");
 }
@@ -87,14 +134,32 @@ fn store() {
         assert_eq!(vanedb_capi::vanedb_rs_store_add(s, 20, v1.as_ptr()), 0);
         let mut ids = [0u64; 2];
         let mut ds = [0.0f32; 2];
-        let n = vanedb_capi::vanedb_rs_store_search(s, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
+        let n = vanedb_capi::vanedb_rs_store_search(
+            s,
+            q.as_ptr(),
+            2,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10); // (0,0) nearest to (0.1,0.1)
         assert!(ds[0] <= ds[1]);
         vanedb_capi::vanedb_rs_store_free(s);
         // negative paths (parity with C++ null guards)
         assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null()); // dim=0 => Err => null
-        assert_eq!(vanedb_capi::vanedb_rs_store_add(std::ptr::null_mut(), 1, v0.as_ptr()), 1);
-        assert_eq!(vanedb_capi::vanedb_rs_store_search(std::ptr::null_mut(), q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr()), 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(std::ptr::null_mut(), 1, v0.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_search(
+                std::ptr::null_mut(),
+                q.as_ptr(),
+                2,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
+            0
+        );
     }
 }
