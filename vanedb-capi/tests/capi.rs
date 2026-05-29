@@ -37,6 +37,31 @@ fn hnsw() {
 }
 
 #[test]
+fn mmap() {
+    let ids_in = [10u64, 20];
+    let vecs = [0.0f32, 0.0, 1.0, 1.0]; // row-major: id10=(0,0), id20=(1,1)
+    let q = [0.1f32, 0.1];
+    let path = std::ffi::CString::new("rs_capi_mmap.bin").unwrap();
+    unsafe {
+        assert_eq!(
+            vanedb_capi::vanedb_rs_mmap_build(path.as_ptr(), 2, 0, ids_in.as_ptr(), vecs.as_ptr(), 2),
+            0
+        );
+        let m = vanedb_capi::vanedb_rs_mmap_open(path.as_ptr());
+        assert!(!m.is_null());
+        let mut ids = [0u64; 2];
+        let mut ds = [0.0f32; 2];
+        let n = vanedb_capi::vanedb_rs_mmap_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
+        assert_eq!(n, 2);
+        assert_eq!(ids[0], 10);
+        vanedb_capi::vanedb_rs_mmap_free(m);
+        // negative path
+        assert_eq!(vanedb_capi::vanedb_rs_mmap_search(std::ptr::null_mut(), q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr()), 0);
+    }
+    let _ = std::fs::remove_file("rs_capi_mmap.bin");
+}
+
+#[test]
 fn distance() {
     let a = [1.0f32, 2.0, 3.0, 4.0];
     let b = [1.0f32, 2.0, 3.0, 5.0];

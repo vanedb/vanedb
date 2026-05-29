@@ -142,3 +142,55 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_load(path: *const c_char) -> *mut HnswIn
 pub unsafe extern "C" fn vanedb_rs_hnsw_free(h: *mut HnswIndex) {
     if !h.is_null() { drop(Box::from_raw(h)); }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_mmap_build(
+    path: *const c_char, dim: usize, metric: u32,
+    ids: *const u64, vecs: *const f32, n: usize,
+) -> i32 {
+    let p = match CStr::from_ptr(path).to_str() { Ok(s) => s, Err(_) => return 1 };
+    let mut b = match MmapVectorStoreBuilder::new(dim, to_metric(metric)) {
+        Ok(b) => b, Err(_) => return 1,
+    };
+    let id_slice = slice::from_raw_parts(ids, n);
+    for i in 0..n {
+        let v = slice::from_raw_parts(vecs.add(i * dim), dim);
+        if b.add(id_slice[i], v).is_err() { return 1; }
+    }
+    match b.save(p) { Ok(()) => 0, Err(_) => 1 }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_mmap_open(path: *const c_char) -> *mut MmapVectorStore {
+    match CStr::from_ptr(path).to_str() {
+        Ok(p) => match MmapVectorStore::open(p) {
+            Ok(m) => Box::into_raw(Box::new(m)),
+            Err(_) => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_mmap_search(
+    m: *mut MmapVectorStore, q: *const f32, k: usize, out_ids: *mut u64, out_dists: *mut f32,
+) -> usize {
+    if m.is_null() { return 0; }
+    let store = &*m;
+    let query = slice::from_raw_parts(q, store.dimension());
+    match store.search(query, k) {
+        Ok(res) => {
+            for (i, r) in res.iter().enumerate() {
+                *out_ids.add(i) = r.id;
+                *out_dists.add(i) = r.distance;
+            }
+            res.len()
+        }
+        Err(_) => 0,
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_mmap_free(m: *mut MmapVectorStore) {
+    if !m.is_null() { drop(Box::from_raw(m)); }
+}
