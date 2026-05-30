@@ -3,6 +3,7 @@
 //! ef_search — these match the parallel C++ ABI so a benchmark harness can call
 //! both through one uniform FFI. Inputs are valid by contract (the bench controls
 //! them); raw-pointer wrappers additionally null-guard handles.
+//! `to_metric` maps any unrecognized metric value to L2 (no error).
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::slice;
@@ -94,11 +95,12 @@ pub unsafe extern "C" fn vanedb_rs_store_search(
     let query = slice::from_raw_parts(q, store.dimension());
     match store.search(query, k) {
         Ok(res) => {
-            for (i, r) in res.iter().enumerate() {
+            let n = res.len().min(k);
+            for (i, r) in res.iter().take(k).enumerate() {
                 *out_ids.add(i) = r.id;
                 *out_dists.add(i) = r.distance;
             }
-            res.len()
+            n
         }
         Err(_) => 0,
     }
@@ -174,11 +176,12 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_search(
     let query = slice::from_raw_parts(q, idx.dimension());
     match idx.search(query, k) {
         Ok(res) => {
-            for (i, r) in res.iter().enumerate() {
+            let n = res.len().min(k);
+            for (i, r) in res.iter().take(k).enumerate() {
                 *out_ids.add(i) = r.id;
                 *out_dists.add(i) = r.distance;
             }
-            res.len()
+            n
         }
         Err(_) => 0,
     }
@@ -190,6 +193,9 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_search(
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_hnsw_save(h: *mut HnswIndex, path: *const c_char) -> i32 {
     if h.is_null() {
+        return 1;
+    }
+    if path.is_null() {
         return 1;
     }
     let idx = &*h;
@@ -207,6 +213,9 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_save(h: *mut HnswIndex, path: *const c_c
 /// that must be freed with `vanedb_rs_hnsw_free`.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_hnsw_load(path: *const c_char) -> *mut HnswIndex {
+    if path.is_null() {
+        return std::ptr::null_mut();
+    }
     match CStr::from_ptr(path).to_str() {
         Ok(p) => match HnswIndex::load(p) {
             Ok(h) => Box::into_raw(Box::new(h)),
@@ -238,6 +247,9 @@ pub unsafe extern "C" fn vanedb_rs_mmap_build(
     vecs: *const f32,
     n: usize,
 ) -> i32 {
+    if path.is_null() {
+        return 1;
+    }
     let p = match CStr::from_ptr(path).to_str() {
         Ok(s) => s,
         Err(_) => return 1,
@@ -264,6 +276,9 @@ pub unsafe extern "C" fn vanedb_rs_mmap_build(
 /// that must be freed with `vanedb_rs_mmap_free`.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_mmap_open(path: *const c_char) -> *mut MmapVectorStore {
+    if path.is_null() {
+        return std::ptr::null_mut();
+    }
     match CStr::from_ptr(path).to_str() {
         Ok(p) => match MmapVectorStore::open(p) {
             Ok(m) => Box::into_raw(Box::new(m)),
@@ -291,11 +306,12 @@ pub unsafe extern "C" fn vanedb_rs_mmap_search(
     let query = slice::from_raw_parts(q, store.dimension());
     match store.search(query, k) {
         Ok(res) => {
-            for (i, r) in res.iter().enumerate() {
+            let n = res.len().min(k);
+            for (i, r) in res.iter().take(k).enumerate() {
                 *out_ids.add(i) = r.id;
                 *out_dists.add(i) = r.distance;
             }
-            res.len()
+            n
         }
         Err(_) => 0,
     }

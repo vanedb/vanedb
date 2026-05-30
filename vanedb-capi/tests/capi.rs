@@ -1,6 +1,29 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
 #[test]
+fn null_path_guards() {
+    unsafe {
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_save(std::ptr::null_mut(), std::ptr::null()),
+            1
+        );
+        assert!(vanedb_capi::vanedb_rs_hnsw_load(std::ptr::null()).is_null());
+        assert_eq!(
+            vanedb_capi::vanedb_rs_mmap_build(
+                std::ptr::null(),
+                2,
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                0
+            ),
+            1
+        );
+        assert!(vanedb_capi::vanedb_rs_mmap_open(std::ptr::null()).is_null());
+    }
+}
+
+#[test]
 fn hnsw() {
     let v0 = [0.0f32, 0.0];
     let v1 = [1.0f32, 1.0];
