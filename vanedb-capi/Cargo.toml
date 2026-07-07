@@ -1,0 +1,13 @@
+[package]
+name = "vanedb-capi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+vanedb = { path = "../vanedb", features = ["mmap"] }
+
+[build-dependencies]
+cbindgen = "0.27"
