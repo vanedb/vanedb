@@ -31,7 +31,7 @@ pub fn distance_fn(metric: DistanceMetric) -> DistanceFn {
     }
 }
 
-fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
+pub(crate) fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     #[cfg(target_arch = "aarch64")]
     {
         neon::l2_squared(a, b)
@@ -50,7 +50,7 @@ fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
-fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
+pub(crate) fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     #[cfg(target_arch = "aarch64")]
     {
         neon::cosine_distance(a, b)
@@ -69,7 +69,7 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     }
 }
 
-fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
+pub(crate) fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
     #[cfg(target_arch = "aarch64")]
     {
         neon::dot_distance(a, b)
