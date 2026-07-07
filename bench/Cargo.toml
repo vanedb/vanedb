@@ -25,3 +25,7 @@ harness = false
 [[bench]]
 name = "mmap"
 harness = false
+
+[[bin]]
+name = "report"
+path = "src/bin/report.rs"
