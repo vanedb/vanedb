@@ -20,7 +20,11 @@ use crate::error::{Result, VaneError};
 /// compatibility with files written before the rename. Rust never shipped
 /// pre-rename, so we use a clean per-format magic.
 const MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
-const VERSION: u32 = 1;
+/// v1 stored the full pre-allocated arrays (`max_elements` entries even when
+/// only `count` were inserted). v2 stores only the `count` live entries and
+/// re-expands to `max_elements` on load (issue #18). v1 files remain loadable.
+const VERSION: u32 = 2;
+const V1: u32 = 1;
 const HEADER_LEN: usize = 8;
 
 #[derive(Serialize, Deserialize)]
@@ -83,10 +87,12 @@ impl HnswIndex {
             count: inner.count,
             entry_point: inner.entry_point,
             max_level: inner.max_level,
-            vectors: inner.vectors.clone(),
-            ext_ids: inner.ext_ids.clone(),
-            levels: inner.levels.clone(),
-            neighbors: inner.neighbors.clone(),
+            // v2: persist only the `count` live entries, not the full
+            // pre-allocated capacity; load() re-expands to max_elements.
+            vectors: inner.vectors[..inner.count * self.dim].to_vec(),
+            ext_ids: inner.ext_ids[..inner.count].to_vec(),
+            levels: inner.levels[..inner.count].to_vec(),
+            neighbors: inner.neighbors[..inner.count].to_vec(),
             id_map: inner.id_map.clone(),
         };
 
@@ -123,7 +129,7 @@ impl HnswIndex {
             return Err(VaneError::Io("invalid magic".to_string()));
         }
         let version = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
-        if version != VERSION {
+        if version != V1 && version != VERSION {
             return Err(VaneError::Io(format!("unsupported version: {version}")));
         }
 
@@ -190,10 +196,18 @@ impl HnswIndex {
                 ));
             }
         }
-        if data.neighbors.len() > data.max_elements {
-            return Err(VaneError::Io(
-                "corrupted file: neighbors size exceeds max_elements".to_string(),
-            ));
+        // Array lengths are version-specific: v1 stored full pre-allocated
+        // arrays, v2 stores only the `count` live entries.
+        let stored = if version == V1 {
+            data.max_elements
+        } else {
+            data.count
+        };
+        if data.neighbors.len() != stored {
+            return Err(VaneError::Io(format!(
+                "corrupted file: neighbors length {} != expected {stored}",
+                data.neighbors.len()
+            )));
         }
         for nbs in data.neighbors.iter().take(data.count) {
             if nbs.len() > (MAX_LEVEL as usize) + 1 {
@@ -211,20 +225,31 @@ impl HnswIndex {
                 }
             }
         }
-        let expected_vecs_len = data
+        let full_vecs_len = data
             .max_elements
             .checked_mul(data.dim)
             .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
-        if data.vectors.len() != expected_vecs_len {
+        if data.vectors.len() != stored * data.dim {
             return Err(VaneError::Io(
-                "corrupted file: vectors length != max_elements * dim".to_string(),
+                "corrupted file: vectors length != expected * dim".to_string(),
             ));
         }
-        if data.ext_ids.len() != data.max_elements || data.levels.len() != data.max_elements {
+        if data.ext_ids.len() != stored || data.levels.len() != stored {
             return Err(VaneError::Io(
-                "corrupted file: ext_ids/levels length != max_elements".to_string(),
+                "corrupted file: ext_ids/levels length != expected".to_string(),
             ));
         }
+
+        // Re-expand to the pre-allocated capacity layout Inner expects. For
+        // v1 the arrays are already full-length, so these are no-ops.
+        let mut vectors = data.vectors;
+        vectors.resize(full_vecs_len, 0.0);
+        let mut ext_ids = data.ext_ids;
+        ext_ids.resize(data.max_elements, 0);
+        let mut levels = data.levels;
+        levels.resize(data.max_elements, 0);
+        let mut neighbors = data.neighbors;
+        neighbors.resize_with(data.max_elements, Vec::new);
 
         // Reconstitute RNG: seed from the original seed, then advance through
         // `count` get_level calls so the next add() resumes the original
@@ -248,11 +273,11 @@ impl HnswIndex {
             mult: data.mult,
             seed: data.seed,
             inner: RwLock::new(Inner {
-                vectors: data.vectors,
-                ext_ids: data.ext_ids,
+                vectors,
+                ext_ids,
                 id_map: data.id_map,
-                levels: data.levels,
-                neighbors: data.neighbors,
+                levels,
+                neighbors,
                 entry_point: data.entry_point,
                 max_level: data.max_level,
                 count: data.count,

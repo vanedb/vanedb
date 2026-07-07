@@ -72,6 +72,31 @@ fn hnsw_cosine_search() {
 }
 
 #[test]
+fn hnsw_save_size_proportional_to_count_not_capacity() {
+    // Issue #18: a capacity-1000 index holding 10 vectors must not write
+    // ~capacity worth of data. 10 vectors x 32 dims x 4 bytes is ~1.3 KB of
+    // payload; 20 KB allows generous encoding overhead, while the full
+    // pre-allocated arrays would exceed 140 KB.
+    let path = std::env::temp_dir().join("vanedb_test_hnsw_compact.bin");
+    let idx = HnswIndex::builder(32, DistanceMetric::L2)
+        .capacity(1000)
+        .seed(42)
+        .build()
+        .unwrap();
+    for i in 0..10u64 {
+        let v: Vec<f32> = (0..32).map(|d| (i * 32 + d) as f32).collect();
+        idx.add(i, &v).unwrap();
+    }
+    idx.save(&path).unwrap();
+    let size = std::fs::metadata(&path).unwrap().len();
+    let _ = std::fs::remove_file(&path);
+    assert!(
+        size < 20_000,
+        "saved file is {size} bytes — it scales with capacity, not inserted count"
+    );
+}
+
+#[test]
 fn hnsw_save_load_roundtrip() {
     let dim = 8;
     let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");

@@ -12,7 +12,94 @@ use vanedb::{DistanceMetric, HnswIndex};
 use vanedb::{MmapVectorStore, MmapVectorStoreBuilder};
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
-const HNSW_VERSION: u32 = 1;
+const HNSW_VERSION: u32 = 2;
+
+/// Field-order mirror of the private `HnswData` struct in
+/// `src/hnsw/persistence.rs` (bincode encodes by field order, so this
+/// serializes identically). Used to hand-craft v1/v2 payloads.
+#[derive(serde::Serialize)]
+struct HnswDataMirror {
+    dim: usize,
+    metric: u32,
+    max_elements: usize,
+    m: usize,
+    m_max: usize,
+    m_max0: usize,
+    ef_construction: usize,
+    ef_search: usize,
+    mult: f64,
+    seed: u64,
+    count: usize,
+    entry_point: Option<usize>,
+    max_level: i32,
+    vectors: Vec<f32>,
+    ext_ids: Vec<u64>,
+    levels: Vec<i32>,
+    neighbors: Vec<Vec<Vec<usize>>>,
+    id_map: std::collections::HashMap<u64, usize>,
+}
+
+/// A consistent 2-of-4-slots index in the legacy v1 layout: arrays span the
+/// full pre-allocated capacity, not just the inserted count.
+fn v1_full_capacity_payload() -> HnswDataMirror {
+    HnswDataMirror {
+        dim: 2,
+        metric: 0, // L2
+        max_elements: 4,
+        m: 2,
+        m_max: 2,
+        m_max0: 4,
+        ef_construction: 10,
+        ef_search: 10,
+        mult: 1.0,
+        seed: 7,
+        count: 2,
+        entry_point: Some(0),
+        max_level: 0,
+        vectors: vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+        ext_ids: vec![10, 20, 0, 0],
+        levels: vec![0; 4],
+        neighbors: vec![vec![vec![1]], vec![vec![0]], vec![], vec![]],
+        id_map: std::collections::HashMap::from([(10, 0), (20, 1)]),
+    }
+}
+
+fn hnsw_file_bytes(version: u32, data: &HnswDataMirror) -> Vec<u8> {
+    let mut bytes = HNSW_MAGIC.to_le_bytes().to_vec();
+    bytes.extend_from_slice(&version.to_le_bytes());
+    bytes.extend_from_slice(&bincode::serialize(data).unwrap());
+    bytes
+}
+
+#[test]
+fn hnsw_load_accepts_v1_full_capacity_files() {
+    let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
+    let p = write_tmp("v1_compat", &bytes);
+    let idx = HnswIndex::load(&p).unwrap();
+    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.capacity(), 4);
+    assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
+    let results = idx.search(&[1.0, 0.1], 1).unwrap();
+    assert_eq!(results[0].id, 10);
+    // Spare capacity from the v1 file must remain usable.
+    idx.add(30, &[0.5, 0.5]).unwrap();
+    assert_eq!(idx.size(), 3);
+    let _ = fs::remove_file(&p);
+}
+
+#[test]
+fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
+    // The same full-capacity arrays are NOT valid under v2, which stores
+    // exactly `count` entries per array.
+    let bytes = hnsw_file_bytes(2, &v1_full_capacity_payload());
+    let p = write_tmp("v2_full_arrays", &bytes);
+    let err = match HnswIndex::load(&p) {
+        Ok(_) => panic!("load should have failed"),
+        Err(e) => e,
+    };
+    assert!(format!("{err}").contains("length"), "got: {err}");
+    let _ = fs::remove_file(&p);
+}
 
 /// Build a minimal valid HNSW file on disk, then return the bytes so tests can
 /// mutate specific fields and exercise validation paths in `load`. The `tag`
