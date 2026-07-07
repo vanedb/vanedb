@@ -18,5 +18,9 @@ fn main() {
     } else {
         println!("cargo:rustc-link-lib=dylib=stdc++");
     }
-    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/capi/vanedb_capi.cpp");
+    // Watch everything the static lib is built from — a stale lib here would
+    // silently benchmark old C++ code (headers included, this is header-only).
+    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/capi");
+    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/src/core");
+    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/CMakeLists.txt");
 }
