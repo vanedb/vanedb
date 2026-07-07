@@ -1,4 +1,5 @@
 pub mod ffi;
+pub mod ground_truth;
 pub mod workloads;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
