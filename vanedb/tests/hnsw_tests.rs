@@ -97,6 +97,26 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
 }
 
 #[test]
+fn hnsw_empty_index_save_load_roundtrip() {
+    // v2 stores zero-length arrays for an empty index; load must re-expand
+    // to full capacity so subsequent adds work.
+    let path = std::env::temp_dir().join("vanedb_test_hnsw_empty.bin");
+    let idx = HnswIndex::builder(4, DistanceMetric::L2)
+        .capacity(10)
+        .seed(42)
+        .build()
+        .unwrap();
+    idx.save(&path).unwrap();
+    let loaded = HnswIndex::load(&path).unwrap();
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(loaded.size(), 0);
+    assert_eq!(loaded.capacity(), 10);
+    assert!(loaded.search(&[0.0; 4], 3).unwrap().is_empty());
+    loaded.add(1, &[1.0, 2.0, 3.0, 4.0]).unwrap();
+    assert_eq!(loaded.size(), 1);
+}
+
+#[test]
 fn hnsw_save_load_roundtrip() {
     let dim = 8;
     let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");
