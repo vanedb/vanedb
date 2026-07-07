@@ -23,9 +23,12 @@ impl PartialOrd for SearchResult {
 
 impl Ord for SearchResult {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // Tie-break by id so unstable top-k selection produces a deterministic
+        // ordering across equal-distance results.
         self.distance
             .partial_cmp(&other.distance)
             .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| self.id.cmp(&other.id))
     }
 }
 

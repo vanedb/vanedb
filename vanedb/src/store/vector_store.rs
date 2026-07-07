@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use parking_lot::RwLock;
 
-use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
+use crate::distance::{self as d, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
 pub struct VectorStore {
     dim: usize,
     metric: DistanceMetric,
-    dist_fn: DistanceFn,
     inner: RwLock<Inner>,
 }
 
@@ -27,7 +26,6 @@ impl VectorStore {
         Ok(Self {
             dim,
             metric,
-            dist_fn: distance_fn(metric),
             inner: RwLock::new(Inner {
                 ids: Vec::new(),
                 data: Vec::new(),
@@ -124,16 +122,25 @@ impl VectorStore {
             return Ok(Vec::new());
         }
 
-        let mut results: Vec<SearchResult> = (0..n)
-            .map(|i| {
-                let start = i * self.dim;
-                let vec = &inner.data[start..start + self.dim];
-                SearchResult::new(inner.ids[i], (self.dist_fn)(query, vec))
-            })
-            .collect();
+        debug_assert_eq!(inner.data.len(), n * self.dim);
+        let vecs = inner.data.chunks_exact(self.dim).zip(&inner.ids);
+        let mut results: Vec<SearchResult> = match self.metric {
+            DistanceMetric::L2 => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::l2_squared(query, v)))
+                .collect(),
+            DistanceMetric::Cosine => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::cosine_distance(query, v)))
+                .collect(),
+            DistanceMetric::Dot => vecs
+                .map(|(v, &id)| SearchResult::new(id, d::dot_distance(query, v)))
+                .collect(),
+        };
 
-        results.sort();
-        results.truncate(k);
+        if k < results.len() {
+            results.select_nth_unstable(k - 1);
+            results.truncate(k);
+        }
+        results.sort_unstable();
         Ok(results)
     }
 }

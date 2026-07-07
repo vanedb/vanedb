@@ -23,7 +23,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install critcmp
-        run: cargo install critcmp
+        run: cargo install critcmp --version 0.1.8 --locked
 
       # Pass explicit --bench targets so cargo bench skips the lib's
       # libtest harness (which doesn't accept --save-baseline) regardless
