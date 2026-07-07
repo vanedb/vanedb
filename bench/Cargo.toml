@@ -1,0 +1,17 @@
+[package]
+name = "vanedb-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+vanedb-capi = { git = "https://github.com/vanedb/vanedb", rev = "09080f0" }
+
+[build-dependencies]
+cmake = "0.1"
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+# [[bench]] and [[bin]] entries are added alongside their implementation
+# tasks (benches/*.rs in Tasks 4-5, src/bin/report.rs in Task 6).
