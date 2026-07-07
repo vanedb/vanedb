@@ -13,5 +13,15 @@ cmake = "0.1"
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
 
-# [[bench]] and [[bin]] entries are added alongside their implementation
-# tasks (benches/*.rs in Tasks 4-5, src/bin/report.rs in Task 6).
+[[bench]]
+name = "distance"
+harness = false
+[[bench]]
+name = "store"
+harness = false
+[[bench]]
+name = "hnsw"
+harness = false
+[[bench]]
+name = "mmap"
+harness = false
