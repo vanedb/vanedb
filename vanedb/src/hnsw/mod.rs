@@ -379,7 +379,7 @@ impl HnswIndex {
 
     /// Generate a random level using exponential distribution.
     pub(super) fn get_level(rng: &mut StdRng, mult: f64) -> i32 {
-        use rand::Rng;
+        use rand::RngExt;
         let r: f64 = rng.random::<f64>().max(MIN_LEVEL_RANDOM);
         let level = (-r.ln() * mult) as i32;
         level.min(MAX_LEVEL)
