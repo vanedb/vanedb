@@ -256,14 +256,12 @@ impl HnswIndex {
                 inner.count,
             );
 
+            // New nodes get M links; m_for_layer (2M at level 0) is only the
+            // overflow cap for existing nodes' reverse links. Mirrors
+            // vanedb-cpp add() / hnswlib semantics.
             let m_for_layer = if lev == 0 { self.m_max0 } else { self.m_max };
-            let neighbors_to_add = Self::select_neighbors(
-                &inner.vectors,
-                self.dist_fn,
-                self.dim,
-                &results,
-                m_for_layer,
-            );
+            let neighbors_to_add =
+                Self::select_neighbors(&inner.vectors, self.dist_fn, self.dim, &results, self.m);
 
             // Set neighbors for the new node at this layer
             if lev < inner.neighbors[iid].len() {
@@ -289,14 +287,13 @@ impl HnswIndex {
                             })
                             .collect();
                         candidates.sort_by_key(|a| FloatOrd(a.0));
-                        let pruned = Self::select_neighbors(
-                            &inner.vectors,
-                            self.dist_fn,
-                            self.dim,
-                            &candidates,
-                            m_for_layer,
-                        );
-                        inner.neighbors[nb][lev] = pruned.iter().map(|&(_, n)| n).collect();
+                        // Keep the m_for_layer closest (plain truncate, no
+                        // diversity heuristic) — mirrors vanedb-cpp. The
+                        // heuristic here re-scanned every overflowing list
+                        // pairwise, costing ~36% of build time for no
+                        // measurable recall gain (see PR benchmarks).
+                        candidates.truncate(m_for_layer);
+                        inner.neighbors[nb][lev] = candidates.iter().map(|&(_, n)| n).collect();
                     }
                 }
             }
