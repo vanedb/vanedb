@@ -5,7 +5,7 @@ use std::path::Path;
 
 use memmap2::Mmap;
 
-use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
+use crate::distance::{self as d, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 
@@ -122,7 +122,6 @@ pub struct MmapVectorStore {
     dim: usize,
     num_vectors: usize,
     metric: DistanceMetric,
-    dist_fn: DistanceFn,
     ids_offset: usize,
     vectors_offset: usize,
     id_map: HashMap<u64, usize>,
@@ -188,7 +187,6 @@ impl MmapVectorStore {
             dim,
             num_vectors,
             metric,
-            dist_fn: distance_fn(metric),
             ids_offset,
             vectors_offset,
             id_map,
@@ -228,16 +226,27 @@ impl MmapVectorStore {
             return Err(VaneError::InvalidK);
         }
 
-        let mut results: Vec<SearchResult> = (0..self.num_vectors)
-            .map(|i| {
-                let id = self.get_id(i);
-                let vec = self.get_vec(i);
-                SearchResult::new(id, (self.dist_fn)(query, vec))
-            })
-            .collect();
+        // Monomorphized per-metric scan + top-k selection instead of a full
+        // sort through the dist_fn pointer — same treatment as
+        // VectorStore::search (O(n log n) -> O(n + k log k)).
+        macro_rules! scan {
+            ($dist:path) => {
+                (0..self.num_vectors)
+                    .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i))))
+                    .collect()
+            };
+        }
+        let mut results: Vec<SearchResult> = match self.metric {
+            DistanceMetric::L2 => scan!(d::l2_squared),
+            DistanceMetric::Cosine => scan!(d::cosine_distance),
+            DistanceMetric::Dot => scan!(d::dot_distance),
+        };
 
-        results.sort();
-        results.truncate(k);
+        if k < results.len() {
+            results.select_nth_unstable(k - 1);
+            results.truncate(k);
+        }
+        results.sort_unstable();
         Ok(results)
     }
 
