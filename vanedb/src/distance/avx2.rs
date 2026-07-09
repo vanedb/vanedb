@@ -25,7 +25,27 @@ pub unsafe fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     let n = a.len();
     let mut i = 0;
-    let mut acc = _mm256_setzero_ps();
+    // Four independent accumulators hide the FMA latency; a single-acc
+    // loop is latency-bound. Mirrors vanedb-cpp src/core/distance.h.
+    let mut acc0 = _mm256_setzero_ps();
+    let mut acc1 = _mm256_setzero_ps();
+    let mut acc2 = _mm256_setzero_ps();
+    let mut acc3 = _mm256_setzero_ps();
+
+    while i + 32 <= n {
+        let p = a.as_ptr().add(i);
+        let q = b.as_ptr().add(i);
+        let d0 = _mm256_sub_ps(_mm256_loadu_ps(p), _mm256_loadu_ps(q));
+        let d1 = _mm256_sub_ps(_mm256_loadu_ps(p.add(8)), _mm256_loadu_ps(q.add(8)));
+        let d2 = _mm256_sub_ps(_mm256_loadu_ps(p.add(16)), _mm256_loadu_ps(q.add(16)));
+        let d3 = _mm256_sub_ps(_mm256_loadu_ps(p.add(24)), _mm256_loadu_ps(q.add(24)));
+        acc0 = _mm256_fmadd_ps(d0, d0, acc0);
+        acc1 = _mm256_fmadd_ps(d1, d1, acc1);
+        acc2 = _mm256_fmadd_ps(d2, d2, acc2);
+        acc3 = _mm256_fmadd_ps(d3, d3, acc3);
+        i += 32;
+    }
+    let mut acc = _mm256_add_ps(_mm256_add_ps(acc0, acc1), _mm256_add_ps(acc2, acc3));
 
     while i + 8 <= n {
         let va = _mm256_loadu_ps(a.as_ptr().add(i));
@@ -54,9 +74,32 @@ pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     let n = a.len();
     let mut i = 0;
-    let mut vdot = _mm256_setzero_ps();
-    let mut vna = _mm256_setzero_ps();
-    let mut vnb = _mm256_setzero_ps();
+    // Two-way unroll on top of the three naturally independent chains.
+    let mut vdot0 = _mm256_setzero_ps();
+    let mut vna0 = _mm256_setzero_ps();
+    let mut vnb0 = _mm256_setzero_ps();
+    let mut vdot1 = _mm256_setzero_ps();
+    let mut vna1 = _mm256_setzero_ps();
+    let mut vnb1 = _mm256_setzero_ps();
+
+    while i + 16 <= n {
+        let p = a.as_ptr().add(i);
+        let q = b.as_ptr().add(i);
+        let va0 = _mm256_loadu_ps(p);
+        let vb0 = _mm256_loadu_ps(q);
+        let va1 = _mm256_loadu_ps(p.add(8));
+        let vb1 = _mm256_loadu_ps(q.add(8));
+        vdot0 = _mm256_fmadd_ps(va0, vb0, vdot0);
+        vna0 = _mm256_fmadd_ps(va0, va0, vna0);
+        vnb0 = _mm256_fmadd_ps(vb0, vb0, vnb0);
+        vdot1 = _mm256_fmadd_ps(va1, vb1, vdot1);
+        vna1 = _mm256_fmadd_ps(va1, va1, vna1);
+        vnb1 = _mm256_fmadd_ps(vb1, vb1, vnb1);
+        i += 16;
+    }
+    let mut vdot = _mm256_add_ps(vdot0, vdot1);
+    let mut vna = _mm256_add_ps(vna0, vna1);
+    let mut vnb = _mm256_add_ps(vnb0, vnb1);
 
     while i + 8 <= n {
         let va = _mm256_loadu_ps(a.as_ptr().add(i));
@@ -96,7 +139,22 @@ pub unsafe fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     let n = a.len();
     let mut i = 0;
-    let mut acc = _mm256_setzero_ps();
+    // Same latency-hiding unroll as l2_squared.
+    let mut acc0 = _mm256_setzero_ps();
+    let mut acc1 = _mm256_setzero_ps();
+    let mut acc2 = _mm256_setzero_ps();
+    let mut acc3 = _mm256_setzero_ps();
+
+    while i + 32 <= n {
+        let p = a.as_ptr().add(i);
+        let q = b.as_ptr().add(i);
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(p), _mm256_loadu_ps(q), acc0);
+        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(p.add(8)), _mm256_loadu_ps(q.add(8)), acc1);
+        acc2 = _mm256_fmadd_ps(_mm256_loadu_ps(p.add(16)), _mm256_loadu_ps(q.add(16)), acc2);
+        acc3 = _mm256_fmadd_ps(_mm256_loadu_ps(p.add(24)), _mm256_loadu_ps(q.add(24)), acc3);
+        i += 32;
+    }
+    let mut acc = _mm256_add_ps(_mm256_add_ps(acc0, acc1), _mm256_add_ps(acc2, acc3));
 
     while i + 8 <= n {
         let va = _mm256_loadu_ps(a.as_ptr().add(i));
