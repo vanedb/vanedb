@@ -12,11 +12,30 @@ pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     // SAFETY: NEON is always available on aarch64.
     // Pointer arithmetic stays within slice bounds (i + 4 <= n).
     let mut sum = unsafe {
-        let mut acc = vdupq_n_f32(0.0);
+        // Four independent accumulators hide the fused multiply-add latency
+        // (~4 cycles); a single-accumulator loop is latency-bound at one
+        // vector per FMA latency regardless of ALU width. Mirrors
+        // vanedb-cpp src/core/distance.h.
+        let mut acc0 = vdupq_n_f32(0.0);
+        let mut acc1 = vdupq_n_f32(0.0);
+        let mut acc2 = vdupq_n_f32(0.0);
+        let mut acc3 = vdupq_n_f32(0.0);
+        while i + 16 <= n {
+            let p = a.as_ptr().add(i);
+            let q = b.as_ptr().add(i);
+            let d0 = vsubq_f32(vld1q_f32(p), vld1q_f32(q));
+            let d1 = vsubq_f32(vld1q_f32(p.add(4)), vld1q_f32(q.add(4)));
+            let d2 = vsubq_f32(vld1q_f32(p.add(8)), vld1q_f32(q.add(8)));
+            let d3 = vsubq_f32(vld1q_f32(p.add(12)), vld1q_f32(q.add(12)));
+            acc0 = vmlaq_f32(acc0, d0, d0);
+            acc1 = vmlaq_f32(acc1, d1, d1);
+            acc2 = vmlaq_f32(acc2, d2, d2);
+            acc3 = vmlaq_f32(acc3, d3, d3);
+            i += 16;
+        }
+        let mut acc = vaddq_f32(vaddq_f32(acc0, acc1), vaddq_f32(acc2, acc3));
         while i + 4 <= n {
-            let va = vld1q_f32(a.as_ptr().add(i));
-            let vb = vld1q_f32(b.as_ptr().add(i));
-            let d = vsubq_f32(va, vb);
+            let d = vsubq_f32(vld1q_f32(a.as_ptr().add(i)), vld1q_f32(b.as_ptr().add(i)));
             acc = vmlaq_f32(acc, d, d);
             i += 4;
         }
@@ -39,9 +58,31 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     let mut i = 0;
 
     let (mut dot, mut norm_a, mut norm_b) = unsafe {
-        let mut vdot = vdupq_n_f32(0.0);
-        let mut vna = vdupq_n_f32(0.0);
-        let mut vnb = vdupq_n_f32(0.0);
+        // Two-way unroll on top of the three naturally independent chains.
+        let mut vdot0 = vdupq_n_f32(0.0);
+        let mut vna0 = vdupq_n_f32(0.0);
+        let mut vnb0 = vdupq_n_f32(0.0);
+        let mut vdot1 = vdupq_n_f32(0.0);
+        let mut vna1 = vdupq_n_f32(0.0);
+        let mut vnb1 = vdupq_n_f32(0.0);
+        while i + 8 <= n {
+            let p = a.as_ptr().add(i);
+            let q = b.as_ptr().add(i);
+            let va0 = vld1q_f32(p);
+            let vb0 = vld1q_f32(q);
+            let va1 = vld1q_f32(p.add(4));
+            let vb1 = vld1q_f32(q.add(4));
+            vdot0 = vmlaq_f32(vdot0, va0, vb0);
+            vna0 = vmlaq_f32(vna0, va0, va0);
+            vnb0 = vmlaq_f32(vnb0, vb0, vb0);
+            vdot1 = vmlaq_f32(vdot1, va1, vb1);
+            vna1 = vmlaq_f32(vna1, va1, va1);
+            vnb1 = vmlaq_f32(vnb1, vb1, vb1);
+            i += 8;
+        }
+        let mut vdot = vaddq_f32(vdot0, vdot1);
+        let mut vna = vaddq_f32(vna0, vna1);
+        let mut vnb = vaddq_f32(vnb0, vnb1);
         while i + 4 <= n {
             let va = vld1q_f32(a.as_ptr().add(i));
             let vb = vld1q_f32(b.as_ptr().add(i));
@@ -75,11 +116,27 @@ pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
     let mut i = 0;
 
     let mut sum = unsafe {
-        let mut acc = vdupq_n_f32(0.0);
+        // Same latency-hiding unroll as l2_squared.
+        let mut acc0 = vdupq_n_f32(0.0);
+        let mut acc1 = vdupq_n_f32(0.0);
+        let mut acc2 = vdupq_n_f32(0.0);
+        let mut acc3 = vdupq_n_f32(0.0);
+        while i + 16 <= n {
+            let p = a.as_ptr().add(i);
+            let q = b.as_ptr().add(i);
+            acc0 = vmlaq_f32(acc0, vld1q_f32(p), vld1q_f32(q));
+            acc1 = vmlaq_f32(acc1, vld1q_f32(p.add(4)), vld1q_f32(q.add(4)));
+            acc2 = vmlaq_f32(acc2, vld1q_f32(p.add(8)), vld1q_f32(q.add(8)));
+            acc3 = vmlaq_f32(acc3, vld1q_f32(p.add(12)), vld1q_f32(q.add(12)));
+            i += 16;
+        }
+        let mut acc = vaddq_f32(vaddq_f32(acc0, acc1), vaddq_f32(acc2, acc3));
         while i + 4 <= n {
-            let va = vld1q_f32(a.as_ptr().add(i));
-            let vb = vld1q_f32(b.as_ptr().add(i));
-            acc = vmlaq_f32(acc, va, vb);
+            acc = vmlaq_f32(
+                acc,
+                vld1q_f32(a.as_ptr().add(i)),
+                vld1q_f32(b.as_ptr().add(i)),
+            );
             i += 4;
         }
         vaddvq_f32(acc)
