@@ -67,7 +67,9 @@ fn v1_full_capacity_payload() -> HnswDataMirror {
 fn hnsw_file_bytes(version: u32, data: &HnswDataMirror) -> Vec<u8> {
     let mut bytes = HNSW_MAGIC.to_le_bytes().to_vec();
     bytes.extend_from_slice(&version.to_le_bytes());
-    bytes.extend_from_slice(&bincode::serialize(data).unwrap());
+    bytes.extend_from_slice(
+        &bincode::serde::encode_to_vec(data, bincode::config::legacy()).unwrap(),
+    );
     bytes
 }
 
