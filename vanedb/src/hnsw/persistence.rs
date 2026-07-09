@@ -96,8 +96,8 @@ impl HnswIndex {
             id_map: inner.id_map.clone(),
         };
 
-        let payload =
-            bincode::serialize(&data).map_err(|e| VaneError::Io(format!("serialize: {e}")))?;
+        let payload = bincode::serde::encode_to_vec(&data, bincode::config::legacy())
+            .map_err(|e| VaneError::Io(format!("serialize: {e}")))?;
 
         let path = path.as_ref();
         let tmp = path.with_extension("tmp");
@@ -133,8 +133,11 @@ impl HnswIndex {
             return Err(VaneError::Io(format!("unsupported version: {version}")));
         }
 
-        let data: HnswData = bincode::deserialize(&bytes[HEADER_LEN..])
-            .map_err(|e| VaneError::Io(format!("deserialize: {e}")))?;
+        // config::legacy() is bincode 1's wire format (fixint, little-endian),
+        // so files written before the bincode 2 migration load unchanged.
+        let (data, _): (HnswData, usize) =
+            bincode::serde::decode_from_slice(&bytes[HEADER_LEN..], bincode::config::legacy())
+                .map_err(|e| VaneError::Io(format!("deserialize: {e}")))?;
 
         // Validate semantic invariants. bincode catches schema mismatches but
         // never validates values, so a corrupt or hostile file could otherwise
