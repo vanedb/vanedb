@@ -43,6 +43,13 @@ impl WasmVectorStore {
         self.inner.add(id, vector).map_err(to_jserr)
     }
 
+    /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
+    /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
+    /// on error the store is unchanged.
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsError> {
+        self.inner.add_batch(ids, vectors).map_err(to_jserr)
+    }
+
     /// Search for k nearest neighbors. Returns flat array: [id0, dist0, id1, dist1, ...].
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<f32>, JsError> {
         let results = self.inner.search(query, k).map_err(to_jserr)?;
@@ -104,6 +111,13 @@ impl WasmHnswIndex {
 
     pub fn add(&self, id: u64, vector: &[f32]) -> Result<(), JsError> {
         self.inner.add(id, vector).map_err(to_jserr)
+    }
+
+    /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
+    /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
+    /// on error the index is unchanged.
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsError> {
+        self.inner.add_batch(ids, vectors).map_err(to_jserr)
     }
 
     /// Search for k nearest neighbors. Returns flat array: [id0, dist0, id1, dist1, ...].

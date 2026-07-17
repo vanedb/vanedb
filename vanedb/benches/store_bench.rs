@@ -44,5 +44,24 @@ fn bench_store_add(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_store_search, bench_store_add);
+fn bench_store_add_batch(c: &mut Criterion) {
+    let dim = 128;
+    let data = gen_data(10_000, dim);
+    let ids: Vec<u64> = (0..data.len() as u64).collect();
+    let flat: Vec<f32> = data.iter().flatten().copied().collect();
+
+    c.bench_function("VectorStore_add_batch_10k", |bench| {
+        bench.iter(|| {
+            let store = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+            store.add_batch(&ids, &flat).unwrap();
+        });
+    });
+}
+
+criterion_group!(
+    benches,
+    bench_store_search,
+    bench_store_add,
+    bench_store_add_batch
+);
 criterion_main!(benches);
