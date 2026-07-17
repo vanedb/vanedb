@@ -78,6 +78,35 @@ pub unsafe extern "C" fn vanedb_rs_store_add(s: *mut VectorStore, id: u64, v: *c
 }
 
 /// # Safety
+/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `ids` must point to
+/// `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+/// All-or-nothing: on error (duplicate id, length mismatch) the store is unchanged.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_add_batch(
+    s: *mut VectorStore,
+    ids: *const u64,
+    vecs: *const f32,
+    n: usize,
+) -> i32 {
+    if s.is_null() {
+        return 1;
+    }
+    let store = &*s;
+    let (id_slice, vec_slice): (&[u64], &[f32]) = if n == 0 {
+        (&[], &[])
+    } else {
+        (
+            slice::from_raw_parts(ids, n),
+            slice::from_raw_parts(vecs, n * store.dimension()),
+        )
+    };
+    match store.add_batch(id_slice, vec_slice) {
+        Ok(()) => 0,
+        Err(_) => 1,
+    }
+}
+
+/// # Safety
 /// `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
 /// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
 #[no_mangle]
@@ -151,6 +180,35 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_add(h: *mut HnswIndex, id: u64, v: *cons
     let idx = &*h;
     let vec = slice::from_raw_parts(v, idx.dimension());
     match idx.add(id, vec) {
+        Ok(()) => 0,
+        Err(_) => 1,
+    }
+}
+
+/// # Safety
+/// `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `ids` must point to
+/// `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+/// All-or-nothing: on error (duplicate id, capacity, length mismatch) the index is unchanged.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_hnsw_add_batch(
+    h: *mut HnswIndex,
+    ids: *const u64,
+    vecs: *const f32,
+    n: usize,
+) -> i32 {
+    if h.is_null() {
+        return 1;
+    }
+    let idx = &*h;
+    let (id_slice, vec_slice): (&[u64], &[f32]) = if n == 0 {
+        (&[], &[])
+    } else {
+        (
+            slice::from_raw_parts(ids, n),
+            slice::from_raw_parts(vecs, n * idx.dimension()),
+        )
+    };
+    match idx.add_batch(id_slice, vec_slice) {
         Ok(()) => 0,
         Err(_) => 1,
     }

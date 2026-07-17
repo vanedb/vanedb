@@ -62,3 +62,30 @@ fn test_invalid_metric() {
     let result = WasmVectorStore::new(3, "invalid");
     assert!(result.is_err());
 }
+
+#[wasm_bindgen_test]
+fn test_store_add_batch() {
+    let store = WasmVectorStore::new(2, "l2").unwrap();
+    let ids = [1u64, 2, 3];
+    let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
+    store.add_batch(&ids, &flat).unwrap();
+    assert_eq!(store.size(), 3);
+    let results = store.search(&[0.9, 0.9], 1).unwrap();
+    assert_eq!(results[0] as u64, 2);
+
+    // duplicate -> Err, all-or-nothing
+    assert!(store.add_batch(&[4, 1], &flat[..4]).is_err());
+    assert_eq!(store.size(), 3);
+    assert!(!store.contains(4));
+}
+
+#[wasm_bindgen_test]
+fn test_hnsw_add_batch() {
+    let index = WasmHnswIndex::new(2, "l2", 100, 16, 200).unwrap();
+    let ids = [10u64, 20];
+    let flat = [0.0f32, 0.0, 1.0, 1.0];
+    index.add_batch(&ids, &flat).unwrap();
+    assert_eq!(index.size(), 2);
+    let results = index.search(&[0.1, 0.1], 1).unwrap();
+    assert_eq!(results[0] as u64, 10);
+}
