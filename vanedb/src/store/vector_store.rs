@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use parking_lot::RwLock;
 
@@ -49,6 +49,35 @@ impl VectorStore {
         inner.ids.push(id);
         inner.data.extend_from_slice(vector);
         inner.id_to_index.insert(id, index);
+        Ok(())
+    }
+
+    /// Insert many vectors under a single lock acquisition. `vectors` is the
+    /// row-major concatenation of `ids.len()` vectors of `dimension()` floats.
+    /// All-or-nothing: every length and id is validated before any insert, so
+    /// an error leaves the store unchanged.
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
+        if vectors.len() != ids.len() * self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: ids.len() * self.dim,
+                got: vectors.len(),
+            });
+        }
+        let mut inner = self.inner.write();
+        let mut seen = HashSet::with_capacity(ids.len());
+        for &id in ids {
+            if inner.id_to_index.contains_key(&id) || !seen.insert(id) {
+                return Err(VaneError::DuplicateId { id });
+            }
+        }
+        inner.ids.reserve(ids.len());
+        inner.data.reserve(vectors.len());
+        for (&id, chunk) in ids.iter().zip(vectors.chunks_exact(self.dim)) {
+            let index = inner.ids.len();
+            inner.ids.push(id);
+            inner.data.extend_from_slice(chunk);
+            inner.id_to_index.insert(id, index);
+        }
         Ok(())
     }
 
@@ -324,5 +353,56 @@ mod tests {
     fn store_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
         assert_send_sync::<VectorStore>();
+    }
+
+    #[test]
+    fn add_batch_inserts_all() {
+        let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
+        let ids = [1u64, 2, 3];
+        let vectors = [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0];
+        store.add_batch(&ids, &vectors).unwrap();
+        assert_eq!(store.len(), 3);
+        assert_eq!(store.get(2).unwrap(), vec![2.0, 2.0, 2.0]);
+        let results = store.search(&[2.0, 2.0, 2.1], 1).unwrap();
+        assert_eq!(results[0].id, 2);
+    }
+
+    #[test]
+    fn add_batch_empty_is_noop() {
+        let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
+        store.add_batch(&[], &[]).unwrap();
+        assert!(store.is_empty());
+    }
+
+    #[test]
+    fn add_batch_flat_length_mismatch() {
+        let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
+        let result = store.add_batch(&[1, 2], &[1.0, 2.0, 3.0, 4.0, 5.0]);
+        assert!(matches!(
+            result,
+            Err(VaneError::DimensionMismatch {
+                expected: 6,
+                got: 5
+            })
+        ));
+        assert!(store.is_empty());
+    }
+
+    #[test]
+    fn add_batch_duplicate_within_batch_is_all_or_nothing() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        let result = store.add_batch(&[1, 2, 1], &[1.0; 6]);
+        assert!(matches!(result, Err(VaneError::DuplicateId { id: 1 })));
+        assert!(store.is_empty());
+    }
+
+    #[test]
+    fn add_batch_duplicate_with_existing_is_all_or_nothing() {
+        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        store.add(7, &[0.0, 0.0]).unwrap();
+        let result = store.add_batch(&[8, 7], &[1.0; 4]);
+        assert!(matches!(result, Err(VaneError::DuplicateId { id: 7 })));
+        assert_eq!(store.len(), 1);
+        assert!(!store.contains(8));
     }
 }
