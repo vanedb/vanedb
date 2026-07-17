@@ -237,3 +237,96 @@ fn hnsw_visited_bitmap_epoch_wrap_correctness() {
         assert_eq!(a.id, b.id, "result drifted across epoch wrap");
     }
 }
+
+/// add_batch must produce a graph identical to serial add: same seed means the
+/// level RNG is drawn in the same order, so searches must return identical
+/// results, not merely similar recall.
+#[test]
+fn hnsw_add_batch_matches_serial_add() {
+    let dim = 16;
+    let n = 300;
+
+    let mk = || {
+        HnswIndex::builder(dim, DistanceMetric::L2)
+            .capacity(n)
+            .m(8)
+            .ef_construction(100)
+            .seed(7)
+            .build()
+            .unwrap()
+    };
+    let serial = mk();
+    let batched = mk();
+
+    let mut ids = Vec::with_capacity(n);
+    let mut flat = Vec::with_capacity(n * dim);
+    for i in 0..n {
+        let v: Vec<f32> = (0..dim)
+            .map(|j| ((i * 31 + j * 17) % 97) as f32 / 97.0)
+            .collect();
+        serial.add(i as u64, &v).unwrap();
+        ids.push(i as u64);
+        flat.extend_from_slice(&v);
+    }
+    batched.add_batch(&ids, &flat).unwrap();
+
+    assert_eq!(batched.size(), n);
+    for i in (0..n).step_by(23) {
+        let q: Vec<f32> = (0..dim)
+            .map(|j| ((i * 13 + j * 29) % 89) as f32 / 89.0)
+            .collect();
+        let a = serial.search(&q, 10).unwrap();
+        let b = batched.search(&q, 10).unwrap();
+        assert_eq!(a, b, "query {i} diverged between serial and batch build");
+    }
+}
+
+#[test]
+fn hnsw_add_batch_capacity_exceeded_is_all_or_nothing() {
+    let index = HnswIndex::builder(4, DistanceMetric::L2)
+        .capacity(4)
+        .build()
+        .unwrap();
+    index.add(99, &[0.5; 4]).unwrap();
+
+    let ids: Vec<u64> = (0..4).collect();
+    let flat = vec![1.0f32; 16];
+    let result = index.add_batch(&ids, &flat);
+    assert!(matches!(result, Err(vanedb::VaneError::IndexFull)));
+    assert_eq!(index.size(), 1);
+    assert!(!index.contains(0));
+}
+
+#[test]
+fn hnsw_add_batch_duplicate_is_all_or_nothing() {
+    let index = HnswIndex::builder(2, DistanceMetric::L2)
+        .capacity(10)
+        .build()
+        .unwrap();
+    index.add(5, &[0.1, 0.2]).unwrap();
+
+    let result = index.add_batch(&[4, 5], &[1.0, 2.0, 3.0, 4.0]);
+    assert!(matches!(
+        result,
+        Err(vanedb::VaneError::DuplicateId { id: 5 })
+    ));
+    assert_eq!(index.size(), 1);
+    assert!(!index.contains(4));
+
+    let result = index.add_batch(&[6, 6], &[1.0, 2.0, 3.0, 4.0]);
+    assert!(matches!(
+        result,
+        Err(vanedb::VaneError::DuplicateId { id: 6 })
+    ));
+    assert_eq!(index.size(), 1);
+}
+
+#[test]
+fn hnsw_add_batch_empty_is_noop() {
+    let index = HnswIndex::builder(2, DistanceMetric::L2)
+        .capacity(10)
+        .build()
+        .unwrap();
+    index.add_batch(&[], &[]).unwrap();
+    assert!(index.is_empty());
+}
