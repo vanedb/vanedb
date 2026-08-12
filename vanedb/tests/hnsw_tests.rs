@@ -330,3 +330,67 @@ fn hnsw_add_batch_empty_is_noop() {
     index.add_batch(&[], &[]).unwrap();
     assert!(index.is_empty());
 }
+
+/// Batching onto a NON-EMPTY index must extend the graph exactly as serial
+/// adds would: internal slots continue from the existing count rather than
+/// restarting at zero, so with the same seed searches stay identical and
+/// no pre-existing vector gets overwritten.
+#[test]
+fn hnsw_add_batch_onto_nonempty_matches_serial_add() {
+    let dim = 16;
+    let pre = 100;
+    let n = 300;
+
+    let mk = || {
+        HnswIndex::builder(dim, DistanceMetric::L2)
+            .capacity(n)
+            .m(8)
+            .ef_construction(100)
+            .seed(7)
+            .build()
+            .unwrap()
+    };
+    let serial = mk();
+    let mixed = mk();
+
+    // The first `pre` vectors go in serially on BOTH indexes; the rest
+    // arrive on `mixed` as one batch.
+    let mut ids = Vec::with_capacity(n - pre);
+    let mut flat = Vec::with_capacity((n - pre) * dim);
+    let vec_for = |i: usize| -> Vec<f32> {
+        (0..dim)
+            .map(|j| ((i * 31 + j * 17) % 97) as f32 / 97.0)
+            .collect()
+    };
+    for i in 0..n {
+        let v = vec_for(i);
+        serial.add(i as u64, &v).unwrap();
+        if i < pre {
+            mixed.add(i as u64, &v).unwrap();
+        } else {
+            ids.push(i as u64);
+            flat.extend_from_slice(&v);
+        }
+    }
+    mixed.add_batch(&ids, &flat).unwrap();
+
+    assert_eq!(mixed.size(), n);
+    // Both the pre-existing and the batched ids must still resolve to their
+    // own data — a batch that restarts at slot zero clobbers the former and
+    // misfiles the latter.
+    for i in (0..n).step_by(7) {
+        assert_eq!(
+            mixed.get_vector(i as u64).unwrap(),
+            vec_for(i),
+            "wrong data for id {i}"
+        );
+    }
+    for i in (0..n).step_by(23) {
+        let q: Vec<f32> = (0..dim)
+            .map(|j| ((i * 13 + j * 29) % 89) as f32 / 89.0)
+            .collect();
+        let a = serial.search(&q, 10).unwrap();
+        let b = mixed.search(&q, 10).unwrap();
+        assert_eq!(a, b, "query {i} diverged between serial and mixed build");
+    }
+}

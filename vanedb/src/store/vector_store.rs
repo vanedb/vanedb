@@ -405,4 +405,26 @@ mod tests {
         assert_eq!(store.len(), 1);
         assert!(!store.contains(8));
     }
+
+    /// Success path onto a non-empty store: the positions recorded in
+    /// id_to_index must be global (existing rows + batch offset), not
+    /// batch-local, or every batched id resolves to the wrong vector.
+    #[test]
+    fn add_batch_onto_nonempty_store() {
+        let store = VectorStore::new(3, DistanceMetric::L2).unwrap();
+        store.add(1, &[1.0, 1.0, 1.0]).unwrap();
+        store.add(2, &[2.0, 2.0, 2.0]).unwrap();
+
+        let ids = [3u64, 4, 5];
+        let vectors = [3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0];
+        store.add_batch(&ids, &vectors).unwrap();
+
+        assert_eq!(store.len(), 5);
+        for id in 1..=5u64 {
+            let v = id as f32;
+            assert_eq!(store.get(id).unwrap(), vec![v, v, v], "wrong data for id {id}");
+        }
+        let results = store.search(&[4.0, 4.0, 4.1], 1).unwrap();
+        assert_eq!(results[0].id, 4);
+    }
 }
