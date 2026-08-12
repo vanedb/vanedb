@@ -189,6 +189,45 @@ impl HnswIndex {
             return Err(VaneError::DuplicateId { id });
         }
 
+        self.insert_into(&mut inner, id, vector);
+        Ok(())
+    }
+
+    /// Insert many vectors under a single lock acquisition. `vectors` is the
+    /// row-major concatenation of `ids.len()` vectors of `dimension()` floats.
+    /// All-or-nothing: capacity and every id are validated before any insert,
+    /// so an error leaves the index unchanged. Levels are drawn from the RNG
+    /// in batch order, so the resulting graph is identical to serial `add`.
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
+        if vectors.len() != ids.len() * self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: ids.len() * self.dim,
+                got: vectors.len(),
+            });
+        }
+
+        let mut inner = self.inner.write();
+
+        if inner.count + ids.len() > self.max_elements {
+            return Err(VaneError::IndexFull);
+        }
+        let mut seen = HashSet::with_capacity(ids.len());
+        for &id in ids {
+            if inner.id_map.contains_key(&id) || !seen.insert(id) {
+                return Err(VaneError::DuplicateId { id });
+            }
+        }
+
+        for (&id, chunk) in ids.iter().zip(vectors.chunks_exact(self.dim)) {
+            self.insert_into(&mut inner, id, chunk);
+        }
+        Ok(())
+    }
+
+    /// Graph insertion body shared by `add` and `add_batch`. Caller must hold
+    /// the write lock and have already validated dimension, capacity, and id
+    /// uniqueness — from here on insertion cannot fail.
+    fn insert_into(&self, inner: &mut Inner, id: u64, vector: &[f32]) {
         let iid = inner.count;
         inner.count += 1;
 
@@ -209,7 +248,7 @@ impl HnswIndex {
         if iid == 0 {
             inner.entry_point = Some(0);
             inner.max_level = level;
-            return Ok(());
+            return;
         }
 
         let mut cur_ep = inner.entry_point.unwrap();
@@ -309,8 +348,6 @@ impl HnswIndex {
             inner.entry_point = Some(iid);
             inner.max_level = level;
         }
-
-        Ok(())
     }
 
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
