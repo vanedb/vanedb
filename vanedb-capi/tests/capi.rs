@@ -186,3 +186,96 @@ fn store() {
         );
     }
 }
+
+#[test]
+fn store_add_batch() {
+    let ids = [1u64, 2, 3];
+    let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
+    unsafe {
+        let s = vanedb_capi::vanedb_rs_store_new(2, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, ids.as_ptr(), flat.as_ptr(), 3),
+            0
+        );
+        let q = [0.9f32, 0.9];
+        let mut out_ids = [0u64; 1];
+        let mut out_ds = [0.0f32; 1];
+        let n = vanedb_capi::vanedb_rs_store_search(
+            s,
+            q.as_ptr(),
+            1,
+            out_ids.as_mut_ptr(),
+            out_ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 1);
+        assert_eq!(out_ids[0], 2);
+
+        // duplicate id -> error, all-or-nothing (store unchanged: id 4 absent)
+        let dup_ids = [4u64, 1];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, dup_ids.as_ptr(), flat.as_ptr(), 2),
+            1
+        );
+
+        // empty batch is a no-op success, even with null pointers
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, std::ptr::null(), std::ptr::null(), 0),
+            0
+        );
+
+        // null handle guard
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(
+                std::ptr::null_mut(),
+                ids.as_ptr(),
+                flat.as_ptr(),
+                3
+            ),
+            1
+        );
+        vanedb_capi::vanedb_rs_store_free(s);
+    }
+}
+
+#[test]
+fn hnsw_add_batch() {
+    let ids = [10u64, 20];
+    let flat = [0.0f32, 0.0, 1.0, 1.0];
+    unsafe {
+        let h = vanedb_capi::vanedb_rs_hnsw_new(2, 0, 100, 16, 200, 42);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(h, ids.as_ptr(), flat.as_ptr(), 2),
+            0
+        );
+        let q = [0.1f32, 0.1];
+        let mut out_ids = [0u64; 2];
+        let mut out_ds = [0.0f32; 2];
+        let n = vanedb_capi::vanedb_rs_hnsw_search(
+            h,
+            q.as_ptr(),
+            2,
+            50,
+            out_ids.as_mut_ptr(),
+            out_ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 2);
+        assert_eq!(out_ids[0], 10);
+
+        // duplicate -> error
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(h, ids.as_ptr(), flat.as_ptr(), 2),
+            1
+        );
+        // null handle guard
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(
+                std::ptr::null_mut(),
+                ids.as_ptr(),
+                flat.as_ptr(),
+                2
+            ),
+            1
+        );
+        vanedb_capi::vanedb_rs_hnsw_free(h);
+    }
+}
