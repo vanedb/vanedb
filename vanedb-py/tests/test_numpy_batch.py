@@ -93,6 +93,32 @@ def test_store_add_batch_ids_vectors_count_mismatch():
     assert len(store) == 0
 
 
+def test_store_add_batch_numpy_f64_2d():
+    # float64 is numpy's default dtype; a well-formed 2-D batch must insert
+    store = vanedb.PyVectorStore(3)
+    store.add_batch(np.arange(2), np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+    assert len(store) == 2
+    assert store.get(1) == [4.0, 5.0, 6.0]
+
+
+def test_store_add_batch_f64_wrong_rank_raises():
+    # Shape validation must not depend on dtype: the float32 twin of this
+    # array is rejected as 3-D, so the float64 one must be too — not silently
+    # flattened through numpy's element coercion.
+    store = vanedb.PyVectorStore(3)
+    with pytest.raises(ValueError, match="2-D"):
+        store.add_batch(np.arange(2), np.zeros((2, 3, 1)))
+    assert len(store) == 0
+
+
+def test_store_add_f64_wrong_rank_raises():
+    # float64 twin of test_store_add_2d_buffer_rejected_for_single_add
+    store = vanedb.PyVectorStore(3)
+    with pytest.raises(ValueError, match="1-D"):
+        store.add(1, np.zeros((3, 1)))
+    assert len(store) == 0
+
+
 def test_store_add_batch_duplicate_is_all_or_nothing():
     store = vanedb.PyVectorStore(2)
     store.add(5, [0.0, 0.0])

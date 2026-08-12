@@ -11,42 +11,60 @@ fn to_pyerr(e: VaneError) -> PyErr {
     PyValueError::new_err(e.to_string())
 }
 
-/// Extract a single vector. Fast path: any 1-D float32 buffer (numpy array,
-/// array.array, memoryview) copied wholesale; fallback: generic sequence
-/// extraction (lists, float64 arrays), matching the pre-buffer behavior.
+/// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
+/// (numpy array, array.array, memoryview) copied wholesale; fallback: generic
+/// sequence extraction (lists), matching the pre-buffer behavior. Rank is
+/// validated in every buffer branch so shape errors do not depend on dtype.
 fn vec_f32(obj: &Bound<'_, PyAny>) -> PyResult<Vec<f32>> {
     if let Ok(buf) = PyBuffer::<f32>::get(obj) {
-        if buf.dimensions() != 1 {
-            return Err(PyValueError::new_err(format!(
-                "expected a 1-D vector, got a {}-D buffer",
-                buf.dimensions()
-            )));
-        }
+        check_rank(buf.dimensions(), 1, "expected a 1-D vector")?;
         return buf.to_vec(obj.py());
+    }
+    if let Ok(buf) = PyBuffer::<f64>::get(obj) {
+        check_rank(buf.dimensions(), 1, "expected a 1-D vector")?;
+        return Ok(buf.to_vec(obj.py())?.iter().map(|&x| x as f32).collect());
     }
     obj.extract()
 }
 
+fn check_rank(got: usize, expected: usize, what: &str) -> PyResult<()> {
+    if got != expected {
+        return Err(PyValueError::new_err(format!(
+            "{what}, got a {got}-D buffer"
+        )));
+    }
+    Ok(())
+}
+
 /// Extract a batch of vectors as (row_count, flat row-major f32).
-/// Fast path: a 2-D float32 buffer of shape (n, dim); fallback: a sequence of
-/// float sequences. Row width is validated here because the core's flat-length
-/// check alone cannot catch ragged rows whose total happens to match.
+/// Fast paths: a 2-D float32 or float64 buffer of shape (n, dim); fallback: a
+/// sequence of float sequences. Row width is validated here because the core's
+/// flat-length check alone cannot catch ragged rows whose total happens to
+/// match. Rank and width are validated in every buffer branch so shape errors
+/// do not depend on dtype.
 fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> {
-    if let Ok(buf) = PyBuffer::<f32>::get(obj) {
-        if buf.dimensions() != 2 {
-            return Err(PyValueError::new_err(format!(
-                "expected a 2-D array of shape (n, {dim}), got a {}-D buffer",
-                buf.dimensions()
-            )));
-        }
-        let shape = buf.shape();
+    fn check_shape(rank: usize, shape: &[usize], dim: usize) -> PyResult<()> {
+        check_rank(
+            rank,
+            2,
+            &format!("expected a 2-D array of shape (n, {dim})"),
+        )?;
         if shape[1] != dim {
             return Err(PyValueError::new_err(format!(
                 "dimension mismatch: expected vectors of dimension {dim}, got {}",
                 shape[1]
             )));
         }
-        return Ok((shape[0], buf.to_vec(obj.py())?));
+        Ok(())
+    }
+    if let Ok(buf) = PyBuffer::<f32>::get(obj) {
+        check_shape(buf.dimensions(), buf.shape(), dim)?;
+        return Ok((buf.shape()[0], buf.to_vec(obj.py())?));
+    }
+    if let Ok(buf) = PyBuffer::<f64>::get(obj) {
+        check_shape(buf.dimensions(), buf.shape(), dim)?;
+        let flat = buf.to_vec(obj.py())?.iter().map(|&x| x as f32).collect();
+        return Ok((buf.shape()[0], flat));
     }
     let rows: Vec<Vec<f32>> = obj.extract().map_err(|_| {
         PyTypeError::new_err(
