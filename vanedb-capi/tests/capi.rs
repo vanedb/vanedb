@@ -131,6 +131,36 @@ fn mmap() {
     let _ = std::fs::remove_file("rs_capi_mmap.bin");
 }
 
+/// n == 0 with null ids/vecs must build a valid empty store, matching the
+/// null-safe-when-empty contract of the add_batch entry points.
+#[test]
+fn mmap_build_empty_with_null_pointers() {
+    let path = std::ffi::CString::new("rs_capi_mmap_empty.bin").unwrap();
+    unsafe {
+        assert_eq!(
+            vanedb_capi::vanedb_rs_mmap_build(
+                path.as_ptr(),
+                2,
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                0
+            ),
+            0
+        );
+        let m = vanedb_capi::vanedb_rs_mmap_open(path.as_ptr());
+        assert!(!m.is_null());
+        let q = [0.0f32, 0.0];
+        let mut ids = [0u64; 2];
+        let mut ds = [0.0f32; 2];
+        let n =
+            vanedb_capi::vanedb_rs_mmap_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
+        assert_eq!(n, 0);
+        vanedb_capi::vanedb_rs_mmap_free(m);
+    }
+    let _ = std::fs::remove_file("rs_capi_mmap_empty.bin");
+}
+
 #[test]
 fn distance() {
     let a = [1.0f32, 2.0, 3.0, 4.0];
@@ -184,5 +214,98 @@ fn store() {
             ),
             0
         );
+    }
+}
+
+#[test]
+fn store_add_batch() {
+    let ids = [1u64, 2, 3];
+    let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
+    unsafe {
+        let s = vanedb_capi::vanedb_rs_store_new(2, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, ids.as_ptr(), flat.as_ptr(), 3),
+            0
+        );
+        let q = [0.9f32, 0.9];
+        let mut out_ids = [0u64; 1];
+        let mut out_ds = [0.0f32; 1];
+        let n = vanedb_capi::vanedb_rs_store_search(
+            s,
+            q.as_ptr(),
+            1,
+            out_ids.as_mut_ptr(),
+            out_ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 1);
+        assert_eq!(out_ids[0], 2);
+
+        // duplicate id -> error, all-or-nothing (store unchanged: id 4 absent)
+        let dup_ids = [4u64, 1];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, dup_ids.as_ptr(), flat.as_ptr(), 2),
+            1
+        );
+
+        // empty batch is a no-op success, even with null pointers
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(s, std::ptr::null(), std::ptr::null(), 0),
+            0
+        );
+
+        // null handle guard
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(
+                std::ptr::null_mut(),
+                ids.as_ptr(),
+                flat.as_ptr(),
+                3
+            ),
+            1
+        );
+        vanedb_capi::vanedb_rs_store_free(s);
+    }
+}
+
+#[test]
+fn hnsw_add_batch() {
+    let ids = [10u64, 20];
+    let flat = [0.0f32, 0.0, 1.0, 1.0];
+    unsafe {
+        let h = vanedb_capi::vanedb_rs_hnsw_new(2, 0, 100, 16, 200, 42);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(h, ids.as_ptr(), flat.as_ptr(), 2),
+            0
+        );
+        let q = [0.1f32, 0.1];
+        let mut out_ids = [0u64; 2];
+        let mut out_ds = [0.0f32; 2];
+        let n = vanedb_capi::vanedb_rs_hnsw_search(
+            h,
+            q.as_ptr(),
+            2,
+            50,
+            out_ids.as_mut_ptr(),
+            out_ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 2);
+        assert_eq!(out_ids[0], 10);
+
+        // duplicate -> error
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(h, ids.as_ptr(), flat.as_ptr(), 2),
+            1
+        );
+        // null handle guard
+        assert_eq!(
+            vanedb_capi::vanedb_rs_hnsw_add_batch(
+                std::ptr::null_mut(),
+                ids.as_ptr(),
+                flat.as_ptr(),
+                2
+            ),
+            1
+        );
+        vanedb_capi::vanedb_rs_hnsw_free(h);
     }
 }

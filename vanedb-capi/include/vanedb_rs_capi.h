@@ -51,6 +51,17 @@ int32_t vanedb_rs_store_add(VectorStore *s, uint64_t id, const float *v);
 
 /**
  * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new` (or null); `ids` must point to
+ * `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+ * All-or-nothing: on error (duplicate id, length mismatch) the store is unchanged.
+ */
+int32_t vanedb_rs_store_add_batch(VectorStore *s,
+                                  const uint64_t *ids,
+                                  const float *vecs,
+                                  uintptr_t n);
+
+/**
+ * # Safety
  * `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
  * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
  */
@@ -88,6 +99,14 @@ int32_t vanedb_rs_hnsw_add(HnswIndex *h, uint64_t id, const float *v);
 
 /**
  * # Safety
+ * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `ids` must point to
+ * `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+ * All-or-nothing: on error (duplicate id, capacity, length mismatch) the index is unchanged.
+ */
+int32_t vanedb_rs_hnsw_add_batch(HnswIndex *h, const uint64_t *ids, const float *vecs, uintptr_t n);
+
+/**
+ * # Safety
  * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `q` must point to
  * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
  */
@@ -121,8 +140,8 @@ void vanedb_rs_hnsw_free(HnswIndex *h);
 
 /**
  * # Safety
- * `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s;
- * `vecs` must point to `n * dim` valid `f32`s.
+ * `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s
+ * and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
  */
 int32_t vanedb_rs_mmap_build(const char *path,
                              uintptr_t dim,
