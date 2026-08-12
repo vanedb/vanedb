@@ -294,8 +294,8 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_free(h: *mut HnswIndex) {
 }
 
 /// # Safety
-/// `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s;
-/// `vecs` must point to `n * dim` valid `f32`s.
+/// `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s
+/// and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_mmap_build(
     path: *const c_char,
@@ -316,7 +316,11 @@ pub unsafe extern "C" fn vanedb_rs_mmap_build(
         Ok(b) => b,
         Err(_) => return 1,
     };
-    let id_slice = slice::from_raw_parts(ids, n);
+    let id_slice: &[u64] = if n == 0 {
+        &[]
+    } else {
+        slice::from_raw_parts(ids, n)
+    };
     for (i, &id) in id_slice.iter().enumerate() {
         let v = slice::from_raw_parts(vecs.add(i * dim), dim);
         if b.add(id, v).is_err() {
