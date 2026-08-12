@@ -25,6 +25,18 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
 
+  check-py:
+    name: Check (Python bindings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      # vanedb-py is excluded from the workspace jobs (building a wheel needs
+      # maturin), but `cargo check` needs only a Python interpreter, so the
+      # crate at least compiling is verified on every PR. Full behavior tests
+      # still run locally via maturin develop + pytest.
+      - run: cargo check -p vanedb-py
+
   test-linux:
     name: Test (Linux x86_64)
     runs-on: ubuntu-latest
