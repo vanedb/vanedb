@@ -422,7 +422,11 @@ mod tests {
         assert_eq!(store.len(), 5);
         for id in 1..=5u64 {
             let v = id as f32;
-            assert_eq!(store.get(id).unwrap(), vec![v, v, v], "wrong data for id {id}");
+            assert_eq!(
+                store.get(id).unwrap(),
+                vec![v, v, v],
+                "wrong data for id {id}"
+            );
         }
         let results = store.search(&[4.0, 4.0, 4.1], 1).unwrap();
         assert_eq!(results[0].id, 4);

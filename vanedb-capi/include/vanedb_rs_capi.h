@@ -140,8 +140,8 @@ void vanedb_rs_hnsw_free(HnswIndex *h);
 
 /**
  * # Safety
- * `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s;
- * `vecs` must point to `n * dim` valid `f32`s.
+ * `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s
+ * and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
  */
 int32_t vanedb_rs_mmap_build(const char *path,
                              uintptr_t dim,
