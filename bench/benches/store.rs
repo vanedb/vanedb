@@ -9,42 +9,56 @@ fn bench_store_search(c: &mut Criterion) {
         let q = &w.queries[0..dim];
         let mut g = c.benchmark_group(format!("store_search/n={n}"));
 
-        g.bench_function("cpp", |bn| unsafe {
-            let s = ffi::vanedb_cpp_store_new(dim, 0);
+        unsafe {
+            // Measurement policy: both engines' stores stay resident for the
+            // whole group, built interleaved — matching hnsw.rs and the report
+            // bin. A brute-force scan is cache-bound, so residency decides the
+            // winner; every path must use the same policy.
+            let sc = ffi::vanedb_cpp_store_new(dim, 0);
+            let sr = ffi::vanedb_rs_store_new(dim, 0);
+            assert!(!sc.is_null() && !sr.is_null(), "store_new failed");
             for i in 0..n {
-                ffi::vanedb_cpp_store_add(s, w.ids[i], w.vectors[i * dim..].as_ptr());
+                let v = w.vectors[i * dim..].as_ptr();
+                assert_eq!(ffi::vanedb_cpp_store_add(sc, w.ids[i], v), 0);
+                assert_eq!(ffi::vanedb_rs_store_add(sr, w.ids[i], v), 0);
             }
             let mut ids = [0u64; 10];
             let mut ds = [0f32; 10];
-            bn.iter(|| {
-                ffi::vanedb_cpp_store_search(
-                    s,
-                    black_box(q.as_ptr()),
-                    10,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+            // Warmup outside the timed loops doubles as a liveness check: a
+            // failed engine would otherwise "win" by returning instantly.
+            assert_eq!(
+                ffi::vanedb_cpp_store_search(sc, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+                10
+            );
+            assert_eq!(
+                ffi::vanedb_rs_store_search(sr, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+                10
+            );
+            g.bench_function("cpp", |bn| {
+                bn.iter(|| {
+                    ffi::vanedb_cpp_store_search(
+                        sc,
+                        black_box(q.as_ptr()),
+                        10,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    )
+                })
             });
-            ffi::vanedb_cpp_store_free(s);
-        });
-        g.bench_function("rs", |bn| unsafe {
-            let s = ffi::vanedb_rs_store_new(dim, 0);
-            for i in 0..n {
-                ffi::vanedb_rs_store_add(s, w.ids[i], w.vectors[i * dim..].as_ptr());
-            }
-            let mut ids = [0u64; 10];
-            let mut ds = [0f32; 10];
-            bn.iter(|| {
-                ffi::vanedb_rs_store_search(
-                    s,
-                    black_box(q.as_ptr()),
-                    10,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+            g.bench_function("rs", |bn| {
+                bn.iter(|| {
+                    ffi::vanedb_rs_store_search(
+                        sr,
+                        black_box(q.as_ptr()),
+                        10,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    )
+                })
             });
-            ffi::vanedb_rs_store_free(s);
-        });
+            ffi::vanedb_cpp_store_free(sc);
+            ffi::vanedb_rs_store_free(sr);
+        }
         g.finish();
     }
 }

@@ -43,6 +43,31 @@ Three rounds of measurement drove three rounds of fixes:
 
 HNSW recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700 — quality-comparable.
 
+Re-measured 2026-08 under the unified measurement policy below: ratios
+unchanged (store_search 1.14, hnsw_search 0.87).
+
+## Measurement policy
+
+- Both engines run in one process through their C ABIs. Stores and indexes
+  are built interleaved and stay resident together during search benches —
+  the same policy in every criterion suite and the report bin, since
+  residency and construction order are part of what's being compared.
+- The report bin samples the two engines interleaved (cpp, rs, cpp, rs…)
+  after a joint warmup. Block-ordered one-shot timing measured C++ first on
+  colder machine state and flipped the store_search verdict relative to
+  criterion; paired sampling removed the contradiction (2026-08).
+- Criterion is the canonical source for perf claims. The report bin is a
+  quick digestible snapshot and covers only l2_sq, store_search, and
+  hnsw_search + recall; hnsw_build and mmap_search are criterion-only.
+- Every setup return code and handle is asserted, so a failed engine fails
+  the run instead of benchmarking a null handle as infinitely fast.
+- On x86_64 the harness compiles the C++ capi with `-mavx2 -mfma`:
+  vanedb-cpp's own CMake gives those flags to its perf targets but not to
+  `vanedb_cpp_capi`, and C++ gates SIMD at compile time while Rust detects
+  it at runtime — without the flags the harness would compare Rust-AVX2
+  against C++-scalar. The published numbers above are Apple Silicon, where
+  NEON is unconditional on both sides.
+
 ## License
 
 MIT

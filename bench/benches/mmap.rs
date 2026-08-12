@@ -13,26 +13,46 @@ fn bench_mmap_search(c: &mut Criterion) {
     let rs_path = CString::new("bench_rs.mmap").unwrap();
 
     unsafe {
-        ffi::vanedb_cpp_mmap_build(
-            cpp_path.as_ptr(),
-            DIM,
+        // A failed build/open (e.g. read-only cwd) must fail loudly, not
+        // benchmark a null handle as infinitely fast.
+        assert_eq!(
+            ffi::vanedb_cpp_mmap_build(
+                cpp_path.as_ptr(),
+                DIM,
+                0,
+                w.ids.as_ptr(),
+                w.vectors.as_ptr(),
+                N,
+            ),
             0,
-            w.ids.as_ptr(),
-            w.vectors.as_ptr(),
-            N,
+            "cpp mmap_build failed"
         );
-        ffi::vanedb_rs_mmap_build(
-            rs_path.as_ptr(),
-            DIM,
+        assert_eq!(
+            ffi::vanedb_rs_mmap_build(
+                rs_path.as_ptr(),
+                DIM,
+                0,
+                w.ids.as_ptr(),
+                w.vectors.as_ptr(),
+                N,
+            ),
             0,
-            w.ids.as_ptr(),
-            w.vectors.as_ptr(),
-            N,
+            "rs mmap_build failed"
         );
         let mc = ffi::vanedb_cpp_mmap_open(cpp_path.as_ptr());
         let mr = ffi::vanedb_rs_mmap_open(rs_path.as_ptr());
+        assert!(!mc.is_null() && !mr.is_null(), "mmap_open failed");
         let mut ids = [0u64; 10];
         let mut ds = [0f32; 10];
+        // Warmup outside the timed loops doubles as a liveness check.
+        assert_eq!(
+            ffi::vanedb_cpp_mmap_search(mc, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            10
+        );
+        assert_eq!(
+            ffi::vanedb_rs_mmap_search(mr, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            10
+        );
         let mut g = c.benchmark_group("mmap_search");
         g.bench_function("cpp", |bn| {
             bn.iter(|| {
