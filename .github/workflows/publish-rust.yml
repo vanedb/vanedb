@@ -160,7 +160,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: --locked --out dist --manifest-path vanedb-py/Cargo.toml
+          args: --out dist --manifest-path vanedb-py/Cargo.toml
       - uses: actions/upload-artifact@v7
         with:
           name: vanedb-sdist
