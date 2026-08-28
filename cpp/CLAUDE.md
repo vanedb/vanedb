@@ -5,9 +5,10 @@ Embeddable vector database for edge AI. Header-only C++20, SIMD-optimized, cross
 
 ## Role in the VaneDB Project
 
-This is the **C++ header-only** implementation. The Rust implementation lives at
-[vanedb/vanedb](https://github.com/vanedb/vanedb) and is the primary entry point
-for Rust (`cargo add vanedb`), Python (`pip install vanedb`), and WASM consumers.
+This is the **C++ header-only** implementation in the `cpp/` directory. The
+Rust implementation lives at the repository root and is the primary entry
+point for Rust (`cargo add vanedb`), Python (`pip install vanedb`), and WASM
+consumers.
 This implementation also provides supplementary Python bindings as
 `pip install vanedb-cpp` / `import vanedb_cpp`; it does not own the canonical
 `vanedb` PyPI name.
@@ -18,10 +19,11 @@ This implementation also provides supplementary Python bindings as
 - **Rust**: cleaner concurrency, ergonomic Python/WASM bindings, the path for new
   language ecosystems.
 
-**Alignment policy:** Features generally land in Rust first. C++ syncs core algorithms,
-distance functions, and on-disk persistence formats (HNSW files written by one
-implementation should load in the other when feasible). Intentional divergence at
-the edges — WASM is Rust-only; the header-only embed path is C++-only.
+**Alignment policy:** Features generally land in Rust first. C++ syncs core
+algorithms, distance functions, and the universal on-disk persistence contract.
+Shared regression vectors and cross-load fixtures live in `../conformance/`.
+Intentional divergence remains at the edges — WASM is Rust-only; the header-only
+embed path is C++-only.
 
 ## Current Status: v0.1.0 (frozen for sync work)
 
@@ -62,10 +64,12 @@ src/core/
 
 ## Build
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-cd build && ctest --output-on-failure
+cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
+cmake --build cpp/build --parallel
+ctest --test-dir cpp/build --output-on-failure
 ```
+
+Run these commands from the repository root.
 
 ## CI/CD (10 jobs)
 - Linux: GCC, Clang
@@ -74,7 +78,7 @@ cd build && ctest --output-on-failure
 - ARM64: Native runners
 - iOS: Xcode arm64
 - Android: NDK arm64-v8a, x86_64
-- Python: 3 platforms x 2 versions
+- Python: 3 platforms x Python 3.9–3.14
 - Sanitizers: ASan, UBSan
 - Coverage: Codecov
 
@@ -124,9 +128,9 @@ This repo defers to the Rust repo for:
 - Language bindings beyond Python (Node/WASM, Swift, Go)
 - Canonical `vanedb` PyPI distribution work and npm packaging
 
-Check [vanedb/vanedb](https://github.com/vanedb/vanedb) issues before filing
-feature requests here. The canonical PyPI distribution (`pip install vanedb`),
-WASM, and batch/metadata APIs are tracked there.
+The canonical PyPI distribution (`pip install vanedb`), WASM, and
+batch/metadata APIs are owned by the Rust component and tracked in this
+repository's issue tracker.
 
 ## Known Limitations
 - No deletion in HNSWIndex (rebuild required)

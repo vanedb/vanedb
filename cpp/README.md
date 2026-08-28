@@ -4,8 +4,8 @@
 
 **Embeddable vector database for edge AI**
 
-[![Build](https://github.com/vanedb/vanedb-cpp/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/vanedb/vanedb-cpp/actions/workflows/build-and-test.yml)
-[![codecov](https://codecov.io/gh/vanedb/vanedb-cpp/branch/main/graph/badge.svg)](https://codecov.io/gh/vanedb/vanedb-cpp)
+[![Build](https://github.com/vanedb/vanedb/actions/workflows/ci.yml/badge.svg)](https://github.com/vanedb/vanedb/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/vanedb/vanedb/branch/main/graph/badge.svg)](https://codecov.io/gh/vanedb/vanedb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C.svg)](https://en.cppreference.com/w/cpp/20)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3776AB.svg)](https://www.python.org/)
@@ -16,7 +16,10 @@
 
 Header-only C++20 vector database with SIMD acceleration. Runs on Linux, macOS, Windows, iOS, and Android.
 
-> **Two implementations.** VaneDB is maintained as both C++ and Rust under the [@vanedb](https://github.com/vanedb) org. This repo is the **C++ header-only** version — drop a header into any CMake project, no Rust toolchain needed. For the Rust crate (with Python/PyO3 and WASM bindings), see **[vanedb/vanedb](https://github.com/vanedb/vanedb)**.
+> **Two implementations, one repository.** This directory is VaneDB's
+> **C++ header-only** implementation — drop a header into any CMake project,
+> no Rust toolchain needed. The canonical Rust, Python, and WASM implementation
+> lives at the [repository root](..).
 
 ## Why VaneDB?
 
@@ -71,10 +74,12 @@ ids, distances = index.search(query, 10)
 ## Build
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
+cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
+cmake --build cpp/build --parallel
+ctest --test-dir cpp/build --output-on-failure
 ```
+
+Run these commands from the repository root.
 
 ## Documentation
 

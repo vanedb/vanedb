@@ -6,99 +6,106 @@ on:
   pull_request:
     branches: [main]
 
-# Least privilege: every job here only reads the repo and runs builds/tests.
+# This workflow always runs. Component workflows are selected after checkout,
+# and the final job is the only required branch-protection check.
 permissions:
+  actions: read
   contents: read
-
-env:
-  CARGO_TERM_COLOR: always
+  pull-requests: read
 
 jobs:
-  check:
-    name: Check & Lint
+  changes:
+    name: Detect affected components
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      cpp: ${{ steps.filter.outputs.cpp }}
+      integration: ${{ steps.filter.outputs.integration }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            rust:
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'vanedb/**'
+              - 'vanedb-capi/**'
+              - 'vanedb-py/**'
+              - 'vanedb-wasm/**'
+              - '.github/workflows/**'
+            cpp:
+              - 'cpp/**'
+              - '.github/workflows/**'
+            integration:
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'vanedb/**'
+              - 'vanedb-capi/**'
+              - 'cpp/**'
+              - 'bench/**'
+              - 'conformance/**'
+              - '.github/workflows/**'
+
+  rust:
+    name: Rust component
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    uses: ./.github/workflows/rust-ci.yml
+
+  cpp:
+    name: C++ component
+    needs: changes
+    if: ${{ needs.changes.outputs.cpp == 'true' }}
+    uses: ./.github/workflows/cpp-ci.yml
+
+  integration:
+    name: Cross-engine integration
+    needs: changes
+    if: ${{ needs.changes.outputs.integration == 'true' }}
+    uses: ./.github/workflows/integration-ci.yml
+
+  gate:
+    name: Required CI Gate
+    if: ${{ always() }}
+    needs: [changes, rust, cpp, integration]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
+      - name: Verify every affected component passed
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          RUST_CHANGED: ${{ needs.changes.outputs.rust }}
+          RUST_RESULT: ${{ needs.rust.result }}
+          CPP_CHANGED: ${{ needs.changes.outputs.cpp }}
+          CPP_RESULT: ${{ needs.cpp.result }}
+          INTEGRATION_CHANGED: ${{ needs.changes.outputs.integration }}
+          INTEGRATION_RESULT: ${{ needs.integration.result }}
+        run: |
+          set -euo pipefail
 
-  check-py:
-    name: Check (Python bindings)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      # vanedb-py is excluded from the workspace jobs (building a wheel needs
-      # maturin), but `cargo check` needs only a Python interpreter, so the
-      # crate at least compiling is verified on every PR. Full behavior tests
-      # still run locally via maturin develop + pytest.
-      - run: cargo check -p vanedb-py
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection did not succeed: $CHANGES_RESULT"
+            exit 1
+          fi
 
-  test-linux:
-    name: Test (Linux x86_64)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap
+          verify_component() {
+            local name="$1"
+            local changed="$2"
+            local result="$3"
 
-  test-macos:
-    name: Test (macOS ARM)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap,gpu-metal
+            if [[ "$changed" == "true" && "$result" != "success" ]]; then
+              echo "$name changed but its workflow result was $result"
+              exit 1
+            fi
+            if [[ "$changed" != "true" && "$result" != "skipped" ]]; then
+              echo "$name did not change but its workflow result was $result"
+              exit 1
+            fi
+          }
 
-  test-windows:
-    name: Test (Windows x86_64)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap
-
-  test-wasm:
-    name: Test (WASM)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - name: Test WASM
-        run: cd vanedb-wasm && wasm-pack test --node
-
-  build-ios:
-    name: Build (iOS arm64)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios
-      # Cross-compile only: there is no iOS test runner, mirroring the
-      # build-only verification the C++ repo uses for mobile.
-      - run: cargo build -p vanedb --target aarch64-apple-ios --features mmap --release
-
-  build-android:
-    name: Build (Android arm64-v8a, x86_64)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android, x86_64-linux-android
-      - name: Set up Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26b
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-      - name: Cross-compile core for Android
-        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features mmap --release
+          verify_component rust "$RUST_CHANGED" "$RUST_RESULT"
+          verify_component cpp "$CPP_CHANGED" "$CPP_RESULT"
+          verify_component integration "$INTEGRATION_CHANGED" "$INTEGRATION_RESULT"
+          echo "All affected components passed."

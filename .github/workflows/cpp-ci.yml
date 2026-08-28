@@ -1,15 +1,16 @@
-name: Build and Test
+name: C++ CI
 
 on:
-  push:
-    branches: [ main, develop, "claude/**" ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_call:
 
 # Restrict permissions for security
 permissions:
   contents: read
   actions: read
+
+defaults:
+  run:
+    working-directory: cpp
 
 jobs:
   build-and-test:
@@ -46,8 +47,8 @@ jobs:
       uses: actions/cache@v6
       with:
         path: |
-          build/_deps
-        key: ${{ runner.os }}-${{ matrix.compiler }}-vanedb-deps-${{ hashFiles('CMakeLists.txt') }}
+          cpp/build/_deps
+        key: ${{ runner.os }}-${{ matrix.compiler }}-vanedb-deps-${{ hashFiles('cpp/CMakeLists.txt') }}
         restore-keys: |
           ${{ runner.os }}-${{ matrix.compiler }}-vanedb-deps-
 
@@ -96,7 +97,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: benchmarks-${{ matrix.os }}-${{ matrix.compiler }}
-        path: build/bench_*.json
+        path: cpp/build/bench_*.json
         retention-days: 90
 
   python-tests:
@@ -256,7 +257,7 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v7
       with:
-        files: coverage.info
+        files: cpp/coverage.info
         flags: core
         fail_ci_if_error: false
         verbose: true
@@ -413,8 +414,8 @@ jobs:
     - name: Cache CMake deps
       uses: actions/cache@v6
       with:
-        path: build-capi/_deps
-        key: ${{ runner.os }}-capi-deps-${{ hashFiles('CMakeLists.txt') }}
+        path: cpp/build-capi/_deps
+        key: ${{ runner.os }}-capi-deps-${{ hashFiles('cpp/CMakeLists.txt') }}
         restore-keys: ${{ runner.os }}-capi-deps-
 
     - name: Configure CMake (C API)

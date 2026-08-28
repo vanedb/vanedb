@@ -1,0 +1,101 @@
+name: Rust CI
+
+on:
+  workflow_call:
+
+# Least privilege: every job here only reads the repo and runs builds/tests.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
+
+  check-py:
+    name: Check (Python bindings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      # vanedb-py is excluded from the workspace jobs (building a wheel needs
+      # maturin), but `cargo check` needs only a Python interpreter, so the
+      # crate at least compiling is verified on every PR. Full behavior tests
+      # still run locally via maturin develop + pytest.
+      - run: cargo check -p vanedb-py
+
+  test-linux:
+    name: Test (Linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace --exclude vanedb-py --features mmap
+
+  test-macos:
+    name: Test (macOS ARM)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace --exclude vanedb-py --features mmap,gpu-metal
+
+  test-windows:
+    name: Test (Windows x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace --exclude vanedb-py --features mmap
+
+  test-wasm:
+    name: Test (WASM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Test WASM
+        run: cd vanedb-wasm && wasm-pack test --node
+
+  build-ios:
+    name: Build (iOS arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+      # Cross-compile only: there is no iOS test runner, mirroring the
+      # build-only verification the C++ repo uses for mobile.
+      - run: cargo build -p vanedb --target aarch64-apple-ios --features mmap --release
+
+  build-android:
+    name: Build (Android arm64-v8a, x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Cross-compile core for Android
+        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features mmap --release

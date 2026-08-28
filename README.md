@@ -1,6 +1,7 @@
 # VaneDB
 
-Embeddable vector database for edge AI — Rust crate with Python (PyO3) and WASM bindings.
+Embeddable vector database for edge AI, with Rust and header-only C++
+implementations maintained under one contract.
 
 ## Quick start
 
@@ -35,12 +36,25 @@ all-or-nothing and releases the GIL while the index builds. The same batch
 API is exposed in the wasm bindings (`Float32Array`/`BigUint64Array`) and
 the C ABI (`vanedb_rs_*_add_batch`).
 
-## Implementations
+## Repository layout
 
-- **Rust** (this repo) — `cargo add vanedb`, Python via `vanedb-py` (PyO3), WASM via `vanedb-wasm` (wasm-bindgen).
-- **C++** — [vanedb/vanedb-cpp](https://github.com/vanedb/vanedb-cpp), header-only, no Rust toolchain required.
+| Path | Purpose |
+|---|---|
+| [`vanedb/`](vanedb) | Rust engine; canonical crate and `vanedb` PyPI implementation |
+| [`vanedb-py/`](vanedb-py) | PyO3 bindings for `pip install vanedb` |
+| [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
+| [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
+| [`cpp/`](cpp) | Supplementary header-only C++ engine and `vanedb-cpp` Python package |
+| [`bench/`](bench) | Reproducible cross-engine benchmark harness |
+| [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
-Both maintained side-by-side under the [@vanedb](https://github.com/vanedb) org. Features generally land in Rust first; core algorithms and persistence formats are synced to C++.
+The Rust and C++ engines may make different internal trade-offs, but distance
+semantics, persistence, structural safety, and search-quality expectations are
+tested as one product. The canonical Python package is `vanedb`;
+`vanedb-cpp` / `import vanedb_cpp` is supplementary.
+
+Release tags are product-scoped: `vanedb-vX.Y.Z` for the canonical product
+and `vanedb-cpp-vX.Y.Z` for the supplementary C++ distribution.
 
 ## License
 

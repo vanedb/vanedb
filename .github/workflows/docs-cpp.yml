@@ -1,8 +1,11 @@
-name: Documentation
+name: C++ Documentation
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/docs-cpp.yml'
   workflow_dispatch:
 
 permissions:
@@ -11,8 +14,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: "cpp-pages"
   cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: cpp
 
 jobs:
   build-docs:
@@ -36,7 +43,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v5
       with:
-        path: docs/html
+        path: cpp/docs/html
 
   deploy:
     environment:
