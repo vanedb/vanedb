@@ -1,3 +1,0 @@
-[submodule "vendor/vanedb-cpp"]
-	path = vendor/vanedb-cpp
-	url = https://github.com/vanedb/vanedb-cpp

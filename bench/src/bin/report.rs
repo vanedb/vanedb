@@ -40,9 +40,8 @@ fn main() {
     let q = &w.queries[0..DIM];
     let mut out = String::from("# VaneDB Benchmark Results\n\n");
     out.push_str(&format!(
-        "Engines: vanedb-cpp {} (CMake Release), vanedb (Rust) {}.\n",
-        env!("VANEDB_CPP_REV"),
-        env!("VANEDB_RS_REV"),
+        "Engines: vanedb-cpp (CMake Release) and vanedb (Rust), monorepo {}.\n",
+        env!("VANEDB_MONOREPO_REV"),
     ));
     out.push_str(&format!(
         "Workload: dim={DIM}, n={N}, k={K}, L2. Latencies are medians of 501 \

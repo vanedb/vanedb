@@ -1,8 +1,11 @@
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn git_short_rev(dir: &str) -> String {
+fn git_short_rev(dir: &Path) -> String {
     Command::new("git")
-        .args(["-C", dir, "rev-parse", "--short", "HEAD"])
+        .arg("-C")
+        .arg(dir)
+        .args(["rev-parse", "--short", "HEAD"])
         .output()
         .ok()
         .filter(|o| o.status.success())
@@ -10,20 +13,17 @@ fn git_short_rev(dir: &str) -> String {
         .unwrap_or_else(|| "unknown".into())
 }
 
-/// The Rust engine rev is whatever Cargo.toml pins for vanedb-capi.
-fn rust_engine_rev() -> String {
-    std::fs::read_to_string("Cargo.toml")
-        .ok()
-        .and_then(|t| {
-            let line = t.lines().find(|l| l.contains("vanedb-capi"))?;
-            let rest = &line[line.find("rev = \"")? + 7..];
-            Some(rest[..rest.find('"')?].to_string())
-        })
-        .unwrap_or_else(|| "unknown".into())
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("bench must live directly below the repository root")
+        .to_path_buf()
 }
 
 fn main() {
-    let mut cfg = cmake::Config::new("vendor/vanedb-cpp");
+    let root = repo_root();
+    let cpp = root.join("cpp");
+    let mut cfg = cmake::Config::new(&cpp);
     cfg.define("VANEDB_BUILD_CAPI", "ON")
         .define("VANEDB_BUILD_TESTS", "OFF")
         .define("VANEDB_BUILD_BENCHMARKS", "OFF")
@@ -59,18 +59,24 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=stdc++");
     }
 
-    // Engine provenance, stamped into the report bin's RESULTS.md.
+    // Both engines now share one immutable source revision.
     println!(
-        "cargo:rustc-env=VANEDB_CPP_REV={}",
-        git_short_rev("vendor/vanedb-cpp")
+        "cargo:rustc-env=VANEDB_MONOREPO_REV={}",
+        git_short_rev(&root)
     );
-    println!("cargo:rustc-env=VANEDB_RS_REV={}", rust_engine_rev());
     println!("cargo:rerun-if-changed=Cargo.toml");
 
     // Watch everything the static lib is built from — a stale lib here would
     // silently benchmark old C++ code (all of src/, not just src/core:
     // src/utils headers are included too).
-    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/capi");
-    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/src");
-    println!("cargo:rerun-if-changed=vendor/vanedb-cpp/CMakeLists.txt");
+    println!("cargo:rerun-if-changed={}", cpp.join("capi").display());
+    println!("cargo:rerun-if-changed={}", cpp.join("src").display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        cpp.join("CMakeLists.txt").display()
+    );
+    println!(
+        "cargo:rerun-if-changed={}",
+        root.join(".git/HEAD").display()
+    );
 }

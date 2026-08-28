@@ -1,8 +1,8 @@
 # vanedb-bench
 
-Rigorous, reproducible head-to-head benchmark of the two [VaneDB](https://github.com/vanedb)
-implementations — C++ ([vanedb-cpp](https://github.com/vanedb/vanedb-cpp)) and
-Rust ([vanedb](https://github.com/vanedb/vanedb)).
+Rigorous, reproducible head-to-head benchmark of the two VaneDB
+implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
+[`../vanedb`](../vanedb).
 
 ## Status
 
@@ -14,12 +14,13 @@ HNSW recall@10 averaged over 100 queries. Design spec:
 ## Running
 
 ```bash
-cargo bench                        # criterion suites: distance, store, hnsw, mmap
-cargo run --release --bin report   # digestible RESULTS.md snapshot + recall@k
+cargo bench --manifest-path bench/Cargo.toml
+cargo run --release --manifest-path bench/Cargo.toml --bin report
 ```
 
-Requires a C++20 toolchain and CMake (the `vendor/vanedb-cpp` submodule is
-built by `build.rs`). Clone with `--recurse-submodules`.
+Run these commands from the repository root. They require a C++20 toolchain
+and CMake. `build.rs` compiles the local `cpp/` C API, while Cargo links the
+local `vanedb-capi/` crate, so one commit identifies both engines.
 
 ## Headline snapshot (Apple Silicon M-series, 2026-07)
 

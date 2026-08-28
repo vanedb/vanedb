@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-vanedb-capi = { git = "https://github.com/vanedb/vanedb", rev = "89f5144" }
+vanedb-capi = { path = "../vanedb-capi" }
 
 [build-dependencies]
 cmake = "0.1"
