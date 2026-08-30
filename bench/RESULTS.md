@@ -1,5 +1,9 @@
 # VaneDB Benchmark Results
 
+> **Historical pre-monorepo snapshot.** The two revisions below identify the
+> former separate repositories. New reports identify both engines with one
+> `VANEDB_MONOREPO_REV` commit.
+
 Engines: vanedb-cpp f02bb27 (CMake Release), vanedb (Rust) 89f5144.
 Workload: dim=128, n=10000, k=10, L2. Latencies are medians of 501 interleaved paired samples (one query) after a joint warmup; recall is averaged over 100 queries. Both engines' data stays resident in one process (interleaved construction).
 

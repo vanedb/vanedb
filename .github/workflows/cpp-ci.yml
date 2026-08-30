@@ -215,6 +215,10 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
 
     steps:
     - name: Checkout code
@@ -254,15 +258,24 @@ jobs:
           --output-file coverage.info --ignore-errors unused
         lcov --list coverage.info
 
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: cpp-coverage
+        path: cpp/coverage.info
+
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v7
+      if: >-
+        github.actor != 'dependabot[bot]' &&
+        (github.event_name != 'pull_request' ||
+        github.event.pull_request.head.repo.full_name == github.repository)
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         files: cpp/coverage.info
         flags: core
-        fail_ci_if_error: false
+        fail_ci_if_error: true
+        use_oidc: true
         verbose: true
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   linux-arm64:
     name: Linux ARM64 (Native)

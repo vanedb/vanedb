@@ -17,6 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
+      - name: Check benchmark formatting
+        run: cargo fmt --manifest-path bench/Cargo.toml --all -- --check
+      - name: Lint shared harness
+        run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
       - name: Test shared harness
         run: cargo test --manifest-path bench/Cargo.toml --locked
       - name: Compile all cross-engine benchmarks

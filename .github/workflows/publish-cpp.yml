@@ -127,7 +127,8 @@ jobs:
     needs: [build-wheels, build-sdist]
     runs-on: ubuntu-latest
     # Product tags build and retain artifacts, but publication remains an
-    # explicit action until the generic x86-64 CPU baseline is safe (#39).
+    # explicit action until the generic x86-64 CPU baseline is safe:
+    # https://github.com/vanedb/vanedb-cpp/issues/39
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true'
 
     steps:

@@ -1,16 +1,54 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-fn git_short_rev(dir: &Path) -> String {
+fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
     Command::new("git")
         .arg("-C")
         .arg(dir)
-        .args(["rev-parse", "--short", "HEAD"])
+        .args(args)
         .output()
         .ok()
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|| "unknown".into())
+}
+
+fn git_short_rev(dir: &Path) -> String {
+    git_output(dir, &["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "unknown".into())
+}
+
+fn absolute_git_path(root: &Path, path: String) -> PathBuf {
+    let path = PathBuf::from(path);
+    if path.is_absolute() {
+        path
+    } else {
+        root.join(path)
+    }
+}
+
+fn watch_git_revision(root: &Path) {
+    let Some(git_dir) = git_output(root, &["rev-parse", "--absolute-git-dir"]).map(PathBuf::from)
+    else {
+        return;
+    };
+
+    // Detached checkouts update HEAD directly. Branch checkouts update the
+    // referenced file instead, and packed refs are the fallback when no loose
+    // ref exists. Resolve these through Git so linked worktrees work too.
+    println!("cargo:rerun-if-changed={}", git_dir.join("HEAD").display());
+    if let Some(head_ref) = git_output(root, &["symbolic-ref", "-q", "HEAD"]) {
+        if let Some(ref_path) = git_output(root, &["rev-parse", "--git-path", &head_ref]) {
+            println!(
+                "cargo:rerun-if-changed={}",
+                absolute_git_path(root, ref_path).display()
+            );
+        }
+    }
+    if let Some(packed_refs) = git_output(root, &["rev-parse", "--git-path", "packed-refs"]) {
+        println!(
+            "cargo:rerun-if-changed={}",
+            absolute_git_path(root, packed_refs).display()
+        );
+    }
 }
 
 fn repo_root() -> PathBuf {
@@ -64,6 +102,7 @@ fn main() {
         "cargo:rustc-env=VANEDB_MONOREPO_REV={}",
         git_short_rev(&root)
     );
+    watch_git_revision(&root);
     println!("cargo:rerun-if-changed=Cargo.toml");
 
     // Watch everything the static lib is built from — a stale lib here would
@@ -74,9 +113,5 @@ fn main() {
     println!(
         "cargo:rerun-if-changed={}",
         cpp.join("CMakeLists.txt").display()
-    );
-    println!(
-        "cargo:rerun-if-changed={}",
-        root.join(".git/HEAD").display()
     );
 }

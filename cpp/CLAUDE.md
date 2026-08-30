@@ -14,8 +14,9 @@ This implementation also provides supplementary Python bindings as
 `vanedb` PyPI name.
 
 **Why two implementations:**
-- **C++** (this repo): drop a header into any CMake/Bazel project. No Rust toolchain
-  needed. The embed path for iOS/Android native code and existing C++ codebases.
+- **C++** (this component): drop a header into any CMake/Bazel project. No Rust
+  toolchain needed. The embed path for iOS/Android native code and existing C++
+  codebases.
 - **Rust**: cleaner concurrency, ergonomic Python/WASM bindings, the path for new
   language ecosystems.
 
@@ -114,16 +115,16 @@ python3 search.py interactive             # REPL mode
 
 ## Maintenance Posture
 
-This repo accepts:
+This C++ component accepts:
 - Bug fixes and CVE patches
 - Performance work on hot paths (HNSW search, SIMD distance)
 - New platform/compiler support (CI matrix expansion)
-- On-disk format additions that mirror the Rust repo (so files are
+- On-disk format additions that mirror the Rust component (so files are
   interchangeable when feasible)
 - Packaging and release fixes for the supplementary `vanedb-cpp` Python
   distribution
 
-This repo defers to the Rust repo for:
+This C++ component defers to the Rust component for:
 - New high-level features (batch search API, metadata filtering, PQ, sharding)
 - Language bindings beyond Python (Node/WASM, Swift, Go)
 - Canonical `vanedb` PyPI distribution work and npm packaging

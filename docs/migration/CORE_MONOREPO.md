@@ -34,7 +34,8 @@ Commit messages, authorship, author dates, and parent relationships inside
 each imported history are preserved; commit IDs necessarily change because
 every path changes.
 
-- C++: 51 commits on imported `main`.
+- C++: 51 commits on imported `main`, plus one tag-only mapped commit (52
+  mapping entries total).
 - Benchmark: 14 commits on imported `main`.
 - Host plus both imports: 148 commits after the two import merges and the
   benchmark-localization commit.

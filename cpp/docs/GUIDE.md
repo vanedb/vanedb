@@ -129,8 +129,8 @@ python -m pip install vanedb-cpp
 From source:
 
 ```bash
-git clone https://github.com/vanedb/vanedb-cpp.git
-cd vanedb-cpp
+git clone https://github.com/vanedb/vanedb.git
+cd vanedb/cpp
 python -m pip install .
 ```
 

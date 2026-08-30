@@ -24,6 +24,8 @@ These are exactly what CI runs — use the same invocations:
 cargo fmt --all -- --check
 cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
 cargo test --workspace --exclude vanedb-py --features mmap
+cargo fmt --manifest-path bench/Cargo.toml --all -- --check
+cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path bench/Cargo.toml --locked
 cmake -S cpp -B cpp/build -DCMAKE_BUILD_TYPE=Release
 cmake --build cpp/build --parallel
@@ -58,10 +60,20 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   `VNDB` v1: literal `VNDB` magic, fixed-width little-endian fields, and
   shared fixtures that each engine can write and the other can faithfully load.
   Until that work lands, keep the existing corruption checks passing.
+- **Legacy Rust persistence remains stable during the VNDB transition**:
+  bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
+  format); Dependabot ignores the intentionally uncompilable 3.x major. Keep
+  legacy v1 files loadable, update the mirror in `tests/corruption_tests.rs` in
+  lockstep with layout changes, and add a fixture for every compatibility fix.
+  These are transition safeguards, not a public-version promise.
 - **HNSW cross-engine parity is semantic, not byte-for-byte adjacency**:
   independently built graphs may differ. Each graph must satisfy structural
   invariants and recall expectations, and either engine must preserve the graph
   it loads from the other engine's `VNDB` file.
+- **HNSW construction choices are performance-sensitive**: new nodes receive
+  `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
+  reverse lists use distance sort+truncate rather than the diversity heuristic.
+  Change either only with cross-engine conformance and interleaved benchmarks.
 - **Top-k, not full sorts**: `SearchResult`'s `Ord` tie-breaks on id, which
   makes full sorts slow. Search paths use `select_nth_unstable` + truncate +
   small sort (see `store/vector_store.rs` and `mmap.rs`) — keep that pattern.
