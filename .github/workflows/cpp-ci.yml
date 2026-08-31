@@ -100,6 +100,33 @@ jobs:
         path: cpp/build/bench_*.json
         retention-days: 90
 
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Install Doxygen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y doxygen graphviz
+
+    - name: Generate documentation
+      run: doxygen Doxyfile
+
+    - name: Verify documentation output
+      run: test -s docs/html/index.html
+
+    - name: Upload documentation artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: cpp-documentation
+        path: cpp/docs/html
+        retention-days: 14
+
   python-tests:
     name: Python Bindings Tests
     runs-on: ${{ matrix.os }}
