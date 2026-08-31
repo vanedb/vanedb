@@ -36,6 +36,11 @@ build-backend = "scikit_build_core.build"
 cmake.build-type = "Release"
 wheel.exclude = ["include/**", "lib/**"]
 
+[tool.cibuildwheel.macos]
+# std::filesystem is available from macOS 10.15. Intel runners otherwise
+# inherit a 10.9 target that cannot compile the persistence implementation.
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
+
 [tool.scikit-build.cmake.define]
 VANEDB_BUILD_TESTS = "OFF"
 VANEDB_BUILD_BENCHMARKS = "OFF"
