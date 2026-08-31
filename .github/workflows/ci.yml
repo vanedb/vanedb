@@ -22,7 +22,7 @@ jobs:
       cpp: ${{ steps.filter.outputs.cpp }}
       integration: ${{ steps.filter.outputs.integration }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
@@ -34,9 +34,11 @@ jobs:
               - 'vanedb-capi/**'
               - 'vanedb-py/**'
               - 'vanedb-wasm/**'
+              - '.github/requirements-release.txt'
               - '.github/workflows/**'
             cpp:
               - 'cpp/**'
+              - '.github/requirements-release.txt'
               - '.github/workflows/**'
             integration:
               - 'Cargo.toml'
@@ -47,6 +49,29 @@ jobs:
               - 'bench/**'
               - 'conformance/**'
               - '.github/workflows/**'
+
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install actionlint
+        shell: bash
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          path="$RUNNER_TEMP/$archive"
+          curl --fail --silent --show-error --location \
+            --output "$path" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "$ACTIONLINT_SHA256  $path" | sha256sum --check --status
+          tar --extract --gzip --file "$path" --directory "$RUNNER_TEMP" actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Lint GitHub Actions workflows
+        run: actionlint -color
 
   rust:
     name: Rust component
@@ -73,13 +98,14 @@ jobs:
   gate:
     name: Required CI Gate
     if: ${{ always() }}
-    needs: [changes, rust, cpp, integration]
+    needs: [changes, workflow-lint, rust, cpp, integration]
     runs-on: ubuntu-latest
     steps:
       - name: Verify every affected component passed
         shell: bash
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          WORKFLOW_LINT_RESULT: ${{ needs.workflow-lint.result }}
           RUST_CHANGED: ${{ needs.changes.outputs.rust }}
           RUST_RESULT: ${{ needs.rust.result }}
           CPP_CHANGED: ${{ needs.changes.outputs.cpp }}
@@ -91,6 +117,10 @@ jobs:
 
           if [[ "$CHANGES_RESULT" != "success" ]]; then
             echo "Change detection did not succeed: $CHANGES_RESULT"
+            exit 1
+          fi
+          if [[ "$WORKFLOW_LINT_RESULT" != "success" ]]; then
+            echo "Workflow lint did not succeed: $WORKFLOW_LINT_RESULT"
             exit 1
           fi
 

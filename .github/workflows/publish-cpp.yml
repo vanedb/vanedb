@@ -114,8 +114,8 @@ jobs:
 
       - name: Install cibuildwheel
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install cibuildwheel
+          python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
+          python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" cibuildwheel
 
       - name: Build and test wheels
         run: python -m cibuildwheel --output-dir wheelhouse
@@ -150,8 +150,8 @@ jobs:
 
       - name: Install build tools
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
+          python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
+          python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" build
 
       - name: Build sdist
         run: python -m build --sdist
@@ -182,7 +182,7 @@ jobs:
       - name: Build, install, and test sdist
         shell: bash
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
           python -m pip install pytest numpy
           python -m pip install --no-deps --force-reinstall dist/*.tar.gz
           python -m pip check
@@ -207,9 +207,11 @@ jobs:
       - name: Validate artifact metadata and coverage
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install packaging twine
+          python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
+          python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" packaging twine
           python -m twine check ../dist/*
+          # Matrix contract: 4 native platforms x 6 CPython versions = 24
+          # wheels. Keep these tripwires aligned with build-wheels above.
           python ../.github/scripts/validate_python_release.py \
             --directory ../dist \
             --distribution vanedb-cpp \
