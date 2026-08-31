@@ -1,5 +1,5 @@
-# Codecov configuration for vanedb
-# Documentation: https://docs.codecov.com/docs/codecov-yaml
+# Codecov configuration for the C++ engine.
+# Codecov discovers this file from .github/ at the monorepo root.
 
 coverage:
   precision: 2
@@ -19,13 +19,13 @@ coverage:
         base: auto
 
 ignore:
-  - "tests/**/*"
-  - "benchmarks/**/*"
-  - "examples/**/*"
-  - "python/**/*"
-  - "external/**/*"
-  - "build/**/*"
-  - "**/_deps/**/*"
+  - "cpp/tests"
+  - "cpp/benchmarks"
+  - "cpp/examples"
+  - "cpp/python"
+  - "cpp/external"
+  - "cpp/build"
+  - ".*/_deps/.*"
 
 comment:
   layout: "reach,diff,flags,tree,footer"
@@ -34,9 +34,8 @@ comment:
   require_base: false
   require_head: true
 
-# Scope coverage measurement to library source (excludes tests/python/etc.).
 flags:
   core:
     paths:
-      - src/core/
+      - cpp/src/core/
     carryforward: true
