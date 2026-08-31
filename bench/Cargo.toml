@@ -1,0 +1,31 @@
+[package]
+name = "vanedb-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+vanedb-capi = { path = "../vanedb-capi" }
+
+[build-dependencies]
+cmake = "0.1"
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "distance"
+harness = false
+[[bench]]
+name = "store"
+harness = false
+[[bench]]
+name = "hnsw"
+harness = false
+[[bench]]
+name = "mmap"
+harness = false
+
+[[bin]]
+name = "report"
+path = "src/bin/report.rs"

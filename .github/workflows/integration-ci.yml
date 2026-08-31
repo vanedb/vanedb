@@ -1,0 +1,27 @@
+name: Cross-engine Integration CI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark-harness:
+    name: Build and test both C ABIs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check benchmark formatting
+        run: cargo fmt --manifest-path bench/Cargo.toml --all -- --check
+      - name: Lint shared harness
+        run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Test shared harness
+        run: cargo test --manifest-path bench/Cargo.toml --locked
+      - name: Compile all cross-engine benchmarks
+        run: cargo bench --manifest-path bench/Cargo.toml --locked --no-run

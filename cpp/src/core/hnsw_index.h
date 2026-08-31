@@ -1,0 +1,471 @@
+// VaneDB - Copyright (c) 2025 Anton Tsvetkov - MIT License
+#pragma once
+#include "distance_strategy.h"
+#include "detail/file_utils.h"
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include <mutex>
+#include <queue>
+#include <random>
+#include <shared_mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+namespace vanedb {
+
+namespace detail {
+template <typename T> void write_bin(std::ofstream& f, const T& v) {
+  f.write(reinterpret_cast<const char*>(&v), sizeof(T));
+}
+template <typename T> void read_bin(std::ifstream& f, T& v) {
+  if (!f.read(reinterpret_cast<char*>(&v), sizeof(T)))
+    throw std::runtime_error("Unexpected end of file or read error");
+}
+template <typename T> void write_vec(std::ofstream& f, const std::vector<T>& v) {
+  write_bin(f, v.size());
+  if (!v.empty()) f.write(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
+}
+// Write only the first `n` elements of `v`, with the same size-prefix framing
+// as write_vec. Used by the v3 compact format to skip unused capacity.
+template <typename T> void write_vec_prefix(std::ofstream& f, const std::vector<T>& v, size_t n) {
+  write_bin(f, n);
+  if (n) f.write(reinterpret_cast<const char*>(v.data()), n * sizeof(T));
+}
+constexpr size_t MAX_VEC_SIZE = 100000000ULL;
+constexpr size_t MAX_RNG_STATE_SIZE = 10000;  // Reasonable upper bound for serialized RNG state
+template <typename T> void read_vec(std::ifstream& f, std::vector<T>& v) {
+  size_t sz; read_bin(f, sz);
+  if (sz > MAX_VEC_SIZE || sz > SIZE_MAX / sizeof(T))
+    throw std::runtime_error("Corrupted file: vector too large");
+  v.resize(sz);
+  if (!v.empty() && !f.read(reinterpret_cast<char*>(v.data()), sz * sizeof(T)))
+    throw std::runtime_error("Unexpected end of file or read error");
+}
+} // namespace detail
+
+struct HNSWSearchResult {
+  uint64_t id;
+  float distance;
+  bool operator<(const HNSWSearchResult& o) const { return distance < o.distance; }
+  bool operator>(const HNSWSearchResult& o) const { return distance > o.distance; }
+};
+
+class HNSWIndex {
+public:
+  static constexpr uint32_t MAGIC = 0x51565244;  // "QVRD" (legacy QuiverDB magic, retained for on-disk compat)
+  static constexpr uint32_t VERSION = 3;  // v3: compact arrays, count-sized (issue #24); v2 added RNG state
+  static constexpr int MAX_LEVEL = 32;  // Reasonable upper bound for HNSW levels
+  static constexpr size_t INVALID_ID = static_cast<size_t>(-1);  // Sentinel for empty entry point
+
+  explicit HNSWIndex(size_t dimension, DistanceMetric metric = DistanceMetric::L2,
+      size_t max_elements = 100000, size_t M = 16, size_t ef_construction = 200, uint32_t seed = 42)
+      : dim_(dimension), metric_(metric), dist_(metric, dimension),
+        max_elements_(max_elements), M_(M), M_max_(M),
+        M_max0_(M * 2), ef_construction_(std::max(ef_construction, M)), ef_search_(50),
+        mult_(M > 1 ? 1.0 / std::log(static_cast<double>(M)) : 1.0), level_gen_(seed) {
+    if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
+    if (max_elements == 0) throw std::invalid_argument("max_elements must be > 0");
+    if (M < 2) throw std::invalid_argument("M must be >= 2");
+    if (max_elements > SIZE_MAX / dim_) throw std::invalid_argument("max_elements * dimension overflow");
+    vectors_.resize(max_elements * dim_);
+    ext_ids_.resize(max_elements);
+    levels_.resize(max_elements, 0);
+    neighbors_.resize(max_elements);
+  }
+
+  // Thread-safety: global_mtx_ is the single sync point. add() holds it
+  // exclusive; readers (search/size/contains/get_vector/save) hold it shared.
+  // No per-node locks are needed because add() can never run concurrently
+  // with any reader.
+  void add(uint64_t id, const float* vec) {
+    if (!vec) throw std::invalid_argument("Vector must not be null");
+    std::unique_lock glock(global_mtx_);  // Exclusive: only one add() at a time
+    if (id_map_.count(id)) throw std::invalid_argument("ID " + std::to_string(id) + " exists");
+    if (count_ >= max_elements_) throw std::runtime_error("Index full");
+
+    size_t iid = count_++;
+    id_map_[id] = iid;
+    ext_ids_[iid] = id;
+    std::copy_n(vec, dim_, vectors_.begin() + iid * dim_);
+
+    int level = get_level();
+    levels_[iid] = level;
+    neighbors_[iid].resize(level + 1);
+    for (int l = 0; l <= level; ++l)
+      neighbors_[iid][l].reserve(l == 0 ? M_max0_ : M_max_);
+
+    if (ep_.load() == INVALID_ID) { ep_.store(iid); max_level_.store(level); return; }
+
+    size_t curr = ep_.load();
+    int cur_max_level = max_level_.load();
+    if (level < cur_max_level) {
+      float d = dist_(vec, get_vec(curr));
+      for (int l = cur_max_level; l > level; --l) {
+        bool changed = true;
+        while (changed) {
+          changed = false;
+          for (size_t n : neighbors_[curr][l]) {
+            float nd = dist_(vec, get_vec(n));
+            if (nd < d) { d = nd; curr = n; changed = true; }
+          }
+        }
+      }
+    }
+
+    for (int l = std::min(level, cur_max_level); l >= 0; --l) {
+      auto top = search_layer(vec, curr, ef_construction_, l);
+      auto sel = select_neighbors(top, M_, l);
+      neighbors_[iid][l] = std::move(sel);
+
+      size_t max_conn = l == 0 ? M_max0_ : M_max_;
+      for (size_t nid : neighbors_[iid][l]) {
+        auto& nc = neighbors_[nid][l];
+        if (nc.size() < max_conn) { nc.push_back(iid); }
+        else {
+          float d2new = dist_(get_vec(nid), vec);
+          std::vector<std::pair<float, size_t>> cands;
+          cands.reserve(nc.size() + 1);
+          for (size_t c : nc) cands.emplace_back(dist_(get_vec(nid), get_vec(c)), c);
+          cands.emplace_back(d2new, iid);
+          std::sort(cands.begin(), cands.end());
+          nc.clear();
+          for (size_t i = 0; i < max_conn && i < cands.size(); ++i) nc.push_back(cands[i].second);
+        }
+      }
+      // Use closest candidate (min distance) for next layer entry point
+      if (!top.empty()) {
+        std::pair<float, size_t> best = top.top();
+        while (!top.empty()) {
+          if (top.top().first < best.first) best = top.top();
+          top.pop();
+        }
+        curr = best.second;
+      }
+    }
+    if (level > cur_max_level) { ep_.store(iid); max_level_.store(level); }
+  }
+
+  std::vector<HNSWSearchResult> search(const float* query, size_t k) const {
+    if (!query) throw std::invalid_argument("Query must not be null");
+    if (k == 0) throw std::invalid_argument("k must be > 0");
+    std::shared_lock glock(global_mtx_);
+    if (count_ == 0) return {};
+
+    size_t curr = ep_.load();
+    float d = dist_(query, get_vec(curr));
+    for (int l = max_level_.load(); l > 0; --l) {
+      bool changed = true;
+      while (changed) {
+        changed = false;
+        if (static_cast<int>(neighbors_[curr].size()) <= l) continue;
+        for (size_t n : neighbors_[curr][l]) {
+          float nd = dist_(query, get_vec(n));
+          if (nd < d) { d = nd; curr = n; changed = true; }
+        }
+      }
+    }
+
+    auto top = search_layer(query, curr, std::max(ef_search_.load(std::memory_order_relaxed), k), 0);
+    std::vector<std::pair<float, size_t>> temp;
+    while (!top.empty()) { temp.push_back(top.top()); top.pop(); }
+    std::sort(temp.begin(), temp.end());
+
+    std::vector<HNSWSearchResult> res;
+    res.reserve(std::min(k, temp.size()));
+    for (size_t i = 0; i < k && i < temp.size(); ++i)
+      res.push_back({ext_ids_[temp[i].second], temp[i].first});
+    return res;
+  }
+
+  void set_ef_search(size_t ef) {
+    if (ef == 0) throw std::invalid_argument("ef_search must be > 0");
+    ef_search_.store(ef, std::memory_order_relaxed);
+  }
+  size_t get_ef_search() const { return ef_search_.load(std::memory_order_relaxed); }
+  size_t size() const { std::shared_lock lk(global_mtx_); return count_; }
+  size_t dimension() const { return dim_; }
+  size_t capacity() const { return max_elements_; }
+  bool contains(uint64_t id) const { std::shared_lock lk(global_mtx_); return id_map_.count(id); }
+
+  std::vector<float> get_vector(uint64_t id) const {
+    std::shared_lock lk(global_mtx_);
+    auto it = id_map_.find(id);
+    if (it == id_map_.end()) throw std::runtime_error("ID not found: " + std::to_string(id));
+    const float* p = vectors_.data() + it->second * dim_;
+    return std::vector<float>(p, p + dim_);
+  }
+
+  void save(const std::string& filename) const {
+    std::shared_lock glock(global_mtx_);
+    std::string tmp = filename + ".tmp";
+    std::ofstream f(tmp, std::ios::binary);
+    if (!f) throw std::runtime_error("Cannot open: " + tmp);
+    try {
+      detail::write_bin(f, MAGIC);
+      detail::write_bin(f, VERSION);
+      detail::write_bin(f, dim_);
+      detail::write_bin(f, static_cast<uint32_t>(metric_));
+      detail::write_bin(f, max_elements_);
+      detail::write_bin(f, M_);
+      detail::write_bin(f, ef_construction_);
+      detail::write_bin(f, ef_search_.load());
+      detail::write_bin(f, mult_);
+      const size_t cnt = count_.load();
+      detail::write_bin(f, cnt);
+      detail::write_bin(f, ep_.load());
+      detail::write_bin(f, max_level_.load());
+      // v3: persist only the `cnt` live entries, not the full pre-allocated
+      // capacity; load() re-expands to max_elements_.
+      detail::write_vec_prefix(f, vectors_, cnt * dim_);
+      detail::write_vec_prefix(f, ext_ids_, cnt);
+      detail::write_vec_prefix(f, levels_, cnt);
+      detail::write_bin(f, id_map_.size());
+      for (const auto& [k, v] : id_map_) { detail::write_bin(f, k); detail::write_bin(f, v); }
+      detail::write_bin(f, cnt);
+      for (size_t i = 0; i < cnt; ++i) {
+        detail::write_bin(f, neighbors_[i].size());
+        for (size_t l = 0; l < neighbors_[i].size(); ++l) detail::write_vec(f, neighbors_[i][l]);
+      }
+      // Save RNG state for deterministic behavior after load
+      std::stringstream rng_ss;
+      rng_ss << level_gen_;
+      std::string rng_state = rng_ss.str();
+      detail::write_bin(f, rng_state.size());
+      f.write(rng_state.data(), rng_state.size());
+      f.flush();
+      if (!f) { std::filesystem::remove(tmp); throw std::runtime_error("Write failed: " + tmp); }
+      f.close();  // close before fsync_file (see file_utils.h: Windows lock contract)
+      detail::fsync_file(tmp);
+      std::filesystem::rename(tmp, filename);
+    } catch (...) { f.close(); std::filesystem::remove(tmp); throw; }
+  }
+
+  static std::unique_ptr<HNSWIndex> load(const std::string& filename) {
+    std::ifstream f(filename, std::ios::binary);
+    if (!f) throw std::runtime_error("Cannot open: " + filename);
+    uint32_t magic, ver;
+    detail::read_bin(f, magic);
+    if (magic != MAGIC) throw std::runtime_error("Invalid magic");
+    detail::read_bin(f, ver);
+    if (ver < 1 || ver > VERSION) throw std::runtime_error("Unsupported version");
+
+    size_t dim, max_el, M, ef_con, ef_s; uint32_t met; double mult;
+    detail::read_bin(f, dim);
+    detail::read_bin(f, met);
+    if (met > 2) throw std::runtime_error("Corrupted file: invalid metric");
+    detail::read_bin(f, max_el);
+    detail::read_bin(f, M);
+    detail::read_bin(f, ef_con);
+    detail::read_bin(f, ef_s);
+    detail::read_bin(f, mult);
+
+    auto idx = std::make_unique<HNSWIndex>(dim, static_cast<DistanceMetric>(met), max_el, M, ef_con);
+    idx->ef_search_.store(ef_s);
+    idx->mult_ = mult;
+
+    size_t cnt, ep_val;
+    int max_level_val;
+    detail::read_bin(f, cnt);
+    if (cnt > max_el) throw std::runtime_error("Corrupted file: count exceeds max_elements");
+    idx->count_.store(cnt);
+    detail::read_bin(f, ep_val);
+    detail::read_bin(f, max_level_val);
+    // Validate ep_ and max_level_
+    if (cnt > 0) {
+      if (ep_val >= cnt) throw std::runtime_error("Corrupted file: invalid entry point");
+      if (max_level_val < 0 || max_level_val > MAX_LEVEL)
+        throw std::runtime_error("Corrupted file: invalid max_level");
+    } else {
+      // Empty index must have invalid entry point
+      if (ep_val != INVALID_ID)
+        throw std::runtime_error("Corrupted file: non-empty entry point for empty index");
+    }
+    idx->ep_.store(ep_val);
+    idx->max_level_.store(max_level_val);
+    detail::read_vec(f, idx->vectors_);
+    detail::read_vec(f, idx->ext_ids_);
+    detail::read_vec(f, idx->levels_);
+    // Array lengths are version-specific: v1/v2 stored full pre-allocated
+    // arrays, v3 stores only the `cnt` live entries.
+    const size_t stored = ver >= 3 ? cnt : max_el;
+    if (idx->vectors_.size() != stored * dim)
+      throw std::runtime_error("Corrupted file: vectors length mismatch");
+    if (idx->ext_ids_.size() != stored || idx->levels_.size() != stored)
+      throw std::runtime_error("Corrupted file: ext_ids/levels length mismatch");
+    // Re-expand to the pre-allocated capacity layout the index expects
+    // (no-ops for v1/v2).
+    idx->vectors_.resize(max_el * dim);
+    idx->ext_ids_.resize(max_el);
+    idx->levels_.resize(max_el);
+
+    size_t msz;
+    detail::read_bin(f, msz);
+    if (msz > cnt) throw std::runtime_error("Corrupted file: id_map size exceeds count");
+    idx->id_map_.reserve(msz);
+    for (size_t i = 0; i < msz; ++i) {
+      uint64_t k; size_t v;
+      detail::read_bin(f, k);
+      detail::read_bin(f, v);
+      if (v >= cnt) throw std::runtime_error("Corrupted file: invalid internal index in id_map");
+      idx->id_map_[k] = v;
+    }
+
+    size_t nsz;
+    detail::read_bin(f, nsz);
+    if (nsz != stored) throw std::runtime_error("Corrupted file: neighbors length mismatch");
+    idx->neighbors_.resize(nsz);
+    for (size_t i = 0; i < nsz; ++i) {
+      size_t lsz;
+      detail::read_bin(f, lsz);
+      if (lsz > static_cast<size_t>(MAX_LEVEL) + 1) throw std::runtime_error("Corrupted file: too many levels");
+      idx->neighbors_[i].resize(lsz);
+      for (size_t l = 0; l < lsz; ++l) {
+        detail::read_vec(f, idx->neighbors_[i][l]);
+        // Validate neighbor indices are within bounds
+        for (size_t nid : idx->neighbors_[i][l]) {
+          if (nid >= cnt) throw std::runtime_error("Corrupted file: invalid neighbor index");
+        }
+      }
+    }
+
+    idx->neighbors_.resize(max_el);
+
+    // Restore RNG state for deterministic behavior (v2+)
+    if (ver >= 2) {
+      size_t rng_state_size;
+      detail::read_bin(f, rng_state_size);
+      if (rng_state_size > detail::MAX_RNG_STATE_SIZE)
+        throw std::runtime_error("Corrupted file: RNG state too large");
+      std::string rng_state(rng_state_size, '\0');
+      if (!f.read(rng_state.data(), rng_state_size))
+        throw std::runtime_error("Unexpected end of file or read error");
+      std::stringstream rng_ss(rng_state);
+      rng_ss >> idx->level_gen_;
+      if (rng_ss.fail()) throw std::runtime_error("Corrupted file: invalid RNG state");
+    }
+    // Note: v1 files don't have RNG state, level_gen_ keeps default initialization
+    return idx;
+  }
+
+private:
+  static constexpr double MIN_LEVEL_RANDOM = 1e-9;  // Clamp floor for level generation RNG
+  using MaxHeap = std::priority_queue<std::pair<float, size_t>>;
+
+  int get_level() {
+    std::uniform_real_distribution<double> d(0.0, 1.0);
+    double r = std::max(d(level_gen_), MIN_LEVEL_RANDOM);
+    int level = static_cast<int>(-std::log(r) * mult_);
+    return std::min(level, MAX_LEVEL);
+  }
+
+  const float* get_vec(size_t iid) const { return vectors_.data() + iid * dim_; }
+
+  MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level) const {
+    // Versioned thread-local visited bitmap. vis[i] == vis_epoch means
+    // visited; bumping the epoch each call replaces the per-search O(N)
+    // zero-init a fresh bitmap would need with one O(count_) fill every
+    // 65k searches when the uint16_t epoch wraps. Buffer is shared across
+    // HNSWIndex instances on a thread (monotonic epoch keeps cross-index
+    // marks distinct) and is never shrunk.
+    //
+    // Relaxed load on count_ is safe: every caller holds global_mtx_
+    // (exclusive in add(), shared in search()).
+    static thread_local std::vector<uint16_t> vis;
+    static thread_local uint16_t vis_epoch = 0;
+    const size_t total = count_.load(std::memory_order_relaxed);
+    // Entry-point ID must be a live node. load() validates this for persisted
+    // indexes; this hot-path guard also catches in-memory corruption or future
+    // call-site bugs. Defensive — unreachable by construction in tests.
+    if (ep >= total) [[unlikely]]  // LCOV_EXCL_LINE
+      throw std::logic_error("HNSWIndex::search_layer: entry point out of range");  // LCOV_EXCL_LINE
+    if (vis.size() < total) vis.resize(total, 0);
+    if (++vis_epoch == 0) {
+      std::fill(vis.begin(), vis.end(), 0);
+      vis_epoch = 1;
+    }
+    vis[ep] = vis_epoch;
+    std::priority_queue<std::pair<float, size_t>, std::vector<std::pair<float, size_t>>,
+                        std::greater<std::pair<float, size_t>>> cands;
+    MaxHeap res;
+    float d = dist_(q, get_vec(ep));
+    cands.emplace(d, ep);
+    res.emplace(d, ep);
+    float lb = d;
+
+    while (!cands.empty()) {
+      auto [cd, cid] = cands.top();
+      if (cd > lb && res.size() >= ef) break;
+      cands.pop();
+      if (static_cast<int>(neighbors_[cid].size()) <= level) continue;
+      for (size_t n : neighbors_[cid][level]) {
+        if (vis[n] == vis_epoch) continue;
+        vis[n] = vis_epoch;
+        float nd = dist_(q, get_vec(n));
+        if (res.size() < ef || nd < lb) {
+          cands.emplace(nd, n);
+          res.emplace(nd, n);
+          if (res.size() > ef) res.pop();
+          if (!res.empty()) lb = res.top().first;
+        }
+      }
+    }
+    return res;
+  }
+
+  std::vector<size_t> select_neighbors(MaxHeap& cands, size_t M, int /*level*/) const {
+    if (cands.size() <= M) {
+      std::vector<size_t> r;
+      r.reserve(cands.size());
+      while (!cands.empty()) { r.push_back(cands.top().second); cands.pop(); }
+      return r;
+    }
+    std::vector<std::pair<float, size_t>> sorted;
+    sorted.reserve(cands.size());
+    while (!cands.empty()) { sorted.push_back(cands.top()); cands.pop(); }
+    std::sort(sorted.begin(), sorted.end());
+
+    std::vector<size_t> r;
+    r.reserve(M);
+    for (auto& [dq, cid] : sorted) {
+      if (r.size() >= M) break;
+      bool ok = true;
+      for (size_t s : r)
+        if (dist_(get_vec(cid), get_vec(s)) < dq) { ok = false; break; }
+      if (ok) r.push_back(cid);
+    }
+    if (r.size() < M) {
+      for (auto& p : sorted) {
+        if (r.size() >= M) break;
+        if (std::find(r.begin(), r.end(), p.second) == r.end()) r.push_back(p.second);
+      }
+    }
+    return r;
+  }
+
+  size_t dim_;
+  DistanceMetric metric_;
+  DistanceComputer dist_;
+  size_t max_elements_, M_, M_max_, M_max0_, ef_construction_;
+  std::atomic<size_t> ef_search_;  // Atomic for thread-safe reads during search
+  double mult_;
+  std::mt19937 level_gen_;
+  std::vector<float> vectors_;
+  std::vector<uint64_t> ext_ids_;
+  std::unordered_map<uint64_t, size_t> id_map_;
+  std::vector<int> levels_;
+  std::vector<std::vector<std::vector<size_t>>> neighbors_;
+  std::atomic<size_t> ep_{INVALID_ID};
+  std::atomic<int> max_level_{-1};
+  std::atomic<size_t> count_{0};
+  mutable std::shared_mutex global_mtx_;
+};
+
+} // namespace vanedb

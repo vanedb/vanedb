@@ -1,0 +1,183 @@
+name: Publish vanedb
+
+on:
+  push:
+    tags: ['vanedb-v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to PyPI (true/false)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-version:
+    name: Validate product tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Match tag and package versions
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          prefix = "vanedb-v"
+          tag = os.environ["GITHUB_REF_NAME"]
+          if not tag.startswith(prefix):
+              raise SystemExit(f"unexpected tag: {tag}")
+          expected = tag.removeprefix(prefix)
+
+          pyproject = tomllib.loads(Path("vanedb-py/pyproject.toml").read_text())
+          py_cargo = tomllib.loads(Path("vanedb-py/Cargo.toml").read_text())
+          core_cargo = tomllib.loads(Path("vanedb/Cargo.toml").read_text())
+          versions = {
+              "vanedb-py/pyproject.toml": pyproject["project"]["version"],
+              "vanedb-py/Cargo.toml": py_cargo["package"]["version"],
+              "vanedb/Cargo.toml": core_cargo["package"]["version"],
+          }
+          mismatches = {path: value for path, value in versions.items() if value != expected}
+          if mismatches:
+              raise SystemExit(f"tag expects {expected}, package versions are {mismatches}")
+          print(f"validated vanedb {expected}")
+          PY
+
+  linux:
+    name: Linux wheels (x86_64, Python 3.9–3.14)
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Build manylinux wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64
+          manylinux: '2_17'
+          args: >-
+            --release --locked --compatibility pypi --out dist
+            --manifest-path vanedb-py/Cargo.toml
+            -i python3.9 -i python3.10 -i python3.11
+            -i python3.12 -i python3.13 -i python3.14
+      - name: Test Python 3.14 wheel
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-index --find-links dist --force-reinstall vanedb
+          python -m pip install pytest numpy
+          python -m pytest vanedb-py/tests -v
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vanedb-linux-x86_64
+          path: dist/*.whl
+
+  macos:
+    name: macOS wheels (${{ matrix.target }}, Python ${{ matrix.python-version }})
+    needs: validate-version
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64
+          - aarch64
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        include:
+          - target: x86_64
+            runner: macos-15-intel
+          - target: aarch64
+            runner: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --locked --compatibility pypi --out dist --manifest-path vanedb-py/Cargo.toml -i python
+      - name: Test wheel
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-index --find-links dist --force-reinstall vanedb
+          python -m pip install pytest numpy
+          python -m pytest vanedb-py/tests -v
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vanedb-macos-${{ matrix.target }}-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+  windows:
+    name: Windows wheels (x64, Python ${{ matrix.python-version }})
+    needs: validate-version
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x64
+          args: --release --locked --compatibility pypi --out dist --manifest-path vanedb-py/Cargo.toml -i python
+      - name: Test wheel
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-index --find-links dist --force-reinstall vanedb
+          python -m pip install pytest numpy
+          python -m pytest vanedb-py/tests -v
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vanedb-windows-x64-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+  sdist:
+    name: Source distribution
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist --manifest-path vanedb-py/Cargo.toml
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vanedb-sdist
+          path: dist/*.tar.gz
+
+  publish:
+    name: Publish vanedb to PyPI
+    needs: [linux, macos, windows, sdist]
+    runs-on: ubuntu-latest
+    if: >-
+      ${{ startsWith(github.ref, 'refs/tags/vanedb-v') ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true') }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

@@ -8,3 +8,16 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # bincode 3.x intentionally fails compilation. The legacy 2.x wire format
+    # remains a transition dependency until VNDB v1 replaces it.
+    ignore:
+      - dependency-name: "bincode"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: "cargo"
+    directory: "/bench"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directory: "/cpp"
+    schedule:
+      interval: "weekly"
