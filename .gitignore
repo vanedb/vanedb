@@ -1,5 +1,5 @@
 /target
-Cargo.lock
+# Root Cargo.lock is committed because release builds use --locked.
 
 # WASM build output
 vanedb-wasm/pkg/
