@@ -1,0 +1,9 @@
+# Reproducible tooling for Python release workflows. Dependabot updates this
+# file deliberately; build and test dependencies remain governed by each
+# package's supported dependency ranges.
+build==1.6.0
+cibuildwheel==4.2.0
+packaging==26.3
+pip==25.3; python_version == "3.9"
+pip==26.2.1; python_version >= "3.10"
+twine==7.0.0

@@ -39,8 +39,8 @@ jobs:
 
       - name: Compare benchmarks
         run: |
-          echo "## Benchmark Comparison (main vs PR)" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          critcmp main pr >> $GITHUB_STEP_SUMMARY 2>&1 || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "## Benchmark Comparison (main vs PR)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          critcmp main pr >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
           critcmp main pr --threshold 5

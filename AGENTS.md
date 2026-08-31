@@ -21,6 +21,7 @@ benchmark harness, and the shared conformance contract.
 These are exactly what CI runs — use the same invocations:
 
 ```bash
+actionlint
 cargo fmt --all -- --check
 cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
 cargo test --workspace --exclude vanedb-py --features mmap
