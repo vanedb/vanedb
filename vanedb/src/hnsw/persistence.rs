@@ -100,8 +100,9 @@ impl HnswIndex {
             .map_err(|e| VaneError::Io(format!("serialize: {e}")))?;
 
         let path = path.as_ref();
-        let tmp = path.with_extension("tmp");
-        let mut f = fs::File::create(&tmp).map_err(|e| VaneError::Io(format!("create: {e}")))?;
+        let temp = crate::atomic_write::AtomicFile::new(path);
+        let mut f =
+            fs::File::create(temp.path()).map_err(|e| VaneError::Io(format!("create: {e}")))?;
         f.write_all(&MAGIC.to_le_bytes())
             .map_err(|e| VaneError::Io(format!("write: {e}")))?;
         f.write_all(&VERSION.to_le_bytes())
@@ -115,8 +116,7 @@ impl HnswIndex {
             .map_err(|e| VaneError::Io(format!("sync: {e}")))?;
         drop(f);
 
-        fs::rename(&tmp, path).map_err(|e| VaneError::Io(format!("rename: {e}")))?;
-        Ok(())
+        temp.commit(path)
     }
 
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {

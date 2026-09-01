@@ -74,8 +74,9 @@ impl MmapVectorStoreBuilder {
 
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
-        let tmp = path.with_extension("tmp");
-        let mut f = fs::File::create(&tmp).map_err(|e| VaneError::Io(format!("create: {e}")))?;
+        let temp = crate::atomic_write::AtomicFile::new(path);
+        let mut f =
+            fs::File::create(temp.path()).map_err(|e| VaneError::Io(format!("create: {e}")))?;
 
         // Header
         f.write_all(&MAGIC.to_le_bytes())
@@ -112,8 +113,7 @@ impl MmapVectorStoreBuilder {
             .map_err(|e| VaneError::Io(format!("sync: {e}")))?;
         drop(f);
 
-        fs::rename(&tmp, path).map_err(|e| VaneError::Io(format!("rename: {e}")))?;
-        Ok(())
+        temp.commit(path)
     }
 }
 
