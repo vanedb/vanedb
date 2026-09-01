@@ -1,3 +1,4 @@
+mod atomic_write;
 pub mod distance;
 pub mod error;
 #[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
