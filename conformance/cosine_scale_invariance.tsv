@@ -1,0 +1,33 @@
+# Shared cosine cases. Cosine distance depends only on direction, so `expected`
+# is identical at every scale. Each row builds two 2-D vectors from `scale`:
+#   identical    a = ( s, 2s)   b = ( s, 2s)   -> 0.0
+#   opposite     a = ( s, 2s)   b = (-s,-2s)   -> 2.0
+#   orthogonal   a = ( s,  0)   b = ( 0,  s)   -> 1.0
+#   zero         a = ( 0,  0)   b = ( s, 2s)   -> 1.0  (a has no direction)
+# Scales stay inside the f32 normal range at both ends so the cases test the
+# distance policy rather than subnormal arithmetic.
+# scale	relation	expected
+1e-18	identical	0.0
+1e-18	opposite	2.0
+1e-18	orthogonal	1.0
+1e-9	identical	0.0
+1e-9	opposite	2.0
+1e-9	orthogonal	1.0
+1e-4	identical	0.0
+1e-4	opposite	2.0
+1e-4	orthogonal	1.0
+1.0	identical	0.0
+1.0	opposite	2.0
+1.0	orthogonal	1.0
+1e4	identical	0.0
+1e4	opposite	2.0
+1e4	orthogonal	1.0
+1e9	identical	0.0
+1e9	opposite	2.0
+1e9	orthogonal	1.0
+1e18	identical	0.0
+1e18	opposite	2.0
+1e18	orthogonal	1.0
+1.0	zero	1.0
+1e-18	zero	1.0
+1e18	zero	1.0

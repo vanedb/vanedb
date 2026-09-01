@@ -60,8 +60,9 @@ kernel void cs(
     float dot = d.x + d.y + d.z + d.w;
     float na = nq.x + nq.y + nq.z + nq.w;
     float nb = nv.x + nv.y + nv.z + nv.w;
-    float dn = na * nb;
-    r[i] = 1.0f - clamp((dn < 1e-12f) ? 0.0f : dot * rsqrt(dn), -1.0f, 1.0f);
+    float dn = sqrt(na) * sqrt(nb);
+    float sim = (dn > 0.0f && isfinite(dn)) ? dot / dn : 0.0f;
+    r[i] = 1.0f - clamp(sim, -1.0f, 1.0f);
 }
 "#;
 
