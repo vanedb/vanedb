@@ -16,16 +16,6 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Configuration-specific flags
-if(NOT MSVC)
-  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-  set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
-  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-  set(CMAKE_C_FLAGS_RELEASE "-O3")
-  set(CMAKE_C_FLAGS_DEBUG "-O0 -g")
-  set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
-endif()
-
 # Detect x86_64 for AVX2 support
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
   set(VANEDB_X86_64 TRUE)
