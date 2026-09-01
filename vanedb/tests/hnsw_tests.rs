@@ -394,3 +394,53 @@ fn hnsw_add_batch_onto_nonempty_matches_serial_add() {
         assert_eq!(a, b, "query {i} diverged between serial and mixed build");
     }
 }
+
+// --- #43: derived sizes must be checked, not left to overflow/abort ---
+
+/// `capacity * dim` overflowed `usize` and panicked before the fallible
+/// builder could return an error.
+#[test]
+fn builder_rejects_capacity_times_dim_overflow() {
+    let result = vanedb::HnswIndex::builder(2, vanedb::DistanceMetric::L2)
+        .capacity(usize::MAX)
+        .build();
+    let Err(err) = result else {
+        panic!("expected the builder to reject these sizes");
+    };
+    assert!(
+        matches!(err, vanedb::VaneError::InvalidParameter(_)),
+        "expected InvalidParameter, got {err:?}"
+    );
+}
+
+/// `m * 2` (the layer-0 link budget) had the same problem.
+#[test]
+fn builder_rejects_m_doubling_overflow() {
+    let result = vanedb::HnswIndex::builder(2, vanedb::DistanceMetric::L2)
+        .capacity(1)
+        .m(usize::MAX / 2 + 1)
+        .build();
+    let Err(err) = result else {
+        panic!("expected the builder to reject these sizes");
+    };
+    assert!(
+        matches!(err, vanedb::VaneError::InvalidParameter(_)),
+        "expected InvalidParameter, got {err:?}"
+    );
+}
+
+/// Sizes that fit in `usize` but cannot be allocated must also return an error
+/// rather than aborting the process through the allocator.
+#[test]
+fn builder_rejects_unallocatable_capacity() {
+    let result = vanedb::HnswIndex::builder(1024, vanedb::DistanceMetric::L2)
+        .capacity(usize::MAX / 4096)
+        .build();
+    let Err(err) = result else {
+        panic!("expected the builder to reject these sizes");
+    };
+    assert!(
+        matches!(err, vanedb::VaneError::InvalidParameter(_)),
+        "expected InvalidParameter, got {err:?}"
+    );
+}

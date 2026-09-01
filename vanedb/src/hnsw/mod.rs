@@ -599,6 +599,26 @@ impl HnswIndexBuilder {
         } else {
             1.0
         };
+        // Derived sizes are checked before any allocation: unchecked `m * 2`
+        // and `capacity * dim` panicked on overflow, which a fallible builder
+        // must not do — and which aborts the host process when the C ABI calls
+        // it (#43).
+        let m_max0 = self
+            .m
+            .checked_mul(2)
+            .ok_or(VaneError::InvalidParameter("M * 2 overflows usize"))?;
+        let vector_len = self
+            .capacity
+            .checked_mul(self.dim)
+            .ok_or(VaneError::InvalidParameter(
+                "capacity * dim overflows usize",
+            ))?;
+        let mut vectors: Vec<f32> = Vec::new();
+        vectors
+            .try_reserve_exact(vector_len)
+            .map_err(|_| VaneError::InvalidParameter("capacity is too large to allocate"))?;
+        vectors.resize(vector_len, 0.0);
+
         Ok(HnswIndex {
             dim: self.dim,
             metric: self.metric,
@@ -606,13 +626,13 @@ impl HnswIndexBuilder {
             max_elements: self.capacity,
             m: self.m,
             m_max: self.m,
-            m_max0: self.m * 2,
+            m_max0,
             ef_construction,
             ef_search: AtomicUsize::new(50),
             mult,
             seed: self.seed,
             inner: RwLock::new(Inner {
-                vectors: vec![0.0; self.capacity * self.dim],
+                vectors,
                 ext_ids: vec![0; self.capacity],
                 id_map: HashMap::new(),
                 levels: vec![0; self.capacity],
