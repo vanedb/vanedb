@@ -1,5 +1,6 @@
 #include "capi/vanedb_capi.h"
 #include <assert.h>
+#include <math.h>
 #include <stdio.h>
 
 int main(void) {
@@ -43,6 +44,9 @@ int main(void) {
         assert(rc_null_add == 1);
         size_t n_null = vanedb_cpp_store_search(NULL, q, 2, ids, ds);  /* null handle guarded */
         assert(n_null == 0);
+        float non_finite[2] = {NAN, 0.f};
+        assert(vanedb_cpp_store_add(s, 30, non_finite) == 1);
+        assert(vanedb_cpp_store_search(s, non_finite, 1, ids, ds) == 0);
 
         vanedb_cpp_store_free(s);
         printf("capi: store OK\n");
@@ -71,7 +75,6 @@ int main(void) {
         uint64_t ids2[1]; float ds2[1];
         size_t n2 = vanedb_cpp_hnsw_search(h2, q, 1, 50, ids2, ds2);
         assert(n2 == 1 && ids2[0] == 10);
-        vanedb_cpp_hnsw_free(h2);
         /* negative paths */
         vanedb_cpp_hnsw* h_bad = vanedb_cpp_hnsw_new(0, VANEDB_L2, 100, 16, 200, 42); /* dim=0 throws => NULL */
         assert(h_bad == NULL);
@@ -81,6 +84,10 @@ int main(void) {
         assert(n_null_h == 0);
         int rc_null_save = vanedb_cpp_hnsw_save(NULL, "x.bin");                        /* null handle guarded */
         assert(rc_null_save == 1);
+        float non_finite[2] = {INFINITY, 0.f};
+        assert(vanedb_cpp_hnsw_add(h2, 30, non_finite) == 1);
+        assert(vanedb_cpp_hnsw_search(h2, non_finite, 1, 50, ids2, ds2) == 0);
+        vanedb_cpp_hnsw_free(h2);
         printf("capi: hnsw OK\n");
         remove("capi_hnsw.bin");
     }
@@ -100,8 +107,12 @@ int main(void) {
         /* negative path */
         size_t n_null_m = vanedb_cpp_mmap_search(NULL, q, 2, ids, ds); /* null handle guarded */
         assert(n_null_m == 0);
+        float non_finite[2] = {-INFINITY, 0.f};
+        assert(vanedb_cpp_mmap_build("capi_mmap_invalid.bin", 2, VANEDB_L2,
+                                     ids_in, non_finite, 1) == 1);
         printf("capi: mmap OK\n");
         remove("capi_mmap.bin");
+        remove("capi_mmap_invalid.bin");
     }
 
     {

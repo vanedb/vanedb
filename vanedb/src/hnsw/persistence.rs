@@ -237,6 +237,15 @@ impl HnswIndex {
                 "corrupted file: vectors length != expected * dim".to_string(),
             ));
         }
+        let live_vectors_len = data.count * data.dim;
+        if data.vectors[..live_vectors_len]
+            .iter()
+            .any(|value| !value.is_finite())
+        {
+            return Err(VaneError::Io(
+                "corrupted file: vector values must be finite".to_string(),
+            ));
+        }
         if data.ext_ids.len() != stored || data.levels.len() != stored {
             return Err(VaneError::Io(
                 "corrupted file: ext_ids/levels length != expected".to_string(),

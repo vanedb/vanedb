@@ -1,5 +1,5 @@
 /// A single result from a vector search.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct SearchResult {
     /// The ID of the matched vector.
     pub id: u64,
@@ -10,6 +10,13 @@ pub struct SearchResult {
 impl SearchResult {
     pub fn new(id: u64, distance: f32) -> Self {
         Self { id, distance }
+    }
+}
+
+impl PartialEq for SearchResult {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+            && crate::validation::compare_distances(self.distance, other.distance).is_eq()
     }
 }
 
@@ -25,9 +32,7 @@ impl Ord for SearchResult {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // Tie-break by id so unstable top-k selection produces a deterministic
         // ordering across equal-distance results.
-        self.distance
-            .partial_cmp(&other.distance)
-            .unwrap_or(std::cmp::Ordering::Equal)
+        crate::validation::compare_distances(self.distance, other.distance)
             .then_with(|| self.id.cmp(&other.id))
     }
 }
@@ -54,5 +59,18 @@ mod tests {
         let a = SearchResult::new(1, 2.5);
         let b = SearchResult::new(1, 2.5);
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn finite_distances_sort_before_non_finite_distances() {
+        let mut results = [
+            SearchResult::new(1, f32::NAN),
+            SearchResult::new(2, 0.0),
+            SearchResult::new(3, f32::INFINITY),
+        ];
+        results.sort();
+        assert_eq!(results[0].id, 2);
+        assert_eq!(results[1].id, 3);
+        assert_eq!(results[2].id, 1);
     }
 }

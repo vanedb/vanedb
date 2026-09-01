@@ -140,6 +140,17 @@ target_compile_options(test_mmap_vector_store PRIVATE
 )
 target_link_options(test_mmap_vector_store PRIVATE ${COVERAGE_LINK_FLAGS})
 
+add_executable(test_non_finite_conformance tests/test_non_finite_conformance.cpp)
+target_link_libraries(test_non_finite_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_non_finite_conformance PRIVATE
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+)
+target_compile_options(test_non_finite_conformance PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4>
+  ${COVERAGE_COMPILE_FLAGS}
+)
+target_link_options(test_non_finite_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
+
 include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
@@ -149,6 +160,7 @@ catch_discover_tests(test_hnsw_index)
 catch_discover_tests(test_distance_strategy)
 catch_discover_tests(test_mmap_vector_store)
 catch_discover_tests(test_cosine_conformance)
+catch_discover_tests(test_non_finite_conformance)
 endif() # VANEDB_BUILD_TESTS
 
 # Examples
@@ -199,6 +211,13 @@ if(VANEDB_BUILD_CAPI)
     target_link_libraries(test_capi PRIVATE vanedb_cpp_capi)
     # The static lib is C++; link the C test with the C++ runtime.
     set_target_properties(test_capi PROPERTIES LINKER_LANGUAGE CXX)
+    # The C smoke test uses assert(), so keep assertions active even when the
+    # library is validated in the Release configuration.
+    if(MSVC)
+      target_compile_options(test_capi PRIVATE /UNDEBUG)
+    else()
+      target_compile_options(test_capi PRIVATE -UNDEBUG)
+    endif()
     add_test(NAME capi COMMAND test_capi)
   endif()
 

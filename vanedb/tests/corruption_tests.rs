@@ -90,6 +90,20 @@ fn hnsw_load_accepts_v1_full_capacity_files() {
 }
 
 #[test]
+fn hnsw_load_rejects_non_finite_stored_vectors() {
+    let mut data = v1_full_capacity_payload();
+    data.vectors[0] = f32::NAN;
+    let bytes = hnsw_file_bytes(1, &data);
+    let p = write_tmp("non_finite_vector", &bytes);
+    let err = match HnswIndex::load(&p) {
+        Ok(_) => panic!("load should have failed"),
+        Err(error) => error,
+    };
+    assert!(format!("{err}").contains("finite"), "got: {err}");
+    let _ = fs::remove_file(&p);
+}
+
+#[test]
 fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
     // The same full-capacity arrays are NOT valid under v2, which stores
     // exactly `count` entries per array.
@@ -101,6 +115,27 @@ fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
     };
     assert!(format!("{err}").contains("length"), "got: {err}");
     let _ = fs::remove_file(&p);
+}
+
+#[cfg(feature = "mmap")]
+#[test]
+fn mmap_open_rejects_non_finite_stored_vectors() {
+    let path = std::env::temp_dir().join("vanedb_mmap_non_finite.bin");
+    let mut builder = MmapVectorStoreBuilder::new(2, DistanceMetric::L2).unwrap();
+    builder.add(1, &[0.0, 0.0]).unwrap();
+    builder.save(&path).unwrap();
+
+    let mut bytes = fs::read(&path).unwrap();
+    let vector_offset = 32 + 8;
+    bytes[vector_offset..vector_offset + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+    fs::write(&path, bytes).unwrap();
+
+    let err = match MmapVectorStore::open(&path) {
+        Ok(_) => panic!("open should have failed"),
+        Err(error) => error,
+    };
+    assert!(format!("{err}").contains("finite"), "got: {err}");
+    let _ = fs::remove_file(&path);
 }
 
 /// Build a minimal valid HNSW file on disk, then return the bytes so tests can
