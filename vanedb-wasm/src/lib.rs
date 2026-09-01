@@ -2,7 +2,47 @@ use wasm_bindgen::prelude::*;
 
 use vanedb::distance::DistanceMetric;
 use vanedb::hnsw::HnswIndex;
-use vanedb::store::VectorStore;
+use vanedb::store::{SearchResult, VectorStore};
+
+/// Search results with lossless 64-bit ids.
+#[wasm_bindgen]
+pub struct WasmSearchResults {
+    ids: Vec<u64>,
+    distances: Vec<f32>,
+}
+
+#[wasm_bindgen]
+impl WasmSearchResults {
+    /// Matched ids, in rank order, as a `BigUint64Array`.
+    #[wasm_bindgen(getter)]
+    pub fn ids(&self) -> Vec<u64> {
+        self.ids.clone()
+    }
+
+    /// Distances, parallel to `ids`, as a `Float32Array`.
+    #[wasm_bindgen(getter)]
+    pub fn distances(&self) -> Vec<f32> {
+        self.distances.clone()
+    }
+
+    /// Number of matches returned.
+    #[wasm_bindgen(getter)]
+    pub fn length(&self) -> usize {
+        self.ids.len()
+    }
+}
+
+impl From<Vec<SearchResult>> for WasmSearchResults {
+    fn from(results: Vec<SearchResult>) -> Self {
+        let mut ids = Vec::with_capacity(results.len());
+        let mut distances = Vec::with_capacity(results.len());
+        for result in results {
+            ids.push(result.id);
+            distances.push(result.distance);
+        }
+        Self { ids, distances }
+    }
+}
 
 fn to_jserr(e: vanedb::VaneError) -> JsError {
     JsError::new(&e.to_string())
@@ -50,15 +90,15 @@ impl WasmVectorStore {
         self.inner.add_batch(ids, vectors).map_err(to_jserr)
     }
 
-    /// Search for k nearest neighbors. Returns flat array: [id0, dist0, id1, dist1, ...].
-    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<f32>, JsError> {
+    /// Search for k nearest neighbors.
+    ///
+    /// Ids come back as a `BigUint64Array` and distances as a `Float32Array`,
+    /// parallel by index. Ids are never narrowed to `f32`: values at or above
+    /// 2^24 are not exactly representable, so distinct records collided and
+    /// callers could act on the wrong record (#39).
+    pub fn search(&self, query: &[f32], k: usize) -> Result<WasmSearchResults, JsError> {
         let results = self.inner.search(query, k).map_err(to_jserr)?;
-        let mut flat = Vec::with_capacity(results.len() * 2);
-        for r in results {
-            flat.push(r.id as f32);
-            flat.push(r.distance);
-        }
-        Ok(flat)
+        Ok(WasmSearchResults::from(results))
     }
 
     pub fn get(&self, id: u64) -> Result<Vec<f32>, JsError> {
@@ -120,15 +160,15 @@ impl WasmHnswIndex {
         self.inner.add_batch(ids, vectors).map_err(to_jserr)
     }
 
-    /// Search for k nearest neighbors. Returns flat array: [id0, dist0, id1, dist1, ...].
-    pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<f32>, JsError> {
+    /// Search for k nearest neighbors.
+    ///
+    /// Ids come back as a `BigUint64Array` and distances as a `Float32Array`,
+    /// parallel by index. Ids are never narrowed to `f32`: values at or above
+    /// 2^24 are not exactly representable, so distinct records collided and
+    /// callers could act on the wrong record (#39).
+    pub fn search(&self, query: &[f32], k: usize) -> Result<WasmSearchResults, JsError> {
         let results = self.inner.search(query, k).map_err(to_jserr)?;
-        let mut flat = Vec::with_capacity(results.len() * 2);
-        for r in results {
-            flat.push(r.id as f32);
-            flat.push(r.distance);
-        }
-        Ok(flat)
+        Ok(WasmSearchResults::from(results))
     }
 
     pub fn contains(&self, id: u64) -> bool {
