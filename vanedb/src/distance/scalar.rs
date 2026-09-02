@@ -1,5 +1,3 @@
-use crate::distance::COSINE_EPSILON;
-
 pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     a.iter()
@@ -21,11 +19,21 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
         norm_a += x * x;
         norm_b += y * y;
     }
-    let denom = norm_a * norm_b;
-    if denom < COSINE_EPSILON {
+    // Normalise by each vector's own norm. `norm_a * norm_b` grows with the
+    // fourth power of magnitude, so a fixed epsilon on that product classified
+    // ordinary small vectors as zero, and the product overflowed to infinity
+    // for large ones — both returned 1.0 for identical inputs (#40).
+    //
+    // Policy, shared with vanedb-cpp: a vector with no usable direction —
+    // a zero vector, or one whose squared norm overflowed f32 — is 1.0 away
+    // from everything, including itself. Finite inputs never yield NaN.
+    // Multiplying the roots rather than rooting the product keeps the
+    // denominator in range for both tiny and huge vectors.
+    let denom = norm_a.sqrt() * norm_b.sqrt();
+    if !(denom > 0.0 && denom.is_finite()) {
         return 1.0;
     }
-    let sim = dot / denom.sqrt();
+    let sim = dot / denom;
     1.0 - sim.clamp(-1.0, 1.0)
 }
 

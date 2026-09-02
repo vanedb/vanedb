@@ -13,6 +13,22 @@ both issue trackers:
 - non-finite distances in top-k ordering;
 - HNSW persistence with inconsistent external-id maps.
 
+## Distance semantics
+
+**Cosine.** The distance depends only on direction, so it must not change when
+both inputs are rescaled. Normalisation divides by `sqrt(norm_a) * sqrt(norm_b)`
+rather than `sqrt(norm_a * norm_b)`: the product grows with the fourth power of
+magnitude, which previously classified ordinary small vectors as zero and
+overflowed to infinity for large ones.
+
+A vector with no usable direction — a zero vector, or one whose squared norm
+overflows `f32` — is defined to be `1.0` away from everything, including
+itself. Finite inputs therefore never produce a non-finite cosine distance.
+
+`cosine_scale_invariance.tsv` pins these cases for both engines and is consumed
+by `vanedb/tests/cosine_conformance.rs` and
+`cpp/tests/test_cosine_conformance.cpp`.
+
 ## Universal persistence
 
 The first public persistence format is **VNDB v1**. Existing Rust and C++

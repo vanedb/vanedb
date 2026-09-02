@@ -86,7 +86,7 @@ kernel void cs(device const float4* q[[buffer(0)]], device const float4* v[[buff
   float4 d=0,nq=0,nv=0; uint o=i*d4;
   for(uint j=0;j<d4;++j){float4 a=q[j],b=v[o+j];d+=a*b;nq+=a*a;nv+=b*b;}
   float dot=d.x+d.y+d.z+d.w,na=nq.x+nq.y+nq.z+nq.w,nb=nv.x+nv.y+nv.z+nv.w;
-  float dn=na*nb; r[i]=1.0f-clamp((dn<1e-12f)?0.0f:dot*rsqrt(dn),-1.0f,1.0f);
+  float dn=sqrt(na)*sqrt(nb); float sim=(dn>0.0f&&isfinite(dn))?dot/dn:0.0f; r[i]=1.0f-clamp(sim,-1.0f,1.0f);
 }
       )";
       id<MTLLibrary> lib = [dev_ newLibraryWithSource:src options:nil error:&err];
