@@ -5,6 +5,7 @@ use parking_lot::RwLock;
 use crate::distance::{self as d, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
+use crate::validation::validate_finite;
 
 pub struct VectorStore {
     dim: usize,
@@ -41,6 +42,7 @@ impl VectorStore {
                 got: vector.len(),
             });
         }
+        validate_finite(vector, "vector")?;
         let mut inner = self.inner.write();
         if inner.id_to_index.contains_key(&id) {
             return Err(VaneError::DuplicateId { id });
@@ -63,6 +65,7 @@ impl VectorStore {
                 got: vectors.len(),
             });
         }
+        validate_finite(vectors, "vector batch")?;
         let mut inner = self.inner.write();
         let mut seen = HashSet::with_capacity(ids.len());
         for &id in ids {
@@ -142,6 +145,7 @@ impl VectorStore {
                 got: query.len(),
             });
         }
+        validate_finite(query, "query")?;
         if k == 0 {
             return Err(VaneError::InvalidK);
         }

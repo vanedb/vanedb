@@ -10,6 +10,7 @@ use rand::SeedableRng;
 use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
+use crate::validation::{compare_distances, validate_finite};
 
 mod persistence;
 
@@ -60,8 +61,14 @@ impl VisitedBuffer {
 }
 
 /// Wrapper for f32 that implements Ord (needed for BinaryHeap).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 struct FloatOrd(f32);
+
+impl PartialEq for FloatOrd {
+    fn eq(&self, other: &Self) -> bool {
+        compare_distances(self.0, other.0).is_eq()
+    }
+}
 
 impl Eq for FloatOrd {}
 
@@ -75,7 +82,12 @@ impl Ord for FloatOrd {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.0
             .partial_cmp(&other.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .unwrap_or_else(|| match (self.0.is_nan(), other.0.is_nan()) {
+                (false, true) => std::cmp::Ordering::Less,
+                (true, false) => std::cmp::Ordering::Greater,
+                (true, true) => self.0.total_cmp(&other.0),
+                (false, false) => unreachable!("only NaN is unordered"),
+            })
     }
 }
 
@@ -179,6 +191,7 @@ impl HnswIndex {
                 got: vector.len(),
             });
         }
+        validate_finite(vector, "vector")?;
 
         let mut inner = self.inner.write();
 
@@ -205,6 +218,7 @@ impl HnswIndex {
                 got: vectors.len(),
             });
         }
+        validate_finite(vectors, "vector batch")?;
 
         let mut inner = self.inner.write();
 
@@ -357,6 +371,7 @@ impl HnswIndex {
                 got: query.len(),
             });
         }
+        validate_finite(query, "query")?;
         if k == 0 {
             return Err(VaneError::InvalidK);
         }

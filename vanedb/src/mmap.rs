@@ -8,6 +8,7 @@ use memmap2::Mmap;
 use crate::distance::{self as d, DistanceMetric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
+use crate::validation::validate_finite;
 
 const MAGIC: u32 = 0x564E4442; // "VNDB"
 const VERSION: u32 = 1;
@@ -59,6 +60,7 @@ impl MmapVectorStoreBuilder {
                 got: vector.len(),
             });
         }
+        validate_finite(vector, "vector")?;
         if self.id_set.contains(&id) {
             return Err(VaneError::DuplicateId { id });
         }
@@ -174,6 +176,14 @@ impl MmapVectorStore {
         let ids_offset = HEADER_SIZE;
         let vectors_offset = HEADER_SIZE + ids_size;
 
+        for offset in (vectors_offset..expected).step_by(4) {
+            if !f32::from_le_bytes(mmap[offset..offset + 4].try_into().unwrap()).is_finite() {
+                return Err(VaneError::Io(
+                    "corrupted file: vector values must be finite".to_string(),
+                ));
+            }
+        }
+
         // Build ID → index map
         let mut id_map = HashMap::with_capacity(num_vectors);
         for i in 0..num_vectors {
@@ -222,6 +232,7 @@ impl MmapVectorStore {
                 got: query.len(),
             });
         }
+        validate_finite(query, "query")?;
         if k == 0 {
             return Err(VaneError::InvalidK);
         }

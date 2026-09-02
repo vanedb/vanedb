@@ -7,6 +7,7 @@ pub mod hnsw;
 #[cfg(feature = "mmap")]
 pub mod mmap;
 pub mod store;
+mod validation;
 
 pub use distance::DistanceMetric;
 pub use error::{Result, VaneError};

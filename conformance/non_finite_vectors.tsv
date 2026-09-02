@@ -1,0 +1,4 @@
+# Shared public-input rejection cases. Values use Rust/C++ float parser spellings.
+nan	NaN
+positive_infinity	inf
+negative_infinity	-inf

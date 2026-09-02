@@ -18,6 +18,8 @@ typedef enum { VANEDB_L2 = 0, VANEDB_COSINE = 1, VANEDB_DOT = 2 } vanedb_metric;
  *  - int returns: 0 = success, non-zero = failure. Constructors return NULL on
  *    failure. _search returns the number of results written (0 on error/empty).
  *  - out_ids / out_dists are caller-owned buffers of length k.
+ *  - Stored vectors and search queries must contain only finite values. Adds
+ *    fail with a non-zero return; searches fail with a zero result count.
  *  - vanedb_cpp_hnsw_search takes ef_search per call (the implementation sets it
  *    then searches). This mirrors the Rust ABI; it is not thread-safe to call
  *    concurrently with different ef_search values on the same handle, which the

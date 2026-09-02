@@ -10,7 +10,10 @@ The first conformance cases will cover the paired findings already present in
 both issue trackers:
 
 - cosine distance for small, identical vectors;
-- non-finite distances in top-k ordering;
+- non-finite vectors and queries are rejected at every public store/index
+  boundary, persisted stores containing non-finite vectors fail to load, and
+  defensive result ordering always places finite distances first. The shared
+  input cases live in `non_finite_vectors.tsv`;
 - HNSW persistence with inconsistent external-id maps.
 
 ## Distance semantics

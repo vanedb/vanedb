@@ -337,8 +337,33 @@ TEST_CASE("MMapVectorStore - search validation", "[mmap]") {
       float query[] = {1.0f, 0.0f, 0.0f, 0.0f};
       REQUIRE_THROWS_AS(store.search(query, 0), std::invalid_argument);
     }
+
+    SECTION("Search with a non-finite query throws") {
+      float query[] = {std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f, 0.0f};
+      REQUIRE_THROWS_AS(store.search(query, 1), std::invalid_argument);
+    }
   }  // Scope ensures store is destroyed and file unmapped before removal (Windows file locking)
 
+  std::filesystem::remove(filename);
+}
+
+TEST_CASE("MMapVectorStore - rejects non-finite stored vectors", "[mmap][persistence]") {
+  const std::string filename = "test_mmap_non_finite.bin";
+  vanedb::MMapVectorStoreBuilder builder(2);
+  const float vector[] = {0.0f, 0.0f};
+  builder.add(1, vector);
+  builder.save(filename);
+
+  {
+    std::fstream file(filename, std::ios::binary | std::ios::in | std::ios::out);
+    const auto vector_offset = static_cast<std::streamoff>(
+        vanedb::MMapVectorStore::HEADER_SIZE + sizeof(uint64_t));
+    file.seekp(vector_offset);
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    file.write(reinterpret_cast<const char*>(&nan), sizeof(nan));
+  }
+
+  REQUIRE_THROWS_AS(vanedb::MMapVectorStore(filename), std::runtime_error);
   std::filesystem::remove(filename);
 }
 

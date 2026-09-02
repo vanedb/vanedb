@@ -248,6 +248,27 @@ def test_dimension_mismatch_search():
         index.search(wrong_query, 1)
 
 
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+def test_non_finite_vectors_and_queries_are_rejected(value):
+    import vanedb_cpp
+
+    invalid = np.array([value, 0.0], dtype=np.float32)
+    finite = np.array([0.0, 0.0], dtype=np.float32)
+
+    store = vanedb_cpp.VectorStore(dimension=2)
+    with pytest.raises(ValueError, match="finite"):
+        store.add(1, invalid)
+    assert store.size() == 0
+    store.add(2, finite)
+    with pytest.raises(ValueError, match="finite"):
+        store.search(invalid, 1)
+
+    index = vanedb_cpp.HNSWIndex(dimension=2, max_elements=4)
+    with pytest.raises(ValueError, match="finite"):
+        index.add(1, invalid)
+    assert index.size() == 0
+
+
 def test_2d_array_add_raises():
     """Test that adding a 2D array raises error."""
     import vanedb_cpp

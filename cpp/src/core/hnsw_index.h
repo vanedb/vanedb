@@ -2,6 +2,7 @@
 #pragma once
 #include "distance_strategy.h"
 #include "detail/file_utils.h"
+#include "validation.h"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -54,8 +55,12 @@ template <typename T> void read_vec(std::ifstream& f, std::vector<T>& v) {
 struct HNSWSearchResult {
   uint64_t id;
   float distance;
-  bool operator<(const HNSWSearchResult& o) const { return distance < o.distance; }
-  bool operator>(const HNSWSearchResult& o) const { return distance > o.distance; }
+  bool operator<(const HNSWSearchResult& o) const {
+    if (detail::distance_less(distance, o.distance)) return true;
+    if (detail::distance_less(o.distance, distance)) return false;
+    return id < o.id;
+  }
+  bool operator>(const HNSWSearchResult& o) const { return o < *this; }
 };
 
 class HNSWIndex {
@@ -87,6 +92,7 @@ public:
   // with any reader.
   void add(uint64_t id, const float* vec) {
     if (!vec) throw std::invalid_argument("Vector must not be null");
+    detail::require_finite(vec, dim_, "Vector");
     std::unique_lock glock(global_mtx_);  // Exclusive: only one add() at a time
     if (id_map_.count(id)) throw std::invalid_argument("ID " + std::to_string(id) + " exists");
     if (count_ >= max_elements_) throw std::runtime_error("Index full");
@@ -114,7 +120,7 @@ public:
           changed = false;
           for (size_t n : neighbors_[curr][l]) {
             float nd = dist_(vec, get_vec(n));
-            if (nd < d) { d = nd; curr = n; changed = true; }
+            if (detail::distance_less(nd, d)) { d = nd; curr = n; changed = true; }
           }
         }
       }
@@ -135,7 +141,7 @@ public:
           cands.reserve(nc.size() + 1);
           for (size_t c : nc) cands.emplace_back(dist_(get_vec(nid), get_vec(c)), c);
           cands.emplace_back(d2new, iid);
-          std::sort(cands.begin(), cands.end());
+          std::sort(cands.begin(), cands.end(), detail::DistanceIdLess{});
           nc.clear();
           for (size_t i = 0; i < max_conn && i < cands.size(); ++i) nc.push_back(cands[i].second);
         }
@@ -155,6 +161,7 @@ public:
 
   std::vector<HNSWSearchResult> search(const float* query, size_t k) const {
     if (!query) throw std::invalid_argument("Query must not be null");
+    detail::require_finite(query, dim_, "Query");
     if (k == 0) throw std::invalid_argument("k must be > 0");
     std::shared_lock glock(global_mtx_);
     if (count_ == 0) return {};
@@ -168,7 +175,7 @@ public:
         if (static_cast<int>(neighbors_[curr].size()) <= l) continue;
         for (size_t n : neighbors_[curr][l]) {
           float nd = dist_(query, get_vec(n));
-          if (nd < d) { d = nd; curr = n; changed = true; }
+          if (detail::distance_less(nd, d)) { d = nd; curr = n; changed = true; }
         }
       }
     }
@@ -176,7 +183,7 @@ public:
     auto top = search_layer(query, curr, std::max(ef_search_.load(std::memory_order_relaxed), k), 0);
     std::vector<std::pair<float, size_t>> temp;
     while (!top.empty()) { temp.push_back(top.top()); top.pop(); }
-    std::sort(temp.begin(), temp.end());
+    std::sort(temp.begin(), temp.end(), detail::DistanceIdLess{});
 
     std::vector<HNSWSearchResult> res;
     res.reserve(std::min(k, temp.size()));
@@ -298,6 +305,10 @@ public:
     const size_t stored = ver >= 3 ? cnt : max_el;
     if (idx->vectors_.size() != stored * dim)
       throw std::runtime_error("Corrupted file: vectors length mismatch");
+    for (size_t i = 0; i < cnt * dim; ++i) {
+      if (!std::isfinite(idx->vectors_[i]))
+        throw std::runtime_error("Corrupted file: vector values must be finite");
+    }
     if (idx->ext_ids_.size() != stored || idx->levels_.size() != stored)
       throw std::runtime_error("Corrupted file: ext_ids/levels length mismatch");
     // Re-expand to the pre-allocated capacity layout the index expects
@@ -357,7 +368,9 @@ public:
 
 private:
   static constexpr double MIN_LEVEL_RANDOM = 1e-9;  // Clamp floor for level generation RNG
-  using MaxHeap = std::priority_queue<std::pair<float, size_t>>;
+  using DistanceId = std::pair<float, size_t>;
+  using MaxHeap = std::priority_queue<DistanceId, std::vector<DistanceId>, detail::DistanceIdLess>;
+  using MinHeap = std::priority_queue<DistanceId, std::vector<DistanceId>, detail::DistanceIdGreater>;
 
   int get_level() {
     std::uniform_real_distribution<double> d(0.0, 1.0);
@@ -392,8 +405,7 @@ private:
       vis_epoch = 1;
     }
     vis[ep] = vis_epoch;
-    std::priority_queue<std::pair<float, size_t>, std::vector<std::pair<float, size_t>>,
-                        std::greater<std::pair<float, size_t>>> cands;
+    MinHeap cands;
     MaxHeap res;
     float d = dist_(q, get_vec(ep));
     cands.emplace(d, ep);
@@ -402,14 +414,14 @@ private:
 
     while (!cands.empty()) {
       auto [cd, cid] = cands.top();
-      if (cd > lb && res.size() >= ef) break;
+      if (detail::distance_less(lb, cd) && res.size() >= ef) break;
       cands.pop();
       if (static_cast<int>(neighbors_[cid].size()) <= level) continue;
       for (size_t n : neighbors_[cid][level]) {
         if (vis[n] == vis_epoch) continue;
         vis[n] = vis_epoch;
         float nd = dist_(q, get_vec(n));
-        if (res.size() < ef || nd < lb) {
+        if (res.size() < ef || detail::distance_less(nd, lb)) {
           cands.emplace(nd, n);
           res.emplace(nd, n);
           if (res.size() > ef) res.pop();
@@ -430,7 +442,7 @@ private:
     std::vector<std::pair<float, size_t>> sorted;
     sorted.reserve(cands.size());
     while (!cands.empty()) { sorted.push_back(cands.top()); cands.pop(); }
-    std::sort(sorted.begin(), sorted.end());
+    std::sort(sorted.begin(), sorted.end(), detail::DistanceIdLess{});
 
     std::vector<size_t> r;
     r.reserve(M);
@@ -438,7 +450,7 @@ private:
       if (r.size() >= M) break;
       bool ok = true;
       for (size_t s : r)
-        if (dist_(get_vec(cid), get_vec(s)) < dq) { ok = false; break; }
+        if (detail::distance_less(dist_(get_vec(cid), get_vec(s)), dq)) { ok = false; break; }
       if (ok) r.push_back(cid);
     }
     if (r.size() < M) {

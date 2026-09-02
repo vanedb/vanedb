@@ -18,6 +18,7 @@
 #include "detail/file_utils.h"
 #include "distance_strategy.h"
 #include "vector_store.h"
+#include "validation.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -106,6 +107,11 @@ public:
     ids_ptr_ = reinterpret_cast<const uint64_t*>(static_cast<const uint8_t*>(mapped_) + HEADER_SIZE);
     vectors_ptr_ = reinterpret_cast<const float*>(
         static_cast<const uint8_t*>(mapped_) + HEADER_SIZE + num_vectors_ * sizeof(uint64_t));
+    for (size_t i = 0; i < num_vectors_ * dim_; ++i) {
+      if (!std::isfinite(vectors_ptr_[i])) {
+        cleanup(); throw std::runtime_error("File corrupted: vector values must be finite");
+      }
+    }
     dist_ = DistanceComputer(metric_, dim_);
     try {
       id_map_.reserve(num_vectors_);
@@ -158,6 +164,7 @@ public:
 
   std::vector<SearchResult> search(const float* query, size_t k) const {
     if (!query) throw std::invalid_argument("Query must not be null");
+    detail::require_finite(query, dim_, "Query");
     if (k == 0) throw std::invalid_argument("k must be > 0");
     std::vector<SearchResult> res;
     res.reserve(num_vectors_);
@@ -209,6 +216,7 @@ public:
 
   void add(uint64_t id, const float* vec) {
     if (!vec) throw std::invalid_argument("Vector must not be null");
+    detail::require_finite(vec, dim_, "Vector");
     if (id_set_.count(id)) throw std::invalid_argument("Duplicate ID: " + std::to_string(id));
     ids_.push_back(id);
     vectors_.insert(vectors_.end(), vec, vec + dim_);

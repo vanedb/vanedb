@@ -6,6 +6,7 @@ pub enum VaneError {
     DuplicateId { id: u64 },
     InvalidK,
     IndexFull,
+    NonFiniteValue { input: &'static str },
     InvalidParameter(&'static str),
     Io(String),
 }
@@ -21,6 +22,9 @@ impl std::fmt::Display for VaneError {
             Self::DuplicateId { id } => write!(f, "duplicate id: {id}"),
             Self::InvalidK => write!(f, "k must be > 0"),
             Self::IndexFull => write!(f, "index is full"),
+            Self::NonFiniteValue { input } => {
+                write!(f, "{input} must contain only finite values")
+            }
             Self::InvalidParameter(msg) => write!(f, "invalid parameter: {msg}"),
             Self::Io(msg) => write!(f, "I/O error: {msg}"),
         }
@@ -65,5 +69,11 @@ mod tests {
     fn error_display_invalid_parameter() {
         let err = VaneError::InvalidParameter("M must be >= 2");
         assert_eq!(err.to_string(), "invalid parameter: M must be >= 2");
+    }
+
+    #[test]
+    fn error_display_non_finite_value() {
+        let err = VaneError::NonFiniteValue { input: "query" };
+        assert_eq!(err.to_string(), "query must contain only finite values");
     }
 }

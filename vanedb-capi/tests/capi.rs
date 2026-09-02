@@ -218,6 +218,61 @@ fn store() {
 }
 
 #[test]
+fn non_finite_vectors_and_queries_are_rejected() {
+    unsafe {
+        let mut out_id = 0u64;
+        let mut out_distance = 0.0f32;
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let invalid = [value, 0.0];
+            let finite = [0.0, 0.0];
+
+            let store = vanedb_capi::vanedb_rs_store_new(2, 0);
+            assert_eq!(
+                vanedb_capi::vanedb_rs_store_add(store, 1, invalid.as_ptr()),
+                1
+            );
+            assert_eq!(
+                vanedb_capi::vanedb_rs_store_add(store, 2, finite.as_ptr()),
+                0
+            );
+            assert_eq!(
+                vanedb_capi::vanedb_rs_store_search(
+                    store,
+                    invalid.as_ptr(),
+                    1,
+                    &mut out_id,
+                    &mut out_distance,
+                ),
+                0
+            );
+            vanedb_capi::vanedb_rs_store_free(store);
+
+            let index = vanedb_capi::vanedb_rs_hnsw_new(2, 0, 4, 2, 10, 42);
+            assert_eq!(
+                vanedb_capi::vanedb_rs_hnsw_add(index, 1, invalid.as_ptr()),
+                1
+            );
+            assert_eq!(
+                vanedb_capi::vanedb_rs_hnsw_add(index, 2, finite.as_ptr()),
+                0
+            );
+            assert_eq!(
+                vanedb_capi::vanedb_rs_hnsw_search(
+                    index,
+                    invalid.as_ptr(),
+                    1,
+                    10,
+                    &mut out_id,
+                    &mut out_distance,
+                ),
+                0
+            );
+            vanedb_capi::vanedb_rs_hnsw_free(index);
+        }
+    }
+}
+
+#[test]
 fn store_add_batch() {
     let ids = [1u64, 2, 3];
     let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];

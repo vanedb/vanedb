@@ -12,6 +12,9 @@ typedef struct VectorStore VectorStore;
 typedef struct HnswIndex HnswIndex;
 typedef struct MmapVectorStore MmapVectorStore;
 
+/* Stored vectors and search queries must contain only finite values. Adds and
+ * mmap builds fail with a non-zero return; searches fail with a zero count. */
+
 
 #ifdef __cplusplus
 extern "C" {
