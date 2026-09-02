@@ -2,6 +2,8 @@ import vanedb
 import os
 import tempfile
 
+import pytest
+
 
 def test_version():
     assert vanedb.__version__ == "0.1.0"
@@ -128,3 +130,20 @@ def test_hnsw_errors():
         assert False, "Should have raised"
     except ValueError:
         pass
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_vectors_and_queries_are_rejected(value):
+    store = vanedb.PyVectorStore(2)
+    with pytest.raises(ValueError, match="finite"):
+        store.add(1, [value, 0.0])
+    assert len(store) == 0
+
+    store.add(2, [0.0, 0.0])
+    with pytest.raises(ValueError, match="finite"):
+        store.search([value, 0.0], 1)
+
+    index = vanedb.PyHnswIndex(2, capacity=4)
+    with pytest.raises(ValueError, match="finite"):
+        index.add(1, [value, 0.0])
+    assert len(index) == 0

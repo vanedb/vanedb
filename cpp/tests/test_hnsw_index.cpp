@@ -857,7 +857,8 @@ namespace {
 // Hand-writes an HNSW file in the given version's layout: a consistent
 // 2-of-4-slots index. `full_arrays` selects the legacy v1/v2 layout (arrays
 // span the whole capacity) vs the v3 compact layout (count-sized).
-void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arrays) {
+void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arrays,
+                        float first_value = 1.0f) {
   using vanedb::detail::write_bin;
   using vanedb::detail::write_vec;
   const size_t stored = full_arrays ? 4 : 2;
@@ -874,7 +875,7 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   write_bin(f, size_t{2});    // count
   write_bin(f, size_t{0});    // entry point
   write_bin(f, int{0});       // max_level
-  std::vector<float> vectors = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+  std::vector<float> vectors = {first_value, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   vectors.resize(stored * 2);
   write_vec(f, vectors);
   std::vector<uint64_t> ext_ids = {10, 20, 0, 0};
@@ -929,6 +930,14 @@ TEST_CASE("HNSWIndex - load rejects v3 with capacity-sized arrays", "[hnsw][pers
   // exactly `count` entries per array.
   const std::string filename = "test_hnsw_v3_full_arrays.bin";
   write_hnsw_fixture(filename, 3, /*full_arrays=*/true);
+  REQUIRE_THROWS_AS(vanedb::HNSWIndex::load(filename), std::runtime_error);
+  std::filesystem::remove(filename);
+}
+
+TEST_CASE("HNSWIndex - load rejects non-finite stored vectors", "[hnsw][persistence]") {
+  const std::string filename = "test_hnsw_non_finite.bin";
+  write_hnsw_fixture(filename, 3, /*full_arrays=*/false,
+                     std::numeric_limits<float>::quiet_NaN());
   REQUIRE_THROWS_AS(vanedb::HNSWIndex::load(filename), std::runtime_error);
   std::filesystem::remove(filename);
 }

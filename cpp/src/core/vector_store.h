@@ -1,6 +1,7 @@
 // VaneDB - Copyright (c) 2025 Anton Tsvetkov - MIT License
 #pragma once
 #include "distance_strategy.h"
+#include "validation.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -17,7 +18,11 @@ namespace vanedb {
 struct SearchResult {
   uint64_t id;
   float distance;
-  bool operator<(const SearchResult& o) const { return distance < o.distance; }
+  bool operator<(const SearchResult& o) const {
+    if (detail::distance_less(distance, o.distance)) return true;
+    if (detail::distance_less(o.distance, distance)) return false;
+    return id < o.id;
+  }
 };
 
 class VectorStore {
@@ -29,6 +34,7 @@ public:
 
   void add(uint64_t id, const float* vector) {
     if (!vector) throw std::invalid_argument("Vector must not be null");
+    detail::require_finite(vector, dim_, "Vector");
     std::unique_lock lock(mutex_);
     if (id_to_index_.count(id)) throw std::invalid_argument("ID " + std::to_string(id) + " exists");
     vectors_data_.insert(vectors_data_.end(), vector, vector + dim_);
@@ -70,6 +76,7 @@ public:
 
   std::vector<SearchResult> search(const float* query, size_t k) const {
     if (!query) throw std::invalid_argument("Query must not be null");
+    detail::require_finite(query, dim_, "Query");
     if (k == 0) throw std::invalid_argument("k must be > 0");
     std::shared_lock lock(mutex_);
     std::vector<SearchResult> results;
@@ -107,6 +114,7 @@ public:
 
   bool update(uint64_t id, const float* vector) {
     if (!vector) throw std::invalid_argument("Vector must not be null");
+    detail::require_finite(vector, dim_, "Vector");
     std::unique_lock lock(mutex_);
     auto it = id_to_index_.find(id);
     if (it == id_to_index_.end()) return false;

@@ -120,3 +120,18 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
     want.sort_unstable();
     assert_eq!(got, want);
 }
+
+#[wasm_bindgen_test]
+fn test_non_finite_vectors_and_queries_are_rejected() {
+    for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        let store = WasmVectorStore::new(2, "l2").unwrap();
+        assert!(store.add(1, &[value, 0.0]).is_err());
+        assert_eq!(store.size(), 0);
+        store.add(2, &[0.0, 0.0]).unwrap();
+        assert!(store.search(&[value, 0.0], 1).is_err());
+
+        let index = WasmHnswIndex::new(2, "l2", 4, 2, 10).unwrap();
+        assert!(index.add(1, &[value, 0.0]).is_err());
+        assert_eq!(index.size(), 0);
+    }
+}
