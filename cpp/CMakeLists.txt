@@ -151,6 +151,17 @@ target_compile_options(test_non_finite_conformance PRIVATE
 )
 target_link_options(test_non_finite_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
+add_executable(test_hnsw_derived_size_conformance tests/test_hnsw_derived_size_conformance.cpp)
+target_link_libraries(test_hnsw_derived_size_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_hnsw_derived_size_conformance PRIVATE
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+)
+target_compile_options(test_hnsw_derived_size_conformance PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4>
+  ${COVERAGE_COMPILE_FLAGS}
+)
+target_link_options(test_hnsw_derived_size_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
+
 include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
@@ -161,6 +172,7 @@ catch_discover_tests(test_distance_strategy)
 catch_discover_tests(test_mmap_vector_store)
 catch_discover_tests(test_cosine_conformance)
 catch_discover_tests(test_non_finite_conformance)
+catch_discover_tests(test_hnsw_derived_size_conformance)
 endif() # VANEDB_BUILD_TESTS
 
 # Examples

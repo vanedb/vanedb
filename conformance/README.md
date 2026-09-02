@@ -14,6 +14,10 @@ both issue trackers:
   boundary, persisted stores containing non-finite vectors fail to load, and
   defensive result ordering always places finite distances first. The shared
   input cases live in `non_finite_vectors.tsv`;
+- HNSW construction in both engines rejects overflow in
+  capacity-times-dimension and doubled-`M` derived sizes before allocation;
+  the C++ legacy-format loader applies the same cases as corruption checks.
+  The architecture-neutral symbolic cases live in `hnsw_derived_sizes.tsv`;
 - HNSW persistence with inconsistent external-id maps.
 
 ## Distance semantics
