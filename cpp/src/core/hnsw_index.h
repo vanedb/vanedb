@@ -64,6 +64,51 @@ struct HNSWSearchResult {
 };
 
 class HNSWIndex {
+  struct DerivedSizes {
+    size_t vector_count;
+    size_t m_max0;
+  };
+
+  static DerivedSizes checked_direct_sizes(size_t dimension, size_t max_elements, size_t M) {
+    if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
+    if (max_elements == 0) throw std::invalid_argument("max_elements must be > 0");
+    if (M < 2) throw std::invalid_argument("M must be >= 2");
+    if (max_elements > std::numeric_limits<size_t>::max() / dimension)
+      throw std::invalid_argument("max_elements * dimension overflow");
+    if (M > std::numeric_limits<size_t>::max() / 2)
+      throw std::invalid_argument("M * 2 overflow");
+    return {max_elements * dimension, M * 2};
+  }
+
+  static DerivedSizes checked_persisted_sizes(size_t dimension, size_t max_elements, size_t M) {
+    if (dimension == 0) throw std::runtime_error("Corrupted file: invalid dimension");
+    if (max_elements == 0) throw std::runtime_error("Corrupted file: invalid max_elements");
+    if (M < 2) throw std::runtime_error("Corrupted file: invalid M");
+    if (max_elements > std::numeric_limits<size_t>::max() / dimension)
+      throw std::runtime_error("Corrupted file: max_elements * dimension overflow");
+    if (M > std::numeric_limits<size_t>::max() / 2)
+      throw std::runtime_error("Corrupted file: M * 2 overflow");
+    return {max_elements * dimension, M * 2};
+  }
+
+  static size_t checked_persisted_product(size_t left, size_t right, const char* name) {
+    if (right != 0 && left > std::numeric_limits<size_t>::max() / right)
+      throw std::runtime_error(std::string("Corrupted file: ") + name + " overflow");
+    return left * right;
+  }
+
+  HNSWIndex(size_t dimension, DistanceMetric metric, size_t max_elements, size_t M,
+            size_t ef_construction, uint32_t seed, DerivedSizes sizes)
+      : dim_(dimension), metric_(metric), dist_(metric, dimension),
+        max_elements_(max_elements), M_(M), M_max_(M),
+        M_max0_(sizes.m_max0), ef_construction_(std::max(ef_construction, M)), ef_search_(50),
+        mult_(M > 1 ? 1.0 / std::log(static_cast<double>(M)) : 1.0), level_gen_(seed) {
+    vectors_.resize(sizes.vector_count);
+    ext_ids_.resize(max_elements);
+    levels_.resize(max_elements, 0);
+    neighbors_.resize(max_elements);
+  }
+
 public:
   static constexpr uint32_t MAGIC = 0x51565244;  // "QVRD" (legacy QuiverDB magic, retained for on-disk compat)
   static constexpr uint32_t VERSION = 3;  // v3: compact arrays, count-sized (issue #24); v2 added RNG state
@@ -72,19 +117,8 @@ public:
 
   explicit HNSWIndex(size_t dimension, DistanceMetric metric = DistanceMetric::L2,
       size_t max_elements = 100000, size_t M = 16, size_t ef_construction = 200, uint32_t seed = 42)
-      : dim_(dimension), metric_(metric), dist_(metric, dimension),
-        max_elements_(max_elements), M_(M), M_max_(M),
-        M_max0_(M * 2), ef_construction_(std::max(ef_construction, M)), ef_search_(50),
-        mult_(M > 1 ? 1.0 / std::log(static_cast<double>(M)) : 1.0), level_gen_(seed) {
-    if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
-    if (max_elements == 0) throw std::invalid_argument("max_elements must be > 0");
-    if (M < 2) throw std::invalid_argument("M must be >= 2");
-    if (max_elements > SIZE_MAX / dim_) throw std::invalid_argument("max_elements * dimension overflow");
-    vectors_.resize(max_elements * dim_);
-    ext_ids_.resize(max_elements);
-    levels_.resize(max_elements, 0);
-    neighbors_.resize(max_elements);
-  }
+      : HNSWIndex(dimension, metric, max_elements, M, ef_construction, seed,
+                  checked_direct_sizes(dimension, max_elements, M)) {}
 
   // Thread-safety: global_mtx_ is the single sync point. add() holds it
   // exclusive; readers (search/size/contains/get_vector/save) hold it shared.
@@ -274,15 +308,17 @@ public:
     detail::read_bin(f, ef_s);
     detail::read_bin(f, mult);
 
-    auto idx = std::make_unique<HNSWIndex>(dim, static_cast<DistanceMetric>(met), max_el, M, ef_con);
-    idx->ef_search_.store(ef_s);
-    idx->mult_ = mult;
+    // Validate every derived allocation size while this input is still just a
+    // file header. Passing the products into the private constructor keeps the
+    // checks ahead of allocation and avoids recomputing them unchecked.
+    const DerivedSizes sizes = checked_persisted_sizes(dim, max_el, M);
 
     size_t cnt, ep_val;
     int max_level_val;
     detail::read_bin(f, cnt);
+    const size_t live_vector_count =
+        checked_persisted_product(cnt, dim, "count * dimension");
     if (cnt > max_el) throw std::runtime_error("Corrupted file: count exceeds max_elements");
-    idx->count_.store(cnt);
     detail::read_bin(f, ep_val);
     detail::read_bin(f, max_level_val);
     // Validate ep_ and max_level_
@@ -295,17 +331,25 @@ public:
       if (ep_val != INVALID_ID)
         throw std::runtime_error("Corrupted file: non-empty entry point for empty index");
     }
+    // Array lengths are version-specific: v1/v2 stored full pre-allocated
+    // arrays, v3 stores only the `cnt` live entries.
+    const size_t stored = ver >= 3 ? cnt : max_el;
+    const size_t stored_vector_count =
+        ver >= 3 ? live_vector_count : sizes.vector_count;
+
+    auto idx = std::unique_ptr<HNSWIndex>(
+        new HNSWIndex(dim, static_cast<DistanceMetric>(met), max_el, M, ef_con, 42, sizes));
+    idx->ef_search_.store(ef_s);
+    idx->mult_ = mult;
+    idx->count_.store(cnt);
     idx->ep_.store(ep_val);
     idx->max_level_.store(max_level_val);
     detail::read_vec(f, idx->vectors_);
     detail::read_vec(f, idx->ext_ids_);
     detail::read_vec(f, idx->levels_);
-    // Array lengths are version-specific: v1/v2 stored full pre-allocated
-    // arrays, v3 stores only the `cnt` live entries.
-    const size_t stored = ver >= 3 ? cnt : max_el;
-    if (idx->vectors_.size() != stored * dim)
+    if (idx->vectors_.size() != stored_vector_count)
       throw std::runtime_error("Corrupted file: vectors length mismatch");
-    for (size_t i = 0; i < cnt * dim; ++i) {
+    for (size_t i = 0; i < live_vector_count; ++i) {
       if (!std::isfinite(idx->vectors_[i]))
         throw std::runtime_error("Corrupted file: vector values must be finite");
     }
@@ -313,7 +357,7 @@ public:
       throw std::runtime_error("Corrupted file: ext_ids/levels length mismatch");
     // Re-expand to the pre-allocated capacity layout the index expects
     // (no-ops for v1/v2).
-    idx->vectors_.resize(max_el * dim);
+    idx->vectors_.resize(sizes.vector_count);
     idx->ext_ids_.resize(max_el);
     idx->levels_.resize(max_el);
 

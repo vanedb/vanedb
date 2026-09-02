@@ -1,0 +1,6 @@
+# Shared symbolic cases for fallible HNSW derived-size validation. Symbols are
+# resolved against each engine's native index type (`usize` / `size_t`) so the
+# same contract applies on both 32-bit and 64-bit targets.
+# name	dimension	max_elements	M	overflow
+capacity_times_dimension	2	SIZE_MAX	2	capacity_times_dimension
+m_times_two	2	1	HALF_SIZE_MAX_PLUS_ONE	m_times_two
