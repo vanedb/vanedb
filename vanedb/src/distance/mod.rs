@@ -18,9 +18,6 @@ pub enum DistanceMetric {
 /// Function type for distance computation.
 pub type DistanceFn = fn(&[f32], &[f32]) -> f32;
 
-/// Zero-norm threshold for cosine distance.
-pub const COSINE_EPSILON: f32 = 1e-12;
-
 /// Returns the distance function for the given metric.
 /// Automatically selects SIMD implementation when available.
 pub fn distance_fn(metric: DistanceMetric) -> DistanceFn {

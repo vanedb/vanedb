@@ -22,7 +22,6 @@
 namespace vanedb {
 
 // Below this denominator (||a|| · ||b||) the vectors are treated as orthogonal.
-inline constexpr float COSINE_EPSILON = 1e-12f;
 
 #ifdef VANE_ARM_NEON
 [[nodiscard]] inline float hsum(float32x4_t v) noexcept {
@@ -184,9 +183,21 @@ inline constexpr float COSINE_EPSILON = 1e-12f;
     nb += b[i] * b[i];
   }
 
-  float denom = na * nb;
-  if (denom < COSINE_EPSILON) return 1.0f;
-  float sim = dot / sqrtf(denom);
+  // Normalise by each vector's own norm. `na * nb` grows with the fourth
+  // power of magnitude, so a fixed epsilon on that product classified ordinary
+  // small vectors as zero and overflowed to infinity for large ones — both
+  // returned 1.0 for identical inputs (vanedb#40 / vanedb-cpp#36).
+  //
+  // Zero-vector policy, shared with the Rust engine: a vector is zero only
+  // when its own squared norm is zero. It has no direction, so its cosine
+  // distance to anything, including itself, is 1.0.
+  // Multiplying the roots rather than rooting the product keeps the
+  // denominator in range for both tiny and huge vectors. A vector with no
+  // usable direction — zero, or a squared norm that overflowed float — is
+  // 1.0 away from everything, including itself.
+  float denom = sqrtf(na) * sqrtf(nb);
+  if (!(denom > 0.0f && std::isfinite(denom))) return 1.0f;
+  float sim = dot / denom;
   return 1.0f - std::clamp(sim, -1.0f, 1.0f);
 }
 

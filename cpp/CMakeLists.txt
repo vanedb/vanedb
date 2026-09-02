@@ -120,6 +120,18 @@ target_compile_options(test_distance_strategy PRIVATE
 )
 target_link_options(test_distance_strategy PRIVATE ${COVERAGE_LINK_FLAGS})
 
+add_executable(test_cosine_conformance tests/test_cosine_conformance.cpp)
+target_link_libraries(test_cosine_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_cosine_conformance PRIVATE
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+)
+target_compile_options(test_cosine_conformance PRIVATE
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
+  $<$<AND:$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<BOOL:${VANEDB_X86_64}>>:-mavx2 -mfma>
+  ${COVERAGE_COMPILE_FLAGS}
+)
+target_link_options(test_cosine_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
+
 add_executable(test_mmap_vector_store tests/test_mmap_vector_store.cpp)
 target_link_libraries(test_mmap_vector_store PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_options(test_mmap_vector_store PRIVATE
@@ -136,6 +148,7 @@ catch_discover_tests(test_vector_store)
 catch_discover_tests(test_hnsw_index)
 catch_discover_tests(test_distance_strategy)
 catch_discover_tests(test_mmap_vector_store)
+catch_discover_tests(test_cosine_conformance)
 endif() # VANEDB_BUILD_TESTS
 
 # Examples

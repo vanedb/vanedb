@@ -57,8 +57,8 @@ __global__ void cos_k(const float4* __restrict__ q, const float4* __restrict__ v
     nv.x += b.x*b.x; nv.y += b.y*b.y; nv.z += b.z*b.z; nv.w += b.w*b.w;
   }
   float dot = d.x+d.y+d.z+d.w, na = nq.x+nq.y+nq.z+nq.w, nb = nv.x+nv.y+nv.z+nv.w;
-  float dn = na * nb;
-  float sim = (dn < 1e-12f) ? 0.0f : dot * rsqrtf(dn);
+  float dn = sqrtf(na) * sqrtf(nb);
+  float sim = (dn > 0.0f && isfinite(dn)) ? dot / dn : 0.0f;
   r[i] = 1.0f - fminf(fmaxf(sim, -1.0f), 1.0f);
 }
 

@@ -1,8 +1,6 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
-use crate::distance::COSINE_EPSILON;
-
 /// Horizontal sum of 8 floats in a 256-bit register.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
@@ -121,11 +119,15 @@ pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
         i += 1;
     }
 
-    let denom = norm_a * norm_b;
-    if denom < COSINE_EPSILON {
+    // Zero-vector policy and per-norm normalisation must stay identical to
+    // `scalar::cosine_distance`, the reference implementation (#40).
+    // Multiplying the roots rather than rooting the product keeps the
+    // denominator in range for both tiny and huge vectors.
+    let denom = norm_a.sqrt() * norm_b.sqrt();
+    if !(denom > 0.0 && denom.is_finite()) {
         return 1.0;
     }
-    let sim = dot / denom.sqrt();
+    let sim = dot / denom;
     1.0 - sim.clamp(-1.0, 1.0)
 }
 
