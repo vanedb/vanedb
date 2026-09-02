@@ -372,6 +372,19 @@ public:
       if (v >= cnt) throw std::runtime_error("Corrupted file: invalid internal index in id_map");
       idx->id_map_[k] = v;
     }
+    // Every live slot must be reachable by its own external id. Combined with
+    // a size equal to the live count this forces a bijection, rejecting
+    // key/value mismatches, duplicate external ids, duplicated internal ids,
+    // and missing entries. Checking only size <= count and value range
+    // accepted a file whose external id resolved to another slot's vector
+    // (vanedb#42 / vanedb-cpp#38).
+    if (idx->id_map_.size() != cnt)
+      throw std::runtime_error("Corrupted file: id_map size does not match count");
+    for (size_t i = 0; i < cnt; ++i) {
+      auto entry = idx->id_map_.find(idx->ext_ids_[i]);
+      if (entry == idx->id_map_.end() || entry->second != i)
+        throw std::runtime_error("Corrupted file: id_map is not consistent with ext_ids");
+    }
 
     size_t nsz;
     detail::read_bin(f, nsz);

@@ -36,6 +36,26 @@ itself. Finite inputs therefore never produce a non-finite cosine distance.
 by `vanedb/tests/cosine_conformance.rs` and
 `cpp/tests/test_cosine_conformance.cpp`.
 
+## Persisted identity
+
+A loaded HNSW index must carry an exact one-to-one relationship between live
+slots and external ids:
+
+```
+id_map.len() == count      and      id_map[ext_ids[i]] == i   for every live i
+```
+
+Those two conditions together force a bijection, so one pass rejects
+key/value mismatches, duplicate external ids, duplicated internal ids, missing
+entries and out-of-range values. Checking only the length and the value range
+accepted files in which an external id resolved to a different slot — reads
+returned well-formed data under the wrong identity, which is worse than a
+refusal to load.
+
+`hnsw_id_map_consistency.tsv` pins these cases for both engines and is consumed
+by `vanedb/tests/hnsw_id_map_conformance.rs` and
+`cpp/tests/test_hnsw_id_map_conformance.cpp`.
+
 ## Universal persistence
 
 The first public persistence format is **VNDB v1**. Existing Rust and C++

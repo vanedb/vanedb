@@ -192,6 +192,27 @@ impl HnswIndex {
                 data.count
             )));
         }
+        // Every live slot must be reachable by its own external id. Combined
+        // with the length check above this forces a bijection, which rejects
+        // key/value mismatches, duplicate external ids, duplicated internal
+        // ids, and missing entries in one pass. The previous length-and-range
+        // check accepted `ext_ids[0] = 10` alongside `id_map = {20: 0}`, so a
+        // lookup of 20 returned slot 0's vector under the wrong identity (#42).
+        for (index, &ext_id) in data.ext_ids.iter().take(data.count).enumerate() {
+            match data.id_map.get(&ext_id) {
+                Some(&mapped) if mapped == index => {}
+                Some(&mapped) => {
+                    return Err(VaneError::Io(format!(
+                        "corrupted file: id_map[{ext_id}] is {mapped}, expected {index}"
+                    )))
+                }
+                None => {
+                    return Err(VaneError::Io(format!(
+                        "corrupted file: id_map has no entry for external id {ext_id}"
+                    )))
+                }
+            }
+        }
         for &iid in data.id_map.values() {
             if iid >= data.count {
                 return Err(VaneError::Io(
