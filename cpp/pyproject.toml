@@ -29,7 +29,7 @@ classifiers = [
 dev = ["pytest>=7.0"]
 
 [build-system]
-requires = ["scikit-build-core>=0.4.3", "pybind11>=3.1"]
+requires = ["scikit-build-core>=0.9", "pybind11>=3.1"]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
@@ -46,6 +46,30 @@ VANEDB_BUILD_TESTS = "OFF"
 VANEDB_BUILD_BENCHMARKS = "OFF"
 VANEDB_BUILD_EXAMPLES = "OFF"
 VANEDB_BUILD_PYTHON = "ON"
+
+# macOS deployment floor for every build path, not just cibuildwheel. Without
+# it `pip wheel`, `pip install ./cpp` and `python -m build` inherit the host
+# generation: on a macOS 26 machine that produced `macosx_26_0_arm64` with
+# Mach-O `minos 26.0`, installable only on that generation (#52).
+#
+# The floor is per-architecture and both halves matter. std::filesystem needs
+# 10.15, but arm64 macOS never existed below 11.0 and pip does not generate
+# `macosx_10_*_arm64` tags at all — a flat 10.15 yields a wheel that pip
+# rejects as "not a supported wheel on this platform".
+#
+# These must be scikit-build-core settings rather than CMakeLists logic: they
+# reach CMake as `-D` at configure time, whereas CMake already defines the
+# variable and assignment after `project()` is too late to affect the
+# toolchain.
+[[tool.scikit-build.overrides]]
+if.platform-system = "darwin"
+if.platform-machine = "arm64"
+cmake.define.CMAKE_OSX_DEPLOYMENT_TARGET = "11.0"
+
+[[tool.scikit-build.overrides]]
+if.platform-system = "darwin"
+if.platform-machine = "x86_64"
+cmake.define.CMAKE_OSX_DEPLOYMENT_TARGET = "10.15"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

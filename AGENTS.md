@@ -42,6 +42,16 @@ python -m venv .venv && . .venv/bin/activate && pip install maturin pytest
 cd vanedb-py && maturin develop --release && pytest tests
 ```
 
+Verify a locally built C++ wheel carries the deployment floor rather than the
+host macOS generation (#52) — the tag must not name the host OS version:
+
+```bash
+python -m build --wheel --outdir /tmp/vanedb-cpp-wheel cpp
+ls /tmp/vanedb-cpp-wheel        # macosx_11_0_arm64 on Apple Silicon, never macosx_<host>_*
+python -m pip install --force-reinstall --no-deps /tmp/vanedb-cpp-wheel/*.whl   # must not be rejected
+otool -l <extracted .so> | grep -A3 LC_BUILD_VERSION                           # minos 11.0 on arm64
+```
+
 wasm tests:
 
 ```bash
