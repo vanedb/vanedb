@@ -78,7 +78,7 @@ jobs:
           fi
 
   linux:
-    name: Linux wheels (x86_64, Python 3.9–3.14)
+    name: Linux wheels (x86_64, Python 3.11–3.14)
     needs: validate-version
     runs-on: ubuntu-latest
     steps:
@@ -94,8 +94,7 @@ jobs:
           args: >-
             --release --locked --compatibility pypi --out dist
             --manifest-path vanedb-py/Cargo.toml
-            -i python3.9 -i python3.10 -i python3.11
-            -i python3.12 -i python3.13 -i python3.14
+            -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vanedb-linux-x86_64
@@ -109,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -138,7 +137,7 @@ jobs:
         target:
           - x86_64
           - aarch64
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
         include:
           - target: x86_64
             runner: macos-15-intel
@@ -175,7 +174,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -265,17 +264,15 @@ jobs:
             --directory dist \
             --distribution vanedb \
             --pyproject vanedb-py/pyproject.toml \
-            --wheel-count 24 \
+            --wheel-count 16 \
             --sdist-count 1 \
-            --python-tag cp39=4 \
-            --python-tag cp310=4 \
             --python-tag cp311=4 \
             --python-tag cp312=4 \
             --python-tag cp313=4 \
             --python-tag cp314=4 \
-            --platform-prefix manylinux=6 \
-            --platform-prefix macosx=12 \
-            --platform-prefix win=6
+            --platform-prefix manylinux=4 \
+            --platform-prefix macosx=8 \
+            --platform-prefix win=4
 
   publish-testpypi:
     name: Publish vanedb to TestPyPI
