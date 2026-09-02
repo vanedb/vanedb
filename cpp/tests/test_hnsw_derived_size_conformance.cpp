@@ -60,7 +60,7 @@ std::string load_error(const Case& test_case) {
   return "Corrupted file: " + direct_error(test_case);
 }
 
-void write_overflowing_header(const std::filesystem::path& path, const Case& test_case) {
+void write_header(const std::filesystem::path& path, const Case& test_case) {
   std::ofstream file(path, std::ios::binary);
   REQUIRE(file.is_open());
   vanedb::detail::write_bin(file, vanedb::HNSWIndex::MAGIC);
@@ -72,6 +72,12 @@ void write_overflowing_header(const std::filesystem::path& path, const Case& tes
   vanedb::detail::write_bin(file, size_t{200});
   vanedb::detail::write_bin(file, size_t{50});
   vanedb::detail::write_bin(file, double{1.0});
+}
+
+void append_count(const std::filesystem::path& path, size_t count) {
+  std::ofstream file(path, std::ios::binary | std::ios::app);
+  REQUIRE(file.is_open());
+  vanedb::detail::write_bin(file, count);
 }
 
 }  // namespace
@@ -98,9 +104,22 @@ TEST_CASE("HNSW load rejects derived-size overflows before allocation",
   for (const auto& test_case : cases()) {
     CAPTURE(test_case.name);
     const auto path = std::filesystem::path("test_hnsw_" + test_case.name + ".bin");
-    write_overflowing_header(path, test_case);
+    write_header(path, test_case);
     REQUIRE_THROWS_AS(vanedb::HNSWIndex::load(path.string()), std::runtime_error);
     REQUIRE_THROWS_WITH(vanedb::HNSWIndex::load(path.string()), load_error(test_case));
     std::filesystem::remove(path);
   }
+}
+
+TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
+          "[conformance][hnsw][sizes][persistence]") {
+  const auto path = std::filesystem::path("test_hnsw_count_times_dimension.bin");
+  const Case safe_header{"count_times_dimension", 2, 1, 2, "count_times_dimension"};
+  write_header(path, safe_header);
+  append_count(path, std::numeric_limits<size_t>::max());
+
+  REQUIRE_THROWS_AS(vanedb::HNSWIndex::load(path.string()), std::runtime_error);
+  REQUIRE_THROWS_WITH(vanedb::HNSWIndex::load(path.string()),
+                      "Corrupted file: count * dimension overflow");
+  std::filesystem::remove(path);
 }

@@ -316,9 +316,9 @@ public:
     size_t cnt, ep_val;
     int max_level_val;
     detail::read_bin(f, cnt);
-    if (cnt > max_el) throw std::runtime_error("Corrupted file: count exceeds max_elements");
     const size_t live_vector_count =
         checked_persisted_product(cnt, dim, "count * dimension");
+    if (cnt > max_el) throw std::runtime_error("Corrupted file: count exceeds max_elements");
     detail::read_bin(f, ep_val);
     detail::read_bin(f, max_level_val);
     // Validate ep_ and max_level_
