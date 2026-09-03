@@ -1,5 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
+use std::time::{Duration, Instant};
 use vanedb_bench::{ffi, workloads};
 
 const DIM: usize = 128;
@@ -18,30 +19,52 @@ fn bench_hnsw(c: &mut Criterion) {
     // Asserts inside the timed loop are symmetric across engines and cost
     // nanoseconds against ~0.1 ms inserts; they turn a failed engine into a
     // loud failure instead of an infinitely fast one.
-    build.bench_function("cpp", |bn| unsafe {
-        bn.iter(|| {
-            let h = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED);
-            assert!(!h.is_null());
-            for i in 0..N {
-                assert_eq!(
-                    ffi::vanedb_cpp_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()),
-                    0
-                );
+    build.bench_function("cpp", |bn| {
+        // Only construction is timed. `hnsw_free` used to sit inside the
+        // measured closure, so every reported build time included teardown of
+        // a 10k-node graph (#62).
+        bn.iter_custom(|iterations| {
+            let mut elapsed = Duration::ZERO;
+            for _ in 0..iterations {
+                let start = Instant::now();
+                let h = unsafe { ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED) };
+                assert!(!h.is_null());
+                for i in 0..N {
+                    assert_eq!(
+                        unsafe {
+                            ffi::vanedb_cpp_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
+                        },
+                        0
+                    );
+                }
+                elapsed += start.elapsed();
+                unsafe { ffi::vanedb_cpp_hnsw_free(black_box(h)) };
             }
-            ffi::vanedb_cpp_hnsw_free(black_box(h));
+            elapsed
         });
     });
-    build.bench_function("rs", |bn| unsafe {
-        bn.iter(|| {
-            let h = ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED);
-            assert!(!h.is_null());
-            for i in 0..N {
-                assert_eq!(
-                    ffi::vanedb_rs_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()),
-                    0
-                );
+    build.bench_function("rs", |bn| {
+        // Only construction is timed. `hnsw_free` used to sit inside the
+        // measured closure, so every reported build time included teardown of
+        // a 10k-node graph (#62).
+        bn.iter_custom(|iterations| {
+            let mut elapsed = Duration::ZERO;
+            for _ in 0..iterations {
+                let start = Instant::now();
+                let h = unsafe { ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED) };
+                assert!(!h.is_null());
+                for i in 0..N {
+                    assert_eq!(
+                        unsafe {
+                            ffi::vanedb_rs_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
+                        },
+                        0
+                    );
+                }
+                elapsed += start.elapsed();
+                unsafe { ffi::vanedb_rs_hnsw_free(black_box(h)) };
             }
-            ffi::vanedb_rs_hnsw_free(black_box(h));
+            elapsed
         });
     });
     build.finish();
