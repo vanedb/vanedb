@@ -7,6 +7,25 @@ use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 use crate::validation::validate_finite;
 
+/// Exact k-nearest-neighbour search over vectors held in memory.
+///
+/// Every scan touches every vector, so cost is linear in the corpus. Use it
+/// when exactness matters or the corpus is small; reach for [`HnswIndex`]
+/// when it is not.
+///
+/// Mutating methods take `&self`: the store is internally synchronised and
+/// can be shared across threads without an outer lock.
+///
+/// ```
+/// use vanedb::{DistanceMetric, VectorStore};
+///
+/// let store = VectorStore::new(2, DistanceMetric::L2)?;
+/// store.add(7, &[1.0, 0.0])?;
+/// assert_eq!(store.search(&[1.0, 0.0], 1)?[0].id, 7);
+/// # Ok::<(), vanedb::VaneError>(())
+/// ```
+///
+/// [`HnswIndex`]: crate::HnswIndex
 pub struct VectorStore {
     dim: usize,
     metric: DistanceMetric,
@@ -20,6 +39,9 @@ struct Inner {
 }
 
 impl VectorStore {
+    /// Creates an empty store for vectors of `dim` components.
+    ///
+    /// Fails with [`VaneError::InvalidParameter`] if `dim` is zero.
     pub fn new(dim: usize, metric: DistanceMetric) -> Result<Self> {
         if dim == 0 {
             return Err(VaneError::EmptyVector);
@@ -35,6 +57,10 @@ impl VectorStore {
         })
     }
 
+    /// Stores `vector` under `id`.
+    ///
+    /// Fails if `id` is taken, if the length differs from the store's
+    /// dimension, or if any component is not finite.
     pub fn add(&self, id: u64, vector: &[f32]) -> Result<()> {
         if vector.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
@@ -84,6 +110,7 @@ impl VectorStore {
         Ok(())
     }
 
+    /// Returns a copy of the vector stored under `id`.
     pub fn get(&self, id: u64) -> Result<Vec<f32>> {
         let inner = self.inner.read();
         let &index = inner
@@ -94,6 +121,7 @@ impl VectorStore {
         Ok(inner.data[start..start + self.dim].to_vec())
     }
 
+    /// Removes the vector stored under `id`.
     pub fn remove(&self, id: u64) -> Result<()> {
         let mut inner = self.inner.write();
         let index = inner
@@ -118,26 +146,34 @@ impl VectorStore {
         Ok(())
     }
 
+    /// Whether a vector is stored under `id`.
     pub fn contains(&self, id: u64) -> bool {
         self.inner.read().id_to_index.contains_key(&id)
     }
 
+    /// Number of vectors stored.
     pub fn len(&self) -> usize {
         self.inner.read().ids.len()
     }
 
+    /// Whether the store holds no vectors.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Component count of every vector in this store.
     pub fn dimension(&self) -> usize {
         self.dim
     }
 
+    /// The metric this store ranks by.
     pub fn metric(&self) -> DistanceMetric {
         self.metric
     }
 
+    /// The `k` nearest vectors to `query`, nearest first.
+    ///
+    /// Returns fewer than `k` results when the store holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {

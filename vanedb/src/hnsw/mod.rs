@@ -1,3 +1,5 @@
+//! Approximate nearest-neighbour search over an HNSW graph.
+
 use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -94,6 +96,17 @@ impl Ord for FloatOrd {
 pub(super) const MAX_LEVEL: i32 = 32;
 const MIN_LEVEL_RANDOM: f64 = 1e-9;
 
+/// Approximate k-nearest-neighbour search over a Hierarchical Navigable
+/// Small World graph.
+///
+/// Search is sub-linear in the corpus, at the cost of occasionally missing a
+/// true neighbour. Recall is traded against speed at query time with
+/// [`set_ef_search`](Self::set_ef_search) and at build time with
+/// [`m`](HnswIndexBuilder::m) and
+/// [`ef_construction`](HnswIndexBuilder::ef_construction).
+///
+/// Built through [`HnswIndex::builder`]. Mutating methods take `&self`; the
+/// index is internally synchronised.
 pub struct HnswIndex {
     pub(super) dim: usize,
     pub(super) metric: DistanceMetric,
@@ -123,6 +136,10 @@ pub(super) struct Inner {
     pub(super) rng: StdRng,
 }
 
+/// Configures an [`HnswIndex`] before construction.
+///
+/// Capacity is fixed once built, because the graph's storage is allocated up
+/// front.
 pub struct HnswIndexBuilder {
     dim: usize,
     metric: DistanceMetric,
@@ -133,6 +150,7 @@ pub struct HnswIndexBuilder {
 }
 
 impl HnswIndex {
+    /// Starts configuring an index over vectors of `dim` components.
     pub fn builder(dim: usize, metric: DistanceMetric) -> HnswIndexBuilder {
         HnswIndexBuilder {
             dim,
@@ -144,30 +162,38 @@ impl HnswIndex {
         }
     }
 
+    /// Number of vectors in the graph.
     pub fn size(&self) -> usize {
         self.inner.read().count
     }
 
+    /// Whether the graph holds no vectors.
     pub fn is_empty(&self) -> bool {
         self.size() == 0
     }
 
+    /// Vectors this index can hold; adding beyond it fails with
+    /// [`crate::VaneError::IndexFull`].
     pub fn capacity(&self) -> usize {
         self.max_elements
     }
 
+    /// Component count of every vector in this index.
     pub fn dimension(&self) -> usize {
         self.dim
     }
 
+    /// The metric this index ranks by.
     pub fn metric(&self) -> DistanceMetric {
         self.metric
     }
 
+    /// Whether a vector is stored under `id`.
     pub fn contains(&self, id: u64) -> bool {
         self.inner.read().id_map.contains_key(&id)
     }
 
+    /// Returns a copy of the vector stored under `id`.
     pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
         let inner = self.inner.read();
         let &iid = inner.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
@@ -175,10 +201,13 @@ impl HnswIndex {
         Ok(inner.vectors[start..start + self.dim].to_vec())
     }
 
+    /// Sets the search beam width: higher recovers more true neighbours and
+    /// costs more time. Applies to subsequent searches.
     pub fn set_ef_search(&self, ef: usize) {
         self.ef_search.store(ef, Ordering::Relaxed);
     }
 
+    /// The current search beam width.
     pub fn get_ef_search(&self) -> usize {
         self.ef_search.load(Ordering::Relaxed)
     }
@@ -364,6 +393,10 @@ impl HnswIndex {
         }
     }
 
+    /// The `k` nearest vectors to `query`, nearest first.
+    ///
+    /// Approximate: a true neighbour can be missed. Raise the beam width with
+    /// [`set_ef_search`](Self::set_ef_search) to trade speed for recall.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
@@ -578,26 +611,34 @@ impl HnswIndex {
 }
 
 impl HnswIndexBuilder {
+    /// Vectors the index will be able to hold. Fixed once built.
     pub fn capacity(mut self, cap: usize) -> Self {
         self.capacity = cap;
         self
     }
 
+    /// Links kept per node. Larger graphs recall better and cost more memory
+    /// and build time.
     pub fn m(mut self, m: usize) -> Self {
         self.m = m;
         self
     }
 
+    /// Beam width used while building. Larger yields a better-connected graph
+    /// and a slower build; it does not affect query cost.
     pub fn ef_construction(mut self, ef: usize) -> Self {
         self.ef_construction = ef;
         self
     }
 
+    /// Seeds the level-assignment RNG. A fixed seed makes construction
+    /// reproducible.
     pub fn seed(mut self, seed: u64) -> Self {
         self.seed = seed;
         self
     }
 
+    /// Allocates the graph and returns the index.
     pub fn build(self) -> Result<HnswIndex> {
         if self.dim == 0 {
             return Err(VaneError::EmptyVector);

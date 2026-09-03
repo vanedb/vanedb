@@ -1,3 +1,5 @@
+//! In-memory exact vector storage.
+
 mod search_result;
 mod vector_store;
 

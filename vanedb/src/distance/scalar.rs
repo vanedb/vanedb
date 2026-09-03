@@ -1,3 +1,7 @@
+//! Portable reference kernels. The SIMD paths must agree with these.
+
+/// Squared Euclidean distance. The square root is skipped: it does not
+/// change the ordering, and every caller here only ranks.
 pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     a.iter()
@@ -9,6 +13,9 @@ pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
         .sum()
 }
 
+/// Cosine distance, `1 - cos(a, b)`, clamped to `[0, 2]`. Returns `1.0`
+/// when a norm is zero or overflows to infinity, so a degenerate input
+/// ranks as orthogonal rather than as NaN.
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     let mut dot = 0.0f32;
@@ -37,6 +44,8 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     1.0 - sim.clamp(-1.0, 1.0)
 }
 
+/// Negated dot product, so that lower still means nearer as it does for
+/// the other metrics.
 pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
     debug_assert_eq!(a.len(), b.len());
     -a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>()
