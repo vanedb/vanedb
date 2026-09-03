@@ -17,8 +17,9 @@ using HNSWDistanceMetric
 // Default-constructibility is required for MMapVectorStore which assigns
 // dist_ in its constructor body (after parsing metric/dim from the file).
 //
-// operator() dispatches via switch (not a function pointer) so the SIMD
-// distance functions inline into the hot loop. Don't refactor this back.
+// Header-only operator() dispatches via switch so the SIMD distance functions
+// inline into the hot loop. Wheels use the same metric switch with a separate
+// runtime ISA dispatcher; do not impose that indirection on header-only users.
 class DistanceComputer {
 public:
   DistanceComputer() noexcept = default;

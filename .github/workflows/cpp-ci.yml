@@ -203,9 +203,34 @@ jobs:
       run: |
         python -I -c "import vanedb_cpp; print(vanedb_cpp.__file__)"
 
+    - name: Test minimum supported NumPy
+      if: matrix.python-version == '3.11'
+      shell: bash
+      # Keep this aligned with cpp/pyproject.toml. 1.24.2 is the first
+      # supported release whose fill() respects a read-only mmap view.
+      run: |
+        python -m pip install --only-binary=:all: numpy==1.24.2
+        python -m pip check
+        python -I -m pytest tests/test_python_bindings.py -v
+        python -m pip install --upgrade numpy
+
     - name: Run Python tests from installed wheel
       run: |
         python -m pytest tests/test_python_bindings.py -v
+
+    - name: Retain Linux wheel for baseline-CPU execution
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: vanedb-cpp-ci-linux-cp311
+        path: cpp/wheelhouse/*.whl
+        if-no-files-found: error
+
+  wheel-cpu-portability:
+    needs: python-tests
+    uses: ./.github/workflows/cpp-wheel-portability.yml
+    with:
+      wheel-artifact: vanedb-cpp-ci-linux-cp311
 
   sanitizers:
     name: Sanitizer Checks (${{ matrix.sanitizer }})

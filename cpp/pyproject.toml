@@ -9,7 +9,9 @@ authors = [
     {name = "Anton Tsvetkov"}
 ]
 keywords = ["vector", "database", "embedding", "hnsw", "similarity-search", "machine-learning"]
-dependencies = ["numpy>=1.24"]
+# NumPy 1.24.0/1.24.1 let ndarray.fill() write through read-only views.
+# 1.24.2 fixes this upstream (numpy/numpy#22970), which mmap safety requires.
+dependencies = ["numpy>=1.24.2"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
