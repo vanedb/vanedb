@@ -22,30 +22,43 @@ Run these commands from the repository root. They require a C++20 toolchain
 and CMake. `build.rs` compiles the local `cpp/` C API, while Cargo links the
 local `vanedb-capi/` crate, so one commit identifies both engines.
 
-## Headline snapshot (Apple Silicon M-series, 2026-07)
+## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 47f6195)
 
-Three rounds of measurement drove three rounds of fixes:
-
-1. **First run** (pre-fix): Rust trailed 1.5× on store/mmap search and 2.5× on
-   HNSW build → vanedb#22 (top-k selection), #23 (build parity), #24 (mmap top-k).
-2. **Second run**: Rust led every op → exposed both engines' distance kernels as
-   latency-bound → vanedb-cpp#31 + vanedb#27 (multi-accumulator SIMD unrolling,
-   kernels now identical at ~37 ns/768d).
-3. **Final run** (vanedb@89f5144, vanedb-cpp@f02bb27): near-parity, honors split —
-   and both engines 30–50% faster than round one on every hot path.
+Criterion medians of three passes on an otherwise idle machine. Inter-pass
+spread was 0.3–6.6%, and under 3% for every row except `l2_sq` at 768d — treat
+differences smaller than that as noise.
 
 | Op (n=10k, dim=128, L2) | C++ | Rust | rs/cpp |
 |---|---:|---:|---:|
-| l2_sq (768d) | 37.1 ns | 37.2 ns | 1.00 |
-| store_search (k=10) | 82.3 µs | 93.4 µs | 1.14 |
-| hnsw_build (M=16, efC=200) | 984 ms | 929 ms | 0.94 |
-| hnsw_search (ef=50) | 24.5 µs | 21.4 µs | 0.87 |
-| mmap_search (k=10) | 81.8 µs | 95.3 µs | 1.17 |
+| l2_sq (128d) | 16.9 ns | 16.5 ns | 0.98 |
+| l2_sq (768d) | 51.3 ns | 48.4 ns | 0.94 |
+| hnsw_build (M=16, efC=200) | 938 ms | 1013 ms | 1.08 |
+| hnsw_search (ef=50) | 18.8 µs | 21.3 µs | 1.13 |
+| mmap_search (k=10) | 78.4 µs | 95.5 µs | 1.22 |
+| store_search (k=10, n=1k) | 8.10 µs | 8.67 µs | 1.07 |
+| store_search (k=10, n=10k) | 79.0 µs | 92.5 µs | 1.17 |
 
 HNSW recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700 — quality-comparable.
 
-Re-measured 2026-08 under the unified measurement policy below: ratios
-unchanged (store_search 1.14, hnsw_search 0.87).
+Two corrections make this table not comparable to the 2026-07 snapshot it
+replaces:
+
+1. **The C++ engine was built without `-DNDEBUG`.** A custom
+   `CMAKE_CXX_FLAGS_RELEASE` replaced CMake's defaults instead of extending
+   them, leaving assertions live in the distance kernels. Restoring the
+   standard flags moved hnsw_search by 12.6% and the scan paths by 4–5% — the
+   isolated kernel benchmark was unaffected, so the cost was inlining rather
+   than the branch itself.
+2. **`hnsw_build` used to include teardown.** `hnsw_free` sat inside the
+   measured closure, so every build figure carried the cost of destroying a
+   10k-node graph. It is now excluded, which is why the ratio moved from 0.94
+   to 1.08: teardown was the more expensive half for C++, and removing it from
+   both sides changed which engine leads.
+
+Rust leads on the raw distance kernels and trails on everything that scans:
+17% at n=10k for `store_search` and 22% for `mmap_search` (see vanedb#32).
+`hnsw_search` sits at 1.13 despite the identical kernels, which points at the
+same selection overhead rather than at distance computation.
 
 ## Measurement policy
 
