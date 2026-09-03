@@ -250,16 +250,21 @@ PYBIND11_MODULE(vanedb_cpp, m) {
                 if (ptr == nullptr) {
                     return py::none();
                 }
-                // Return a view into the mapped memory (zero-copy!)
-                return py::array_t<float>(
+                // Keep a zero-copy view and retain the mapping's owner.
+                auto view = py::array_t<float>(
                     {self.dimension()},
                     {sizeof(float)},
                     ptr,
                     py::cast(&self)  // Keep store alive while array exists
                 );
+                // A const pointer does not make a NumPy array read-only.
+                // Match the OS mapping protection before exposing any view.
+                view.attr("setflags")(py::arg("write") = false);
+                return view;
             },
             py::arg("id"),
-            "Gets a vector by ID (zero-copy from mmap), returns None if not found")
+            "Gets a read-only zero-copy vector from mmap, or None if not found. "
+            "The array keeps the mapping alive; use .copy() for an editable array.")
         .def("search", [](const MMapVectorStore& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
                 py::buffer_info buf = query_array.request();
                 if (buf.ndim != 1) {

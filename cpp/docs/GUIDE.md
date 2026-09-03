@@ -164,7 +164,20 @@ builder.save("vectors.bin")
 
 mmap_store = vanedb.MMapVectorStore("vectors.bin")  # Instant load
 ids, dists = mmap_store.search(vec, 10)
+mapped = mmap_store.get(0)  # Read-only NumPy view; no vector copy
+editable = mapped.copy()   # Independent writable array, if needed
+editable[0] = 0.0          # Does not change the mapped vector or file
 ```
+
+`MMapVectorStore.get(id)` returns `None` for an unknown ID. Existing vectors
+are exposed as read-only NumPy views: assignment raises `ValueError`, and
+slices and memoryviews remain read-only. The array keeps the mapping alive
+even after the store variable is deleted. Use `.copy()` to obtain an editable
+array without changing the stored data.
+
+The C++ package requires NumPy 1.24.2 or newer: older 1.24 releases let
+`ndarray.fill()` bypass the read-only flag and crash on memory-mapped data
+([upstream fix](https://github.com/numpy/numpy/pull/22970)).
 
 ---
 
