@@ -22,6 +22,31 @@ Run these commands from the repository root. They require a C++20 toolchain
 and CMake. `build.rs` compiles the local `cpp/` C API, while Cargo links the
 local `vanedb-capi/` crate, so one commit identifies both engines.
 
+### Comparing two revisions
+
+```bash
+cargo run --release --manifest-path bench/Cargo.toml --bin abtest -- \
+  --a origin/main --b HEAD --bench mmap
+```
+
+`abtest` builds each revision in its own git worktree, runs the selected
+benches interleaved A-B-A-B, and reports each operation's median per arm
+alongside the spread that arm measured for itself:
+
+```
+operation           A bb9ec08     B c42b3d6      delta  A spread  B spread  verdict
+mmap_build/cpp        5.01 ms       5.04 ms      +0.5%      1.1%      0.6%  noise
+mmap_build/rs          1.19 s      10.08 ms     -99.2%      0.7%      5.0%  SIGNIFICANT
+mmap_open/rs        574.34 us     579.80 us      +1.0%      1.5%      0.7%  noise
+mmap_search/rs       98.32 us      97.07 us      -1.3%      4.0%      0.2%  noise
+```
+
+A delta counts as real only when it clears both arms' spread and the 3% floor —
+a run that happened to repeat exactly has not proved the machine is quieter
+than it is known to be. Above, `mmap_search/rs` moved 1.3% against its own 4.0%
+spread and is correctly called noise. Add `--rounds`, `--keep`, or criterion
+flags after `--`. Idle hardware only.
+
 `report` writes [`RESULTS.md`](RESULTS.md) beside this README whatever the
 working directory. `VANEDB_BENCH_DIM`, `_N`, `_K`, `_QUERIES` and `_OUT`
 override the workload and destination; CI runs it at n=500, dim=32 as an
