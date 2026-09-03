@@ -119,11 +119,18 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 }
 
 /// Distance metric enum.
-#[pyclass(eq, eq_int, from_py_object)]
+///
+/// The `Py` prefix disambiguates these wrappers from the core types they hold,
+/// which are imported in this file. It is an implementation detail: the names
+/// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
+/// import-line change.
+#[pyclass(name = "DistanceMetric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 enum PyDistanceMetric {
     L2 = 0,
+    #[pyo3(name = "COSINE")]
     Cosine = 1,
+    #[pyo3(name = "DOT")]
     Dot = 2,
 }
 
@@ -138,7 +145,7 @@ impl From<PyDistanceMetric> for DistanceMetric {
 }
 
 /// Brute-force vector store with thread-safe k-NN search.
-#[pyclass]
+#[pyclass(name = "VectorStore")]
 struct PyVectorStore {
     inner: VectorStore,
 }
@@ -209,7 +216,7 @@ impl PyVectorStore {
 }
 
 /// HNSW approximate nearest-neighbor index.
-#[pyclass]
+#[pyclass(name = "HNSWIndex")]
 struct PyHnswIndex {
     inner: HnswIndex,
 }
