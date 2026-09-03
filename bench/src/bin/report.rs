@@ -65,9 +65,14 @@ fn main() -> ExitCode {
          averaged over {queries} queries. Both engines' data stays resident \
          in one process (interleaved construction).\n\n"
     ));
+    // Regenerating this file must not lose the caveats: anything a reader
+    // needs alongside the numbers belongs here, not hand-added afterwards.
     md.push_str(&format!(
-        "Covers l2_sq, store_search, and hnsw_search + recall@{k} only; \
-         hnsw_build and mmap_search live in the criterion suite (see README).\n\n"
+        "Covers l2_sq, store_search, and hnsw_search + recall@{k} only; every \
+         other operation is criterion-only (see README).\n\n\
+         Criterion is canonical; see the README table. This bin times l2_sq in \
+         batches of 1000 calls, which inlines differently from criterion's \
+         per-call harness.\n\n"
     ));
     md.push_str("| Op | C++ (ns) | Rust (ns) | ratio (rs/cpp) |\n|---|---:|---:|---:|\n");
 
