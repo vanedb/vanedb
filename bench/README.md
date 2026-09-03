@@ -71,28 +71,34 @@ end-to-end smoke check and asserts recall, never a timing.
 `coverage::SCOPE` holds this table as data and a test fails if a bench stops
 implementing a row, so a scope claim cannot drift from the code (#63).
 
-## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 47f6195)
+## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 80066a2)
 
-Criterion medians of three passes on an idle machine. Inter-pass spread
-0.3–6.6%; treat smaller differences as noise. Covers the operations measured
-at the time; the groups added for full spec coverage join at the next
-on-hardware refresh.
+Criterion medians of three passes. Inter-pass spread 0.2–10.4%, median 2.2%;
+treat smaller differences as noise.
 
-| Op (n=10k, dim=128, L2) | C++ | Rust | rs/cpp |
+| Op (dim=128, n=10k unless noted) | C++ | Rust | rs/cpp |
 |---|---:|---:|---:|
-| l2_sq (128d) | 16.9 ns | 16.5 ns | 0.98 |
-| l2_sq (768d) | 51.3 ns | 48.4 ns | 0.94 |
-| hnsw_build (M=16, efC=200) | 938 ms | 1013 ms | 1.08 |
+| l2_sq (128d) | 16.7 ns | 16.6 ns | 1.00 |
+| l2_sq (768d) | 51.8 ns | 48.4 ns | 0.93 |
+| cosine (128d) | 26.8 ns | 27.2 ns | 1.02 |
+| cosine (768d) | 96.4 ns | 86.7 ns | 0.90 |
+| dot (128d) | 16.1 ns | 16.3 ns | 1.01 |
+| dot (768d) | 53.7 ns | 46.4 ns | 0.86 |
+| store_add (n=10k) | 745 µs | 1.21 ms | 1.63 |
+| store_search (k=10, n=1k) | 8.12 µs | 8.73 µs | 1.08 |
+| store_search (k=10, n=10k) | 78.9 µs | 93.1 µs | 1.18 |
+| hnsw_build (M=16, efC=200) | 938 ms | 1.01 s | 1.08 |
 | hnsw_search (ef=50) | 18.8 µs | 21.3 µs | 1.13 |
-| mmap_search (k=10) | 78.4 µs | 95.5 µs | 1.22 |
-| store_search (k=10, n=1k) | 8.10 µs | 8.67 µs | 1.07 |
-| store_search (k=10, n=10k) | 79.0 µs | 92.5 µs | 1.17 |
+| mmap_build | 4.98 ms | 12.0 ms | 2.40 |
+| mmap_open | 507 µs | 576 µs | 1.14 |
+| mmap_search (k=10) | 78.6 µs | 95.7 µs | 1.22 |
 
 HNSW recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
 
-Rust leads the distance kernels and trails every path that scans.
-`hnsw_search` at 1.13 with identical kernels points at selection overhead
-rather than distance computation (vanedb#32).
+Rust leads the distance kernels at 768 dimensions and is at parity at 128. It
+trails on every scan (1.08–1.22, vanedb#32) and, now that the write paths are
+measured, on `store_add` at 1.63 and `mmap_build` at 2.40 — different work
+from the scan gap, tracked separately.
 
 ## Measurement policy
 
