@@ -33,6 +33,46 @@ def test_version():
     assert vanedb_cpp.VERSION_PATCH == 0
 
 
+def test_simd_backend():
+    import vanedb_cpp
+    backend = vanedb_cpp.simd_backend()
+    assert backend in {"scalar", "neon", "avx2_fma"}
+    # The QEMU acceptance job checks actual selection, not merely no crash.
+    expected = os.environ.get("VANEDB_EXPECT_BACKEND")
+    if expected:
+        assert backend == expected
+
+
+@pytest.mark.parametrize("dimension", [7, 8, 31, 32, 33, 128, 773])
+@pytest.mark.parametrize("metric", ["L2", "COSINE", "DOT"])
+def test_dispatched_search_matches_numpy(dimension, metric):
+    import vanedb_cpp
+    rng = np.random.default_rng(59)
+    vectors = rng.normal(size=(24, dimension)).astype(np.float32)
+    query = rng.normal(size=dimension).astype(np.float32)
+    index = vanedb_cpp.HNSWIndex(
+        dimension, getattr(vanedb_cpp.DistanceMetric, metric), max_elements=32
+    )
+    index.set_ef_search(64)
+    for i, vector in enumerate(vectors):
+        index.add(i + 1000, vector)
+    data, q = vectors.astype(np.float64), query.astype(np.float64)
+    # Avoid BLAS here: its vendor/model dispatch can assume FMA on a Haswell
+    # whose FMA flag a VM deliberately masks. This oracle tests our kernels,
+    # not OpenBLAS's separate CPU dispatch policy.
+    dot = np.sum(data * q, axis=1)
+    if metric == "L2":
+        distances = np.sum((data - q) ** 2, axis=1)
+    elif metric == "DOT":
+        distances = -dot
+    else:
+        distances = 1 - dot / (np.sqrt(np.sum(data * data, axis=1)) * np.sqrt(np.sum(q * q)))
+    expected = np.argsort(distances)[:5]
+    ids, actual = index.search(query, 5)
+    np.testing.assert_array_equal(ids, expected + 1000)
+    np.testing.assert_allclose(actual, distances[expected], rtol=2e-5, atol=2e-5)
+
+
 def test_distance_metrics():
     """Test that distance metric enum values are accessible."""
     import vanedb_cpp

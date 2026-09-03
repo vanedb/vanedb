@@ -2,6 +2,10 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
+#if defined(__AVX__) || defined(__AVX2__) || defined(__FMA__)
+#error "The Python extension must be compiled for baseline x86-64"
+#endif
+
 #include "core/hnsw_index.h"
 #include "core/vector_store.h"
 #include "core/mmap_vector_store.h"
@@ -18,6 +22,9 @@ PYBIND11_MODULE(vanedb_cpp, m) {
     m.attr("VERSION_MAJOR") = VERSION_MAJOR;
     m.attr("VERSION_MINOR") = VERSION_MINOR;
     m.attr("VERSION_PATCH") = VERSION_PATCH;
+
+    m.def("simd_backend", []() { return detail::runtime_kernels().name; },
+          "Active distance backend: scalar, neon, or avx2_fma (CPU/OS checked).");
 
     py::enum_<DistanceMetric>(m, "DistanceMetric")
         .value("L2", DistanceMetric::L2)

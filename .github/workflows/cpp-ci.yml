@@ -218,6 +218,20 @@ jobs:
       run: |
         python -m pytest tests/test_python_bindings.py -v
 
+    - name: Retain Linux wheel for baseline-CPU execution
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: vanedb-cpp-ci-linux-cp311
+        path: cpp/wheelhouse/*.whl
+        if-no-files-found: error
+
+  wheel-cpu-portability:
+    needs: python-tests
+    uses: ./.github/workflows/cpp-wheel-portability.yml
+    with:
+      wheel-artifact: vanedb-cpp-ci-linux-cp311
+
   sanitizers:
     name: Sanitizer Checks (${{ matrix.sanitizer }})
     runs-on: ubuntu-latest
