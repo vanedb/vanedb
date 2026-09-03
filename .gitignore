@@ -8,3 +8,8 @@ vanedb-wasm/pkg/
 __pycache__/
 *.py[cod]
 *.pyo
+
+# Benchmark scratch files: the benches run from the repository root and build
+# their mmap stores on a real filesystem (see bench/benches/mmap.rs).
+*.mmap
+*.bin

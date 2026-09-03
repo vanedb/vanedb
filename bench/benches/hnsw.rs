@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 use std::time::{Duration, Instant};
+use vanedb_bench::coverage::groups;
 use vanedb_bench::{ffi, workloads};
 
 const DIM: usize = 128;
@@ -14,7 +15,7 @@ fn bench_hnsw(c: &mut Criterion) {
     let w = workloads::generate(3, DIM, N, 1);
     let q = &w.queries[0..DIM];
 
-    let mut build = c.benchmark_group("hnsw_build");
+    let mut build = c.benchmark_group(groups::HNSW_BUILD);
     build.sample_size(10);
     // Asserts inside the timed loop are symmetric across engines and cost
     // nanoseconds against ~0.1 ms inserts; they turn a failed engine into a
@@ -70,7 +71,7 @@ fn bench_hnsw(c: &mut Criterion) {
     build.finish();
 
     // Pre-build once each for the search benchmark.
-    let mut search = c.benchmark_group("hnsw_search");
+    let mut search = c.benchmark_group(groups::HNSW_SEARCH);
     unsafe {
         let hc = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED);
         let hr = ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED);
