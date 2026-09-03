@@ -1,3 +1,4 @@
+pub mod config;
 pub mod ffi;
 pub mod ground_truth;
 pub mod workloads;
