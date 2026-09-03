@@ -1,0 +1,115 @@
+name: Publish vanedb crate
+
+# The crate releases on its own tag rather than sharing `vanedb-v*` with the
+# wheels: the name has to be claimed on crates.io before any wheel exists, and
+# a failed crate publish should not strand a half-released set of wheels.
+on:
+  push:
+    tags: ['vanedb-crate-v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to crates.io (leave unchecked to verify only)
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-version:
+    name: Validate release identity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Match tag and crate version
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          prefix = "vanedb-crate-v"
+          version = tomllib.loads(Path("vanedb/Cargo.toml").read_text())["package"]["version"]
+          if os.environ["GITHUB_REF_TYPE"] == "tag":
+              tag = os.environ["GITHUB_REF_NAME"]
+              if not tag.startswith(prefix):
+                  raise SystemExit(f"unexpected tag: {tag}")
+              expected = tag.removeprefix(prefix)
+              if version != expected:
+                  raise SystemExit(f"tag expects {expected}, crate version is {version}")
+          print(f"validated vanedb {version}")
+          PY
+      - name: Require publication to come from main
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "publication must be dispatched from main" >&2
+            exit 1
+          fi
+      - name: Require release tag to be on main
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "release tag must point to a commit on main" >&2
+            exit 1
+          fi
+
+  verify:
+    name: Package and verify
+    needs: validate-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@stable
+      # --dry-run builds the crate exactly as uploaded and compiles it from the
+      # packaged sources, so a file missing from the package fails here rather
+      # than after the version is permanently taken.
+      - name: Verify the package builds from its own contents
+        run: cargo publish -p vanedb --locked --dry-run
+      - name: Show what would be uploaded
+        run: |
+          cargo package -p vanedb --locked --list | tee package-contents.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vanedb-crate
+          path: |
+            target/package/*.crate
+            package-contents.txt
+          if-no-files-found: error
+
+  publish:
+    name: Publish to crates.io
+    needs: verify
+    if: github.ref_type == 'tag' || inputs.publish
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      contents: read
+      # Trusted Publishing: crates.io exchanges this OIDC token for one valid
+      # for minutes, so no long-lived registry token is stored in the repo.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Exchange the OIDC token for a crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - name: Publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish -p vanedb --locked
