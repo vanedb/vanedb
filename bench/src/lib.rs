@@ -1,3 +1,4 @@
+pub mod abtest;
 pub mod config;
 pub mod coverage;
 pub mod ffi;

@@ -29,3 +29,7 @@ harness = false
 [[bin]]
 name = "report"
 path = "src/bin/report.rs"
+
+[[bin]]
+name = "abtest"
+path = "src/bin/abtest.rs"
