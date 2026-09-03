@@ -6,9 +6,9 @@ implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
 
 ## Status
 
-**Implemented.** Criterion benches for distance, VectorStore, HNSW, and mmap,
-plus a `report` binary that writes a [`RESULTS.md`](RESULTS.md) snapshot with
-HNSW recall@10 averaged over 100 queries. Design spec:
+**Implemented.** Criterion benches covering every operation the design spec
+promises, plus a `report` binary that writes a [`RESULTS.md`](RESULTS.md)
+snapshot with HNSW recall@10 averaged over 100 queries. Design spec:
 [`docs/superpowers/specs/2026-05-28-vanedb-bench-design.md`](docs/superpowers/specs/2026-05-28-vanedb-bench-design.md).
 
 ## Running
@@ -27,10 +27,31 @@ working directory. `VANEDB_BENCH_DIM`, `_N`, `_K`, `_QUERIES` and `_OUT`
 override the workload and destination; CI runs it at n=500, dim=32 as an
 end-to-end smoke check and asserts recall, never a timing.
 
+## Coverage
+
+| Spec operation | Measured by |
+|---|---|
+| L2 distance latency | `l2_sq/dim={128,768}` |
+| Cosine distance latency | `cosine/dim={128,768}` |
+| Dot distance latency | `dot/dim={128,768}` |
+| VectorStore add throughput | `store_add/n=10000` |
+| VectorStore search latency | `store_search/n={1000,10000}` |
+| HNSW build latency | `hnsw_build` |
+| HNSW search latency | `hnsw_search` |
+| HNSW recall@k | `report` binary |
+| mmap build latency | `mmap_build` |
+| mmap open latency | `mmap_open` |
+| mmap search latency | `mmap_search` |
+
+`coverage::SCOPE` holds this table as data and a test fails if a bench stops
+implementing a row, so a scope claim cannot drift from the code (#63).
+
 ## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 47f6195)
 
 Criterion medians of three passes on an idle machine. Inter-pass spread
-0.3–6.6%; treat smaller differences as noise.
+0.3–6.6%; treat smaller differences as noise. Covers the operations measured
+at the time; the groups added for full spec coverage join at the next
+on-hardware refresh.
 
 | Op (n=10k, dim=128, L2) | C++ | Rust | rs/cpp |
 |---|---:|---:|---:|
@@ -55,7 +76,13 @@ rather than distance computation (vanedb#32).
 - The report bin samples the engines interleaved (cpp, rs, cpp, rs…) after a
   joint warmup.
 - Criterion is canonical. The report bin covers l2_sq, store_search, and
-  hnsw_search + recall only; hnsw_build and mmap_search are criterion-only.
+  hnsw_search + recall only; every other operation is criterion-only.
+- Construction and teardown are excluded from timed intervals: `hnsw_build`,
+  `store_add`, `mmap_build` and `mmap_open` time only the operation named.
+- `mmap_build` writes megabytes and fsyncs. Its spread is far wider than the
+  compute benches; never read a single run.
+- `mmap_open` maps a file already in page cache and validates every value, so
+  it is O(n·dim) by design rather than a constant-cost map.
 - Every setup return code and handle is asserted, so a failed engine fails the
   run instead of timing a null handle as infinitely fast.
 - On x86_64 the harness compiles the C++ capi with `-mavx2 -mfma`. C++ gates
