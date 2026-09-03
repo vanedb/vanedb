@@ -13,8 +13,5 @@ Covers l2_sq, store_search, and hnsw_search + recall@10 only; hnsw_build and mma
 
 HNSW recall@10: C++ 0.689, Rust 0.700
 
-Criterion is canonical and disagrees with this snapshot on l2_sq (0.98 there
-against 1.26 here). The report bin times l2_sq in batches of 1000 calls, which
-inlines differently from criterion's per-call harness; the batched figure is a
-throughput proxy, not a per-call latency. Prefer the README table for any
-comparison that matters.
+Criterion is canonical; see the README table. This bin times l2_sq in batches
+of 1000 calls, which inlines differently from criterion's per-call harness.
