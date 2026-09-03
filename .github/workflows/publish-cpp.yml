@@ -188,9 +188,15 @@ jobs:
           python -m pip check
           python -m pytest tests/test_python_bindings.py -v
 
+  wheel-cpu-portability:
+    needs: build-wheels
+    uses: ./.github/workflows/cpp-wheel-portability.yml
+    with:
+      wheel-artifact: vanedb-cpp-wheels-linux-x86_64
+
   validate-artifacts:
     name: Validate release artifacts
-    needs: [build-wheels, sdist-test]
+    needs: [build-wheels, sdist-test, wheel-cpu-portability]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -230,9 +236,8 @@ jobs:
     name: Publish vanedb-cpp to PyPI
     needs: validate-artifacts
     runs-on: ubuntu-latest
-    # Product tag pushes build and retain artifacts. Publication stays manual
-    # until the generic x86-64 CPU baseline is safe:
-    # https://github.com/vanedb/vanedb-cpp/issues/39
+    # Product tag pushes build and retain artifacts. CPU portability is checked
+    # above (#59); publication still requires manual dispatch and approval.
     if: >-
       github.event_name == 'workflow_dispatch' &&
       inputs.publish &&
