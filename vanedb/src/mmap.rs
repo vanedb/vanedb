@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 
 use memmap2::Mmap;
@@ -13,6 +13,12 @@ use crate::validation::validate_finite;
 const MAGIC: u32 = 0x564E4442; // "VNDB"
 const VERSION: u32 = 1;
 const HEADER_SIZE: usize = 32;
+
+/// Write buffer for [`MmapVectorStoreBuilder::save`]. Ids and vectors are
+/// encoded element-wise to keep the on-disk layout explicitly little-endian;
+/// unbuffered that cost one `write` syscall per element, so a 10k x 128 store
+/// issued 1.29M of them.
+const WRITE_BUFFER_BYTES: usize = 64 * 1024;
 
 fn metric_to_u32(m: DistanceMetric) -> u32 {
     match m {
@@ -77,8 +83,9 @@ impl MmapVectorStoreBuilder {
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
-        let mut f =
+        let file =
             fs::File::create(temp.path()).map_err(|e| VaneError::Io(format!("create: {e}")))?;
+        let mut f = BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
         // Header
         f.write_all(&MAGIC.to_le_bytes())
@@ -106,7 +113,9 @@ impl MmapVectorStoreBuilder {
                 .map_err(|e| VaneError::Io(format!("write: {e}")))?;
         }
 
-        f.flush()
+        // into_inner flushes the buffer; the fsync below must see every byte.
+        let f = f
+            .into_inner()
             .map_err(|e| VaneError::Io(format!("flush: {e}")))?;
         // Durability: fsync data + metadata before rename so a crash mid-write
         // can't leave a half-written file in place. Mirrors fsync_file in
