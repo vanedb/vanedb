@@ -35,6 +35,43 @@ option(VANEDB_BUILD_EXAMPLES "Build examples" ON)
 option(VANEDB_BUILD_PYTHON "Build Python bindings" ON)
 option(VANEDB_COVERAGE "Build with code coverage instrumentation" OFF)
 
+# Opt-in compiled dispatch for distributable wheels (the public C++ library
+# remains header-only). Never apply AVX flags to the extension or dispatcher.
+function(vanedb_use_runtime_dispatch target)
+  if(VANEDB_X86_64)
+    if(MSVC)
+      set(baseline_flags /arch:SSE2)
+      set(avx2_flags /arch:AVX2 /GL-)
+    else()
+      set(baseline_flags -march=x86-64 -mtune=generic -mno-avx -mno-avx2 -mno-fma)
+      set(avx2_flags -march=x86-64 -mtune=generic -mavx2 -mfma -fno-lto)
+    endif()
+  endif()
+
+  if(NOT TARGET vanedb_distance_runtime)
+    add_library(vanedb_distance_runtime STATIC src/distance_runtime.cpp)
+    target_include_directories(vanedb_distance_runtime PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(vanedb_distance_runtime PUBLIC VANEDB_RUNTIME_DISPATCH=1)
+    target_compile_options(vanedb_distance_runtime PRIVATE ${baseline_flags} ${COVERAGE_COMPILE_FLAGS})
+    target_link_options(vanedb_distance_runtime INTERFACE ${COVERAGE_LINK_FLAGS})
+    set_target_properties(vanedb_distance_runtime PROPERTIES
+      POSITION_INDEPENDENT_CODE ON INTERPROCEDURAL_OPTIMIZATION OFF)
+
+    if(VANEDB_X86_64)
+      add_library(vanedb_distance_avx2 OBJECT src/distance_avx2.cpp)
+      target_include_directories(vanedb_distance_avx2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+      target_compile_options(vanedb_distance_avx2 PRIVATE ${avx2_flags} ${COVERAGE_COMPILE_FLAGS})
+      # LTO must not move ISA-specific code across the runtime-check boundary.
+      set_target_properties(vanedb_distance_avx2 PROPERTIES
+        POSITION_INDEPENDENT_CODE ON INTERPROCEDURAL_OPTIMIZATION OFF)
+      target_sources(vanedb_distance_runtime PRIVATE $<TARGET_OBJECTS:vanedb_distance_avx2>)
+      target_compile_definitions(vanedb_distance_runtime PRIVATE VANEDB_HAS_AVX2_OBJECT=1)
+    endif()
+  endif()
+  target_compile_options(${target} PRIVATE ${baseline_flags})
+  target_link_libraries(${target} PRIVATE vanedb_distance_runtime)
+endfunction()
+
 # Fetch dependencies
 include(FetchContent)
 
@@ -176,6 +213,21 @@ target_link_options(test_hnsw_derived_size_conformance PRIVATE ${COVERAGE_LINK_F
 include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
+
+# Keep the original compile-time tests and run the distance/conformance suites
+# again through the same compiled runtime dispatcher as the installed wheels.
+add_executable(test_runtime_distance
+  tests/test_runtime_distance.cpp
+  tests/test_distance.cpp
+  tests/test_cosine_conformance.cpp
+  tests/test_non_finite_conformance.cpp)
+target_link_libraries(test_runtime_distance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_runtime_distance PRIVATE
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance")
+target_compile_options(test_runtime_distance PRIVATE ${COVERAGE_COMPILE_FLAGS})
+vanedb_use_runtime_dispatch(test_runtime_distance)
+catch_discover_tests(test_runtime_distance TEST_PREFIX "runtime/")
+
 catch_discover_tests(test_distance)
 catch_discover_tests(test_vector_store)
 catch_discover_tests(test_hnsw_index)
@@ -266,10 +318,7 @@ if(VANEDB_BUILD_PYTHON)
 
   pybind11_add_module(vanedb_cpp MODULE python/vanedb.cpp)
   target_link_libraries(vanedb_cpp PRIVATE vanedb pybind11::module)
-  target_compile_options(vanedb_cpp PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
-    $<$<AND:$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<BOOL:${VANEDB_X86_64}>>:-mavx2 -mfma>
-  )
+  vanedb_use_runtime_dispatch(vanedb_cpp)
   install(TARGETS vanedb_cpp
     LIBRARY DESTINATION .
     RUNTIME DESTINATION .
