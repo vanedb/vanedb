@@ -125,6 +125,7 @@ jobs:
           python -m pip install pytest numpy
           python -m pip install --no-index --no-deps --find-links dist --force-reinstall vanedb
           python -m pip check
+          python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
 
   macos:
@@ -160,6 +161,7 @@ jobs:
           python -m pip install --no-index --no-deps --find-links dist --force-reinstall vanedb
           python -m pip install pytest numpy
           python -m pip check
+          python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -192,6 +194,7 @@ jobs:
           python -m pip install --no-index --no-deps --find-links dist --force-reinstall vanedb
           python -m pip install pytest numpy
           python -m pip check
+          python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -236,6 +239,7 @@ jobs:
           python -m pip install pytest numpy
           python -m pip install --no-deps --force-reinstall dist/*.tar.gz
           python -m pip check
+          python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
 
   validate-artifacts:
