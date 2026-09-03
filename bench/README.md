@@ -22,6 +22,11 @@ Run these commands from the repository root. They require a C++20 toolchain
 and CMake. `build.rs` compiles the local `cpp/` C API, while Cargo links the
 local `vanedb-capi/` crate, so one commit identifies both engines.
 
+`report` writes [`RESULTS.md`](RESULTS.md) beside this README whatever the
+working directory. `VANEDB_BENCH_DIM`, `_N`, `_K`, `_QUERIES` and `_OUT`
+override the workload and destination; CI runs it at n=500, dim=32 as an
+end-to-end smoke check and asserts recall, never a timing.
+
 ## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 47f6195)
 
 Criterion medians of three passes on an idle machine. Inter-pass spread
