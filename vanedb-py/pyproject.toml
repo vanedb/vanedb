@@ -6,6 +6,7 @@ build-backend = "maturin"
 name = "vanedb"
 version = "0.1.0"
 description = "Embeddable vector database for edge AI"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 keywords = ["vector", "database", "embeddings", "similarity-search"]
