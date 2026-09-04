@@ -24,7 +24,7 @@ let hits = index.search(&query, 10)?;
 import numpy as np
 import vanedb
 
-index = vanedb.PyHnswIndex(768, vanedb.PyDistanceMetric.Cosine, capacity=100_000)
+index = vanedb.HNSWIndex(768, vanedb.DistanceMetric.COSINE, capacity=100_000)
 vecs = np.asarray(embeddings, dtype=np.float32)  # shape (n, 768)
 index.add_batch(np.arange(len(vecs), dtype=np.uint64), vecs)
 hits = index.search(vecs[0], 10)  # [(id, distance), ...]
