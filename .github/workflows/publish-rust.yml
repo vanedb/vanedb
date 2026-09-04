@@ -260,7 +260,7 @@ jobs:
         run: |
           python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
           python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" packaging twine
-          python -m twine check dist/*
+          python -m twine check --strict dist/*
           # Matrix contract: 6 Linux + (2 macOS architectures x 6) +
           # 6 Windows wheels = 24. Keep these tripwires aligned with the
           # linux, macos, and windows build matrices above.

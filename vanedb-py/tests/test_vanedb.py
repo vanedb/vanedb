@@ -12,7 +12,7 @@ def test_version():
 # --- VectorStore ---
 
 def test_vector_store_basic():
-    store = vanedb.PyVectorStore(3)
+    store = vanedb.VectorStore(3)
     store.add(1, [1.0, 2.0, 3.0])
     store.add(2, [4.0, 5.0, 6.0])
     assert len(store) == 2
@@ -22,13 +22,13 @@ def test_vector_store_basic():
 
 
 def test_vector_store_get():
-    store = vanedb.PyVectorStore(3)
+    store = vanedb.VectorStore(3)
     store.add(1, [1.0, 2.0, 3.0])
     assert store.get(1) == [1.0, 2.0, 3.0]
 
 
 def test_vector_store_search():
-    store = vanedb.PyVectorStore(2)
+    store = vanedb.VectorStore(2)
     store.add(1, [0.0, 0.0])
     store.add(2, [1.0, 0.0])
     store.add(3, [10.0, 10.0])
@@ -38,7 +38,7 @@ def test_vector_store_search():
 
 
 def test_vector_store_cosine():
-    store = vanedb.PyVectorStore(2, vanedb.PyDistanceMetric.Cosine)
+    store = vanedb.VectorStore(2, vanedb.DistanceMetric.COSINE)
     store.add(1, [1.0, 0.0])
     store.add(2, [0.0, 1.0])
     results = store.search([0.9, 0.1], 1)
@@ -46,7 +46,7 @@ def test_vector_store_cosine():
 
 
 def test_vector_store_remove():
-    store = vanedb.PyVectorStore(2)
+    store = vanedb.VectorStore(2)
     store.add(1, [1.0, 2.0])
     store.add(2, [3.0, 4.0])
     store.remove(1)
@@ -56,7 +56,7 @@ def test_vector_store_remove():
 
 
 def test_vector_store_errors():
-    store = vanedb.PyVectorStore(3)
+    store = vanedb.VectorStore(3)
     try:
         store.add(1, [1.0, 2.0])  # wrong dim
         assert False, "Should have raised"
@@ -74,7 +74,7 @@ def test_vector_store_errors():
 # --- HnswIndex ---
 
 def test_hnsw_basic():
-    idx = vanedb.PyHnswIndex(3, capacity=100)
+    idx = vanedb.HNSWIndex(3, capacity=100)
     idx.add(1, [1.0, 0.0, 0.0])
     idx.add(2, [0.0, 1.0, 0.0])
     assert len(idx) == 2
@@ -84,7 +84,7 @@ def test_hnsw_basic():
 
 
 def test_hnsw_search():
-    idx = vanedb.PyHnswIndex(3, capacity=100)
+    idx = vanedb.HNSWIndex(3, capacity=100)
     idx.add(1, [0.0, 0.0, 0.0])
     idx.add(2, [10.0, 10.0, 10.0])
     results = idx.search([0.0, 0.0, 0.0], 1)
@@ -97,12 +97,12 @@ def test_hnsw_save_load():
         path = f.name
 
     try:
-        idx = vanedb.PyHnswIndex(4, capacity=100, seed=42)
+        idx = vanedb.HNSWIndex(4, capacity=100, seed=42)
         for i in range(20):
             idx.add(i, [float(i)] * 4)
         idx.save(path)
 
-        loaded = vanedb.PyHnswIndex.load(path)
+        loaded = vanedb.HNSWIndex.load(path)
         assert len(loaded) == 20
         assert loaded.get_vector(5) == [5.0, 5.0, 5.0, 5.0]
 
@@ -115,14 +115,14 @@ def test_hnsw_save_load():
 
 
 def test_hnsw_ef_search():
-    idx = vanedb.PyHnswIndex(3, capacity=100)
+    idx = vanedb.HNSWIndex(3, capacity=100)
     assert idx.ef_search == 50  # default
     idx.ef_search = 200
     assert idx.ef_search == 200
 
 
 def test_hnsw_errors():
-    idx = vanedb.PyHnswIndex(3, capacity=2)
+    idx = vanedb.HNSWIndex(3, capacity=2)
     idx.add(0, [0.0, 0.0, 0.0])
     idx.add(1, [1.0, 1.0, 1.0])
     try:
@@ -134,7 +134,7 @@ def test_hnsw_errors():
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
 def test_non_finite_vectors_and_queries_are_rejected(value):
-    store = vanedb.PyVectorStore(2)
+    store = vanedb.VectorStore(2)
     with pytest.raises(ValueError, match="finite"):
         store.add(1, [value, 0.0])
     assert len(store) == 0
@@ -143,7 +143,7 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
     with pytest.raises(ValueError, match="finite"):
         store.search([value, 0.0], 1)
 
-    index = vanedb.PyHnswIndex(2, capacity=4)
+    index = vanedb.HNSWIndex(2, capacity=4)
     with pytest.raises(ValueError, match="finite"):
         index.add(1, [value, 0.0])
     assert len(index) == 0
