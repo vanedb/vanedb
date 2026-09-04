@@ -71,6 +71,10 @@ fn u32_to_metric(v: u32) -> Result<DistanceMetric> {
 }
 
 impl HnswIndex {
+    /// Writes the index to `path`.
+    ///
+    /// Written beside the destination and renamed in after an fsync, so an
+    /// interrupted write cannot replace a good index with a partial one.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let inner = self.inner.read();
         let data = HnswData {
@@ -119,6 +123,11 @@ impl HnswIndex {
         temp.commit(path)
     }
 
+    /// Reads an index written by [`save`](Self::save).
+    ///
+    /// Files from earlier released versions stay loadable. Structural
+    /// invariants are checked on the way in, so a corrupt file is rejected
+    /// rather than producing wrong search results.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let bytes = fs::read(path.as_ref()).map_err(|e| VaneError::Io(format!("read: {e}")))?;
         if bytes.len() < HEADER_LEN {

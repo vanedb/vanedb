@@ -1,7 +1,12 @@
+//! Distance metrics and their SIMD implementations.
+
+/// AVX2 kernels, compiled on x86-64.
 #[cfg(target_arch = "x86_64")]
 pub mod avx2;
+/// NEON kernels, compiled on AArch64.
 #[cfg(target_arch = "aarch64")]
 pub mod neon;
+/// Portable kernels, always available.
 pub mod scalar;
 
 /// Distance metric for vector comparison.

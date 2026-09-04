@@ -8,6 +8,7 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
+    /// Pairs an id with its distance from the query.
     pub fn new(id: u64, distance: f32) -> Self {
         Self { id, distance }
     }

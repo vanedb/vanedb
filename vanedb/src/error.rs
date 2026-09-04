@@ -1,13 +1,40 @@
+//! The error type returned by every fallible operation.
+
+/// Everything that can go wrong in this crate.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VaneError {
-    DimensionMismatch { expected: usize, got: usize },
+    /// A vector's length did not match the dimension the store was created with.
+    DimensionMismatch {
+        /// The dimension the store expects.
+        expected: usize,
+        /// The length actually supplied.
+        got: usize,
+    },
+    /// A zero-length vector was supplied.
     EmptyVector,
-    NotFound { id: u64 },
-    DuplicateId { id: u64 },
+    /// No vector is stored under this id.
+    NotFound {
+        /// The id that was looked up.
+        id: u64,
+    },
+    /// This id is already present; ids are unique within a store.
+    DuplicateId {
+        /// The id that was already taken.
+        id: u64,
+    },
+    /// `k` was zero, so there is no nearest neighbour to return.
     InvalidK,
+    /// The index has reached the capacity it was built with.
     IndexFull,
-    NonFiniteValue { input: &'static str },
+    /// An input held a NaN or an infinity, which have no meaningful distance.
+    NonFiniteValue {
+        /// Which input was rejected, for the message.
+        input: &'static str,
+    },
+    /// A parameter was outside its valid range, or an allocation it implies
+    /// would overflow.
     InvalidParameter(&'static str),
+    /// A filesystem or serialisation failure, with the underlying message.
     Io(String),
 }
 
@@ -33,6 +60,7 @@ impl std::fmt::Display for VaneError {
 
 impl std::error::Error for VaneError {}
 
+/// `Result` with this crate's error type.
 pub type Result<T> = std::result::Result<T, VaneError>;
 
 #[cfg(test)]

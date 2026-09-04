@@ -1,3 +1,9 @@
+//! x86-64 AVX2 kernels, unrolled across several accumulators because a
+//! single-accumulator FMA loop is latency-bound rather than throughput-bound.
+//!
+//! Every function here requires AVX2 and FMA; callers reach them through
+//! [`distance_fn`](super::distance_fn), which checks at runtime.
+
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 

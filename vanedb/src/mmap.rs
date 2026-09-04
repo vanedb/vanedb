@@ -1,3 +1,5 @@
+//! Exact search over a memory-mapped file.
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{BufWriter, Write};
@@ -37,6 +39,10 @@ fn u32_to_metric(v: u32) -> Result<DistanceMetric> {
     }
 }
 
+/// Collects vectors and writes them to a file [`MmapVectorStore`] can open.
+///
+/// Vectors are held in memory until [`save`](Self::save); the memory saving
+/// is on the reading side.
 pub struct MmapVectorStoreBuilder {
     dim: usize,
     metric: DistanceMetric,
@@ -46,6 +52,7 @@ pub struct MmapVectorStoreBuilder {
 }
 
 impl MmapVectorStoreBuilder {
+    /// Starts a store for vectors of `dim` components.
     pub fn new(dim: usize, metric: DistanceMetric) -> Result<Self> {
         if dim == 0 {
             return Err(VaneError::EmptyVector);
@@ -59,6 +66,10 @@ impl MmapVectorStoreBuilder {
         })
     }
 
+    /// Adds `vector` under `id`.
+    ///
+    /// Fails if `id` is taken, if the length differs from `dim`, or if any
+    /// component is not finite.
     pub fn add(&mut self, id: u64, vector: &[f32]) -> Result<()> {
         if vector.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
@@ -76,10 +87,18 @@ impl MmapVectorStoreBuilder {
         Ok(())
     }
 
+    /// Number of vectors collected so far.
+    /// Number of vectors in the mapped file.
     pub fn size(&self) -> usize {
         self.ids.len()
     }
 
+    /// Writes the store to `path`.
+    ///
+    /// The file is built beside the destination and renamed into place after
+    /// an fsync, so an interrupted write cannot leave a half-written store
+    /// where a reader would find it. The layout is little-endian and shared
+    /// with the C++ implementation.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
@@ -128,6 +147,11 @@ impl MmapVectorStoreBuilder {
     }
 }
 
+/// Exact k-nearest-neighbour search over a memory-mapped file.
+///
+/// Vectors stay on disk and are paged in by the kernel as the scan touches
+/// them, so a corpus larger than RAM remains searchable. Read-only; build
+/// one with [`MmapVectorStoreBuilder`].
 pub struct MmapVectorStore {
     mmap: Mmap,
     dim: usize,
@@ -139,6 +163,12 @@ pub struct MmapVectorStore {
 }
 
 impl MmapVectorStore {
+    /// Maps the store at `path`.
+    ///
+    /// Validates the header, checks every stored component is finite, and
+    /// builds the id index, so this is linear in the corpus rather than a
+    /// constant-cost mapping. A corrupt or truncated file is rejected here
+    /// rather than surfacing as a wrong answer later.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let file =
             fs::File::open(path.as_ref()).map_err(|e| VaneError::Io(format!("open: {e}")))?;
@@ -212,18 +242,22 @@ impl MmapVectorStore {
         })
     }
 
+    /// Number of vectors in the mapped file.
     pub fn size(&self) -> usize {
         self.num_vectors
     }
 
+    /// Component count of every vector in this store.
     pub fn dimension(&self) -> usize {
         self.dim
     }
 
+    /// The metric recorded in the file.
     pub fn metric(&self) -> DistanceMetric {
         self.metric
     }
 
+    /// Whether a vector is stored under `id`.
     pub fn contains(&self, id: u64) -> bool {
         self.id_map.contains_key(&id)
     }
@@ -234,6 +268,9 @@ impl MmapVectorStore {
         Ok(self.get_vec(idx))
     }
 
+    /// The `k` nearest vectors to `query`, nearest first.
+    ///
+    /// Returns fewer than `k` results when the file holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
