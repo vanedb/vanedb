@@ -20,6 +20,11 @@ use crate::error::{Result, VaneError};
 /// compatibility with files written before the rename. Rust never shipped
 /// pre-rename, so we use a clean per-format magic.
 const MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
+
+/// Upper bound on `max_elements` accepted from a file. Mirrors `MAX_VEC_SIZE`
+/// in vanedb-cpp `src/core/index.h`: `load` re-expands every array to
+/// `max_elements`, so without a cap a few hundred bytes can request terabytes.
+const MAX_ELEMENTS: usize = 100_000_000;
 /// v1 stored the full pre-allocated arrays (`max_elements` entries even when
 /// only `count` were inserted). v2 stores only the `count` live entries and
 /// re-expands to `max_elements` on load (issue #18). v1 files remain loadable.
@@ -160,6 +165,35 @@ impl Index {
         if data.max_elements == 0 {
             return Err(VaneError::Io("invalid max_elements: 0".to_string()));
         }
+        // A file declares max_elements; load re-expands every array to it. Cap
+        // it so a few hundred bytes cannot request terabytes. vanedb-cpp caps
+        // every deserialized array the same way (MAX_VEC_SIZE in
+        // src/core/index.h).
+        if data.max_elements > MAX_ELEMENTS {
+            return Err(VaneError::Io(format!(
+                "corrupted file: max_elements {} exceeds the {MAX_ELEMENTS} limit",
+                data.max_elements
+            )));
+        }
+        // C++ validates these on load; Rust checked them only at build time,
+        // so a hostile file could set m = 0 and make the level maths degenerate.
+        if data.m < 2 {
+            return Err(VaneError::Io(format!(
+                "corrupted file: m {} is below 2",
+                data.m
+            )));
+        }
+        if data.ef_construction == 0 {
+            return Err(VaneError::Io(
+                "corrupted file: ef_construction is 0".to_string(),
+            ));
+        }
+        if data.m_max0 != data.m * 2 || data.m_max != data.m {
+            return Err(VaneError::Io(format!(
+                "corrupted file: m_max {} / m_max0 {} disagree with m {}",
+                data.m_max, data.m_max0, data.m
+            )));
+        }
         if data.count > data.max_elements {
             return Err(VaneError::Io(format!(
                 "corrupted file: count {} exceeds max_elements {}",
@@ -284,13 +318,22 @@ impl Index {
 
         // Re-expand to the pre-allocated capacity layout Inner expects. For
         // v1 the arrays are already full-length, so these are no-ops.
+        //
+        // Reserve fallibly first: `resize` aborts the process on allocation
+        // failure, and this is the path that reads untrusted files. The cap
+        // above bounds the request; this turns a genuine OOM into an error
+        // rather than killing the host application (#89).
         let mut vectors = data.vectors;
+        try_grow(&mut vectors, full_vecs_len, "vectors")?;
         vectors.resize(full_vecs_len, 0.0);
         let mut ext_ids = data.ext_ids;
+        try_grow(&mut ext_ids, data.max_elements, "ext_ids")?;
         ext_ids.resize(data.max_elements, 0);
         let mut levels = data.levels;
+        try_grow(&mut levels, data.max_elements, "levels")?;
         levels.resize(data.max_elements, 0);
         let mut neighbors = data.neighbors;
+        try_grow(&mut neighbors, data.max_elements, "neighbors")?;
         neighbors.resize_with(data.max_elements, Vec::new);
 
         // Reconstitute RNG: seed from the original seed, then advance through
@@ -327,4 +370,18 @@ impl Index {
             }),
         })
     }
+}
+
+/// Reserve room for `target` elements without aborting on failure.
+///
+/// `Vec::resize` cannot fail: allocation failure aborts the process. Every
+/// growth on the load path goes through here, so a hostile or corrupt file
+/// yields an error instead of killing the host application (#89).
+fn try_grow<T>(v: &mut Vec<T>, target: usize, what: &str) -> Result<()> {
+    let additional = target.saturating_sub(v.len());
+    v.try_reserve_exact(additional).map_err(|_| {
+        VaneError::Io(format!(
+            "corrupted file: cannot allocate {target} {what} entries"
+        ))
+    })
 }

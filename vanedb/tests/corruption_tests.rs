@@ -377,3 +377,63 @@ fn mmap_search_rejects_zero_k() {
     assert!(store.search(&[1.0, 2.0, 3.0], 0).is_err());
     let _ = fs::remove_file(&path);
 }
+
+/// A v2 payload whose arrays hold `count` live slots but which declares an
+/// enormous `max_elements`. `load` re-expands the arrays to `max_elements`,
+/// so an unbounded declaration is an allocation request from a tiny file.
+fn v2_huge_max_elements(max_elements: usize) -> HnswDataMirror {
+    HnswDataMirror {
+        dim: 2,
+        metric: 0,
+        max_elements,
+        m: 16,
+        m_max: 16,
+        m_max0: 32,
+        ef_construction: 200,
+        ef_search: 50,
+        mult: 1.0 / (16f64).ln(),
+        seed: 42,
+        count: 1,
+        entry_point: Some(0),
+        max_level: 0,
+        vectors: vec![1.0, 2.0],
+        ext_ids: vec![10],
+        levels: vec![0],
+        neighbors: vec![vec![vec![]]],
+        id_map: std::collections::HashMap::from([(10, 0)]),
+    }
+}
+
+#[test]
+fn hnsw_load_rejects_an_unallocatable_max_elements() {
+    // ~2^40 slots: the file is a few hundred bytes, the declared expansion is
+    // terabytes. Must be an error, not an abort.
+    let bytes = hnsw_file_bytes(2, &v2_huge_max_elements(1 << 40));
+    let p = write_tmp("huge_max_elements", &bytes);
+    let err = Index::load(&p).err().expect("must reject, not allocate");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("max_elements") || msg.contains("too large"),
+        "unhelpful message: {msg}"
+    );
+}
+
+#[test]
+fn hnsw_load_rejects_invalid_graph_parameters() {
+    // m < 2 makes mult and the level distribution meaningless; C++ validates
+    // it on load and Rust did not.
+    let mut data = v2_huge_max_elements(4);
+    data.m = 1;
+    let bytes = hnsw_file_bytes(2, &data);
+    let p = write_tmp("bad_m", &bytes);
+    assert!(Index::load(&p).is_err(), "m = 1 must be rejected on load");
+
+    let mut data = v2_huge_max_elements(4);
+    data.ef_construction = 0;
+    let bytes = hnsw_file_bytes(2, &data);
+    let p = write_tmp("bad_efc", &bytes);
+    assert!(
+        Index::load(&p).is_err(),
+        "ef_construction = 0 must be rejected on load"
+    );
+}
