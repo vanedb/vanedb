@@ -12,7 +12,11 @@ use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 use crate::validation::validate_finite;
 
-const MAGIC: u32 = 0x564E4442; // "VNDB"
+/// Literal `VNDB` as the first four bytes on disk, matching the contract in
+/// `conformance/README.md` and the C++ engine's `DiskStore::MAGIC`. Built from
+/// the bytes rather than hand-written hex: the previous constant claimed
+/// "VNDB" in a comment and actually wrote `BDNV`.
+const MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const VERSION: u32 = 1;
 const HEADER_SIZE: usize = 32;
 
@@ -108,7 +112,8 @@ impl DiskStoreBuilder {
     /// The file is built beside the destination and renamed into place after
     /// an fsync, so an interrupted write cannot leave a half-written store
     /// where a reader would find it. The layout is little-endian and shared
-    /// with the C++ implementation.
+    /// with the C++ implementation, which reads and writes the same bytes
+    /// (bench/tests/cross_engine_format.rs).
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
