@@ -43,6 +43,18 @@ struct Inner {
     id_to_index: HashMap<u64, usize>,
 }
 
+impl std::fmt::Debug for Store {
+    /// Prints identity and size, not contents: the vectors sit behind a lock
+    /// and can be gigabytes.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Store")
+            .field("dim", &self.dim)
+            .field("metric", &self.metric)
+            .field("len", &self.len())
+            .finish()
+    }
+}
+
 impl Store {
     /// Creates an empty store for vectors of `dim` components.
     ///

@@ -410,7 +410,7 @@ fn hnsw_load_rejects_an_unallocatable_max_elements() {
     // terabytes. Must be an error, not an abort.
     let bytes = hnsw_file_bytes(2, &v2_huge_max_elements(1 << 40));
     let p = write_tmp("huge_max_elements", &bytes);
-    let err = Index::load(&p).err().expect("must reject, not allocate");
+    let err = Index::load(&p).expect_err("must reject, not allocate");
     let msg = err.to_string();
     assert!(
         msg.contains("max_elements") || msg.contains("too large"),
