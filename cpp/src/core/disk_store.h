@@ -17,7 +17,7 @@
 
 #include "detail/file_utils.h"
 #include "distance_strategy.h"
-#include "vector_store.h"
+#include "store.h"
 #include "validation.h"
 #include <algorithm>
 #include <cstddef>
@@ -34,13 +34,13 @@
 
 namespace vanedb {
 
-class MMapVectorStore {
+class DiskStore {
 public:
   static constexpr uint32_t MAGIC = 0x42445651;
   static constexpr uint32_t VERSION = 1;
   static constexpr size_t HEADER_SIZE = 32;
 
-  explicit MMapVectorStore(const std::string& filename) {
+  explicit DiskStore(const std::string& filename) {
 #ifdef VANEDB_WINDOWS
     file_handle_ = CreateFileA(filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
                                nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -80,7 +80,7 @@ public:
     std::memcpy(&num_vectors_, p, 8); p += 8;
     uint32_t met; std::memcpy(&met, p, 4);
     if (met > 2) { cleanup(); throw std::runtime_error("Invalid metric"); }
-    metric_ = static_cast<DistanceMetric>(met);
+    metric_ = static_cast<Metric>(met);
 
     // Check for overflow in size calculations step by step
     if (num_vectors_ > SIZE_MAX / sizeof(uint64_t)) {
@@ -119,11 +119,11 @@ public:
     } catch (...) { cleanup(); throw; }
   }
 
-  ~MMapVectorStore() { cleanup(); }
-  MMapVectorStore(const MMapVectorStore&) = delete;
-  MMapVectorStore& operator=(const MMapVectorStore&) = delete;
+  ~DiskStore() { cleanup(); }
+  DiskStore(const DiskStore&) = delete;
+  DiskStore& operator=(const DiskStore&) = delete;
 
-  MMapVectorStore(MMapVectorStore&& o) noexcept :
+  DiskStore(DiskStore&& o) noexcept :
 #ifdef VANEDB_WINDOWS
     file_handle_(o.file_handle_), mapping_handle_(o.mapping_handle_),
 #else
@@ -139,7 +139,7 @@ public:
     o.mapped_ = nullptr;
   }
 
-  MMapVectorStore& operator=(MMapVectorStore&& o) noexcept {
+  DiskStore& operator=(DiskStore&& o) noexcept {
     if (this != &o) {
       cleanup();
 #ifdef VANEDB_WINDOWS
@@ -178,7 +178,7 @@ public:
 
   size_t size() const { return num_vectors_; }
   size_t dimension() const { return dim_; }
-  DistanceMetric metric() const { return metric_; }
+  Metric metric() const { return metric_; }
 
 private:
   void cleanup() {
@@ -200,16 +200,16 @@ private:
 #endif
   void* mapped_ = nullptr;
   size_t file_size_ = 0, dim_ = 0, num_vectors_ = 0;
-  DistanceMetric metric_ = DistanceMetric::L2;
+  Metric metric_ = Metric::L2;
   DistanceComputer dist_;
   const uint64_t* ids_ptr_ = nullptr;
   const float* vectors_ptr_ = nullptr;
   std::unordered_map<uint64_t, size_t> id_map_;
 };
 
-class MMapVectorStoreBuilder {
+class DiskStoreBuilder {
 public:
-  explicit MMapVectorStoreBuilder(size_t dimension, DistanceMetric metric = DistanceMetric::L2)
+  explicit DiskStoreBuilder(size_t dimension, Metric metric = Metric::L2)
       : dim_(dimension), metric_(metric) {
     if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
   }
@@ -229,7 +229,7 @@ public:
     std::string tmp = filename + ".tmp";
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
-    uint32_t magic = MMapVectorStore::MAGIC, ver = MMapVectorStore::VERSION;
+    uint32_t magic = DiskStore::MAGIC, ver = DiskStore::VERSION;
     uint64_t dim = dim_, nv = ids_.size();
     uint32_t met = static_cast<uint32_t>(metric_), reserved = 0;
     f.write(reinterpret_cast<const char*>(&magic), 4);
@@ -254,7 +254,7 @@ public:
 
 private:
   size_t dim_;
-  DistanceMetric metric_;
+  Metric metric_;
   std::vector<uint64_t> ids_;
   std::vector<float> vectors_;
   std::unordered_set<uint64_t> id_set_;

@@ -1,8 +1,8 @@
 #![cfg(feature = "gpu-metal")]
 
-use vanedb::distance::{self, DistanceMetric};
+use vanedb::distance::{self, Metric};
 use vanedb::gpu::{GpuMetric, MetalCompute};
-use vanedb::VectorStore;
+use vanedb::Store;
 
 #[test]
 fn gpu_search_matches_brute_force() {
@@ -16,7 +16,7 @@ fn gpu_search_matches_brute_force() {
         .collect();
     let ids: Vec<u64> = (0..n as u64).collect();
 
-    let store = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+    let store = Store::new(dim, Metric::L2).unwrap();
     for i in 0..n {
         store.add(i as u64, &flat[i * dim..(i + 1) * dim]).unwrap();
     }
@@ -45,9 +45,9 @@ fn gpu_all_metrics() {
     let buf = gpu.upload(&flat, n, dim).unwrap();
 
     for (gpu_metric, cpu_metric) in [
-        (GpuMetric::L2, DistanceMetric::L2),
-        (GpuMetric::Cosine, DistanceMetric::Cosine),
-        (GpuMetric::Dot, DistanceMetric::Dot),
+        (GpuMetric::L2, Metric::L2),
+        (GpuMetric::Cosine, Metric::Cosine),
+        (GpuMetric::Dot, Metric::Dot),
     ] {
         let gpu_dists = gpu.distances(&query, &buf, gpu_metric).unwrap();
         let cpu_fn = distance::distance_fn(cpu_metric);

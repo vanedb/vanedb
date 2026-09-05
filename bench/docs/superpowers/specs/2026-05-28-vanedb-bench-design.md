@@ -30,7 +30,7 @@ clean portfolio-facing summary is the secondary deliverable.
 | Operation | Measured |
 |---|---|
 | Distance functions (L2, cosine, dot) | latency across several dims |
-| VectorStore (brute-force) | add throughput, k-NN search latency |
+| Store (brute-force) | add throughput, k-NN search latency |
 | HNSW | build time, search latency, **recall@k** |
 | MMap store | build/open time, search latency |
 
@@ -86,7 +86,7 @@ float  PFX_l2_sq(const float* a, const float* b, size_t dim);
 float  PFX_cosine_distance(const float* a, const float* b, size_t dim);
 float  PFX_dot_product(const float* a, const float* b, size_t dim);
 
-// --- VectorStore (brute force) ---
+// --- Store (brute force) ---
 typedef struct PFX_store PFX_store;
 PFX_store* PFX_store_new(size_t dim, vanedb_metric m);
 int        PFX_store_add(PFX_store*, uint64_t id, const float* v);

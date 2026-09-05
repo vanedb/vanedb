@@ -1,4 +1,4 @@
-//! Cross-engine HNSW id_map cases from `conformance/hnsw_id_map_consistency.tsv`.
+//! Cross-engine HNSW id_map cases from `conformance/index_id_map_consistency.tsv`.
 //!
 //! The loader validated only `id_map.len() == count` and that each internal
 //! index was in range, so a file could map an external id onto another slot.
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 
-use vanedb::HnswIndex;
+use vanedb::Index;
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
@@ -47,7 +47,7 @@ struct Case {
 }
 
 fn cases() -> Vec<Case> {
-    include_str!("../../conformance/hnsw_id_map_consistency.tsv")
+    include_str!("../../conformance/index_id_map_consistency.tsv")
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
@@ -127,7 +127,7 @@ fn loader_enforces_the_shared_id_map_contract() {
 
     for case in &all {
         let path = write_case(&dir, case);
-        let result = HnswIndex::load(&path);
+        let result = Index::load(&path);
         if case.accept {
             let index =
                 result.unwrap_or_else(|e| panic!("{}: expected load to succeed: {e}", case.name));

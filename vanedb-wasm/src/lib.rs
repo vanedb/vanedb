@@ -1,8 +1,8 @@
 use wasm_bindgen::prelude::*;
 
-use vanedb::distance::DistanceMetric;
-use vanedb::hnsw::HnswIndex;
-use vanedb::store::{SearchResult, VectorStore};
+use vanedb::distance::Metric;
+use vanedb::index::Index;
+use vanedb::store::{SearchResult, Store};
 
 /// Search results with lossless 64-bit ids.
 // The Wasm prefix disambiguates these wrappers from the core types
@@ -51,11 +51,11 @@ fn to_jserr(e: vanedb::VaneError) -> JsError {
     JsError::new(&e.to_string())
 }
 
-fn parse_metric(metric: &str) -> Result<DistanceMetric, JsError> {
+fn parse_metric(metric: &str) -> Result<Metric, JsError> {
     match metric {
-        "l2" | "L2" => Ok(DistanceMetric::L2),
-        "cosine" | "Cosine" => Ok(DistanceMetric::Cosine),
-        "dot" | "Dot" => Ok(DistanceMetric::Dot),
+        "l2" | "L2" => Ok(Metric::L2),
+        "cosine" | "Cosine" => Ok(Metric::Cosine),
+        "dot" | "Dot" => Ok(Metric::Dot),
         _ => Err(JsError::new(&format!(
             "unknown metric: {metric}. Use 'l2', 'cosine', or 'dot'"
         ))),
@@ -68,17 +68,17 @@ pub fn version() -> String {
 }
 
 /// Brute-force vector store for the browser.
-#[wasm_bindgen(js_name = VectorStore)]
-pub struct WasmVectorStore {
-    inner: VectorStore,
+#[wasm_bindgen(js_name = Store)]
+pub struct WasmStore {
+    inner: Store,
 }
 
-#[wasm_bindgen(js_class = VectorStore)]
-impl WasmVectorStore {
+#[wasm_bindgen(js_class = Store)]
+impl WasmStore {
     #[wasm_bindgen(constructor)]
-    pub fn new(dim: usize, metric: &str) -> Result<WasmVectorStore, JsError> {
+    pub fn new(dim: usize, metric: &str) -> Result<WasmStore, JsError> {
         let m = parse_metric(metric)?;
-        let inner = VectorStore::new(dim, m).map_err(to_jserr)?;
+        let inner = Store::new(dim, m).map_err(to_jserr)?;
         Ok(Self { inner })
     }
 
@@ -126,13 +126,13 @@ impl WasmVectorStore {
 }
 
 /// HNSW approximate nearest-neighbor index for the browser.
-#[wasm_bindgen(js_name = HNSWIndex)]
-pub struct WasmHnswIndex {
-    inner: HnswIndex,
+#[wasm_bindgen(js_name = Index)]
+pub struct WasmIndex {
+    inner: Index,
 }
 
-#[wasm_bindgen(js_class = HNSWIndex)]
-impl WasmHnswIndex {
+#[wasm_bindgen(js_class = Index)]
+impl WasmIndex {
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: usize,
@@ -140,9 +140,9 @@ impl WasmHnswIndex {
         capacity: usize,
         m: usize,
         ef_construction: usize,
-    ) -> Result<WasmHnswIndex, JsError> {
+    ) -> Result<WasmIndex, JsError> {
         let met = parse_metric(metric)?;
-        let inner = HnswIndex::builder(dim, met)
+        let inner = Index::builder(dim, met)
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)

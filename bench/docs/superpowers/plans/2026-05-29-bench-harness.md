@@ -26,7 +26,7 @@
 | `src/workloads.rs` | splitmix64 deterministic vector/query generation |
 | `src/ground_truth.rs` | brute-force top-k + `recall_at_k` |
 | `benches/distance.rs` | distance latency: cpp vs rs |
-| `benches/store.rs` | VectorStore add + search latency: cpp vs rs |
+| `benches/store.rs` | Store add + search latency: cpp vs rs |
 | `benches/hnsw.rs` | HNSW build + search latency: cpp vs rs |
 | `benches/mmap.rs` | MMap build/open + search latency: cpp vs rs |
 | `src/bin/report.rs` | Standalone timing + recall@k → `RESULTS.md` |
@@ -140,29 +140,29 @@ extern "C" {
                                    out_ids: *mut u64, out_dists: *mut f32) -> usize;
     pub fn vanedb_cpp_store_free(s: *mut std::ffi::c_void);
 
-    pub fn vanedb_cpp_hnsw_new(dim: usize, metric: u32, capacity: usize, m: usize,
+    pub fn vanedb_cpp_index_new(dim: usize, metric: u32, capacity: usize, m: usize,
                                ef_construction: usize, seed: u64) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_hnsw_add(h: *mut std::ffi::c_void, id: u64, v: *const f32) -> i32;
-    pub fn vanedb_cpp_hnsw_search(h: *mut std::ffi::c_void, q: *const f32, k: usize, ef: usize,
+    pub fn vanedb_cpp_index_add(h: *mut std::ffi::c_void, id: u64, v: *const f32) -> i32;
+    pub fn vanedb_cpp_index_search(h: *mut std::ffi::c_void, q: *const f32, k: usize, ef: usize,
                                   out_ids: *mut u64, out_dists: *mut f32) -> usize;
-    pub fn vanedb_cpp_hnsw_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
-    pub fn vanedb_cpp_hnsw_load(path: *const c_char) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_hnsw_free(h: *mut std::ffi::c_void);
+    pub fn vanedb_cpp_index_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
+    pub fn vanedb_cpp_index_load(path: *const c_char) -> *mut std::ffi::c_void;
+    pub fn vanedb_cpp_index_free(h: *mut std::ffi::c_void);
 
-    pub fn vanedb_cpp_mmap_build(path: *const c_char, dim: usize, metric: u32,
+    pub fn vanedb_cpp_disk_build(path: *const c_char, dim: usize, metric: u32,
                                  ids: *const u64, vecs: *const f32, n: usize) -> i32;
-    pub fn vanedb_cpp_mmap_open(path: *const c_char) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_mmap_search(m: *mut std::ffi::c_void, q: *const f32, k: usize,
+    pub fn vanedb_cpp_disk_open(path: *const c_char) -> *mut std::ffi::c_void;
+    pub fn vanedb_cpp_disk_search(m: *mut std::ffi::c_void, q: *const f32, k: usize,
                                   out_ids: *mut u64, out_dists: *mut f32) -> usize;
-    pub fn vanedb_cpp_mmap_free(m: *mut std::ffi::c_void);
+    pub fn vanedb_cpp_disk_free(m: *mut std::ffi::c_void);
 }
 
 // --- Rust side: re-exported from the vanedb-capi crate (same #[no_mangle] symbols) ---
 pub use vanedb_capi::{
     vanedb_rs_cosine_distance, vanedb_rs_dot_product, vanedb_rs_l2_sq,
-    vanedb_rs_hnsw_add, vanedb_rs_hnsw_free, vanedb_rs_hnsw_load, vanedb_rs_hnsw_new,
-    vanedb_rs_hnsw_save, vanedb_rs_hnsw_search,
-    vanedb_rs_mmap_build, vanedb_rs_mmap_free, vanedb_rs_mmap_open, vanedb_rs_mmap_search,
+    vanedb_rs_index_add, vanedb_rs_index_free, vanedb_rs_index_load, vanedb_rs_index_new,
+    vanedb_rs_index_save, vanedb_rs_index_search,
+    vanedb_rs_disk_build, vanedb_rs_disk_free, vanedb_rs_disk_open, vanedb_rs_disk_search,
     vanedb_rs_store_add, vanedb_rs_store_free, vanedb_rs_store_new, vanedb_rs_store_search,
 };
 ```
@@ -452,38 +452,38 @@ fn bench_hnsw(c: &mut Criterion) {
     let w = workloads::generate(3, DIM, N, 1);
     let q = &w.queries[0..DIM];
 
-    let mut build = c.benchmark_group("hnsw_build");
+    let mut build = c.benchmark_group("index_build");
     build.sample_size(10);
     build.bench_function("cpp", |bn| unsafe {
         bn.iter(|| {
-            let h = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED);
-            for i in 0..N { ffi::vanedb_cpp_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()); }
-            ffi::vanedb_cpp_hnsw_free(black_box(h));
+            let h = ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED);
+            for i in 0..N { ffi::vanedb_cpp_index_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()); }
+            ffi::vanedb_cpp_index_free(black_box(h));
         });
     });
     build.bench_function("rs", |bn| unsafe {
         bn.iter(|| {
-            let h = ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED);
-            for i in 0..N { ffi::vanedb_rs_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()); }
-            ffi::vanedb_rs_hnsw_free(black_box(h));
+            let h = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
+            for i in 0..N { ffi::vanedb_rs_index_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr()); }
+            ffi::vanedb_rs_index_free(black_box(h));
         });
     });
     build.finish();
 
     // Pre-build once each for the search benchmark.
-    let mut search = c.benchmark_group("hnsw_search");
+    let mut search = c.benchmark_group("index_search");
     unsafe {
-        let hc = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED);
-        let hr = ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED);
+        let hc = ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED);
+        let hr = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
         for i in 0..N {
-            ffi::vanedb_cpp_hnsw_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr());
-            ffi::vanedb_rs_hnsw_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr());
+            ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr());
+            ffi::vanedb_rs_index_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr());
         }
         let mut ids = [0u64; 10]; let mut ds = [0f32; 10];
-        search.bench_function("cpp", |bn| bn.iter(|| ffi::vanedb_cpp_hnsw_search(hc, black_box(q.as_ptr()), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr())));
-        search.bench_function("rs", |bn| bn.iter(|| ffi::vanedb_rs_hnsw_search(hr, black_box(q.as_ptr()), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr())));
-        ffi::vanedb_cpp_hnsw_free(hc);
-        ffi::vanedb_rs_hnsw_free(hr);
+        search.bench_function("cpp", |bn| bn.iter(|| ffi::vanedb_cpp_index_search(hc, black_box(q.as_ptr()), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr())));
+        search.bench_function("rs", |bn| bn.iter(|| ffi::vanedb_rs_index_search(hr, black_box(q.as_ptr()), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr())));
+        ffi::vanedb_cpp_index_free(hc);
+        ffi::vanedb_rs_index_free(hr);
     }
     search.finish();
 }
@@ -495,7 +495,7 @@ criterion_main!(benches);
 - [ ] **Step 2: Run it**
 
 Run: `cargo bench --bench hnsw 2>&1 | tail -25`
-Expected: `hnsw_build/cpp`, `/rs`, `hnsw_search/cpp`, `/rs` timings; no panics. (recall is measured in Task 6's report, not here.)
+Expected: `index_build/cpp`, `/rs`, `index_search/cpp`, `/rs` timings; no panics. (recall is measured in Task 6's report, not here.)
 
 - [ ] **Step 3: Write the mmap bench**
 
@@ -517,17 +517,17 @@ fn bench_mmap_search(c: &mut Criterion) {
     let rs_path = CString::new("bench_rs.mmap").unwrap();
 
     unsafe {
-        ffi::vanedb_cpp_mmap_build(cpp_path.as_ptr(), DIM, 0, w.ids.as_ptr(), w.vectors.as_ptr(), N);
-        ffi::vanedb_rs_mmap_build(rs_path.as_ptr(), DIM, 0, w.ids.as_ptr(), w.vectors.as_ptr(), N);
-        let mc = ffi::vanedb_cpp_mmap_open(cpp_path.as_ptr());
-        let mr = ffi::vanedb_rs_mmap_open(rs_path.as_ptr());
+        ffi::vanedb_cpp_disk_build(cpp_path.as_ptr(), DIM, 0, w.ids.as_ptr(), w.vectors.as_ptr(), N);
+        ffi::vanedb_rs_disk_build(rs_path.as_ptr(), DIM, 0, w.ids.as_ptr(), w.vectors.as_ptr(), N);
+        let mc = ffi::vanedb_cpp_disk_open(cpp_path.as_ptr());
+        let mr = ffi::vanedb_rs_disk_open(rs_path.as_ptr());
         let mut ids = [0u64; 10]; let mut ds = [0f32; 10];
-        let mut g = c.benchmark_group("mmap_search");
-        g.bench_function("cpp", |bn| bn.iter(|| ffi::vanedb_cpp_mmap_search(mc, black_box(q.as_ptr()), 10, ids.as_mut_ptr(), ds.as_mut_ptr())));
-        g.bench_function("rs", |bn| bn.iter(|| ffi::vanedb_rs_mmap_search(mr, black_box(q.as_ptr()), 10, ids.as_mut_ptr(), ds.as_mut_ptr())));
+        let mut g = c.benchmark_group("disk_search");
+        g.bench_function("cpp", |bn| bn.iter(|| ffi::vanedb_cpp_disk_search(mc, black_box(q.as_ptr()), 10, ids.as_mut_ptr(), ds.as_mut_ptr())));
+        g.bench_function("rs", |bn| bn.iter(|| ffi::vanedb_rs_disk_search(mr, black_box(q.as_ptr()), 10, ids.as_mut_ptr(), ds.as_mut_ptr())));
         g.finish();
-        ffi::vanedb_cpp_mmap_free(mc);
-        ffi::vanedb_rs_mmap_free(mr);
+        ffi::vanedb_cpp_disk_free(mc);
+        ffi::vanedb_rs_disk_free(mr);
     }
 }
 
@@ -538,7 +538,7 @@ criterion_main!(benches);
 - [ ] **Step 4: Run it**
 
 Run: `cargo bench --bench mmap 2>&1 | tail -15`
-Expected: `mmap_search/cpp`, `/rs` timings; no panics.
+Expected: `disk_search/cpp`, `/rs` timings; no panics.
 
 - [ ] **Step 5: Commit**
 
@@ -603,23 +603,23 @@ fn main() {
 
         // HNSW search + recall@k vs brute-force truth
         let truth = ground_truth::brute_force_topk(&w.vectors, &w.ids, DIM, q, K);
-        let hc = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, 16, 200, 7);
-        let hr = ffi::vanedb_rs_hnsw_new(DIM, 0, N, 16, 200, 7);
+        let hc = ffi::vanedb_cpp_index_new(DIM, 0, N, 16, 200, 7);
+        let hr = ffi::vanedb_rs_index_new(DIM, 0, N, 16, 200, 7);
         for i in 0..N {
-            ffi::vanedb_cpp_hnsw_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr());
-            ffi::vanedb_rs_hnsw_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr());
+            ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr());
+            ffi::vanedb_rs_index_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr());
         }
         let mut ic = [0u64; K]; let mut dc = [0f32; K];
         let mut ir = [0u64; K]; let mut dr = [0f32; K];
-        let nc = ffi::vanedb_cpp_hnsw_search(hc, q.as_ptr(), K, 50, ic.as_mut_ptr(), dc.as_mut_ptr());
-        let nr = ffi::vanedb_rs_hnsw_search(hr, q.as_ptr(), K, 50, ir.as_mut_ptr(), dr.as_mut_ptr());
+        let nc = ffi::vanedb_cpp_index_search(hc, q.as_ptr(), K, 50, ic.as_mut_ptr(), dc.as_mut_ptr());
+        let nr = ffi::vanedb_rs_index_search(hr, q.as_ptr(), K, 50, ir.as_mut_ptr(), dr.as_mut_ptr());
         let rec_c = ground_truth::recall_at_k(&ic[..nc], &truth);
         let rec_r = ground_truth::recall_at_k(&ir[..nr], &truth);
-        let cpp = median_ns(|| { ffi::vanedb_cpp_hnsw_search(hc, q.as_ptr(), K, 50, ic.as_mut_ptr(), dc.as_mut_ptr()); });
-        let rs = median_ns(|| { ffi::vanedb_rs_hnsw_search(hr, q.as_ptr(), K, 50, ir.as_mut_ptr(), dr.as_mut_ptr()); });
-        out.push_str(&format!("| hnsw_search | {cpp} | {rs} | {:.2} |\n", rs as f64 / cpp as f64));
-        ffi::vanedb_cpp_hnsw_free(hc);
-        ffi::vanedb_rs_hnsw_free(hr);
+        let cpp = median_ns(|| { ffi::vanedb_cpp_index_search(hc, q.as_ptr(), K, 50, ic.as_mut_ptr(), dc.as_mut_ptr()); });
+        let rs = median_ns(|| { ffi::vanedb_rs_index_search(hr, q.as_ptr(), K, 50, ir.as_mut_ptr(), dr.as_mut_ptr()); });
+        out.push_str(&format!("| index_search | {cpp} | {rs} | {:.2} |\n", rs as f64 / cpp as f64));
+        ffi::vanedb_cpp_index_free(hc);
+        ffi::vanedb_rs_index_free(hr);
         out.push_str(&format!("\nHNSW recall@{K}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"));
     }
 

@@ -20,26 +20,26 @@ can also be used for vector and batch inputs.
 
 ## Quick start
 
-Use `VectorStore` for exact search, or `HNSWIndex` for approximate search.
+Use `Store` for exact search, or `Index` for approximate search.
 Both return `(id, distance)` pairs, with the nearest results first.
 
 ```python
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from vanedb import DistanceMetric, HNSWIndex, VectorStore
+from vanedb import Metric, Index, Store
 
 ids = [101, 202]
 vectors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
 query = [1.0, 0.0, 0.0]
 
 # Exact cosine-distance search.
-store = VectorStore(3, DistanceMetric.COSINE)
+store = Store(3, Metric.COSINE)
 store.add_batch(ids, vectors)
 assert store.search(query, 1) == [(101, 0.0)]
 
 # Approximate search, with a fixed maximum capacity.
-index = HNSWIndex(3, DistanceMetric.COSINE, capacity=100, seed=42)
+index = Index(3, Metric.COSINE, capacity=100, seed=42)
 index.add_batch(ids, vectors)
 index.ef_search = 100
 hits = index.search(query, 1)
@@ -49,12 +49,12 @@ assert hits == [(101, 0.0)]
 with TemporaryDirectory() as directory:
     path = str(Path(directory) / "index.bin")
     index.save(path)
-    restored = HNSWIndex.load(path)
+    restored = Index.load(path)
     assert restored.search(query, 1) == hits
 ```
 
-Supported metrics are `DistanceMetric.L2` (squared Euclidean distance),
-`DistanceMetric.COSINE`, and `DistanceMetric.DOT` (negative dot product).
+Supported metrics are `Metric.L2` (squared Euclidean distance),
+`Metric.COSINE`, and `Metric.DOT` (negative dot product).
 For each metric, smaller distances rank first. Vectors must match the store or
 index dimension and contain finite values; IDs must be unique unsigned 64-bit
 integers.

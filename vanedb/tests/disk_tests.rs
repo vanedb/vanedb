@@ -1,14 +1,14 @@
-#![cfg(feature = "mmap")]
+#![cfg(feature = "disk")]
 
-use vanedb::{DistanceMetric, MmapVectorStore, MmapVectorStoreBuilder, VectorStore};
+use vanedb::{DiskStore, DiskStoreBuilder, Metric, Store};
 
 #[test]
 fn mmap_matches_brute_force() {
     let dim = 16;
     let path = std::env::temp_dir().join("vanedb_test_mmap_vs_brute.bin");
 
-    let mut builder = MmapVectorStoreBuilder::new(dim, DistanceMetric::L2).unwrap();
-    let brute = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+    let mut builder = DiskStoreBuilder::new(dim, Metric::L2).unwrap();
+    let brute = Store::new(dim, Metric::L2).unwrap();
 
     for i in 0..100u64 {
         let v: Vec<f32> = (0..dim)
@@ -19,7 +19,7 @@ fn mmap_matches_brute_force() {
     }
     builder.save(&path).unwrap();
 
-    let mmap = MmapVectorStore::open(&path).unwrap();
+    let mmap = DiskStore::open(&path).unwrap();
     assert_eq!(mmap.size(), 100);
 
     for q in 0..5u64 {
@@ -42,13 +42,13 @@ fn mmap_matches_brute_force() {
 #[test]
 fn mmap_cosine_search() {
     let path = std::env::temp_dir().join("vanedb_test_mmap_cosine.bin");
-    let mut builder = MmapVectorStoreBuilder::new(3, DistanceMetric::Cosine).unwrap();
+    let mut builder = DiskStoreBuilder::new(3, Metric::Cosine).unwrap();
     builder.add(1, &[1.0, 0.0, 0.0]).unwrap();
     builder.add(2, &[0.0, 1.0, 0.0]).unwrap();
     builder.add(3, &[-1.0, 0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
 
-    let store = MmapVectorStore::open(&path).unwrap();
+    let store = DiskStore::open(&path).unwrap();
     let results = store.search(&[0.9, 0.1, 0.0], 1).unwrap();
     assert_eq!(results[0].id, 1);
 
@@ -63,14 +63,14 @@ fn mmap_concurrent_search() {
     let dim = 8;
     let path = std::env::temp_dir().join("vanedb_test_mmap_concurrent.bin");
 
-    let mut builder = MmapVectorStoreBuilder::new(dim, DistanceMetric::L2).unwrap();
+    let mut builder = DiskStoreBuilder::new(dim, Metric::L2).unwrap();
     for i in 0..50u64 {
         let v: Vec<f32> = (0..dim).map(|d| (i + d as u64) as f32).collect();
         builder.add(i, &v).unwrap();
     }
     builder.save(&path).unwrap();
 
-    let store = Arc::new(MmapVectorStore::open(&path).unwrap());
+    let store = Arc::new(DiskStore::open(&path).unwrap());
 
     let mut handles = vec![];
     for t in 0..10u64 {
@@ -91,5 +91,5 @@ fn mmap_concurrent_search() {
 #[test]
 fn mmap_is_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<MmapVectorStore>();
+    assert_send_sync::<DiskStore>();
 }

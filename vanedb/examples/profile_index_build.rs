@@ -3,7 +3,7 @@
 //! Temporary tool for investigating the 2.5x build gap vs vanedb-cpp
 //! (vanedb-bench#1); not part of the public API surface.
 
-use vanedb::{DistanceMetric, HnswIndex};
+use vanedb::{Index, Metric};
 
 fn splitmix64(state: &mut u64) -> u64 {
     *state = state.wrapping_add(0x9E3779B97F4A7C15);
@@ -29,7 +29,7 @@ fn main() {
     let mut last = None;
     for round in 0..rounds {
         let start = std::time::Instant::now();
-        let idx = HnswIndex::builder(DIM, DistanceMetric::L2)
+        let idx = Index::builder(DIM, Metric::L2)
             .capacity(N)
             .m(16)
             .ef_construction(200)
@@ -50,7 +50,7 @@ fn main() {
         .unwrap_or(50);
     let idx = last.unwrap();
     idx.set_ef_search(ef);
-    let brute = vanedb::VectorStore::new(DIM, DistanceMetric::L2).unwrap();
+    let brute = vanedb::Store::new(DIM, Metric::L2).unwrap();
     for i in 0..N {
         brute
             .add(i as u64, &vectors[i * DIM..(i + 1) * DIM])

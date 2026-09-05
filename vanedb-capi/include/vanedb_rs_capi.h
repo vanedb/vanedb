@@ -8,9 +8,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct VectorStore VectorStore;
-typedef struct HnswIndex HnswIndex;
-typedef struct MmapVectorStore MmapVectorStore;
+typedef struct Store Store;
+typedef struct Index Index;
+typedef struct DiskStore DiskStore;
 
 /* Stored vectors and search queries must contain only finite values. Adds and
  * mmap builds fail with a non-zero return; searches fail with a zero count. */
@@ -43,14 +43,14 @@ float vanedb_rs_dot_product(const float *a, const float *b, uintptr_t dim);
  * Safe to call with any arguments; returns an owning handle (or null on error)
  * that must eventually be freed with `vanedb_rs_store_free`.
  */
-VectorStore *vanedb_rs_store_new(uintptr_t dim, uint32_t metric);
+Store *vanedb_rs_store_new(uintptr_t dim, uint32_t metric);
 
 /**
  * # Safety
  * `s` must be a live handle from `vanedb_rs_store_new` (or null), and
  * `v` must point to at least `dim` valid `f32` values (where `dim` matches the store).
  */
-int32_t vanedb_rs_store_add(VectorStore *s, uint64_t id, const float *v);
+int32_t vanedb_rs_store_add(Store *s, uint64_t id, const float *v);
 
 /**
  * # Safety
@@ -58,17 +58,14 @@ int32_t vanedb_rs_store_add(VectorStore *s, uint64_t id, const float *v);
  * `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
  * All-or-nothing: on error (duplicate id, length mismatch) the store is unchanged.
  */
-int32_t vanedb_rs_store_add_batch(VectorStore *s,
-                                  const uint64_t *ids,
-                                  const float *vecs,
-                                  uintptr_t n);
+int32_t vanedb_rs_store_add_batch(Store *s, const uint64_t *ids, const float *vecs, uintptr_t n);
 
 /**
  * # Safety
  * `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
  * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
  */
-uintptr_t vanedb_rs_store_search(VectorStore *s,
+uintptr_t vanedb_rs_store_search(Store *s,
                                  const float *q,
                                  uintptr_t k,
                                  uint64_t *out_ids,
@@ -79,74 +76,74 @@ uintptr_t vanedb_rs_store_search(VectorStore *s,
  * The handle must have come from `vanedb_rs_store_new` and not been freed already
  * (or be null, which is a no-op).
  */
-void vanedb_rs_store_free(VectorStore *s);
+void vanedb_rs_store_free(Store *s);
 
 /**
  * # Safety
  * Safe to call with any arguments; returns an owning handle (or null on error)
- * that must eventually be freed with `vanedb_rs_hnsw_free`.
+ * that must eventually be freed with `vanedb_rs_index_free`.
  */
-HnswIndex *vanedb_rs_hnsw_new(uintptr_t dim,
-                              uint32_t metric,
-                              uintptr_t capacity,
-                              uintptr_t m,
-                              uintptr_t ef_construction,
-                              uint64_t seed);
+Index *vanedb_rs_index_new(uintptr_t dim,
+                           uint32_t metric,
+                           uintptr_t capacity,
+                           uintptr_t m,
+                           uintptr_t ef_construction,
+                           uint64_t seed);
 
 /**
  * # Safety
- * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null), and
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null), and
  * `v` must point to at least `dim` valid `f32` values (where `dim` matches the index).
  */
-int32_t vanedb_rs_hnsw_add(HnswIndex *h, uint64_t id, const float *v);
+int32_t vanedb_rs_index_add(Index *h, uint64_t id, const float *v);
 
 /**
  * # Safety
- * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `ids` must point to
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `ids` must point to
  * `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
  * All-or-nothing: on error (duplicate id, capacity, length mismatch) the index is unchanged.
  */
-int32_t vanedb_rs_hnsw_add_batch(HnswIndex *h, const uint64_t *ids, const float *vecs, uintptr_t n);
+int32_t vanedb_rs_index_add_batch(Index *h, const uint64_t *ids, const float *vecs, uintptr_t n);
 
 /**
  * # Safety
- * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `q` must point to
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
  * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
  */
-uintptr_t vanedb_rs_hnsw_search(HnswIndex *h,
-                                const float *q,
-                                uintptr_t k,
-                                uintptr_t ef_search,
-                                uint64_t *out_ids,
-                                float *out_dists);
+uintptr_t vanedb_rs_index_search(Index *h,
+                                 const float *q,
+                                 uintptr_t k,
+                                 uintptr_t ef_search,
+                                 uint64_t *out_ids,
+                                 float *out_dists);
 
 /**
  * # Safety
- * `h` must be a live handle from `vanedb_rs_hnsw_new` (or null);
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null);
  * `path` must be a valid NUL-terminated C string.
  */
-int32_t vanedb_rs_hnsw_save(HnswIndex *h, const char *path);
+int32_t vanedb_rs_index_save(Index *h, const char *path);
 
 /**
  * # Safety
  * `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
- * that must be freed with `vanedb_rs_hnsw_free`.
+ * that must be freed with `vanedb_rs_index_free`.
  */
-HnswIndex *vanedb_rs_hnsw_load(const char *path);
+Index *vanedb_rs_index_load(const char *path);
 
 /**
  * # Safety
- * The handle must have come from `vanedb_rs_hnsw_new` or `vanedb_rs_hnsw_load`
+ * The handle must have come from `vanedb_rs_index_new` or `vanedb_rs_index_load`
  * and not been freed already (or be null, which is a no-op).
  */
-void vanedb_rs_hnsw_free(HnswIndex *h);
+void vanedb_rs_index_free(Index *h);
 
 /**
  * # Safety
  * `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s
  * and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
  */
-int32_t vanedb_rs_mmap_build(const char *path,
+int32_t vanedb_rs_disk_build(const char *path,
                              uintptr_t dim,
                              uint32_t metric,
                              const uint64_t *ids,
@@ -156,16 +153,16 @@ int32_t vanedb_rs_mmap_build(const char *path,
 /**
  * # Safety
  * `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
- * that must be freed with `vanedb_rs_mmap_free`.
+ * that must be freed with `vanedb_rs_disk_free`.
  */
-MmapVectorStore *vanedb_rs_mmap_open(const char *path);
+DiskStore *vanedb_rs_disk_open(const char *path);
 
 /**
  * # Safety
- * `m` must be a live handle from `vanedb_rs_mmap_open` (or null); `q` must point to
+ * `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
  * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
  */
-uintptr_t vanedb_rs_mmap_search(MmapVectorStore *m,
+uintptr_t vanedb_rs_disk_search(DiskStore *m,
                                 const float *q,
                                 uintptr_t k,
                                 uint64_t *out_ids,
@@ -173,10 +170,10 @@ uintptr_t vanedb_rs_mmap_search(MmapVectorStore *m,
 
 /**
  * # Safety
- * The handle must have come from `vanedb_rs_mmap_open` and not been freed already
+ * The handle must have come from `vanedb_rs_disk_open` and not been freed already
  * (or be null, which is a no-op).
  */
-void vanedb_rs_mmap_free(MmapVectorStore *m);
+void vanedb_rs_disk_free(DiskStore *m);
 
 #ifdef __cplusplus
 }  // extern "C"

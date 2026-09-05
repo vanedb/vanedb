@@ -6,7 +6,7 @@
 //! zero (returning 1.0 for identical inputs) and large ones overflowed the
 //! product to infinity, returning 1.0 as well (#40).
 
-use vanedb::distance::{distance_fn, DistanceMetric};
+use vanedb::distance::{distance_fn, Metric};
 
 const TOLERANCE: f32 = 1e-5;
 
@@ -37,7 +37,7 @@ fn vectors(scale: f32, relation: &str) -> (Vec<f32>, Vec<f32>) {
 
 #[test]
 fn cosine_distance_matches_the_shared_cases() {
-    let cosine = distance_fn(DistanceMetric::Cosine);
+    let cosine = distance_fn(Metric::Cosine);
     let mut failures = Vec::new();
 
     for (scale, relation, expected) in cases() {
@@ -61,7 +61,7 @@ fn cosine_distance_matches_the_shared_cases() {
 /// the contract, so the two must agree on every shared case.
 #[test]
 fn dispatched_cosine_agrees_with_the_scalar_reference() {
-    let cosine = distance_fn(DistanceMetric::Cosine);
+    let cosine = distance_fn(Metric::Cosine);
     for (scale, relation, _) in cases() {
         let (a, b) = vectors(scale, &relation);
         let dispatched = cosine(&a, &b);
@@ -76,7 +76,7 @@ fn dispatched_cosine_agrees_with_the_scalar_reference() {
 /// Wider vectors exercise the SIMD body rather than only the scalar tail.
 #[test]
 fn cosine_is_scale_invariant_for_simd_width_vectors() {
-    let cosine = distance_fn(DistanceMetric::Cosine);
+    let cosine = distance_fn(Metric::Cosine);
     for scale in [1e-18f32, 1e-4, 1.0, 1e4, 1e15] {
         let a: Vec<f32> = (0..128).map(|i| (i as f32 + 1.0) * scale).collect();
         let got = cosine(&a, &a);
@@ -92,7 +92,7 @@ fn cosine_is_scale_invariant_for_simd_width_vectors() {
 /// non-finite distance into top-k ordering.
 #[test]
 fn cosine_returns_one_when_norms_overflow_rather_than_nan() {
-    let cosine = distance_fn(DistanceMetric::Cosine);
+    let cosine = distance_fn(Metric::Cosine);
     let a: Vec<f32> = vec![1e20; 128];
     let got = cosine(&a, &a);
     assert!(got.is_finite(), "expected a finite distance, got {got}");

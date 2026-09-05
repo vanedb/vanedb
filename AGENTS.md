@@ -8,7 +8,7 @@ benchmark harness, and the shared conformance contract.
 
 | Crate | What it is | Notes |
 |---|---|---|
-| `vanedb` | Core: `VectorStore`, `HnswIndex`, `MmapVectorStore` (feature `mmap`), SIMD distance kernels (NEON/AVX2/scalar) | |
+| `vanedb` | Core: `Store`, `Index`, `DiskStore` (feature `disk`), SIMD distance kernels (NEON/AVX2/scalar) | |
 | `vanedb-py` | PyO3 bindings | **Excluded from workspace CI** — needs libpython; build with maturin |
 | `vanedb-wasm` | wasm-bindgen bindings | needs `wasm32-unknown-unknown` target |
 | `vanedb-capi` | C ABI (`vanedb_rs_*` symbols, metric as u32: 0=L2, 1=Cosine, 2=Dot) | header regenerated with cbindgen |
@@ -23,8 +23,8 @@ These are exactly what CI runs — use the same invocations:
 ```bash
 actionlint
 cargo fmt --all -- --check
-cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap -- -D warnings
-cargo test --workspace --exclude vanedb-py --features mmap
+cargo clippy --workspace --exclude vanedb-py --all-targets --features disk -- -D warnings
+cargo test --workspace --exclude vanedb-py --features disk
 cargo fmt --manifest-path bench/Cargo.toml --all -- --check
 cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path bench/Cargo.toml --locked
@@ -87,7 +87,7 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   Change either only with cross-engine conformance and interleaved benchmarks.
 - **Top-k, not full sorts**: `SearchResult`'s `Ord` tie-breaks on id, which
   makes full sorts slow. Search paths use `select_nth_unstable` + truncate +
-  small sort (see `store/vector_store.rs` and `mmap.rs`) — keep that pattern.
+  small sort (see `store/mod.rs` and `disk.rs`) — keep that pattern.
 - **SIMD kernels** use multi-accumulator unrolling (4 accumulators for l2/dot,
   2-way for cosine) because single-accumulator FMA loops are latency-bound.
   Keep NEON, AVX2, and scalar paths semantically in sync; scalar is the
@@ -112,7 +112,7 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   A-B-A(-B) runs before claiming a regression or a win.
 - Never make performance claims from cloud/CI timings. Benchmarks are meaningful
   only on dedicated hardware.
-- `examples/profile_hnsw_build.rs` builds a 10k×128 index and reports build time
+- `examples/profile_index_build.rs` builds a 10k×128 index and reports build time
   + recall@10 — the quick profiling loop for graph-construction changes.
 
 ## Conventions

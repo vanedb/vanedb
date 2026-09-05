@@ -18,7 +18,7 @@ extern "C" {
     ) -> usize;
     pub fn vanedb_cpp_store_free(s: *mut std::ffi::c_void);
 
-    pub fn vanedb_cpp_hnsw_new(
+    pub fn vanedb_cpp_index_new(
         dim: usize,
         metric: u32,
         capacity: usize,
@@ -26,8 +26,8 @@ extern "C" {
         ef_construction: usize,
         seed: u64,
     ) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_hnsw_add(h: *mut std::ffi::c_void, id: u64, v: *const f32) -> i32;
-    pub fn vanedb_cpp_hnsw_search(
+    pub fn vanedb_cpp_index_add(h: *mut std::ffi::c_void, id: u64, v: *const f32) -> i32;
+    pub fn vanedb_cpp_index_search(
         h: *mut std::ffi::c_void,
         q: *const f32,
         k: usize,
@@ -35,11 +35,11 @@ extern "C" {
         out_ids: *mut u64,
         out_dists: *mut f32,
     ) -> usize;
-    pub fn vanedb_cpp_hnsw_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
-    pub fn vanedb_cpp_hnsw_load(path: *const c_char) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_hnsw_free(h: *mut std::ffi::c_void);
+    pub fn vanedb_cpp_index_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
+    pub fn vanedb_cpp_index_load(path: *const c_char) -> *mut std::ffi::c_void;
+    pub fn vanedb_cpp_index_free(h: *mut std::ffi::c_void);
 
-    pub fn vanedb_cpp_mmap_build(
+    pub fn vanedb_cpp_disk_build(
         path: *const c_char,
         dim: usize,
         metric: u32,
@@ -47,22 +47,22 @@ extern "C" {
         vecs: *const f32,
         n: usize,
     ) -> i32;
-    pub fn vanedb_cpp_mmap_open(path: *const c_char) -> *mut std::ffi::c_void;
-    pub fn vanedb_cpp_mmap_search(
+    pub fn vanedb_cpp_disk_open(path: *const c_char) -> *mut std::ffi::c_void;
+    pub fn vanedb_cpp_disk_search(
         m: *mut std::ffi::c_void,
         q: *const f32,
         k: usize,
         out_ids: *mut u64,
         out_dists: *mut f32,
     ) -> usize;
-    pub fn vanedb_cpp_mmap_free(m: *mut std::ffi::c_void);
+    pub fn vanedb_cpp_disk_free(m: *mut std::ffi::c_void);
 }
 
 // --- Rust side: re-exported from the vanedb-capi crate (same #[no_mangle] symbols) ---
 pub use vanedb_capi::{
-    vanedb_rs_cosine_distance, vanedb_rs_dot_product, vanedb_rs_hnsw_add, vanedb_rs_hnsw_free,
-    vanedb_rs_hnsw_load, vanedb_rs_hnsw_new, vanedb_rs_hnsw_save, vanedb_rs_hnsw_search,
-    vanedb_rs_l2_sq, vanedb_rs_mmap_build, vanedb_rs_mmap_free, vanedb_rs_mmap_open,
-    vanedb_rs_mmap_search, vanedb_rs_store_add, vanedb_rs_store_free, vanedb_rs_store_new,
+    vanedb_rs_cosine_distance, vanedb_rs_disk_build, vanedb_rs_disk_free, vanedb_rs_disk_open,
+    vanedb_rs_disk_search, vanedb_rs_dot_product, vanedb_rs_index_add, vanedb_rs_index_free,
+    vanedb_rs_index_load, vanedb_rs_index_new, vanedb_rs_index_save, vanedb_rs_index_search,
+    vanedb_rs_l2_sq, vanedb_rs_store_add, vanedb_rs_store_free, vanedb_rs_store_new,
     vanedb_rs_store_search,
 };

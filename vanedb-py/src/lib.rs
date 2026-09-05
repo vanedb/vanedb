@@ -2,9 +2,9 @@ use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
-use ::vanedb::distance::DistanceMetric;
-use ::vanedb::hnsw::HnswIndex;
-use ::vanedb::store::VectorStore;
+use ::vanedb::distance::Metric;
+use ::vanedb::index::Index;
+use ::vanedb::store::Store;
 use ::vanedb::VaneError;
 
 fn to_pyerr(e: VaneError) -> PyErr {
@@ -124,9 +124,9 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 /// which are imported in this file. It is an implementation detail: the names
 /// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
 /// import-line change.
-#[pyclass(name = "DistanceMetric", eq, eq_int, from_py_object)]
+#[pyclass(name = "Metric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
-enum PyDistanceMetric {
+enum PyMetric {
     L2 = 0,
     #[pyo3(name = "COSINE")]
     Cosine = 1,
@@ -134,28 +134,28 @@ enum PyDistanceMetric {
     Dot = 2,
 }
 
-impl From<PyDistanceMetric> for DistanceMetric {
-    fn from(m: PyDistanceMetric) -> Self {
+impl From<PyMetric> for Metric {
+    fn from(m: PyMetric) -> Self {
         match m {
-            PyDistanceMetric::L2 => DistanceMetric::L2,
-            PyDistanceMetric::Cosine => DistanceMetric::Cosine,
-            PyDistanceMetric::Dot => DistanceMetric::Dot,
+            PyMetric::L2 => Metric::L2,
+            PyMetric::Cosine => Metric::Cosine,
+            PyMetric::Dot => Metric::Dot,
         }
     }
 }
 
 /// Brute-force vector store with thread-safe k-NN search.
-#[pyclass(name = "VectorStore")]
-struct PyVectorStore {
-    inner: VectorStore,
+#[pyclass(name = "Store")]
+struct PyStore {
+    inner: Store,
 }
 
 #[pymethods]
-impl PyVectorStore {
+impl PyStore {
     #[new]
-    #[pyo3(signature = (dim, metric=PyDistanceMetric::L2))]
-    fn new(dim: usize, metric: PyDistanceMetric) -> PyResult<Self> {
-        let inner = VectorStore::new(dim, metric.into()).map_err(to_pyerr)?;
+    #[pyo3(signature = (dim, metric=PyMetric::L2))]
+    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+        let inner = Store::new(dim, metric.into()).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -225,24 +225,24 @@ impl PyVectorStore {
 }
 
 /// HNSW approximate nearest-neighbor index.
-#[pyclass(name = "HNSWIndex")]
-struct PyHnswIndex {
-    inner: HnswIndex,
+#[pyclass(name = "Index")]
+struct PyIndex {
+    inner: Index,
 }
 
 #[pymethods]
-impl PyHnswIndex {
+impl PyIndex {
     #[new]
-    #[pyo3(signature = (dim, metric=PyDistanceMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
+    #[pyo3(signature = (dim, metric=PyMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
     fn new(
         dim: usize,
-        metric: PyDistanceMetric,
+        metric: PyMetric,
         capacity: usize,
         m: usize,
         ef_construction: usize,
         seed: u64,
     ) -> PyResult<Self> {
-        let inner = HnswIndex::builder(dim, metric.into())
+        let inner = Index::builder(dim, metric.into())
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)
@@ -300,7 +300,7 @@ impl PyHnswIndex {
 
     #[staticmethod]
     fn load(path: &str) -> PyResult<Self> {
-        let inner = HnswIndex::load(path).map_err(to_pyerr)?;
+        let inner = Index::load(path).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -318,7 +318,7 @@ impl PyHnswIndex {
         self.inner.size()
     }
 
-    /// Number of vectors in the graph. See `VectorStore.size`.
+    /// Number of vectors in the graph. See `Store.size`.
     fn size(&self) -> usize {
         self.inner.size()
     }
@@ -340,15 +340,12 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // disagreed with the wheel's own metadata the first time the
     // version moved.
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add_class::<PyDistanceMetric>()?;
-    m.add_class::<PyVectorStore>()?;
-    m.add_class::<PyHnswIndex>()?;
+    m.add_class::<PyMetric>()?;
+    m.add_class::<PyStore>()?;
+    m.add_class::<PyIndex>()?;
     // maturin's generated __init__ does `from .vanedb import *` and copies
     // __all__ verbatim, so this list is the package's entire public surface --
     // omitting __version__ here removes it from the package altogether.
-    m.add(
-        "__all__",
-        vec!["DistanceMetric", "VectorStore", "HNSWIndex", "__version__"],
-    )?;
+    m.add("__all__", vec!["Metric", "Store", "Index", "__version__"])?;
     Ok(())
 }

@@ -1,5 +1,5 @@
-#include "core/hnsw_index.h"
-#include "core/vector_store.h"
+#include "core/index.h"
+#include "core/store.h"
 #include <benchmark/benchmark.h>
 #include <random>
 #include <vector>
@@ -45,7 +45,7 @@ static void BM_HNSW_Insert(benchmark::State& state) {
   for (auto _ : state) {
     state.PauseTiming();
     RandomData data(dim, count);
-    vanedb::HNSWIndex index(dim, vanedb::DistanceMetric::L2, count);
+    vanedb::Index index(dim, vanedb::Metric::L2, count);
     state.ResumeTiming();
 
     for (size_t i = 0; i < count; ++i) {
@@ -71,7 +71,7 @@ static void BM_HNSW_Search(benchmark::State& state) {
 
   // Build index once
   RandomData data(dim, count);
-  vanedb::HNSWIndex index(dim, vanedb::DistanceMetric::L2, count, 16, 200);
+  vanedb::Index index(dim, vanedb::Metric::L2, count, 16, 200);
   for (size_t i = 0; i < count; ++i) {
     index.add(i, data.vector(i));
   }
@@ -101,7 +101,7 @@ static void BM_BruteForce_Search(benchmark::State& state) {
 
   // Build index once
   RandomData data(dim, count);
-  vanedb::VectorStore store(dim, vanedb::DistanceMetric::L2);
+  vanedb::Store store(dim, vanedb::Metric::L2);
   for (size_t i = 0; i < count; ++i) {
     store.add(i, data.vector(i));
   }
@@ -130,7 +130,7 @@ static void BM_HNSW_Search_VaryingN(benchmark::State& state) {
 
   // Build index once
   RandomData data(dim, count);
-  vanedb::HNSWIndex index(dim, vanedb::DistanceMetric::L2, count, 16, 200);
+  vanedb::Index index(dim, vanedb::Metric::L2, count, 16, 200);
   for (size_t i = 0; i < count; ++i) {
     index.add(i, data.vector(i));
   }
@@ -161,7 +161,7 @@ static void BM_HNSW_Search_Dimension(benchmark::State& state) {
 
   // Build index once
   RandomData data(dim, count);
-  vanedb::HNSWIndex index(dim, vanedb::DistanceMetric::L2, count, 16, 200);
+  vanedb::Index index(dim, vanedb::Metric::L2, count, 16, 200);
   for (size_t i = 0; i < count; ++i) {
     index.add(i, data.vector(i));
   }

@@ -132,22 +132,22 @@ target_compile_options(test_distance PRIVATE
 )
 target_link_options(test_distance PRIVATE ${COVERAGE_LINK_FLAGS})
 
-add_executable(test_vector_store tests/test_vector_store.cpp)
-target_link_libraries(test_vector_store PRIVATE vanedb Catch2::Catch2WithMain)
-target_compile_options(test_vector_store PRIVATE
+add_executable(test_store tests/test_store.cpp)
+target_link_libraries(test_store PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_options(test_store PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   ${COVERAGE_COMPILE_FLAGS}
 )
-target_link_options(test_vector_store PRIVATE ${COVERAGE_LINK_FLAGS})
+target_link_options(test_store PRIVATE ${COVERAGE_LINK_FLAGS})
 
-add_executable(test_hnsw_index tests/test_hnsw_index.cpp)
-target_link_libraries(test_hnsw_index PRIVATE vanedb Catch2::Catch2WithMain)
-target_compile_options(test_hnsw_index PRIVATE
+add_executable(test_index tests/test_index.cpp)
+target_link_libraries(test_index PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_options(test_index PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
   $<$<AND:$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<BOOL:${VANEDB_X86_64}>>:-mavx2 -mfma>
   ${COVERAGE_COMPILE_FLAGS}
 )
-target_link_options(test_hnsw_index PRIVATE ${COVERAGE_LINK_FLAGS})
+target_link_options(test_index PRIVATE ${COVERAGE_LINK_FLAGS})
 
 add_executable(test_distance_strategy tests/test_distance_strategy.cpp)
 target_link_libraries(test_distance_strategy PRIVATE vanedb Catch2::Catch2WithMain)
@@ -157,16 +157,16 @@ target_compile_options(test_distance_strategy PRIVATE
 )
 target_link_options(test_distance_strategy PRIVATE ${COVERAGE_LINK_FLAGS})
 
-add_executable(test_hnsw_id_map_conformance tests/test_hnsw_id_map_conformance.cpp)
-target_link_libraries(test_hnsw_id_map_conformance PRIVATE vanedb Catch2::Catch2WithMain)
-target_compile_definitions(test_hnsw_id_map_conformance PRIVATE
+add_executable(test_index_id_map_conformance tests/test_index_id_map_conformance.cpp)
+target_link_libraries(test_index_id_map_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_index_id_map_conformance PRIVATE
   VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
 )
-target_compile_options(test_hnsw_id_map_conformance PRIVATE
+target_compile_options(test_index_id_map_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   ${COVERAGE_COMPILE_FLAGS}
 )
-target_link_options(test_hnsw_id_map_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
+target_link_options(test_index_id_map_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
 add_executable(test_cosine_conformance tests/test_cosine_conformance.cpp)
 target_link_libraries(test_cosine_conformance PRIVATE vanedb Catch2::Catch2WithMain)
@@ -180,13 +180,13 @@ target_compile_options(test_cosine_conformance PRIVATE
 )
 target_link_options(test_cosine_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
-add_executable(test_mmap_vector_store tests/test_mmap_vector_store.cpp)
-target_link_libraries(test_mmap_vector_store PRIVATE vanedb Catch2::Catch2WithMain)
-target_compile_options(test_mmap_vector_store PRIVATE
+add_executable(test_disk_store tests/test_disk_store.cpp)
+target_link_libraries(test_disk_store PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_options(test_disk_store PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   ${COVERAGE_COMPILE_FLAGS}
 )
-target_link_options(test_mmap_vector_store PRIVATE ${COVERAGE_LINK_FLAGS})
+target_link_options(test_disk_store PRIVATE ${COVERAGE_LINK_FLAGS})
 
 add_executable(test_non_finite_conformance tests/test_non_finite_conformance.cpp)
 target_link_libraries(test_non_finite_conformance PRIVATE vanedb Catch2::Catch2WithMain)
@@ -199,16 +199,16 @@ target_compile_options(test_non_finite_conformance PRIVATE
 )
 target_link_options(test_non_finite_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
-add_executable(test_hnsw_derived_size_conformance tests/test_hnsw_derived_size_conformance.cpp)
-target_link_libraries(test_hnsw_derived_size_conformance PRIVATE vanedb Catch2::Catch2WithMain)
-target_compile_definitions(test_hnsw_derived_size_conformance PRIVATE
+add_executable(test_index_derived_size_conformance tests/test_index_derived_size_conformance.cpp)
+target_link_libraries(test_index_derived_size_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_index_derived_size_conformance PRIVATE
   VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
 )
-target_compile_options(test_hnsw_derived_size_conformance PRIVATE
+target_compile_options(test_index_derived_size_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
   ${COVERAGE_COMPILE_FLAGS}
 )
-target_link_options(test_hnsw_derived_size_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
+target_link_options(test_index_derived_size_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
 include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
@@ -229,14 +229,14 @@ vanedb_use_runtime_dispatch(test_runtime_distance)
 catch_discover_tests(test_runtime_distance TEST_PREFIX "runtime/")
 
 catch_discover_tests(test_distance)
-catch_discover_tests(test_vector_store)
-catch_discover_tests(test_hnsw_index)
+catch_discover_tests(test_store)
+catch_discover_tests(test_index)
 catch_discover_tests(test_distance_strategy)
-catch_discover_tests(test_mmap_vector_store)
+catch_discover_tests(test_disk_store)
 catch_discover_tests(test_cosine_conformance)
-catch_discover_tests(test_hnsw_id_map_conformance)
+catch_discover_tests(test_index_id_map_conformance)
 catch_discover_tests(test_non_finite_conformance)
-catch_discover_tests(test_hnsw_derived_size_conformance)
+catch_discover_tests(test_index_derived_size_conformance)
 endif() # VANEDB_BUILD_TESTS
 
 # Examples

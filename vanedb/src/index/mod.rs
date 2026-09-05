@@ -9,7 +9,7 @@ use parking_lot::RwLock;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use crate::distance::{distance_fn, DistanceFn, DistanceMetric};
+use crate::distance::{distance_fn, DistanceFn, Metric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 use crate::validation::{compare_distances, validate_finite};
@@ -20,11 +20,11 @@ mod persistence;
 // the epoch is bumped each `search_layer` call, so the per-search work stays
 // O(visited) instead of O(N) (which a fresh-bitmap-per-call or HashSet
 // becomes at scale). On the rare epoch wrap (every 65k searches with u16
-// the buffer is reset once. Buffer is shared across HnswIndex instances on
+// the buffer is reset once. Buffer is shared across Index instances on
 // a thread (monotonic epoch keeps cross-index marks distinct) and is
 // retained across calls so we pay the allocation cost at most once.
 //
-// Mirrors the optimization in vanedb-cpp src/core/hnsw_index.h.
+// Mirrors the optimization in vanedb-cpp src/core/index.h.
 thread_local! {
     static VISITED: RefCell<VisitedBuffer> = const { RefCell::new(VisitedBuffer::new()) };
 }
@@ -50,12 +50,11 @@ impl VisitedBuffer {
         }
         self.epoch = self.epoch.wrapping_add(1);
         if self.epoch == 0 {
-            // Wrap: zero the active range so stale marks can't masquerade as
-            // current. uint16 wraps every 65536 searches, frequently enough
-            // that a real test exercises this path.
-            for m in self.marks.iter_mut().take(total) {
-                *m = 0;
-            }
+            // Wrap: zero the whole buffer, not just the active range. It is
+            // shared across every Index on this thread and never shrunk, so
+            // marks above `total` belong to some larger index and would be
+            // read as current once the epoch climbs past them again.
+            self.marks.fill(0);
             self.epoch = 1;
         }
         self.epoch
@@ -102,14 +101,14 @@ const MIN_LEVEL_RANDOM: f64 = 1e-9;
 /// Search is sub-linear in the corpus, at the cost of occasionally missing a
 /// true neighbour. Recall is traded against speed at query time with
 /// [`set_ef_search`](Self::set_ef_search) and at build time with
-/// [`m`](HnswIndexBuilder::m) and
-/// [`ef_construction`](HnswIndexBuilder::ef_construction).
+/// [`m`](IndexBuilder::m) and
+/// [`ef_construction`](IndexBuilder::ef_construction).
 ///
-/// Built through [`HnswIndex::builder`]. Mutating methods take `&self`; the
+/// Built through [`Index::builder`]. Mutating methods take `&self`; the
 /// index is internally synchronised.
-pub struct HnswIndex {
+pub struct Index {
     pub(super) dim: usize,
-    pub(super) metric: DistanceMetric,
+    pub(super) metric: Metric,
     pub(super) dist_fn: DistanceFn,
     pub(super) max_elements: usize,
     pub(super) m: usize,
@@ -136,23 +135,23 @@ pub(super) struct Inner {
     pub(super) rng: StdRng,
 }
 
-/// Configures an [`HnswIndex`] before construction.
+/// Configures an [`Index`] before construction.
 ///
 /// Capacity is fixed once built, because the graph's storage is allocated up
 /// front.
-pub struct HnswIndexBuilder {
+pub struct IndexBuilder {
     dim: usize,
-    metric: DistanceMetric,
+    metric: Metric,
     capacity: usize,
     m: usize,
     ef_construction: usize,
     seed: u64,
 }
 
-impl HnswIndex {
+impl Index {
     /// Starts configuring an index over vectors of `dim` components.
-    pub fn builder(dim: usize, metric: DistanceMetric) -> HnswIndexBuilder {
-        HnswIndexBuilder {
+    pub fn builder(dim: usize, metric: Metric) -> IndexBuilder {
+        IndexBuilder {
             dim,
             metric,
             capacity: 100_000,
@@ -184,7 +183,7 @@ impl HnswIndex {
     }
 
     /// The metric this index ranks by.
-    pub fn metric(&self) -> DistanceMetric {
+    pub fn metric(&self) -> Metric {
         self.metric
     }
 
@@ -449,9 +448,12 @@ impl HnswIndex {
             inner.count,
         );
 
+        // Sort the whole candidate set before cutting to k: `SearchResult`'s
+        // Ord tie-breaks on id, and truncating first would pick among equal
+        // distances in heap order instead. vanedb-cpp sorts then takes k for
+        // the same reason.
         let mut results: Vec<SearchResult> = top
             .into_iter()
-            .take(k)
             .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
             .collect();
         results.sort();
@@ -610,7 +612,7 @@ impl HnswIndex {
     }
 }
 
-impl HnswIndexBuilder {
+impl IndexBuilder {
     /// Vectors the index will be able to hold. Fixed once built.
     pub fn capacity(mut self, cap: usize) -> Self {
         self.capacity = cap;
@@ -639,7 +641,7 @@ impl HnswIndexBuilder {
     }
 
     /// Allocates the graph and returns the index.
-    pub fn build(self) -> Result<HnswIndex> {
+    pub fn build(self) -> Result<Index> {
         if self.dim == 0 {
             return Err(VaneError::EmptyVector);
         }
@@ -675,7 +677,7 @@ impl HnswIndexBuilder {
             .map_err(|_| VaneError::InvalidParameter("capacity is too large to allocate"))?;
         vectors.resize(vector_len, 0.0);
 
-        Ok(HnswIndex {
+        Ok(Index {
             dim: self.dim,
             metric: self.metric,
             dist_fn: distance_fn(self.metric),
@@ -708,9 +710,7 @@ mod tests {
 
     #[test]
     fn builder_defaults() {
-        let idx = HnswIndex::builder(128, DistanceMetric::Cosine)
-            .build()
-            .unwrap();
+        let idx = Index::builder(128, Metric::Cosine).build().unwrap();
         assert_eq!(idx.dimension(), 128);
         assert_eq!(idx.capacity(), 100_000);
         assert!(idx.is_empty());
@@ -720,7 +720,7 @@ mod tests {
 
     #[test]
     fn builder_custom_params() {
-        let idx = HnswIndex::builder(64, DistanceMetric::L2)
+        let idx = Index::builder(64, Metric::L2)
             .capacity(1000)
             .m(32)
             .ef_construction(400)
@@ -732,38 +732,29 @@ mod tests {
 
     #[test]
     fn builder_rejects_zero_dim() {
-        assert!(HnswIndex::builder(0, DistanceMetric::L2).build().is_err());
+        assert!(Index::builder(0, Metric::L2).build().is_err());
     }
 
     #[test]
     fn builder_rejects_zero_capacity() {
-        assert!(HnswIndex::builder(64, DistanceMetric::L2)
-            .capacity(0)
-            .build()
-            .is_err());
+        assert!(Index::builder(64, Metric::L2).capacity(0).build().is_err());
     }
 
     #[test]
     fn builder_rejects_m_below_2() {
-        assert!(HnswIndex::builder(64, DistanceMetric::L2)
-            .m(1)
-            .build()
-            .is_err());
+        assert!(Index::builder(64, Metric::L2).m(1).build().is_err());
     }
 
     #[test]
     fn set_ef_search() {
-        let idx = HnswIndex::builder(64, DistanceMetric::L2).build().unwrap();
+        let idx = Index::builder(64, Metric::L2).build().unwrap();
         idx.set_ef_search(100);
         assert_eq!(idx.get_ef_search(), 100);
     }
 
     #[test]
     fn add_single_vector() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert_eq!(idx.size(), 1);
         assert!(idx.contains(1));
@@ -772,10 +763,7 @@ mod tests {
 
     #[test]
     fn add_multiple_vectors() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         for i in 0..50u64 {
             idx.add(i, &[i as f32, 0.0, 0.0]).unwrap();
         }
@@ -787,29 +775,20 @@ mod tests {
 
     #[test]
     fn add_rejects_duplicate() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(idx.add(1, &[4.0, 5.0, 6.0]).is_err());
     }
 
     #[test]
     fn add_rejects_wrong_dim() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         assert!(idx.add(1, &[1.0, 2.0]).is_err());
     }
 
     #[test]
     fn add_rejects_when_full() {
-        let idx = HnswIndex::builder(2, DistanceMetric::L2)
-            .capacity(2)
-            .build()
-            .unwrap();
+        let idx = Index::builder(2, Metric::L2).capacity(2).build().unwrap();
         idx.add(0, &[0.0, 0.0]).unwrap();
         idx.add(1, &[1.0, 1.0]).unwrap();
         assert!(matches!(idx.add(2, &[2.0, 2.0]), Err(VaneError::IndexFull)));
@@ -817,7 +796,7 @@ mod tests {
 
     #[test]
     fn search_finds_exact_match() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
+        let idx = Index::builder(3, Metric::L2)
             .capacity(100)
             .seed(42)
             .build()
@@ -833,7 +812,7 @@ mod tests {
 
     #[test]
     fn search_returns_k_results() {
-        let idx = HnswIndex::builder(2, DistanceMetric::L2)
+        let idx = Index::builder(2, Metric::L2)
             .capacity(100)
             .seed(42)
             .build()
@@ -847,20 +826,14 @@ mod tests {
 
     #[test]
     fn search_empty_index() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         let results = idx.search(&[1.0, 2.0, 3.0], 5).unwrap();
         assert!(results.is_empty());
     }
 
     #[test]
     fn search_wrong_dimension() {
-        let idx = HnswIndex::builder(3, DistanceMetric::L2)
-            .capacity(100)
-            .build()
-            .unwrap();
+        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
         assert!(idx.search(&[1.0, 2.0], 5).is_err());
     }
 }

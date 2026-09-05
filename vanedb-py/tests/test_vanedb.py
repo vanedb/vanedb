@@ -17,10 +17,10 @@ def test_version():
     assert Version(vanedb.__version__) == Version(version("vanedb"))
 
 
-# --- VectorStore ---
+# --- Store ---
 
 def test_vector_store_basic():
-    store = vanedb.VectorStore(3)
+    store = vanedb.Store(3)
     store.add(1, [1.0, 2.0, 3.0])
     store.add(2, [4.0, 5.0, 6.0])
     assert len(store) == 2
@@ -30,13 +30,13 @@ def test_vector_store_basic():
 
 
 def test_vector_store_get():
-    store = vanedb.VectorStore(3)
+    store = vanedb.Store(3)
     store.add(1, [1.0, 2.0, 3.0])
     assert store.get(1) == [1.0, 2.0, 3.0]
 
 
 def test_vector_store_search():
-    store = vanedb.VectorStore(2)
+    store = vanedb.Store(2)
     store.add(1, [0.0, 0.0])
     store.add(2, [1.0, 0.0])
     store.add(3, [10.0, 10.0])
@@ -46,7 +46,7 @@ def test_vector_store_search():
 
 
 def test_vector_store_cosine():
-    store = vanedb.VectorStore(2, vanedb.DistanceMetric.COSINE)
+    store = vanedb.Store(2, vanedb.Metric.COSINE)
     store.add(1, [1.0, 0.0])
     store.add(2, [0.0, 1.0])
     results = store.search([0.9, 0.1], 1)
@@ -54,7 +54,7 @@ def test_vector_store_cosine():
 
 
 def test_vector_store_remove():
-    store = vanedb.VectorStore(2)
+    store = vanedb.Store(2)
     store.add(1, [1.0, 2.0])
     store.add(2, [3.0, 4.0])
     store.remove(1)
@@ -64,7 +64,7 @@ def test_vector_store_remove():
 
 
 def test_vector_store_errors():
-    store = vanedb.VectorStore(3)
+    store = vanedb.Store(3)
     try:
         store.add(1, [1.0, 2.0])  # wrong dim
         assert False, "Should have raised"
@@ -79,10 +79,10 @@ def test_vector_store_errors():
         pass
 
 
-# --- HnswIndex ---
+# --- Index ---
 
 def test_hnsw_basic():
-    idx = vanedb.HNSWIndex(3, capacity=100)
+    idx = vanedb.Index(3, capacity=100)
     idx.add(1, [1.0, 0.0, 0.0])
     idx.add(2, [0.0, 1.0, 0.0])
     assert len(idx) == 2
@@ -92,7 +92,7 @@ def test_hnsw_basic():
 
 
 def test_hnsw_search():
-    idx = vanedb.HNSWIndex(3, capacity=100)
+    idx = vanedb.Index(3, capacity=100)
     idx.add(1, [0.0, 0.0, 0.0])
     idx.add(2, [10.0, 10.0, 10.0])
     results = idx.search([0.0, 0.0, 0.0], 1)
@@ -105,12 +105,12 @@ def test_hnsw_save_load():
         path = f.name
 
     try:
-        idx = vanedb.HNSWIndex(4, capacity=100, seed=42)
+        idx = vanedb.Index(4, capacity=100, seed=42)
         for i in range(20):
             idx.add(i, [float(i)] * 4)
         idx.save(path)
 
-        loaded = vanedb.HNSWIndex.load(path)
+        loaded = vanedb.Index.load(path)
         assert len(loaded) == 20
         assert loaded.get_vector(5) == [5.0, 5.0, 5.0, 5.0]
 
@@ -123,14 +123,14 @@ def test_hnsw_save_load():
 
 
 def test_hnsw_ef_search():
-    idx = vanedb.HNSWIndex(3, capacity=100)
+    idx = vanedb.Index(3, capacity=100)
     assert idx.ef_search == 50  # default
     idx.ef_search = 200
     assert idx.ef_search == 200
 
 
 def test_hnsw_errors():
-    idx = vanedb.HNSWIndex(3, capacity=2)
+    idx = vanedb.Index(3, capacity=2)
     idx.add(0, [0.0, 0.0, 0.0])
     idx.add(1, [1.0, 1.0, 1.0])
     try:
@@ -142,7 +142,7 @@ def test_hnsw_errors():
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
 def test_non_finite_vectors_and_queries_are_rejected(value):
-    store = vanedb.VectorStore(2)
+    store = vanedb.Store(2)
     with pytest.raises(ValueError, match="finite"):
         store.add(1, [value, 0.0])
     assert len(store) == 0
@@ -151,7 +151,7 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
     with pytest.raises(ValueError, match="finite"):
         store.search([value, 0.0], 1)
 
-    index = vanedb.HNSWIndex(2, capacity=4)
+    index = vanedb.Index(2, capacity=4)
     with pytest.raises(ValueError, match="finite"):
         index.add(1, [value, 0.0])
     assert len(index) == 0
@@ -159,8 +159,8 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
 
 def test_count_spellings_agree():
     """Both engines must answer "how many vectors?" the same way (#85)."""
-    store = vanedb.VectorStore(2)
-    index = vanedb.HNSWIndex(2, capacity=10)
+    store = vanedb.Store(2)
+    index = vanedb.Index(2, capacity=10)
     for i, v in enumerate([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]):
         store.add(i, v)
         index.add(i, v)
@@ -176,9 +176,9 @@ def test_public_surface_is_declared():
     from this list deleted vanedb.__version__ outright.
     """
     assert set(vanedb.__all__) == {
-        "DistanceMetric",
-        "VectorStore",
-        "HNSWIndex",
+        "Metric",
+        "Store",
+        "Index",
         "__version__",
     }
     for name in vanedb.__all__:

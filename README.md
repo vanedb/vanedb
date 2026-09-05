@@ -8,9 +8,9 @@ implementations maintained under one contract.
 ### Rust
 
 ```rust
-use vanedb::{DistanceMetric, HnswIndex};
+use vanedb::{Metric, Index};
 
-let index = HnswIndex::builder(768, DistanceMetric::Cosine)
+let index = Index::builder(768, Metric::Cosine)
     .capacity(100_000)
     .build()?;
 index.add(1, &embedding)?;             // single insert
@@ -24,7 +24,7 @@ let hits = index.search(&query, 10)?;
 import numpy as np
 import vanedb
 
-index = vanedb.HNSWIndex(768, vanedb.DistanceMetric.COSINE, capacity=100_000)
+index = vanedb.Index(768, vanedb.Metric.COSINE, capacity=100_000)
 vecs = np.asarray(embeddings, dtype=np.float32)  # shape (n, 768)
 index.add_batch(np.arange(len(vecs), dtype=np.uint64), vecs)
 hits = index.search(vecs[0], 10)  # [(id, distance), ...]
@@ -35,6 +35,35 @@ Vector arguments accept any buffer-protocol object (numpy `float32` arrays,
 all-or-nothing and releases the GIL while the index builds. The same batch
 API is exposed in the wasm bindings (`Float32Array`/`BigUint64Array`) and
 the C ABI (`vanedb_rs_*_add_batch`).
+
+## API
+
+Three ways to hold vectors. All answer the same question — which stored
+vectors are nearest this query — and differ in where the data lives and
+whether the answer is exact.
+
+| Type | Data lives | Exact | Use it when |
+|---|---|---|---|
+| `Store` | memory | yes | the corpus is small, or you need exact results |
+| `Index` | memory | no | search must stay fast as the corpus grows |
+| `DiskStore` | a file, paged in on demand | yes | the corpus is larger than RAM |
+
+`Store` and `DiskStore` scan every vector, so cost grows linearly. `Index`
+searches a graph instead: sub-linear, and it can miss a true neighbour.
+`ef_search` trades that recall against speed per query; `m` and
+`ef_construction` set the graph's quality at build time.
+
+Every type takes a `Metric` (`L2`, cosine, or dot) and returns results
+nearest first. Only `Index` persists, with `save`/`load`. `DiskStore` is
+written by `DiskStoreBuilder` and then opened read-only; `Store` is in-memory
+only and is rebuilt on each run.
+
+`Index` allocates its full `capacity` up front, so size it to the corpus:
+100k x 768 floats reserves roughly 300 MB before the first insert.
+
+The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
+Python and JavaScript packages use `Metric.COSINE`. Type names are identical
+in every binding, so switching engines is an import change.
 
 ## Repository layout
 

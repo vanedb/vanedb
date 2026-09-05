@@ -18,13 +18,13 @@ const RS_FILE: &str = "bench_rs.mmap";
 const CPP_BUILD_FILE: &str = "bench_cpp_build.mmap";
 const RS_BUILD_FILE: &str = "bench_rs_build.mmap";
 
-/// Both engines' `mmap_build` share this signature. The indirect call costs
+/// Both engines' `disk_build` share this signature. The indirect call costs
 /// nanoseconds against a multi-megabyte write.
 type MmapBuildFn =
     unsafe extern "C" fn(*const c_char, usize, u32, *const u64, *const f32, usize) -> i32;
 
 /// # Safety
-/// `build` must be one of the two engines' `mmap_build` entry points.
+/// `build` must be one of the two engines' `disk_build` entry points.
 unsafe fn build_into(build: MmapBuildFn, path: &CString, w: &workloads::Workload) -> i32 {
     build(path.as_ptr(), DIM, 0, w.ids.as_ptr(), w.vectors.as_ptr(), N)
 }
@@ -42,14 +42,14 @@ fn bench_mmap(c: &mut Criterion) {
         // build/open (e.g. read-only cwd) must fail loudly, not benchmark a
         // null handle as infinitely fast.
         assert_eq!(
-            build_into(ffi::vanedb_cpp_mmap_build, &cpp_path, &w),
+            build_into(ffi::vanedb_cpp_disk_build, &cpp_path, &w),
             0,
-            "cpp mmap_build failed"
+            "cpp disk_build failed"
         );
         assert_eq!(
-            build_into(ffi::vanedb_rs_mmap_build, &rs_path, &w),
+            build_into(ffi::vanedb_rs_disk_build, &rs_path, &w),
             0,
-            "rs mmap_build failed"
+            "rs disk_build failed"
         );
 
         // --- build ---------------------------------------------------------
@@ -65,9 +65,9 @@ fn bench_mmap(c: &mut Criterion) {
                 for _ in 0..iterations {
                     let _ = std::fs::remove_file(CPP_BUILD_FILE);
                     let start = Instant::now();
-                    let rc = build_into(ffi::vanedb_cpp_mmap_build, &cpp_build_path, &w);
+                    let rc = build_into(ffi::vanedb_cpp_disk_build, &cpp_build_path, &w);
                     elapsed += start.elapsed();
-                    assert_eq!(rc, 0, "cpp mmap_build failed");
+                    assert_eq!(rc, 0, "cpp disk_build failed");
                 }
                 elapsed
             })
@@ -78,9 +78,9 @@ fn bench_mmap(c: &mut Criterion) {
                 for _ in 0..iterations {
                     let _ = std::fs::remove_file(RS_BUILD_FILE);
                     let start = Instant::now();
-                    let rc = build_into(ffi::vanedb_rs_mmap_build, &rs_build_path, &w);
+                    let rc = build_into(ffi::vanedb_rs_disk_build, &rs_build_path, &w);
                     elapsed += start.elapsed();
-                    assert_eq!(rc, 0, "rs mmap_build failed");
+                    assert_eq!(rc, 0, "rs disk_build failed");
                 }
                 elapsed
             })
@@ -97,10 +97,10 @@ fn bench_mmap(c: &mut Criterion) {
                 let mut elapsed = Duration::ZERO;
                 for _ in 0..iterations {
                     let start = Instant::now();
-                    let m = ffi::vanedb_cpp_mmap_open(cpp_path.as_ptr());
+                    let m = ffi::vanedb_cpp_disk_open(cpp_path.as_ptr());
                     elapsed += start.elapsed();
-                    assert!(!m.is_null(), "cpp mmap_open failed");
-                    ffi::vanedb_cpp_mmap_free(black_box(m));
+                    assert!(!m.is_null(), "cpp disk_open failed");
+                    ffi::vanedb_cpp_disk_free(black_box(m));
                 }
                 elapsed
             })
@@ -110,10 +110,10 @@ fn bench_mmap(c: &mut Criterion) {
                 let mut elapsed = Duration::ZERO;
                 for _ in 0..iterations {
                     let start = Instant::now();
-                    let m = ffi::vanedb_rs_mmap_open(rs_path.as_ptr());
+                    let m = ffi::vanedb_rs_disk_open(rs_path.as_ptr());
                     elapsed += start.elapsed();
-                    assert!(!m.is_null(), "rs mmap_open failed");
-                    ffi::vanedb_rs_mmap_free(black_box(m));
+                    assert!(!m.is_null(), "rs disk_open failed");
+                    ffi::vanedb_rs_disk_free(black_box(m));
                 }
                 elapsed
             })
@@ -121,24 +121,24 @@ fn bench_mmap(c: &mut Criterion) {
         open.finish();
 
         // --- search --------------------------------------------------------
-        let mc = ffi::vanedb_cpp_mmap_open(cpp_path.as_ptr());
-        let mr = ffi::vanedb_rs_mmap_open(rs_path.as_ptr());
-        assert!(!mc.is_null() && !mr.is_null(), "mmap_open failed");
+        let mc = ffi::vanedb_cpp_disk_open(cpp_path.as_ptr());
+        let mr = ffi::vanedb_rs_disk_open(rs_path.as_ptr());
+        assert!(!mc.is_null() && !mr.is_null(), "disk_open failed");
         let mut ids = [0u64; 10];
         let mut ds = [0f32; 10];
         // Warmup outside the timed loops doubles as a liveness check.
         assert_eq!(
-            ffi::vanedb_cpp_mmap_search(mc, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            ffi::vanedb_cpp_disk_search(mc, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
             10
         );
         assert_eq!(
-            ffi::vanedb_rs_mmap_search(mr, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            ffi::vanedb_rs_disk_search(mr, q.as_ptr(), 10, ids.as_mut_ptr(), ds.as_mut_ptr()),
             10
         );
         let mut g = c.benchmark_group(groups::MMAP_SEARCH);
         g.bench_function("cpp", |bn| {
             bn.iter(|| {
-                ffi::vanedb_cpp_mmap_search(
+                ffi::vanedb_cpp_disk_search(
                     mc,
                     black_box(q.as_ptr()),
                     10,
@@ -149,7 +149,7 @@ fn bench_mmap(c: &mut Criterion) {
         });
         g.bench_function("rs", |bn| {
             bn.iter(|| {
-                ffi::vanedb_rs_mmap_search(
+                ffi::vanedb_rs_disk_search(
                     mr,
                     black_box(q.as_ptr()),
                     10,
@@ -159,8 +159,8 @@ fn bench_mmap(c: &mut Criterion) {
             })
         });
         g.finish();
-        ffi::vanedb_cpp_mmap_free(mc);
-        ffi::vanedb_rs_mmap_free(mr);
+        ffi::vanedb_cpp_disk_free(mc);
+        ffi::vanedb_rs_disk_free(mr);
     }
 
     for file in [CPP_FILE, RS_FILE, CPP_BUILD_FILE, RS_BUILD_FILE] {

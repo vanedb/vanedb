@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::hint::black_box;
-use vanedb::distance::{self, DistanceMetric};
+use vanedb::distance::{self, Metric};
 
 fn gen_vectors(dim: usize) -> (Vec<f32>, Vec<f32>) {
     let a: Vec<f32> = (0..dim).map(|i| (i as f32 * 0.01).sin()).collect();
@@ -10,9 +10,9 @@ fn gen_vectors(dim: usize) -> (Vec<f32>, Vec<f32>) {
 
 fn bench_distance(c: &mut Criterion) {
     let metrics = [
-        ("L2", DistanceMetric::L2),
-        ("Cosine", DistanceMetric::Cosine),
-        ("Dot", DistanceMetric::Dot),
+        ("L2", Metric::L2),
+        ("Cosine", Metric::Cosine),
+        ("Dot", Metric::Dot),
     ];
     let dims = [128, 768, 1536];
 

@@ -1,11 +1,11 @@
 //! Regression coverage for #38: two saves whose destinations share a stem must
 //! not fight over a single temporary file.
-#![cfg(feature = "mmap")]
+#![cfg(feature = "disk")]
 
 use std::sync::{Arc, Barrier};
 use std::thread;
 
-use vanedb::{DistanceMetric, HnswIndex, MmapVectorStore, MmapVectorStoreBuilder};
+use vanedb::{DiskStore, DiskStoreBuilder, Index, Metric};
 
 const DIM: usize = 4;
 const N: u64 = 64;
@@ -28,8 +28,8 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
     let index_path = dir.join("index.idx");
 
     for round in 0..ROUNDS {
-        let mut builder = MmapVectorStoreBuilder::new(DIM, DistanceMetric::L2).unwrap();
-        let index = HnswIndex::builder(DIM, DistanceMetric::L2)
+        let mut builder = DiskStoreBuilder::new(DIM, Metric::L2).unwrap();
+        let index = Index::builder(DIM, Metric::L2)
             .capacity(N as usize)
             .build()
             .unwrap();
@@ -58,7 +58,7 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
             panic!("round {round}: index save failed: {e}");
         }
 
-        let store = MmapVectorStore::open(&store_path)
+        let store = DiskStore::open(&store_path)
             .unwrap_or_else(|e| panic!("round {round}: store reload failed: {e}"));
         assert_eq!(store.size(), N as usize, "round {round}");
         assert_eq!(
@@ -67,7 +67,7 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
             "round {round}"
         );
 
-        let reloaded = HnswIndex::load(&index_path)
+        let reloaded = Index::load(&index_path)
             .unwrap_or_else(|e| panic!("round {round}: index reload failed: {e}"));
         assert_eq!(
             reloaded.search(&vector(7), 1).unwrap()[0].id,
@@ -87,7 +87,7 @@ fn failed_save_leaves_no_temporary_file() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
 
-    let mut builder = MmapVectorStoreBuilder::new(DIM, DistanceMetric::L2).unwrap();
+    let mut builder = DiskStoreBuilder::new(DIM, Metric::L2).unwrap();
     builder.add(1, &vector(1)).unwrap();
 
     // A directory as the destination makes the final rename fail.

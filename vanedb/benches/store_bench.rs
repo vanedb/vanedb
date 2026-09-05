@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use vanedb::{DistanceMetric, VectorStore};
+use vanedb::{Metric, Store};
 
 fn gen_data(n: usize, dim: usize) -> Vec<Vec<f32>> {
     (0..n)
@@ -16,7 +16,7 @@ fn bench_store_search(c: &mut Criterion) {
     let mut group = c.benchmark_group("VectorStore_search");
 
     for &n in &[1_000, 10_000] {
-        let store = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+        let store = Store::new(dim, Metric::L2).unwrap();
         let data = gen_data(n, dim);
         for (i, v) in data.iter().enumerate() {
             store.add(i as u64, v).unwrap();
@@ -36,7 +36,7 @@ fn bench_store_add(c: &mut Criterion) {
 
     c.bench_function("VectorStore_add_10k", |bench| {
         bench.iter(|| {
-            let store = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+            let store = Store::new(dim, Metric::L2).unwrap();
             for (i, v) in data.iter().enumerate() {
                 store.add(i as u64, v).unwrap();
             }
@@ -52,7 +52,7 @@ fn bench_store_add_batch(c: &mut Criterion) {
 
     c.bench_function("VectorStore_add_batch_10k", |bench| {
         bench.iter(|| {
-            let store = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+            let store = Store::new(dim, Metric::L2).unwrap();
             store.add_batch(&ids, &flat).unwrap();
         });
     });

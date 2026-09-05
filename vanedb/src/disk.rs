@@ -7,7 +7,7 @@ use std::path::Path;
 
 use memmap2::Mmap;
 
-use crate::distance::{self as d, DistanceMetric};
+use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 use crate::validation::validate_finite;
@@ -16,44 +16,44 @@ const MAGIC: u32 = 0x564E4442; // "VNDB"
 const VERSION: u32 = 1;
 const HEADER_SIZE: usize = 32;
 
-/// Write buffer for [`MmapVectorStoreBuilder::save`]. Ids and vectors are
+/// Write buffer for [`DiskStoreBuilder::save`]. Ids and vectors are
 /// encoded element-wise to keep the on-disk layout explicitly little-endian;
 /// unbuffered that cost one `write` syscall per element, so a 10k x 128 store
 /// issued 1.29M of them.
 const WRITE_BUFFER_BYTES: usize = 64 * 1024;
 
-fn metric_to_u32(m: DistanceMetric) -> u32 {
+fn metric_to_u32(m: Metric) -> u32 {
     match m {
-        DistanceMetric::L2 => 0,
-        DistanceMetric::Cosine => 1,
-        DistanceMetric::Dot => 2,
+        Metric::L2 => 0,
+        Metric::Cosine => 1,
+        Metric::Dot => 2,
     }
 }
 
-fn u32_to_metric(v: u32) -> Result<DistanceMetric> {
+fn u32_to_metric(v: u32) -> Result<Metric> {
     match v {
-        0 => Ok(DistanceMetric::L2),
-        1 => Ok(DistanceMetric::Cosine),
-        2 => Ok(DistanceMetric::Dot),
+        0 => Ok(Metric::L2),
+        1 => Ok(Metric::Cosine),
+        2 => Ok(Metric::Dot),
         _ => Err(VaneError::Io("invalid metric in file".to_string())),
     }
 }
 
-/// Collects vectors and writes them to a file [`MmapVectorStore`] can open.
+/// Collects vectors and writes them to a file [`DiskStore`] can open.
 ///
 /// Vectors are held in memory until [`save`](Self::save); the memory saving
 /// is on the reading side.
-pub struct MmapVectorStoreBuilder {
+pub struct DiskStoreBuilder {
     dim: usize,
-    metric: DistanceMetric,
+    metric: Metric,
     ids: Vec<u64>,
     vectors: Vec<f32>,
     id_set: HashSet<u64>,
 }
 
-impl MmapVectorStoreBuilder {
+impl DiskStoreBuilder {
     /// Starts a store for vectors of `dim` components.
-    pub fn new(dim: usize, metric: DistanceMetric) -> Result<Self> {
+    pub fn new(dim: usize, metric: Metric) -> Result<Self> {
         if dim == 0 {
             return Err(VaneError::EmptyVector);
         }
@@ -151,18 +151,18 @@ impl MmapVectorStoreBuilder {
 ///
 /// Vectors stay on disk and are paged in by the kernel as the scan touches
 /// them, so a corpus larger than RAM remains searchable. Read-only; build
-/// one with [`MmapVectorStoreBuilder`].
-pub struct MmapVectorStore {
+/// one with [`DiskStoreBuilder`].
+pub struct DiskStore {
     mmap: Mmap,
     dim: usize,
     num_vectors: usize,
-    metric: DistanceMetric,
+    metric: Metric,
     ids_offset: usize,
     vectors_offset: usize,
     id_map: HashMap<u64, usize>,
 }
 
-impl MmapVectorStore {
+impl DiskStore {
     /// Maps the store at `path`.
     ///
     /// Validates the header, checks every stored component is finite, and
@@ -253,7 +253,7 @@ impl MmapVectorStore {
     }
 
     /// The metric recorded in the file.
-    pub fn metric(&self) -> DistanceMetric {
+    pub fn metric(&self) -> Metric {
         self.metric
     }
 
@@ -285,7 +285,7 @@ impl MmapVectorStore {
 
         // Monomorphized per-metric scan + top-k selection instead of a full
         // sort through the dist_fn pointer — same treatment as
-        // VectorStore::search (O(n log n) -> O(n + k log k)).
+        // Store::search (O(n log n) -> O(n + k log k)).
         macro_rules! scan {
             ($dist:path) => {
                 (0..self.num_vectors)
@@ -294,9 +294,9 @@ impl MmapVectorStore {
             };
         }
         let mut results: Vec<SearchResult> = match self.metric {
-            DistanceMetric::L2 => scan!(d::l2_squared),
-            DistanceMetric::Cosine => scan!(d::cosine_distance),
-            DistanceMetric::Dot => scan!(d::dot_distance),
+            Metric::L2 => scan!(d::l2_squared),
+            Metric::Cosine => scan!(d::cosine_distance),
+            Metric::Dot => scan!(d::dot_distance),
         };
 
         if k < results.len() {
@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn builder_add_and_size() {
-        let mut b = MmapVectorStoreBuilder::new(3, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.add(2, &[4.0, 5.0, 6.0]).unwrap();
         assert_eq!(b.size(), 2);
@@ -336,26 +336,26 @@ mod tests {
 
     #[test]
     fn builder_rejects_wrong_dim() {
-        let mut b = MmapVectorStoreBuilder::new(3, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
         assert!(b.add(1, &[1.0, 2.0]).is_err());
     }
 
     #[test]
     fn builder_rejects_duplicate() {
-        let mut b = MmapVectorStoreBuilder::new(3, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(b.add(1, &[4.0, 5.0, 6.0]).is_err());
     }
 
     #[test]
     fn builder_rejects_zero_dim() {
-        assert!(MmapVectorStoreBuilder::new(0, DistanceMetric::L2).is_err());
+        assert!(DiskStoreBuilder::new(0, Metric::L2).is_err());
     }
 
     #[test]
     fn builder_save_creates_file() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_builder.bin");
-        let mut b = MmapVectorStoreBuilder::new(2, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(2, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0]).unwrap();
         b.save(&path).unwrap();
         assert!(path.exists());
@@ -369,13 +369,13 @@ mod tests {
     fn roundtrip_build_open_search() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_roundtrip.bin");
 
-        let mut b = MmapVectorStoreBuilder::new(3, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
         b.add(10, &[0.0, 0.0, 0.0]).unwrap();
         b.add(20, &[1.0, 0.0, 0.0]).unwrap();
         b.add(30, &[10.0, 10.0, 10.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = MmapVectorStore::open(&path).unwrap();
+        let store = DiskStore::open(&path).unwrap();
         assert_eq!(store.size(), 3);
         assert_eq!(store.dimension(), 3);
         assert!(store.contains(10));
@@ -398,7 +398,7 @@ mod tests {
     fn open_rejects_bad_file() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_bad.bin");
         std::fs::write(&path, b"garbage").unwrap();
-        assert!(MmapVectorStore::open(&path).is_err());
+        assert!(DiskStore::open(&path).is_err());
         let _ = std::fs::remove_file(&path);
     }
 
@@ -413,18 +413,18 @@ mod tests {
         data.extend_from_slice(&(0u32).to_le_bytes());
         data.extend_from_slice(&(0u32).to_le_bytes());
         std::fs::write(&path, &data).unwrap();
-        assert!(MmapVectorStore::open(&path).is_err());
+        assert!(DiskStore::open(&path).is_err());
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn search_wrong_dimension() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_dim.bin");
-        let mut b = MmapVectorStoreBuilder::new(3, DistanceMetric::L2).unwrap();
+        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = MmapVectorStore::open(&path).unwrap();
+        let store = DiskStore::open(&path).unwrap();
         assert!(store.search(&[1.0, 2.0], 1).is_err());
         let _ = std::fs::remove_file(&path);
     }

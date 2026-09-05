@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows file locking issue in mmap tests (scope store before file removal)
 - Type consistency in test file format (uint64_t for dimension field)
 - Coverage reporting now excludes test and benchmark files (measures only production code)
-- Division by zero in MMapVectorStore when loading corrupted file with dim=0
+- Division by zero in DiskStore when loading corrupted file with dim=0
 
 ## [0.1.0] - Unreleased
 
@@ -51,11 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GPU acceleration (Metal for Apple Silicon, CUDA for NVIDIA)
   - Persistent buffer API for zero-copy repeated queries
   - 3.9x speedup at 500k vectors
-- In-memory VectorStore with k-NN brute-force search
+- In-memory Store with k-NN brute-force search
 - HNSW index for approximate nearest neighbor search
   - Configurable M, ef_construction, ef_search parameters
   - Binary serialization (save/load)
-- Memory-mapped VectorStore for large datasets
+- Memory-mapped Store for large datasets
   - Zero-copy file access
   - Atomic save operations
 - Python bindings via pybind11

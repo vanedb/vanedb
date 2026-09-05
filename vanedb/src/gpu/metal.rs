@@ -242,7 +242,7 @@ impl MetalCompute {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::distance::{self, DistanceMetric};
+    use crate::distance::{self, Metric};
 
     #[test]
     fn metal_init() {
@@ -261,7 +261,7 @@ mod tests {
         let buf = gpu.upload(&vectors, n, dim).unwrap();
         let gpu_dists = gpu.distances(&query, &buf, GpuMetric::L2).unwrap();
 
-        let cpu_dist = distance::distance_fn(DistanceMetric::L2);
+        let cpu_dist = distance::distance_fn(Metric::L2);
         for i in 0..n {
             let cpu_d = cpu_dist(&query, &vectors[i * dim..(i + 1) * dim]);
             assert!(
@@ -285,7 +285,7 @@ mod tests {
         let buf = gpu.upload(&vectors, n, dim).unwrap();
         let gpu_dists = gpu.distances(&query, &buf, GpuMetric::Cosine).unwrap();
 
-        let cpu_dist = distance::distance_fn(DistanceMetric::Cosine);
+        let cpu_dist = distance::distance_fn(Metric::Cosine);
         for i in 0..n {
             let cpu_d = cpu_dist(&query, &vectors[i * dim..(i + 1) * dim]);
             assert!(
@@ -307,7 +307,7 @@ mod tests {
         let buf = gpu.upload(&vectors, n, dim).unwrap();
         let gpu_dists = gpu.distances(&query, &buf, GpuMetric::Dot).unwrap();
 
-        let cpu_dist = distance::distance_fn(DistanceMetric::Dot);
+        let cpu_dist = distance::distance_fn(Metric::Dot);
         for i in 0..n {
             let cpu_d = cpu_dist(&query, &vectors[i * dim..(i + 1) * dim]);
             assert!(

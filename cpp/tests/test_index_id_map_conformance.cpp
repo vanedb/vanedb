@@ -1,11 +1,11 @@
-// Cross-engine HNSW id_map cases from conformance/hnsw_id_map_consistency.tsv.
+// Cross-engine HNSW id_map cases from conformance/index_id_map_consistency.tsv.
 //
 // The loader accepted an id_map whose size was <= count and whose values were
 // in range, without checking that each key mapped back to its own slot. A file
 // could therefore resolve an external id to another slot's vector — the right
 // bytes under the wrong identity (vanedb#42 / vanedb-cpp#38).
 
-#include "core/hnsw_index.h"
+#include "core/index.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -38,7 +38,7 @@ std::vector<std::string> split(const std::string& line, char sep) {
 }
 
 std::vector<Case> cases() {
-  std::ifstream fixture(std::string(VANEDB_CONFORMANCE_DIR) + "/hnsw_id_map_consistency.tsv");
+  std::ifstream fixture(std::string(VANEDB_CONFORMANCE_DIR) + "/index_id_map_consistency.tsv");
   REQUIRE(fixture.is_open());
 
   std::vector<Case> result;
@@ -93,7 +93,7 @@ std::vector<char> read_all(const std::filesystem::path& path) {
 std::filesystem::path craft(const std::filesystem::path& dir, const Case& test_case, size_t dim) {
   const auto valid = dir / (test_case.name + "-valid.idx");
   {
-    vanedb::HNSWIndex index(dim, vanedb::DistanceMetric::L2, std::max<size_t>(test_case.count, 1), 2, 10);
+    vanedb::Index index(dim, vanedb::Metric::L2, std::max<size_t>(test_case.count, 1), 2, 10);
     for (size_t i = 0; i < test_case.count; ++i) {
       const std::vector<float> vector(dim, static_cast<float>(i));
       // Placeholder ids only: the crafted ext_ids are written over these
@@ -147,9 +147,9 @@ TEST_CASE("HNSW loader enforces the shared id_map contract", "[conformance][pers
     const auto path = craft(dir, test_case, DIM);
     INFO("case=" << test_case.name);
     if (test_case.accept) {
-      REQUIRE_NOTHROW(vanedb::HNSWIndex::load(path.string()));
+      REQUIRE_NOTHROW(vanedb::Index::load(path.string()));
     } else {
-      REQUIRE_THROWS_AS(vanedb::HNSWIndex::load(path.string()), std::runtime_error);
+      REQUIRE_THROWS_AS(vanedb::Index::load(path.string()), std::runtime_error);
     }
   }
 

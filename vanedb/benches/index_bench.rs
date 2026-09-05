@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use vanedb::{DistanceMetric, HnswIndex};
+use vanedb::{Index, Metric};
 
 fn gen_data(n: usize, dim: usize) -> Vec<Vec<f32>> {
     (0..n)
@@ -18,7 +18,7 @@ fn bench_hnsw_build(c: &mut Criterion) {
 
     c.bench_function("HNSW_build_10k", |bench| {
         bench.iter(|| {
-            let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+            let idx = Index::builder(dim, Metric::L2)
                 .capacity(n)
                 .m(16)
                 .ef_construction(200)
@@ -37,7 +37,7 @@ fn bench_hnsw_search(c: &mut Criterion) {
     let n = 10_000;
     let data = gen_data(n, dim);
 
-    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+    let idx = Index::builder(dim, Metric::L2)
         .capacity(n)
         .m(16)
         .ef_construction(200)
@@ -62,7 +62,7 @@ fn bench_hnsw_save_load(c: &mut Criterion) {
     let data = gen_data(n, dim);
     let path = std::env::temp_dir().join("vanedb_bench_hnsw.bin");
 
-    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+    let idx = Index::builder(dim, Metric::L2)
         .capacity(n)
         .m(16)
         .ef_construction(200)
@@ -78,7 +78,7 @@ fn bench_hnsw_save_load(c: &mut Criterion) {
     });
 
     c.bench_function("HNSW_load_10k", |bench| {
-        bench.iter(|| HnswIndex::load(&path).unwrap());
+        bench.iter(|| Index::load(&path).unwrap());
     });
 
     let _ = std::fs::remove_file(&path);

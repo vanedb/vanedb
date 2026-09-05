@@ -68,7 +68,7 @@ fn main() -> ExitCode {
     // Regenerating this file must not lose the caveats: anything a reader
     // needs alongside the numbers belongs here, not hand-added afterwards.
     md.push_str(&format!(
-        "Covers l2_sq, store_search, and hnsw_search + recall@{k} only; every \
+        "Covers l2_sq, store_search, and index_search + recall@{k} only; every \
          other operation is criterion-only (see README).\n\n\
          Criterion is canonical; see the README table. This bin times l2_sq in \
          batches of 1000 calls, which inlines differently from criterion's \
@@ -154,16 +154,16 @@ fn main() -> ExitCode {
         ffi::vanedb_rs_store_free(sr);
 
         // HNSW search + recall@k vs brute-force truth, averaged over all queries
-        let hc = ffi::vanedb_cpp_hnsw_new(dim, 0, n, 16, 200, 7);
-        let hr = ffi::vanedb_rs_hnsw_new(dim, 0, n, 16, 200, 7);
+        let hc = ffi::vanedb_cpp_index_new(dim, 0, n, 16, 200, 7);
+        let hr = ffi::vanedb_rs_index_new(dim, 0, n, 16, 200, 7);
         assert!(!hc.is_null() && !hr.is_null(), "hnsw_new failed");
         for i in 0..n {
             assert_eq!(
-                ffi::vanedb_cpp_hnsw_add(hc, w.ids[i], w.vectors[i * dim..].as_ptr()),
+                ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * dim..].as_ptr()),
                 0
             );
             assert_eq!(
-                ffi::vanedb_rs_hnsw_add(hr, w.ids[i], w.vectors[i * dim..].as_ptr()),
+                ffi::vanedb_rs_index_add(hr, w.ids[i], w.vectors[i * dim..].as_ptr()),
                 0
             );
         }
@@ -175,7 +175,7 @@ fn main() -> ExitCode {
         for qi in 0..queries {
             let query = &w.queries[qi * dim..(qi + 1) * dim];
             let truth = ground_truth::brute_force_topk(&w.vectors, &w.ids, dim, query, k);
-            let nc = ffi::vanedb_cpp_hnsw_search(
+            let nc = ffi::vanedb_cpp_index_search(
                 hc,
                 query.as_ptr(),
                 k,
@@ -183,7 +183,7 @@ fn main() -> ExitCode {
                 ic.as_mut_ptr(),
                 dc.as_mut_ptr(),
             );
-            let nr = ffi::vanedb_rs_hnsw_search(
+            let nr = ffi::vanedb_rs_index_search(
                 hr,
                 query.as_ptr(),
                 k,
@@ -191,8 +191,8 @@ fn main() -> ExitCode {
                 ir.as_mut_ptr(),
                 dr.as_mut_ptr(),
             );
-            assert_eq!(nc, k, "cpp hnsw_search returned short at query {qi}");
-            assert_eq!(nr, k, "rs hnsw_search returned short at query {qi}");
+            assert_eq!(nc, k, "cpp index_search returned short at query {qi}");
+            assert_eq!(nr, k, "rs index_search returned short at query {qi}");
             rec_c += ground_truth::recall_at_k(&ic[..nc], &truth);
             rec_r += ground_truth::recall_at_k(&ir[..nr], &truth);
         }
@@ -200,7 +200,7 @@ fn main() -> ExitCode {
         let rec_r = rec_r / queries as f32;
         let (cpp, rs) = median_pair_ns(
             || {
-                ffi::vanedb_cpp_hnsw_search(
+                ffi::vanedb_cpp_index_search(
                     hc,
                     q.as_ptr(),
                     k,
@@ -210,17 +210,24 @@ fn main() -> ExitCode {
                 );
             },
             || {
-                ffi::vanedb_rs_hnsw_search(hr, q.as_ptr(), k, 50, ir.as_mut_ptr(), dr.as_mut_ptr());
+                ffi::vanedb_rs_index_search(
+                    hr,
+                    q.as_ptr(),
+                    k,
+                    50,
+                    ir.as_mut_ptr(),
+                    dr.as_mut_ptr(),
+                );
             },
         );
         md.push_str(&format!(
-            "| hnsw_search | {cpp} | {rs} | {:.2} |\n",
+            "| index_search | {cpp} | {rs} | {:.2} |\n",
             rs as f64 / cpp as f64
         ));
-        ffi::vanedb_cpp_hnsw_free(hc);
-        ffi::vanedb_rs_hnsw_free(hr);
+        ffi::vanedb_cpp_index_free(hc);
+        ffi::vanedb_rs_index_free(hr);
         md.push_str(&format!(
-            "\nHNSW recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
+            "\nIndex recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
         ));
 
         assert!(
