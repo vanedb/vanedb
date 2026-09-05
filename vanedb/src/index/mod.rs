@@ -148,6 +148,19 @@ pub struct IndexBuilder {
     seed: u64,
 }
 
+impl std::fmt::Debug for Index {
+    /// Identity and size only; the graph sits behind a lock.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Index")
+            .field("dim", &self.dim)
+            .field("metric", &self.metric)
+            .field("size", &self.size())
+            .field("m", &self.m)
+            .field("ef_construction", &self.ef_construction)
+            .finish()
+    }
+}
+
 impl Index {
     /// Starts configuring an index over vectors of `dim` components.
     pub fn builder(dim: usize, metric: Metric) -> IndexBuilder {
@@ -609,6 +622,19 @@ impl Index {
         }
 
         selected
+    }
+}
+
+impl std::fmt::Debug for IndexBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexBuilder")
+            .field("dim", &self.dim)
+            .field("metric", &self.metric)
+            .field("capacity", &self.capacity)
+            .field("m", &self.m)
+            .field("ef_construction", &self.ef_construction)
+            .field("seed", &self.seed)
+            .finish()
     }
 }
 
