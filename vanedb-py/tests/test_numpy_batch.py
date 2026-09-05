@@ -155,8 +155,11 @@ def test_hnsw_add_batch_matches_serial():
     assert serial.search(q, 10) == batched.search(q, 10)
 
 
-def test_hnsw_add_batch_capacity_all_or_nothing():
+def test_hnsw_add_batch_grows_past_the_capacity_hint():
+    """A batch running past the hint grows storage rather than failing.
+
+    All-or-nothing on a genuine failure is covered by the duplicate-id case.
+    """
     index = vanedb.Index(2, capacity=3)
-    with pytest.raises(ValueError, match="full"):
-        index.add_batch(np.arange(4), np.ones((4, 2), dtype=np.float32))
-    assert len(index) == 0
+    index.add_batch(np.arange(8), np.ones((8, 2), dtype=np.float32))
+    assert len(index) == 8
