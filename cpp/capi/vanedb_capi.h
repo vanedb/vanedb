@@ -45,24 +45,24 @@ size_t vanedb_cpp_store_search(vanedb_cpp_store* s, const float* q, size_t k,
 void   vanedb_cpp_store_free(vanedb_cpp_store* s);
 
 /* HNSW */
-typedef struct vanedb_cpp_hnsw vanedb_cpp_hnsw;
-vanedb_cpp_hnsw* vanedb_cpp_index_new(size_t dim, vanedb_metric metric, size_t capacity,
+typedef struct vanedb_cpp_index vanedb_cpp_index;
+vanedb_cpp_index* vanedb_cpp_index_new(size_t dim, vanedb_metric metric, size_t capacity,
                                      size_t M, size_t ef_construction, uint64_t seed);
-int    vanedb_cpp_index_add(vanedb_cpp_hnsw* h, uint64_t id, const float* v);
-size_t vanedb_cpp_index_search(vanedb_cpp_hnsw* h, const float* q, size_t k, size_t ef_search,
+int    vanedb_cpp_index_add(vanedb_cpp_index* h, uint64_t id, const float* v);
+size_t vanedb_cpp_index_search(vanedb_cpp_index* h, const float* q, size_t k, size_t ef_search,
                               uint64_t* out_ids, float* out_dists);
-int    vanedb_cpp_index_save(vanedb_cpp_hnsw* h, const char* path);
-vanedb_cpp_hnsw* vanedb_cpp_index_load(const char* path);
-void   vanedb_cpp_index_free(vanedb_cpp_hnsw* h);
+int    vanedb_cpp_index_save(vanedb_cpp_index* h, const char* path);
+vanedb_cpp_index* vanedb_cpp_index_load(const char* path);
+void   vanedb_cpp_index_free(vanedb_cpp_index* h);
 
 /* MMap store */
-typedef struct vanedb_cpp_mmap vanedb_cpp_mmap;
+typedef struct vanedb_cpp_disk vanedb_cpp_disk;
 int    vanedb_cpp_disk_build(const char* path, size_t dim, vanedb_metric metric,
                              const uint64_t* ids, const float* vecs, size_t n);
-vanedb_cpp_mmap* vanedb_cpp_disk_open(const char* path);
-size_t vanedb_cpp_disk_search(vanedb_cpp_mmap* m, const float* q, size_t k,
+vanedb_cpp_disk* vanedb_cpp_disk_open(const char* path);
+size_t vanedb_cpp_disk_search(vanedb_cpp_disk* m, const float* q, size_t k,
                               uint64_t* out_ids, float* out_dists);
-void   vanedb_cpp_disk_free(vanedb_cpp_mmap* m);
+void   vanedb_cpp_disk_free(vanedb_cpp_disk* m);
 
 #ifdef __cplusplus
 }

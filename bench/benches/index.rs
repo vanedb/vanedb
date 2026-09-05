@@ -90,7 +90,14 @@ fn bench_hnsw(c: &mut Criterion) {
         let mut ds = [0f32; 10];
         // Warmup outside the timed loops doubles as a liveness check.
         assert_eq!(
-            ffi::vanedb_cpp_index_search(hc, q.as_ptr(), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            ffi::vanedb_cpp_index_search(
+                hc,
+                q.as_ptr(),
+                10,
+                EFS,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
             10
         );
         assert_eq!(

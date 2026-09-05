@@ -51,21 +51,21 @@ void vanedb_cpp_store_free(vanedb_cpp_store* s) {
   delete reinterpret_cast<Store*>(s);
 }
 
-vanedb_cpp_hnsw* vanedb_cpp_index_new(size_t dim, vanedb_metric metric, size_t capacity,
+vanedb_cpp_index* vanedb_cpp_index_new(size_t dim, vanedb_metric metric, size_t capacity,
                                      size_t M, size_t ef_construction, uint64_t seed) {
   try {
-    return reinterpret_cast<vanedb_cpp_hnsw*>(
+    return reinterpret_cast<vanedb_cpp_index*>(
       // seed is uint64_t in the ABI (Rust parity) but the core takes uint32_t; high bits are dropped.
       new Index(dim, to_metric(metric), capacity, M, ef_construction,
                     static_cast<uint32_t>(seed)));
   } catch (...) { return nullptr; }
 }
-int vanedb_cpp_index_add(vanedb_cpp_hnsw* h, uint64_t id, const float* v) {
+int vanedb_cpp_index_add(vanedb_cpp_index* h, uint64_t id, const float* v) {
   if (!h) return 1;
   try { reinterpret_cast<Index*>(h)->add(id, v); return 0; }
   catch (...) { return 1; }
 }
-size_t vanedb_cpp_index_search(vanedb_cpp_hnsw* h, const float* q, size_t k, size_t ef_search,
+size_t vanedb_cpp_index_search(vanedb_cpp_index* h, const float* q, size_t k, size_t ef_search,
                               uint64_t* out_ids, float* out_dists) {
   if (!h) return 0;
   try {
@@ -77,18 +77,18 @@ size_t vanedb_cpp_index_search(vanedb_cpp_hnsw* h, const float* q, size_t k, siz
     return n;
   } catch (...) { return 0; }
 }
-int vanedb_cpp_index_save(vanedb_cpp_hnsw* h, const char* path) {
+int vanedb_cpp_index_save(vanedb_cpp_index* h, const char* path) {
   if (!h) return 1;
   if (!path) return 1;
   try { reinterpret_cast<Index*>(h)->save(path); return 0; }
   catch (...) { return 1; }
 }
-vanedb_cpp_hnsw* vanedb_cpp_index_load(const char* path) {
+vanedb_cpp_index* vanedb_cpp_index_load(const char* path) {
   if (!path) return nullptr;
-  try { return reinterpret_cast<vanedb_cpp_hnsw*>(Index::load(path).release()); }
+  try { return reinterpret_cast<vanedb_cpp_index*>(Index::load(path).release()); }
   catch (...) { return nullptr; }
 }
-void vanedb_cpp_index_free(vanedb_cpp_hnsw* h) {
+void vanedb_cpp_index_free(vanedb_cpp_index* h) {
   delete reinterpret_cast<Index*>(h);
 }
 
@@ -102,12 +102,12 @@ int vanedb_cpp_disk_build(const char* path, size_t dim, vanedb_metric metric,
     return 0;
   } catch (...) { return 1; }
 }
-vanedb_cpp_mmap* vanedb_cpp_disk_open(const char* path) {
+vanedb_cpp_disk* vanedb_cpp_disk_open(const char* path) {
   if (!path) return nullptr;
-  try { return reinterpret_cast<vanedb_cpp_mmap*>(new DiskStore(path)); }
+  try { return reinterpret_cast<vanedb_cpp_disk*>(new DiskStore(path)); }
   catch (...) { return nullptr; }
 }
-size_t vanedb_cpp_disk_search(vanedb_cpp_mmap* m, const float* q, size_t k,
+size_t vanedb_cpp_disk_search(vanedb_cpp_disk* m, const float* q, size_t k,
                               uint64_t* out_ids, float* out_dists) {
   if (!m) return 0;
   try {
@@ -117,7 +117,7 @@ size_t vanedb_cpp_disk_search(vanedb_cpp_mmap* m, const float* q, size_t k,
     return n;
   } catch (...) { return 0; }
 }
-void vanedb_cpp_disk_free(vanedb_cpp_mmap* m) {
+void vanedb_cpp_disk_free(vanedb_cpp_disk* m) {
   delete reinterpret_cast<DiskStore*>(m);
 }
 

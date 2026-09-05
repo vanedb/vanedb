@@ -210,7 +210,14 @@ fn main() -> ExitCode {
                 );
             },
             || {
-                ffi::vanedb_rs_index_search(hr, q.as_ptr(), k, 50, ir.as_mut_ptr(), dr.as_mut_ptr());
+                ffi::vanedb_rs_index_search(
+                    hr,
+                    q.as_ptr(),
+                    k,
+                    50,
+                    ir.as_mut_ptr(),
+                    dr.as_mut_ptr(),
+                );
             },
         );
         md.push_str(&format!(
