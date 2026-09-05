@@ -26,8 +26,10 @@
 //! Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 //! portable scalar path, which is the reference the others must agree with.
 //!
-//! A header-only C++ implementation sharing these file formats and graph
-//! construction is maintained alongside this crate.
+//! A header-only C++ implementation is maintained alongside this crate. The two
+//! share the `DiskStore` format — either engine reads the other's file, checked
+//! by a cross-load test — and share graph construction. The `Index` format is
+//! still engine-specific.
 
 #![warn(missing_docs)]
 
