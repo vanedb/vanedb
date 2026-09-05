@@ -186,7 +186,44 @@ def test_public_surface_is_declared():
         "Metric",
         "Store",
         "Index",
+        "DiskStore",
+        "DiskStoreBuilder",
         "__version__",
     }
     for name in vanedb.__all__:
         assert hasattr(vanedb, name), f"{name} is exported but missing"
+
+
+# --- DiskStore ---
+
+
+def test_disk_store_round_trip(tmp_path):
+    """The memory-mapped store must be reachable from Python at all (#84)."""
+    path = str(tmp_path / "store.vndb")
+    builder = vanedb.DiskStoreBuilder(3, vanedb.Metric.L2)
+    for i in range(20):
+        builder.add(i, [float(i), 1.0, 2.0])
+    assert len(builder) == 20
+    assert builder.dimension == 3
+    builder.save(path)
+
+    store = vanedb.DiskStore.open(path)
+    assert len(store) == store.size() == 20
+    assert store.dimension == 3
+    assert store.contains(7)
+    assert not store.contains(999)
+    assert store.get(7) == [7.0, 1.0, 2.0]
+    hits = store.search([7.0, 1.0, 2.0], 1)
+    assert hits[0][0] == 7
+
+
+def test_disk_store_rejects_a_bad_file(tmp_path):
+    path = tmp_path / "not-a-store.vndb"
+    path.write_bytes(b"nonsense" * 8)
+    with pytest.raises(ValueError):
+        vanedb.DiskStore.open(str(path))
+
+
+def test_disk_store_is_in_the_public_surface():
+    assert "DiskStore" in vanedb.__all__
+    assert "DiskStoreBuilder" in vanedb.__all__
