@@ -61,6 +61,9 @@ only and is rebuilt on each run.
 `Index` allocates its full `capacity` up front, so size it to the corpus:
 100k x 768 floats reserves roughly 300 MB before the first insert.
 
+All three types are reachable from every binding except wasm, which has no
+filesystem to map and so omits `DiskStore`.
+
 The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
 Python and JavaScript packages use `Metric.COSINE`. Type names are identical
 in every binding, so switching engines is an import change.
