@@ -15,6 +15,7 @@ use crate::store::SearchResult;
 use crate::validation::{compare_distances, validate_finite};
 
 mod persistence;
+mod storage;
 
 // Versioned thread-local visited tracker. `marks[i] == epoch` means visited;
 // the epoch is bumped each `search_layer` call, so the per-search work stays
