@@ -21,6 +21,7 @@ extern "C" {
 #endif // __cplusplus
 
 /**
+ * # Safety
  * `a` and `b` must each point to at least `dim` valid `f32` values.
  */
 float vanedb_rs_l2_sq(const float *a, const float *b, uintptr_t dim);

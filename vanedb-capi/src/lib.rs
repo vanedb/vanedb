@@ -19,8 +19,6 @@ fn to_metric(m: u32) -> Metric {
     }
 }
 
-/// # Safety
-
 /// Runs `body`, returning `fallback` if it panics.
 ///
 /// A panic unwinding out of an `extern "C"` function aborts the process, taking
@@ -34,6 +32,7 @@ fn guard<T>(fallback: T, body: impl FnOnce() -> T) -> T {
     }
 }
 
+/// # Safety
 /// `a` and `b` must each point to at least `dim` valid `f32` values.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_l2_sq(a: *const f32, b: *const f32, dim: usize) -> f32 {
