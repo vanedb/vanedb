@@ -209,6 +209,15 @@ impl PyVectorStore {
         self.inner.len()
     }
 
+    /// Number of vectors stored.
+    ///
+    /// `len(store)` is the Pythonic spelling; `size()` is what vanedb_cpp and
+    /// the wasm bindings expose. Both work here so neither spelling ties a
+    /// program to one engine (#85).
+    fn size(&self) -> usize {
+        self.inner.len()
+    }
+
     #[getter]
     fn dimension(&self) -> usize {
         self.inner.dimension()
@@ -309,6 +318,11 @@ impl PyHnswIndex {
         self.inner.size()
     }
 
+    /// Number of vectors in the graph. See `VectorStore.size`.
+    fn size(&self) -> usize {
+        self.inner.size()
+    }
+
     #[getter]
     fn dimension(&self) -> usize {
         self.inner.dimension()
@@ -329,5 +343,12 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDistanceMetric>()?;
     m.add_class::<PyVectorStore>()?;
     m.add_class::<PyHnswIndex>()?;
+    // maturin's generated __init__ does `from .vanedb import *` and copies
+    // __all__ verbatim, so this list is the package's entire public surface --
+    // omitting __version__ here removes it from the package altogether.
+    m.add(
+        "__all__",
+        vec!["DistanceMetric", "VectorStore", "HNSWIndex", "__version__"],
+    )?;
     Ok(())
 }

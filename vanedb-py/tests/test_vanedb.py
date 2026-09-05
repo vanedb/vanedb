@@ -155,3 +155,31 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
     with pytest.raises(ValueError, match="finite"):
         index.add(1, [value, 0.0])
     assert len(index) == 0
+
+
+def test_count_spellings_agree():
+    """Both engines must answer "how many vectors?" the same way (#85)."""
+    store = vanedb.VectorStore(2)
+    index = vanedb.HNSWIndex(2, capacity=10)
+    for i, v in enumerate([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]):
+        store.add(i, v)
+        index.add(i, v)
+    assert len(store) == store.size() == 3
+    assert len(index) == index.size() == 3
+
+
+def test_public_surface_is_declared():
+    """__all__ is the whole package surface, not just a star-import filter.
+
+    maturin's generated __init__ copies __all__ verbatim after a star import,
+    so a name missing here is missing from the package: dropping __version__
+    from this list deleted vanedb.__version__ outright.
+    """
+    assert set(vanedb.__all__) == {
+        "DistanceMetric",
+        "VectorStore",
+        "HNSWIndex",
+        "__version__",
+    }
+    for name in vanedb.__all__:
+        assert hasattr(vanedb, name), f"{name} is exported but missing"

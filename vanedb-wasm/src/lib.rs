@@ -5,13 +5,16 @@ use vanedb::hnsw::HnswIndex;
 use vanedb::store::{SearchResult, VectorStore};
 
 /// Search results with lossless 64-bit ids.
-#[wasm_bindgen]
+// The Wasm prefix disambiguates these wrappers from the core types
+// imported above; js_name keeps it out of the public JS API, which uses
+// the same three names as the Python packages (#83).
+#[wasm_bindgen(js_name = SearchResults)]
 pub struct WasmSearchResults {
     ids: Vec<u64>,
     distances: Vec<f32>,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_class = SearchResults)]
 impl WasmSearchResults {
     /// Matched ids, in rank order, as a `BigUint64Array`.
     #[wasm_bindgen(getter)]
@@ -65,12 +68,12 @@ pub fn version() -> String {
 }
 
 /// Brute-force vector store for the browser.
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = VectorStore)]
 pub struct WasmVectorStore {
     inner: VectorStore,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_class = VectorStore)]
 impl WasmVectorStore {
     #[wasm_bindgen(constructor)]
     pub fn new(dim: usize, metric: &str) -> Result<WasmVectorStore, JsError> {
@@ -123,12 +126,12 @@ impl WasmVectorStore {
 }
 
 /// HNSW approximate nearest-neighbor index for the browser.
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = HNSWIndex)]
 pub struct WasmHnswIndex {
     inner: HnswIndex,
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_class = HNSWIndex)]
 impl WasmHnswIndex {
     #[wasm_bindgen(constructor)]
     pub fn new(
