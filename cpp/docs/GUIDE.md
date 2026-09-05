@@ -141,7 +141,7 @@ import vanedb_cpp as vanedb
 import numpy as np
 
 # Check version
-print(vanedb.__version__)  # "0.1.0"
+print(vanedb.__version__)  # "0.1.0-rc.1"
 
 # === HNSW Index (approximate, fastest for large datasets) ===
 index = vanedb.HNSWIndex(128, vanedb.DistanceMetric.COSINE)

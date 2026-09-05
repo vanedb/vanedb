@@ -1,6 +1,6 @@
 [package]
 name = "vanedb-capi"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 edition = "2021"
 # Not published: the vanedb dependency is a path without a version, and the
 # crate carries no description or license, so `cargo publish` rejects it. The

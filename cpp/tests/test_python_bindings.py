@@ -27,7 +27,13 @@ def test_version():
     import vanedb_cpp
     assert hasattr(vanedb_cpp, '__version__')
     assert isinstance(vanedb_cpp.__version__, str)
-    assert vanedb_cpp.__version__ == "0.1.0"
+    from importlib.metadata import version
+
+    from packaging.version import Version
+
+    # Against the distribution metadata, not a literal — see the note in
+    # vanedb-py/tests/test_vanedb.py.
+    assert Version(vanedb_cpp.__version__) == Version(version("vanedb-cpp"))
     assert vanedb_cpp.VERSION_MAJOR == 0
     assert vanedb_cpp.VERSION_MINOR == 1
     assert vanedb_cpp.VERSION_PATCH == 0

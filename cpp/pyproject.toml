@@ -1,6 +1,6 @@
 [project]
 name = "vanedb-cpp"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 description = "Supplementary C++ Python bindings for VaneDB"
 readme = "README.md"
 requires-python = ">=3.11"
