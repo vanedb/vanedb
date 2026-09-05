@@ -13,6 +13,12 @@ use crate::distance::{distance_fn, DistanceFn, Metric};
 use crate::error::{Result, VaneError};
 use crate::store::SearchResult;
 use crate::validation::{compare_distances, validate_finite};
+use storage::ChunkedVectors;
+
+/// Upper bound on how many sibling-array slots a capacity hint pre-reserves.
+/// The vectors themselves grow chunk by chunk; these arrays are small per
+/// entry, but a hint of 10^9 should still not allocate gigabytes up front.
+const RESERVE_CAP: usize = 1 << 20;
 
 mod persistence;
 mod storage;
@@ -125,7 +131,7 @@ pub struct Index {
 }
 
 pub(super) struct Inner {
-    pub(super) vectors: Vec<f32>,
+    pub(super) vectors: ChunkedVectors,
     pub(super) ext_ids: Vec<u64>,
     pub(super) id_map: HashMap<u64, usize>,
     pub(super) levels: Vec<i32>,
@@ -137,9 +143,6 @@ pub(super) struct Inner {
 }
 
 /// Configures an [`Index`] before construction.
-///
-/// Capacity is fixed once built, because the graph's storage is allocated up
-/// front.
 pub struct IndexBuilder {
     dim: usize,
     metric: Metric,
@@ -172,8 +175,11 @@ impl Index {
         self.size() == 0
     }
 
-    /// Vectors this index can hold; adding beyond it fails with
-    /// [`crate::VaneError::IndexFull`].
+    /// The capacity this index reserved for.
+    ///
+    /// A hint, not a limit: storage grows as vectors arrive, so adding beyond
+    /// this succeeds. It exists so a known-size bulk load can avoid growth
+    /// pauses.
     pub fn capacity(&self) -> usize {
         self.max_elements
     }
@@ -197,8 +203,7 @@ impl Index {
     pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
         let inner = self.inner.read();
         let &iid = inner.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
-        let start = iid * self.dim;
-        Ok(inner.vectors[start..start + self.dim].to_vec())
+        Ok(inner.vectors.get(iid).to_vec())
     }
 
     /// Sets the search beam width: higher recovers more true neighbours and
@@ -224,9 +229,6 @@ impl Index {
 
         let mut inner = self.inner.write();
 
-        if inner.count >= self.max_elements {
-            return Err(VaneError::IndexFull);
-        }
         if inner.id_map.contains_key(&id) {
             return Err(VaneError::DuplicateId { id });
         }
@@ -251,9 +253,6 @@ impl Index {
 
         let mut inner = self.inner.write();
 
-        if inner.count + ids.len() > self.max_elements {
-            return Err(VaneError::IndexFull);
-        }
         let mut seen = HashSet::with_capacity(ids.len());
         for &id in ids {
             if inner.id_map.contains_key(&id) || !seen.insert(id) {
@@ -274,18 +273,25 @@ impl Index {
         let iid = inner.count;
         inner.count += 1;
 
-        // Copy vector data
-        let start = iid * self.dim;
-        inner.vectors[start..start + self.dim].copy_from_slice(vector);
-        inner.ext_ids[iid] = id;
+        // Storage grows here rather than being pre-sized to capacity, so an
+        // empty index costs nothing and there is no ceiling to hit (#90).
+        inner.vectors.push(vector);
+        debug_assert_eq!(
+            inner.vectors.len(),
+            inner.count,
+            "storage and count diverged"
+        );
+        inner.ext_ids.push(id);
         inner.id_map.insert(id, iid);
 
         // Generate random level
         let level = Self::get_level(&mut inner.rng, self.mult);
-        inner.levels[iid] = level;
+        inner.levels.push(level);
 
         // Allocate neighbor lists for each layer
-        inner.neighbors[iid] = (0..=level as usize).map(|_| Vec::new()).collect();
+        inner
+            .neighbors
+            .push((0..=level as usize).map(|_| Vec::new()).collect());
 
         // First vector: set as entry point and return
         if iid == 0 {
@@ -299,7 +305,7 @@ impl Index {
 
         // Greedy descent through upper layers (above new node's level)
         for lev in (((level + 1) as usize)..=(cur_max_level as usize)).rev() {
-            let d = (self.dist_fn)(Self::get_vec(&inner.vectors, cur_ep, self.dim), vector);
+            let d = (self.dist_fn)(inner.vectors.get(cur_ep), vector);
             let mut cur_dist = d;
 
             let mut changed = true;
@@ -310,8 +316,7 @@ impl Index {
                     .cloned()
                     .unwrap_or_default();
                 for &nb in &neighbor_list {
-                    let nb_dist =
-                        (self.dist_fn)(Self::get_vec(&inner.vectors, nb, self.dim), vector);
+                    let nb_dist = (self.dist_fn)(inner.vectors.get(nb), vector);
                     if nb_dist < cur_dist {
                         cur_dist = nb_dist;
                         cur_ep = nb;
@@ -329,7 +334,6 @@ impl Index {
             let results = Self::search_layer(
                 &inner.vectors,
                 self.dist_fn,
-                self.dim,
                 &inner.neighbors,
                 vector,
                 ep_for_layer,
@@ -343,7 +347,7 @@ impl Index {
             // vanedb-cpp add() / hnswlib semantics.
             let m_for_layer = if lev == 0 { self.m_max0 } else { self.m_max };
             let neighbors_to_add =
-                Self::select_neighbors(&inner.vectors, self.dist_fn, self.dim, &results, self.m);
+                Self::select_neighbors(&inner.vectors, self.dist_fn, &results, self.m);
 
             // Set neighbors for the new node at this layer
             if lev < inner.neighbors[iid].len() {
@@ -357,14 +361,11 @@ impl Index {
                     inner.neighbors[nb][lev].push(iid);
                     // Prune if over capacity
                     if inner.neighbors[nb][lev].len() > m_for_layer {
-                        let nb_vec = Self::get_vec(&inner.vectors, nb, self.dim);
+                        let nb_vec = inner.vectors.get(nb);
                         let mut candidates: Vec<(f32, usize)> = inner.neighbors[nb][lev]
                             .iter()
                             .map(|&n| {
-                                let d = (self.dist_fn)(
-                                    nb_vec,
-                                    Self::get_vec(&inner.vectors, n, self.dim),
-                                );
+                                let d = (self.dist_fn)(nb_vec, inner.vectors.get(n));
                                 (d, n)
                             })
                             .collect();
@@ -414,7 +415,7 @@ impl Index {
         }
 
         let mut curr = inner.entry_point.unwrap();
-        let mut d = (self.dist_fn)(query, Self::get_vec(&inner.vectors, curr, self.dim));
+        let mut d = (self.dist_fn)(query, inner.vectors.get(curr));
 
         // Greedy descent through upper layers
         for l in (1..=inner.max_level).rev() {
@@ -424,7 +425,7 @@ impl Index {
                 changed = false;
                 if lu < inner.neighbors[curr].len() {
                     for &n in &inner.neighbors[curr][lu] {
-                        let nd = (self.dist_fn)(query, Self::get_vec(&inner.vectors, n, self.dim));
+                        let nd = (self.dist_fn)(query, inner.vectors.get(n));
                         if nd < d {
                             d = nd;
                             curr = n;
@@ -440,7 +441,6 @@ impl Index {
         let top = Self::search_layer(
             &inner.vectors,
             self.dist_fn,
-            self.dim,
             &inner.neighbors,
             query,
             curr,
@@ -471,10 +471,6 @@ impl Index {
     }
 
     /// Get a vector slice by internal ID.
-    fn get_vec(vectors: &[f32], iid: usize, dim: usize) -> &[f32] {
-        let start = iid * dim;
-        &vectors[start..start + dim]
-    }
 
     /// Beam search on a single graph layer.
     /// Returns results sorted by distance ascending.
@@ -483,9 +479,8 @@ impl Index {
     /// thread-local visited bitmap. Caller must guarantee `entry < total`.
     #[allow(clippy::too_many_arguments)]
     fn search_layer(
-        vectors: &[f32],
+        vectors: &ChunkedVectors,
         dist_fn: DistanceFn,
-        dim: usize,
         neighbors: &[Vec<Vec<usize>>],
         query: &[f32],
         entry: usize,
@@ -498,7 +493,7 @@ impl Index {
         VISITED.with_borrow_mut(|vb| {
             let epoch = vb.begin(total);
 
-            let entry_dist = dist_fn(Self::get_vec(vectors, entry, dim), query);
+            let entry_dist = dist_fn(vectors.get(entry), query);
 
             // Min-heap of candidates (closest first)
             let mut candidates: BinaryHeap<Reverse<(FloatOrd, usize)>> = BinaryHeap::new();
@@ -527,7 +522,7 @@ impl Index {
                     }
                     vb.marks[nb] = epoch;
 
-                    let nb_dist = dist_fn(Self::get_vec(vectors, nb, dim), query);
+                    let nb_dist = dist_fn(vectors.get(nb), query);
 
                     let should_add = if results.len() < ef {
                         true
@@ -559,9 +554,8 @@ impl Index {
 
     /// Heuristic neighbor selection (Algorithm 4 from HNSW paper).
     fn select_neighbors(
-        vectors: &[f32],
+        vectors: &ChunkedVectors,
         dist_fn: DistanceFn,
-        dim: usize,
         candidates: &[(f32, usize)],
         m: usize,
     ) -> Vec<(f32, usize)> {
@@ -582,10 +576,7 @@ impl Index {
 
             // Heuristic: include only if not closer to any already-selected neighbor
             let is_diverse = selected.iter().all(|&(_, sid)| {
-                let inter_dist = dist_fn(
-                    Self::get_vec(vectors, cid, dim),
-                    Self::get_vec(vectors, sid, dim),
-                );
+                let inter_dist = dist_fn(vectors.get(cid), vectors.get(sid));
                 inter_dist >= dist
             });
 
@@ -666,17 +657,15 @@ impl IndexBuilder {
             .m
             .checked_mul(2)
             .ok_or(VaneError::InvalidParameter("M * 2 overflows usize"))?;
-        let vector_len = self
-            .capacity
+        // capacity is a reserve hint, not a ceiling: storage grows as vectors
+        // arrive. Nothing is allocated until the first insert, so an unused
+        // index costs nothing however large the hint (#90).
+        self.capacity
             .checked_mul(self.dim)
             .ok_or(VaneError::InvalidParameter(
                 "capacity * dim overflows usize",
             ))?;
-        let mut vectors: Vec<f32> = Vec::new();
-        vectors
-            .try_reserve_exact(vector_len)
-            .map_err(|_| VaneError::InvalidParameter("capacity is too large to allocate"))?;
-        vectors.resize(vector_len, 0.0);
+        let vectors = ChunkedVectors::with_capacity(self.dim, self.capacity);
 
         Ok(Index {
             dim: self.dim,
@@ -692,10 +681,10 @@ impl IndexBuilder {
             seed: self.seed,
             inner: RwLock::new(Inner {
                 vectors,
-                ext_ids: vec![0; self.capacity],
+                ext_ids: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
                 id_map: HashMap::new(),
-                levels: vec![0; self.capacity],
-                neighbors: (0..self.capacity).map(|_| Vec::new()).collect(),
+                levels: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
+                neighbors: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
                 entry_point: None,
                 max_level: -1,
                 count: 0,
@@ -788,11 +777,16 @@ mod tests {
     }
 
     #[test]
-    fn add_rejects_when_full() {
+    fn adding_past_the_capacity_hint_grows_instead_of_failing() {
         let idx = Index::builder(2, Metric::L2).capacity(2).build().unwrap();
-        idx.add(0, &[0.0, 0.0]).unwrap();
-        idx.add(1, &[1.0, 1.0]).unwrap();
-        assert!(matches!(idx.add(2, &[2.0, 2.0]), Err(VaneError::IndexFull)));
+        for i in 0..50u64 {
+            idx.add(i, &[i as f32, i as f32])
+                .expect("capacity is a hint, not a ceiling");
+        }
+        assert_eq!(idx.size(), 50);
+        // The graph must still be usable well past the hint.
+        let hits = idx.search(&[49.0, 49.0], 1).unwrap();
+        assert_eq!(hits[0].id, 49);
     }
 
     #[test]

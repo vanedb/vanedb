@@ -11,7 +11,7 @@
 const TARGET_CHUNK_BYTES: usize = 1 << 20;
 
 /// Vectors of a fixed dimension, stored in chunks and grown on demand.
-pub(super) struct ChunkedVectors {
+pub(crate) struct ChunkedVectors {
     chunks: Vec<Vec<f32>>,
     dim: usize,
     /// Vectors per chunk; always a power of two so indexing is shift + mask.
@@ -32,7 +32,7 @@ fn vectors_per_chunk(dim: usize) -> usize {
 }
 
 impl ChunkedVectors {
-    pub(super) fn new(dim: usize) -> Self {
+    pub(crate) fn new(dim: usize) -> Self {
         debug_assert!(dim > 0, "dimension is validated before construction");
         let per_chunk = vectors_per_chunk(dim);
         Self {
@@ -46,13 +46,13 @@ impl ChunkedVectors {
     }
 
     /// Pre-allocates room for `n` vectors. A hint only: pushing past `n` grows.
-    pub(super) fn with_capacity(dim: usize, n: usize) -> Self {
+    pub(crate) fn with_capacity(dim: usize, n: usize) -> Self {
         let mut s = Self::new(dim);
         s.chunks.reserve(n.div_ceil(s.per_chunk));
         s
     }
 
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.len
     }
 
@@ -63,13 +63,13 @@ impl ChunkedVectors {
 
     /// The vector at `iid`, as one contiguous slice.
     #[inline]
-    pub(super) fn get(&self, iid: usize) -> &[f32] {
+    pub(crate) fn get(&self, iid: usize) -> &[f32] {
         let (chunk, offset) = self.locate(iid);
         &self.chunks[chunk][offset..offset + self.dim]
     }
 
     /// Appends a vector, allocating a chunk when the current one is full.
-    pub(super) fn push(&mut self, vector: &[f32]) {
+    pub(crate) fn push(&mut self, vector: &[f32]) {
         debug_assert_eq!(vector.len(), self.dim);
         if self.len & self.mask == 0 {
             let mut chunk = Vec::new();
@@ -82,7 +82,7 @@ impl ChunkedVectors {
     }
 
     /// Copies every stored vector into one flat row-major buffer, for saving.
-    pub(super) fn to_flat(&self, count: usize) -> Vec<f32> {
+    pub(crate) fn to_flat(&self, count: usize) -> Vec<f32> {
         let mut out = Vec::with_capacity(count * self.dim);
         for iid in 0..count {
             out.extend_from_slice(self.get(iid));
@@ -92,7 +92,7 @@ impl ChunkedVectors {
 
     /// Rebuilds storage from one flat row-major buffer, as written by
     /// [`to_flat`](Self::to_flat).
-    pub(super) fn from_flat(dim: usize, flat: &[f32]) -> Self {
+    pub(crate) fn from_flat(dim: usize, flat: &[f32]) -> Self {
         let mut s = Self::with_capacity(dim, flat.len() / dim);
         for vector in flat.chunks_exact(dim) {
             s.push(vector);
