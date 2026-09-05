@@ -26,9 +26,11 @@ Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 portable scalar path. Index and mmap files are little-endian and stable across
 released versions.
 
-A header-only C++ implementation sharing these file formats and graph
-construction is maintained alongside this crate, along with a cross-engine
-benchmark harness, in the [repository](https://github.com/vanedb/vanedb).
+A header-only C++ implementation is maintained alongside this crate, with a
+cross-engine benchmark harness, in the
+[repository](https://github.com/vanedb/vanedb). The two share the `DiskStore`
+format — either engine reads the other's file — and share graph construction.
+The `Index` format is still engine-specific.
 
 ## License
 
