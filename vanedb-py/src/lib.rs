@@ -6,6 +6,7 @@ use ::vanedb::distance::Metric;
 use ::vanedb::index::Index;
 use ::vanedb::store::Store;
 use ::vanedb::VaneError;
+use ::vanedb::{DiskStore, DiskStoreBuilder};
 
 fn to_pyerr(e: VaneError) -> PyErr {
     PyValueError::new_err(e.to_string())
@@ -334,6 +335,100 @@ impl PyIndex {
     }
 }
 
+/// Builds a `DiskStore` file. Vectors are held in memory until `save`; the
+/// memory saving is on the reading side.
+#[pyclass(name = "DiskStoreBuilder")]
+struct PyDiskStoreBuilder {
+    inner: DiskStoreBuilder,
+}
+
+#[pymethods]
+impl PyDiskStoreBuilder {
+    #[new]
+    #[pyo3(signature = (dim, metric=PyMetric::L2))]
+    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+        Ok(Self {
+            inner: DiskStoreBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+        })
+    }
+
+    fn add(&mut self, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+        let v = vec_f32(vector)?;
+        self.inner.add(id, &v).map_err(to_pyerr)
+    }
+
+    /// Writes the store to `path`, atomically: built beside the destination
+    /// and renamed in after an fsync.
+    fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
+    }
+
+    fn __len__(&self) -> usize {
+        self.inner.size()
+    }
+
+    fn size(&self) -> usize {
+        self.inner.size()
+    }
+
+    #[getter]
+    fn dimension(&self) -> usize {
+        self.inner.dimension()
+    }
+}
+
+/// Exact search over a memory-mapped file. Read-only; build one with
+/// `DiskStoreBuilder`.
+#[pyclass(name = "DiskStore")]
+struct PyDiskStore {
+    inner: DiskStore,
+}
+
+#[pymethods]
+impl PyDiskStore {
+    /// Maps the store at `path`.
+    ///
+    /// Validates the header and every stored value, so this is linear in the
+    /// corpus rather than a constant-cost mapping.
+    #[staticmethod]
+    fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
+        let inner = py.detach(|| DiskStore::open(path)).map_err(to_pyerr)?;
+        Ok(Self { inner })
+    }
+
+    fn search(
+        &self,
+        py: Python<'_>,
+        query: &Bound<'_, PyAny>,
+        k: usize,
+    ) -> PyResult<Vec<(u64, f32)>> {
+        let q = vec_f32(query)?;
+        let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
+        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+    }
+
+    fn get(&self, id: u64) -> PyResult<Vec<f32>> {
+        self.inner.get(id).map(<[f32]>::to_vec).map_err(to_pyerr)
+    }
+
+    fn contains(&self, id: u64) -> bool {
+        self.inner.contains(id)
+    }
+
+    fn __len__(&self) -> usize {
+        self.inner.size()
+    }
+
+    fn size(&self) -> usize {
+        self.inner.size()
+    }
+
+    #[getter]
+    fn dimension(&self) -> usize {
+        self.inner.dimension()
+    }
+}
+
 #[pymodule]
 fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // From Cargo.toml, never a literal: a hardcoded string silently
@@ -343,9 +438,21 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMetric>()?;
     m.add_class::<PyStore>()?;
     m.add_class::<PyIndex>()?;
+    m.add_class::<PyDiskStore>()?;
+    m.add_class::<PyDiskStoreBuilder>()?;
     // maturin's generated __init__ does `from .vanedb import *` and copies
     // __all__ verbatim, so this list is the package's entire public surface --
     // omitting __version__ here removes it from the package altogether.
-    m.add("__all__", vec!["Metric", "Store", "Index", "__version__"])?;
+    m.add(
+        "__all__",
+        vec![
+            "Metric",
+            "Store",
+            "Index",
+            "DiskStore",
+            "DiskStoreBuilder",
+            "__version__",
+        ],
+    )?;
     Ok(())
 }

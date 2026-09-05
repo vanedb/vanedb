@@ -87,6 +87,13 @@ impl DiskStoreBuilder {
         Ok(())
     }
 
+    /// Component count of every vector this builder accepts.
+    ///
+    /// The C++ `DiskStoreBuilder` exposes the same accessor.
+    pub fn dimension(&self) -> usize {
+        self.dim
+    }
+
     /// Number of vectors collected so far.
     /// Number of vectors in the mapped file.
     pub fn size(&self) -> usize {
