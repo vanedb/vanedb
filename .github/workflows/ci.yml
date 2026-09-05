@@ -28,6 +28,7 @@ jobs:
         with:
           filters: |
             rust:
+              - 'conformance/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'vanedb/**'
@@ -37,6 +38,7 @@ jobs:
               - '.github/requirements-release.txt'
               - '.github/workflows/**'
             cpp:
+              - 'conformance/**'
               - 'cpp/**'
               - '.github/requirements-release.txt'
               - '.github/workflows/**'
