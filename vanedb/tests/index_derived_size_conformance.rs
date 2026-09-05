@@ -1,6 +1,6 @@
-//! Cross-engine HNSW size cases from `conformance/hnsw_derived_sizes.tsv`.
+//! Cross-engine HNSW size cases from `conformance/index_derived_sizes.tsv`.
 
-use vanedb::{DistanceMetric, HnswIndex, VaneError};
+use vanedb::{Index, Metric, VaneError};
 
 #[derive(Debug)]
 struct Case<'a> {
@@ -20,7 +20,7 @@ fn parse_size(value: &str) -> usize {
 }
 
 fn cases() -> Vec<Case<'static>> {
-    include_str!("../../conformance/hnsw_derived_sizes.tsv")
+    include_str!("../../conformance/index_derived_sizes.tsv")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| {
@@ -43,7 +43,7 @@ fn builder_rejects_shared_derived_size_overflows() {
     assert_eq!(cases.len(), 2);
 
     for case in cases {
-        let result = HnswIndex::builder(case.dimension, DistanceMetric::L2)
+        let result = Index::builder(case.dimension, Metric::L2)
             .capacity(case.max_elements)
             .m(case.m)
             .build();

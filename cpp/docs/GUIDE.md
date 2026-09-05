@@ -50,13 +50,13 @@ float cos_dist = vanedb::cosine_distance(vec_a, vec_b, 768);
 float dot = vanedb::dot_product(vec_a, vec_b, 768);
 ```
 
-### VectorStore (Brute-force k-NN)
+### Store (Brute-force k-NN)
 
 ```cpp
-#include "core/vector_store.h"
+#include "core/store.h"
 
 // Create a store for 768-dimensional vectors using cosine distance
-vanedb::VectorStore store(768, vanedb::DistanceMetric::COSINE);
+vanedb::Store store(768, vanedb::Metric::COSINE);
 
 // Add vectors with unique IDs
 float doc1[768] = {/* ... */};
@@ -74,15 +74,15 @@ for (const auto& result : results) {
 }
 ```
 
-### HNSWIndex (Approximate Nearest Neighbor)
+### Index (Approximate Nearest Neighbor)
 
-For large datasets, use `HNSWIndex` for much faster search:
+For large datasets, use `Index` for much faster search:
 
 ```cpp
-#include "core/hnsw_index.h"
+#include "core/index.h"
 
 // Create HNSW index
-vanedb::HNSWIndex index(768, vanedb::DistanceMetric::COSINE, 100000);
+vanedb::Index index(768, vanedb::Metric::COSINE, 100000);
 
 // Add vectors
 index.add(1, doc1);
@@ -92,24 +92,24 @@ auto results = index.search(query, 5);
 
 // Save and Load
 index.save("my_index.bin");
-auto loaded_index = vanedb::HNSWIndex::load("my_index.bin");
+auto loaded_index = vanedb::Index::load("my_index.bin");
 ```
 
-### MMapVectorStore (Memory-Mapped)
+### DiskStore (Memory-Mapped)
 
-For datasets larger than RAM, use `MMapVectorStore` for zero-copy file access:
+For datasets larger than RAM, use `DiskStore` for zero-copy file access:
 
 ```cpp
-#include "core/mmap_vector_store.h"
+#include "core/disk_store.h"
 
 // Build and save vectors to disk
-vanedb::MMapVectorStoreBuilder builder(768, vanedb::DistanceMetric::COSINE);
+vanedb::DiskStoreBuilder builder(768, vanedb::Metric::COSINE);
 builder.add(1, doc1);
 builder.add(2, doc2);
 builder.save("vectors.bin");
 
 // Load with memory-mapping (zero-copy, instant load)
-vanedb::MMapVectorStore store("vectors.bin");
+vanedb::DiskStore store("vectors.bin");
 auto results = store.search(query, 5);
 ```
 
@@ -144,32 +144,32 @@ import numpy as np
 print(vanedb.__version__)  # "0.1.0-rc.1"
 
 # === HNSW Index (approximate, fastest for large datasets) ===
-index = vanedb.HNSWIndex(128, vanedb.DistanceMetric.COSINE)
+index = vanedb.Index(128, vanedb.Metric.COSINE)
 vec = np.random.rand(128).astype(np.float32)
 index.add(1, vec)
 ids, dists = index.search(vec, 10)
 index.save("index.bin")
 
-# === VectorStore (exact k-NN, thread-safe) ===
-store = vanedb.VectorStore(128, vanedb.DistanceMetric.COSINE)
+# === Store (exact k-NN, thread-safe) ===
+store = vanedb.Store(128, vanedb.Metric.COSINE)
 store.add(1, vec)
 store.add(2, np.random.rand(128).astype(np.float32))
 ids, dists = store.search(vec, 5)
 
-# === MMapVectorStore (memory-mapped, for large datasets) ===
-builder = vanedb.MMapVectorStoreBuilder(128, vanedb.DistanceMetric.L2)
+# === DiskStore (memory-mapped, for large datasets) ===
+builder = vanedb.DiskStoreBuilder(128, vanedb.Metric.L2)
 for i in range(1000):
     builder.add(i, np.random.rand(128).astype(np.float32))
 builder.save("vectors.bin")
 
-mmap_store = vanedb.MMapVectorStore("vectors.bin")  # Instant load
+mmap_store = vanedb.DiskStore("vectors.bin")  # Instant load
 ids, dists = mmap_store.search(vec, 10)
 mapped = mmap_store.get(0)  # Read-only NumPy view; no vector copy
 editable = mapped.copy()   # Independent writable array, if needed
 editable[0] = 0.0          # Does not change the mapped vector or file
 ```
 
-`MMapVectorStore.get(id)` returns `None` for an unknown ID. Existing vectors
+`DiskStore.get(id)` returns `None` for an unknown ID. Existing vectors
 are exposed as read-only NumPy views: assignment raises `ValueError`, and
 slices and memoryviews remain read-only. The array keeps the mapping alive
 even after the store variable is deleted. Use `.copy()` to obtain an editable
@@ -287,8 +287,8 @@ vanedb/
 
 ## Known Limitations
 
-- **VectorStore pointer lifetime**: `get()` returns a pointer invalidated by write operations
-- **Brute-force search**: VectorStore uses O(n) search; use HNSWIndex for large datasets
+- **Store pointer lifetime**: `get()` returns a pointer invalidated by write operations
+- **Brute-force search**: Store uses O(n) search; use Index for large datasets
 - **No deletion in HNSW**: Removing vectors requires rebuilding the index
 - **Single-file persistence**: No sharding for very large datasets
 - **GPU dimensions**: Metal requires dimensions divisible by 4 (the experimental CUDA kernels assume the same)

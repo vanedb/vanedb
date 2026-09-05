@@ -11,7 +11,7 @@ pub mod scalar;
 
 /// Distance metric for vector comparison.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DistanceMetric {
+pub enum Metric {
     /// Squared Euclidean distance
     L2,
     /// Cosine distance (1 - cosine similarity)
@@ -25,11 +25,11 @@ pub type DistanceFn = fn(&[f32], &[f32]) -> f32;
 
 /// Returns the distance function for the given metric.
 /// Automatically selects SIMD implementation when available.
-pub fn distance_fn(metric: DistanceMetric) -> DistanceFn {
+pub fn distance_fn(metric: Metric) -> DistanceFn {
     match metric {
-        DistanceMetric::L2 => l2_squared,
-        DistanceMetric::Cosine => cosine_distance,
-        DistanceMetric::Dot => dot_distance,
+        Metric::L2 => l2_squared,
+        Metric::Cosine => cosine_distance,
+        Metric::Dot => dot_distance,
     }
 }
 

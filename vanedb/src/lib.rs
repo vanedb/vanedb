@@ -2,18 +2,18 @@
 //!
 //! Three ways to hold vectors, all searchable by k nearest neighbours:
 //!
-//! - [`VectorStore`] — exact brute-force scan, held in memory.
-//! - [`HnswIndex`] — approximate graph index: sub-linear search, recall traded
+//! - [`Store`] — exact brute-force scan, held in memory.
+//! - [`Index`] — approximate graph index: sub-linear search, recall traded
 //!   against speed through `ef_search`.
-//! - [`MmapVectorStore`] — exact scan over a memory-mapped file, so a corpus
-//!   larger than RAM stays searchable (feature `mmap`).
+//! - [`DiskStore`] — exact scan over a memory-mapped file, so a corpus
+//!   larger than RAM stays searchable (feature `disk`).
 //!
-//! Each takes a [`DistanceMetric`] and returns [`SearchResult`]s nearest first.
+//! Each takes a [`Metric`] and returns [`SearchResult`]s nearest first.
 //!
 //! ```
-//! use vanedb::{DistanceMetric, HnswIndex};
+//! use vanedb::{Metric, Index};
 //!
-//! let index = HnswIndex::builder(3, DistanceMetric::Cosine)
+//! let index = Index::builder(3, Metric::Cosine)
 //!     .capacity(1_000)
 //!     .build()?;
 //! index.add(1, &[1.0, 0.0, 0.0])?;
@@ -32,19 +32,19 @@
 #![warn(missing_docs)]
 
 mod atomic_write;
+#[cfg(feature = "disk")]
+pub mod disk;
 pub mod distance;
 pub mod error;
 #[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
 pub mod gpu;
-pub mod hnsw;
-#[cfg(feature = "mmap")]
-pub mod mmap;
+pub mod index;
 pub mod store;
 mod validation;
 
-pub use distance::DistanceMetric;
+#[cfg(feature = "disk")]
+pub use disk::{DiskStore, DiskStoreBuilder};
+pub use distance::Metric;
 pub use error::{Result, VaneError};
-pub use hnsw::HnswIndex;
-#[cfg(feature = "mmap")]
-pub use mmap::{MmapVectorStore, MmapVectorStoreBuilder};
-pub use store::{SearchResult, VectorStore};
+pub use index::Index;
+pub use store::{SearchResult, Store};

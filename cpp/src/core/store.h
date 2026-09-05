@@ -25,9 +25,9 @@ struct SearchResult {
   }
 };
 
-class VectorStore {
+class Store {
 public:
-  explicit VectorStore(size_t dimension, DistanceMetric metric = DistanceMetric::L2)
+  explicit Store(size_t dimension, Metric metric = Metric::L2)
       : dim_(dimension), metric_(metric), dist_(metric, dimension) {
     if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
   }
@@ -91,7 +91,7 @@ public:
 
   size_t size() const { std::shared_lock lock(mutex_); return ids_.size(); }
   size_t dimension() const { return dim_; }
-  DistanceMetric metric() const { return metric_; }
+  Metric metric() const { return metric_; }
 
   void clear() {
     std::unique_lock lock(mutex_);
@@ -124,7 +124,7 @@ public:
 
 private:
   size_t dim_;
-  DistanceMetric metric_;
+  Metric metric_;
   DistanceComputer dist_;
   std::vector<float> vectors_data_;
   std::vector<uint64_t> ids_;

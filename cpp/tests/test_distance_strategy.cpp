@@ -16,48 +16,25 @@ TEST_CASE("DistanceComputer matches raw function calls", "[distance_strategy]") 
   float b[] = {5.0f, 6.0f, 7.0f, 8.0f};
 
   SECTION("L2") {
-    DistanceComputer dc(DistanceMetric::L2, dim);
+    DistanceComputer dc(Metric::L2, dim);
     REQUIRE(dc(a, b) == l2_sq(a, b, dim));
   }
 
   SECTION("Cosine") {
-    DistanceComputer dc(DistanceMetric::COSINE, dim);
+    DistanceComputer dc(Metric::COSINE, dim);
     REQUIRE(dc(a, b) == cosine_distance(a, b, dim));
   }
 
   SECTION("Dot") {
-    DistanceComputer dc(DistanceMetric::DOT, dim);
+    DistanceComputer dc(Metric::DOT, dim);
     REQUIRE(dc(a, b) == -dot_product(a, b, dim));
   }
 }
 
-TEST_CASE("HNSWDistanceMetric is alias for DistanceMetric", "[distance_strategy]") {
-  // Compile-time check: these must be the same type (suppress deprecation for test)
-#if defined(_MSC_VER)
-#  pragma warning(push)
-#  pragma warning(disable: 4996)
-#elif defined(__GNUC__) || defined(__clang__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-  static_assert(std::is_same_v<HNSWDistanceMetric, DistanceMetric>,
-                "HNSWDistanceMetric must be an alias for DistanceMetric");
-
-  // Runtime: enum values match
-  REQUIRE(static_cast<int>(HNSWDistanceMetric::L2) == static_cast<int>(DistanceMetric::L2));
-  REQUIRE(static_cast<int>(HNSWDistanceMetric::COSINE) == static_cast<int>(DistanceMetric::COSINE));
-  REQUIRE(static_cast<int>(HNSWDistanceMetric::DOT) == static_cast<int>(DistanceMetric::DOT));
-#if defined(_MSC_VER)
-#  pragma warning(pop)
-#elif defined(__GNUC__) || defined(__clang__)
-#  pragma GCC diagnostic pop
-#endif
-}
-
 TEST_CASE("Explicit enum values are stable", "[distance_strategy]") {
-  REQUIRE(static_cast<int>(DistanceMetric::L2) == 0);
-  REQUIRE(static_cast<int>(DistanceMetric::COSINE) == 1);
-  REQUIRE(static_cast<int>(DistanceMetric::DOT) == 2);
+  REQUIRE(static_cast<int>(Metric::L2) == 0);
+  REQUIRE(static_cast<int>(Metric::COSINE) == 1);
+  REQUIRE(static_cast<int>(Metric::DOT) == 2);
 }
 
 TEST_CASE("Default DistanceComputer returns infinity", "[distance_strategy]") {
@@ -82,12 +59,12 @@ TEST_CASE("detail::fsync_file does not crash", "[distance_strategy]") {
 }
 
 TEST_CASE("DistanceComputer throws on invalid metric", "[distance_strategy]") {
-  REQUIRE_THROWS_AS(DistanceComputer(static_cast<DistanceMetric>(99), 4),
+  REQUIRE_THROWS_AS(DistanceComputer(static_cast<Metric>(99), 4),
                     std::invalid_argument);
 }
 
 TEST_CASE("DistanceComputer with zero dimension", "[distance_strategy]") {
-  DistanceComputer dc(DistanceMetric::L2, 0);
+  DistanceComputer dc(Metric::L2, 0);
   float a[] = {1.0f};
   float b[] = {2.0f};
   // Zero-dimension distance should be 0 (sum of nothing)
@@ -95,7 +72,7 @@ TEST_CASE("DistanceComputer with zero dimension", "[distance_strategy]") {
 }
 
 TEST_CASE("sizeof(DistanceComputer) is 16 bytes", "[distance_strategy]") {
-  // Field layout: size_t dim_ (8) + DistanceMetric metric_ (4) + bool valid_ (1) + 3 padding.
+  // Field layout: size_t dim_ (8) + Metric metric_ (4) + bool valid_ (1) + 3 padding.
   // Reorder breaks this contract; revisit benchmarks before changing.
   static_assert(sizeof(DistanceComputer) == 16,
                 "DistanceComputer must remain 16 bytes — affects every store embedding it");

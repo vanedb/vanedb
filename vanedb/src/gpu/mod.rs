@@ -6,9 +6,9 @@ pub mod metal;
 #[cfg(feature = "gpu-metal")]
 pub use self::metal::MetalCompute;
 
-use crate::distance::DistanceMetric;
+use crate::distance::Metric;
 
-/// GPU distance metric (maps from DistanceMetric).
+/// GPU distance metric (maps from Metric).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuMetric {
     L2,
@@ -16,12 +16,12 @@ pub enum GpuMetric {
     Dot,
 }
 
-impl From<DistanceMetric> for GpuMetric {
-    fn from(m: DistanceMetric) -> Self {
+impl From<Metric> for GpuMetric {
+    fn from(m: Metric) -> Self {
         match m {
-            DistanceMetric::L2 => GpuMetric::L2,
-            DistanceMetric::Cosine => GpuMetric::Cosine,
-            DistanceMetric::Dot => GpuMetric::Dot,
+            Metric::L2 => GpuMetric::L2,
+            Metric::Cosine => GpuMetric::Cosine,
+            Metric::Dot => GpuMetric::Dot,
         }
     }
 }

@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
 
-use vanedb::{DistanceMetric, HnswIndex, SearchResult, VaneError, VectorStore};
+use vanedb::{Index, Metric, SearchResult, Store, VaneError};
 
-#[cfg(feature = "mmap")]
-use vanedb::{MmapVectorStore, MmapVectorStoreBuilder};
+#[cfg(feature = "disk")]
+use vanedb::{DiskStore, DiskStoreBuilder};
 
 fn cases() -> Vec<(&'static str, f32)> {
     include_str!("../../conformance/non_finite_vectors.tsv")
@@ -35,7 +35,7 @@ fn shared_cases_are_non_finite() {
 #[test]
 fn vector_store_rejects_non_finite_vectors_queries_and_batches() {
     for (name, value) in cases() {
-        let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+        let store = Store::new(2, Metric::L2).unwrap();
         assert_non_finite_error(store.add(1, &[value, 0.0]), "vector");
         assert_eq!(store.len(), 0, "{name} add mutated the store");
 
@@ -57,10 +57,7 @@ fn vector_store_rejects_non_finite_vectors_queries_and_batches() {
 #[test]
 fn hnsw_rejects_non_finite_vectors_queries_and_batches() {
     for (name, value) in cases() {
-        let index = HnswIndex::builder(2, DistanceMetric::L2)
-            .capacity(4)
-            .build()
-            .unwrap();
+        let index = Index::builder(2, Metric::L2).capacity(4).build().unwrap();
         assert_non_finite_error(index.add(1, &[value, 0.0]), "vector");
         assert_eq!(index.size(), 0, "{name} add mutated the index");
 
@@ -79,24 +76,24 @@ fn hnsw_rejects_non_finite_vectors_queries_and_batches() {
     }
 }
 
-#[cfg(feature = "mmap")]
+#[cfg(feature = "disk")]
 #[test]
 fn mmap_builder_rejects_non_finite_vectors() {
     for (name, value) in cases() {
-        let mut builder = MmapVectorStoreBuilder::new(2, DistanceMetric::L2).unwrap();
+        let mut builder = DiskStoreBuilder::new(2, Metric::L2).unwrap();
         assert_non_finite_error(builder.add(1, &[value, 0.0]), "vector");
         assert_eq!(builder.size(), 0, "{name} add mutated the builder");
     }
 }
 
-#[cfg(feature = "mmap")]
+#[cfg(feature = "disk")]
 #[test]
 fn mmap_store_rejects_non_finite_queries() {
     let path = std::env::temp_dir().join("vanedb_non_finite_query_conformance.bin");
-    let mut builder = MmapVectorStoreBuilder::new(2, DistanceMetric::L2).unwrap();
+    let mut builder = DiskStoreBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
-    let store = MmapVectorStore::open(&path).unwrap();
+    let store = DiskStore::open(&path).unwrap();
 
     for (_, value) in cases() {
         let error = store.search(&[value, 0.0], 1).unwrap_err();
@@ -120,7 +117,7 @@ fn finite_results_sort_before_non_finite_results() {
 
 #[test]
 fn finite_exact_match_outranks_overflowed_distance() {
-    let store = VectorStore::new(2, DistanceMetric::L2).unwrap();
+    let store = Store::new(2, Metric::L2).unwrap();
     store.add(1, &[f32::MAX, f32::MAX]).unwrap();
     store.add(2, &[0.0, 0.0]).unwrap();
     let results = store.search(&[0.0, 0.0], 2).unwrap();

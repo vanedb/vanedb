@@ -1,13 +1,13 @@
-use vanedb::{DistanceMetric, HnswIndex, VectorStore};
+use vanedb::{Index, Metric, Store};
 
-/// Brute-force search using VectorStore as ground truth, then check HNSW recall.
+/// Brute-force search using Store as ground truth, then check HNSW recall.
 #[test]
 fn hnsw_recall_vs_brute_force() {
     let dim = 32;
     let n = 500;
     let k = 10;
 
-    let hnsw = HnswIndex::builder(dim, DistanceMetric::L2)
+    let hnsw = Index::builder(dim, Metric::L2)
         .capacity(n)
         .m(16)
         .ef_construction(200)
@@ -15,7 +15,7 @@ fn hnsw_recall_vs_brute_force() {
         .build()
         .unwrap();
 
-    let brute = VectorStore::new(dim, DistanceMetric::L2).unwrap();
+    let brute = Store::new(dim, Metric::L2).unwrap();
 
     // Generate deterministic vectors
     for i in 0..n as u64 {
@@ -57,7 +57,7 @@ fn hnsw_recall_vs_brute_force() {
 
 #[test]
 fn hnsw_cosine_search() {
-    let idx = HnswIndex::builder(3, DistanceMetric::Cosine)
+    let idx = Index::builder(3, Metric::Cosine)
         .capacity(100)
         .seed(42)
         .build()
@@ -78,7 +78,7 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
     // payload; 20 KB allows generous encoding overhead, while the full
     // pre-allocated arrays would exceed 140 KB.
     let path = std::env::temp_dir().join("vanedb_test_hnsw_compact.bin");
-    let idx = HnswIndex::builder(32, DistanceMetric::L2)
+    let idx = Index::builder(32, Metric::L2)
         .capacity(1000)
         .seed(42)
         .build()
@@ -101,13 +101,13 @@ fn hnsw_empty_index_save_load_roundtrip() {
     // v2 stores zero-length arrays for an empty index; load must re-expand
     // to full capacity so subsequent adds work.
     let path = std::env::temp_dir().join("vanedb_test_hnsw_empty.bin");
-    let idx = HnswIndex::builder(4, DistanceMetric::L2)
+    let idx = Index::builder(4, Metric::L2)
         .capacity(10)
         .seed(42)
         .build()
         .unwrap();
     idx.save(&path).unwrap();
-    let loaded = HnswIndex::load(&path).unwrap();
+    let loaded = Index::load(&path).unwrap();
     let _ = std::fs::remove_file(&path);
     assert_eq!(loaded.size(), 0);
     assert_eq!(loaded.capacity(), 10);
@@ -122,7 +122,7 @@ fn hnsw_save_load_roundtrip() {
     let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");
 
     // Build and populate index
-    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+    let idx = Index::builder(dim, Metric::L2)
         .capacity(100)
         .seed(42)
         .build()
@@ -137,7 +137,7 @@ fn hnsw_save_load_roundtrip() {
     idx.save(&path).unwrap();
 
     // Load
-    let loaded = HnswIndex::load(&path).unwrap();
+    let loaded = Index::load(&path).unwrap();
 
     // Verify metadata
     assert_eq!(loaded.dimension(), dim);
@@ -168,7 +168,7 @@ fn hnsw_concurrent_search() {
     use std::thread;
 
     let idx = Arc::new(
-        HnswIndex::builder(8, DistanceMetric::L2)
+        Index::builder(8, Metric::L2)
             .capacity(200)
             .seed(42)
             .build()
@@ -200,7 +200,7 @@ fn hnsw_concurrent_search() {
 #[test]
 fn hnsw_is_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<HnswIndex>();
+    assert_send_sync::<Index>();
 }
 
 /// Drive the thread-local visited bitmap through at least one u16 epoch wrap
@@ -211,7 +211,7 @@ fn hnsw_is_send_sync() {
 fn hnsw_visited_bitmap_epoch_wrap_correctness() {
     let dim = 4;
     let n = 100usize;
-    let idx = HnswIndex::builder(dim, DistanceMetric::L2)
+    let idx = Index::builder(dim, Metric::L2)
         .capacity(n)
         .seed(42)
         .build()
@@ -247,7 +247,7 @@ fn hnsw_add_batch_matches_serial_add() {
     let n = 300;
 
     let mk = || {
-        HnswIndex::builder(dim, DistanceMetric::L2)
+        Index::builder(dim, Metric::L2)
             .capacity(n)
             .m(8)
             .ef_construction(100)
@@ -283,10 +283,7 @@ fn hnsw_add_batch_matches_serial_add() {
 
 #[test]
 fn hnsw_add_batch_capacity_exceeded_is_all_or_nothing() {
-    let index = HnswIndex::builder(4, DistanceMetric::L2)
-        .capacity(4)
-        .build()
-        .unwrap();
+    let index = Index::builder(4, Metric::L2).capacity(4).build().unwrap();
     index.add(99, &[0.5; 4]).unwrap();
 
     let ids: Vec<u64> = (0..4).collect();
@@ -299,10 +296,7 @@ fn hnsw_add_batch_capacity_exceeded_is_all_or_nothing() {
 
 #[test]
 fn hnsw_add_batch_duplicate_is_all_or_nothing() {
-    let index = HnswIndex::builder(2, DistanceMetric::L2)
-        .capacity(10)
-        .build()
-        .unwrap();
+    let index = Index::builder(2, Metric::L2).capacity(10).build().unwrap();
     index.add(5, &[0.1, 0.2]).unwrap();
 
     let result = index.add_batch(&[4, 5], &[1.0, 2.0, 3.0, 4.0]);
@@ -323,10 +317,7 @@ fn hnsw_add_batch_duplicate_is_all_or_nothing() {
 
 #[test]
 fn hnsw_add_batch_empty_is_noop() {
-    let index = HnswIndex::builder(2, DistanceMetric::L2)
-        .capacity(10)
-        .build()
-        .unwrap();
+    let index = Index::builder(2, Metric::L2).capacity(10).build().unwrap();
     index.add_batch(&[], &[]).unwrap();
     assert!(index.is_empty());
 }
@@ -342,7 +333,7 @@ fn hnsw_add_batch_onto_nonempty_matches_serial_add() {
     let n = 300;
 
     let mk = || {
-        HnswIndex::builder(dim, DistanceMetric::L2)
+        Index::builder(dim, Metric::L2)
             .capacity(n)
             .m(8)
             .ef_construction(100)
@@ -399,7 +390,7 @@ fn hnsw_add_batch_onto_nonempty_matches_serial_add() {
 // fallible builder promises to translate reserve failure into VaneError.
 #[test]
 fn builder_rejects_unallocatable_capacity() {
-    let result = vanedb::HnswIndex::builder(1024, vanedb::DistanceMetric::L2)
+    let result = vanedb::Index::builder(1024, vanedb::Metric::L2)
         .capacity(usize::MAX / 4096)
         .build();
     let Err(err) = result else {

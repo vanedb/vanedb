@@ -28,18 +28,18 @@ fn bench_hnsw(c: &mut Criterion) {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
                 let start = Instant::now();
-                let h = unsafe { ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED) };
+                let h = unsafe { ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED) };
                 assert!(!h.is_null());
                 for i in 0..N {
                     assert_eq!(
                         unsafe {
-                            ffi::vanedb_cpp_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
+                            ffi::vanedb_cpp_index_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
                         },
                         0
                     );
                 }
                 elapsed += start.elapsed();
-                unsafe { ffi::vanedb_cpp_hnsw_free(black_box(h)) };
+                unsafe { ffi::vanedb_cpp_index_free(black_box(h)) };
             }
             elapsed
         });
@@ -52,18 +52,18 @@ fn bench_hnsw(c: &mut Criterion) {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
                 let start = Instant::now();
-                let h = unsafe { ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED) };
+                let h = unsafe { ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED) };
                 assert!(!h.is_null());
                 for i in 0..N {
                     assert_eq!(
                         unsafe {
-                            ffi::vanedb_rs_hnsw_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
+                            ffi::vanedb_rs_index_add(h, w.ids[i], w.vectors[i * DIM..].as_ptr())
                         },
                         0
                     );
                 }
                 elapsed += start.elapsed();
-                unsafe { ffi::vanedb_rs_hnsw_free(black_box(h)) };
+                unsafe { ffi::vanedb_rs_index_free(black_box(h)) };
             }
             elapsed
         });
@@ -73,16 +73,16 @@ fn bench_hnsw(c: &mut Criterion) {
     // Pre-build once each for the search benchmark.
     let mut search = c.benchmark_group(groups::HNSW_SEARCH);
     unsafe {
-        let hc = ffi::vanedb_cpp_hnsw_new(DIM, 0, N, M, EFC, SEED);
-        let hr = ffi::vanedb_rs_hnsw_new(DIM, 0, N, M, EFC, SEED);
+        let hc = ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED);
+        let hr = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
         assert!(!hc.is_null() && !hr.is_null(), "hnsw_new failed");
         for i in 0..N {
             assert_eq!(
-                ffi::vanedb_cpp_hnsw_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr()),
+                ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr()),
                 0
             );
             assert_eq!(
-                ffi::vanedb_rs_hnsw_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr()),
+                ffi::vanedb_rs_index_add(hr, w.ids[i], w.vectors[i * DIM..].as_ptr()),
                 0
             );
         }
@@ -90,16 +90,16 @@ fn bench_hnsw(c: &mut Criterion) {
         let mut ds = [0f32; 10];
         // Warmup outside the timed loops doubles as a liveness check.
         assert_eq!(
-            ffi::vanedb_cpp_hnsw_search(hc, q.as_ptr(), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            ffi::vanedb_cpp_index_search(hc, q.as_ptr(), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr()),
             10
         );
         assert_eq!(
-            ffi::vanedb_rs_hnsw_search(hr, q.as_ptr(), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr()),
+            ffi::vanedb_rs_index_search(hr, q.as_ptr(), 10, EFS, ids.as_mut_ptr(), ds.as_mut_ptr()),
             10
         );
         search.bench_function("cpp", |bn| {
             bn.iter(|| {
-                ffi::vanedb_cpp_hnsw_search(
+                ffi::vanedb_cpp_index_search(
                     hc,
                     black_box(q.as_ptr()),
                     10,
@@ -111,7 +111,7 @@ fn bench_hnsw(c: &mut Criterion) {
         });
         search.bench_function("rs", |bn| {
             bn.iter(|| {
-                ffi::vanedb_rs_hnsw_search(
+                ffi::vanedb_rs_index_search(
                     hr,
                     black_box(q.as_ptr()),
                     10,
@@ -121,8 +121,8 @@ fn bench_hnsw(c: &mut Criterion) {
                 )
             })
         });
-        ffi::vanedb_cpp_hnsw_free(hc);
-        ffi::vanedb_rs_hnsw_free(hr);
+        ffi::vanedb_cpp_index_free(hc);
+        ffi::vanedb_rs_index_free(hr);
     }
     search.finish();
 }

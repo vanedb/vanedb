@@ -29,13 +29,13 @@ jobs:
       # libtest harness (which doesn't accept --save-baseline) regardless
       # of Cargo.toml settings on either branch.
       - name: Benchmark (PR branch)
-        run: cargo bench --locked --bench distance_bench --bench store_bench --bench hnsw_bench -- --save-baseline pr
+        run: cargo bench --locked --bench distance_bench --bench store_bench --bench index_bench -- --save-baseline pr
 
       - name: Checkout main
         run: git checkout origin/main
 
       - name: Benchmark (main baseline)
-        run: cargo bench --locked --bench distance_bench --bench store_bench --bench hnsw_bench -- --save-baseline main
+        run: cargo bench --locked --bench distance_bench --bench store_bench --bench index_bench -- --save-baseline main
 
       - name: Compare benchmarks
         run: |

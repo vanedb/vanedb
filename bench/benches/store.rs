@@ -16,7 +16,7 @@ fn bench_store_add(c: &mut Criterion) {
     // Neither C ABI exposes a reserve hook, so both engines start empty and
     // grow on demand: the preallocation policy is equal by construction.
     // store_new and store_free sit outside the measured interval — only the
-    // adds are the throughput under test (#62 was this mistake in hnsw_build).
+    // adds are the throughput under test (#62 was this mistake in index_build).
     g.bench_function("cpp", |bn| {
         bn.iter_custom(|iterations| {
             let mut elapsed = Duration::ZERO;

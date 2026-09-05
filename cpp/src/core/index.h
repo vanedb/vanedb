@@ -63,7 +63,7 @@ struct HNSWSearchResult {
   bool operator>(const HNSWSearchResult& o) const { return o < *this; }
 };
 
-class HNSWIndex {
+class Index {
   struct DerivedSizes {
     size_t vector_count;
     size_t m_max0;
@@ -97,7 +97,7 @@ class HNSWIndex {
     return left * right;
   }
 
-  HNSWIndex(size_t dimension, DistanceMetric metric, size_t max_elements, size_t M,
+  Index(size_t dimension, Metric metric, size_t max_elements, size_t M,
             size_t ef_construction, uint32_t seed, DerivedSizes sizes)
       : dim_(dimension), metric_(metric), dist_(metric, dimension),
         max_elements_(max_elements), M_(M), M_max_(M),
@@ -115,9 +115,9 @@ public:
   static constexpr int MAX_LEVEL = 32;  // Reasonable upper bound for HNSW levels
   static constexpr size_t INVALID_ID = static_cast<size_t>(-1);  // Sentinel for empty entry point
 
-  explicit HNSWIndex(size_t dimension, DistanceMetric metric = DistanceMetric::L2,
+  explicit Index(size_t dimension, Metric metric = Metric::L2,
       size_t max_elements = 100000, size_t M = 16, size_t ef_construction = 200, uint32_t seed = 42)
-      : HNSWIndex(dimension, metric, max_elements, M, ef_construction, seed,
+      : Index(dimension, metric, max_elements, M, ef_construction, seed,
                   checked_direct_sizes(dimension, max_elements, M)) {}
 
   // Thread-safety: global_mtx_ is the single sync point. add() holds it
@@ -289,7 +289,7 @@ public:
     } catch (...) { f.close(); std::filesystem::remove(tmp); throw; }
   }
 
-  static std::unique_ptr<HNSWIndex> load(const std::string& filename) {
+  static std::unique_ptr<Index> load(const std::string& filename) {
     std::ifstream f(filename, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + filename);
     uint32_t magic, ver;
@@ -337,8 +337,8 @@ public:
     const size_t stored_vector_count =
         ver >= 3 ? live_vector_count : sizes.vector_count;
 
-    auto idx = std::unique_ptr<HNSWIndex>(
-        new HNSWIndex(dim, static_cast<DistanceMetric>(met), max_el, M, ef_con, 42, sizes));
+    auto idx = std::unique_ptr<Index>(
+        new Index(dim, static_cast<Metric>(met), max_el, M, ef_con, 42, sizes));
     idx->ef_search_.store(ef_s);
     idx->mult_ = mult;
     idx->count_.store(cnt);
@@ -443,7 +443,7 @@ private:
     // visited; bumping the epoch each call replaces the per-search O(N)
     // zero-init a fresh bitmap would need with one O(count_) fill every
     // 65k searches when the uint16_t epoch wraps. Buffer is shared across
-    // HNSWIndex instances on a thread (monotonic epoch keeps cross-index
+    // Index instances on a thread (monotonic epoch keeps cross-index
     // marks distinct) and is never shrunk.
     //
     // Relaxed load on count_ is safe: every caller holds global_mtx_
@@ -455,7 +455,7 @@ private:
     // indexes; this hot-path guard also catches in-memory corruption or future
     // call-site bugs. Defensive — unreachable by construction in tests.
     if (ep >= total) [[unlikely]]  // LCOV_EXCL_LINE
-      throw std::logic_error("HNSWIndex::search_layer: entry point out of range");  // LCOV_EXCL_LINE
+      throw std::logic_error("Index::search_layer: entry point out of range");  // LCOV_EXCL_LINE
     if (vis.size() < total) vis.resize(total, 0);
     if (++vis_epoch == 0) {
       std::fill(vis.begin(), vis.end(), 0);
@@ -520,7 +520,7 @@ private:
   }
 
   size_t dim_;
-  DistanceMetric metric_;
+  Metric metric_;
   DistanceComputer dist_;
   size_t max_elements_, M_, M_max_, M_max0_, ef_construction_;
   std::atomic<size_t> ef_search_;  // Atomic for thread-safe reads during search

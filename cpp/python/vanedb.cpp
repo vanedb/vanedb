@@ -6,9 +6,9 @@
 #error "The Python extension must be compiled for baseline x86-64"
 #endif
 
-#include "core/hnsw_index.h"
-#include "core/vector_store.h"
-#include "core/mmap_vector_store.h"
+#include "core/index.h"
+#include "core/store.h"
+#include "core/disk_store.h"
 #include "core/version.h"
 
 namespace py = pybind11;
@@ -26,25 +26,24 @@ PYBIND11_MODULE(vanedb_cpp, m) {
     m.def("simd_backend", []() { return detail::runtime_kernels().name; },
           "Active distance backend: scalar, neon, or avx2_fma (CPU/OS checked).");
 
-    py::enum_<DistanceMetric>(m, "DistanceMetric")
-        .value("L2", DistanceMetric::L2)
-        .value("COSINE", DistanceMetric::COSINE)
-        .value("DOT", DistanceMetric::DOT)
-        .export_values();
+    py::enum_<Metric>(m, "Metric")
+        .value("L2", Metric::L2)
+        .value("COSINE", Metric::COSINE)
+        .value("DOT", Metric::DOT)
+        ;
 
     // Deprecated alias for backward compatibility.
-    m.attr("HNSWDistanceMetric") = m.attr("DistanceMetric");
 
-    // Bind HNSWIndex class
-    py::class_<HNSWIndex>(m, "HNSWIndex")
-        .def(py::init<size_t, DistanceMetric, size_t, size_t, size_t, uint32_t>(),
+    // Bind Index class
+    py::class_<Index>(m, "Index")
+        .def(py::init<size_t, Metric, size_t, size_t, size_t, uint32_t>(),
              py::arg("dimension"),
-             py::arg("metric") = DistanceMetric::L2,
+             py::arg("metric") = Metric::L2,
              py::arg("max_elements") = 100000,
              py::arg("M") = 16,
              py::arg("ef_construction") = 200,
              py::arg("random_seed") = 42)
-        .def("add", [](HNSWIndex& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
+        .def("add", [](Index& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
                 py::buffer_info buf = vector_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Vector must be a 1-dimensional array");
@@ -58,7 +57,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the index")
-        .def("get_vector", [](const HNSWIndex& self, uint64_t id) {
+        .def("get_vector", [](const Index& self, uint64_t id) {
                 std::vector<float> vec = self.get_vector(id);
                 // Create array that owns its data by using a capsule to prevent use-after-free
                 auto* vec_ptr = new std::vector<float>(std::move(vec));
@@ -74,7 +73,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"),
             "Retrieves the vector associated with the given ID as a numpy array")
-        .def("search", [](const HNSWIndex& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
+        .def("search", [](const Index& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
                 py::buffer_info buf = query_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Query vector must be a 1-dimensional array");
@@ -106,31 +105,31 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("query_vector"), py::arg("k"),
             "Searches for k nearest neighbors. Returns a tuple (ids, distances).")
-        .def("size", &HNSWIndex::size, "Returns the number of vectors in the index")
-        .def("dimension", &HNSWIndex::dimension, "Returns the dimension of stored vectors")
-        .def("capacity", &HNSWIndex::capacity, "Returns the maximum capacity of the index")
-        .def("contains", &HNSWIndex::contains, py::arg("id"), "Checks if a vector with given ID exists")
-        .def("set_ef_search", &HNSWIndex::set_ef_search, py::arg("ef"), "Sets the ef parameter for search")
-        .def("get_ef_search", &HNSWIndex::get_ef_search, "Returns the current ef_search parameter")
-        .def("save", [](const HNSWIndex& self, const std::string& filename) {
+        .def("size", &Index::size, "Returns the number of vectors in the index")
+        .def("dimension", &Index::dimension, "Returns the dimension of stored vectors")
+        .def("capacity", &Index::capacity, "Returns the maximum capacity of the index")
+        .def("contains", &Index::contains, py::arg("id"), "Checks if a vector with given ID exists")
+        .def("set_ef_search", &Index::set_ef_search, py::arg("ef"), "Sets the ef parameter for search")
+        .def("get_ef_search", &Index::get_ef_search, "Returns the current ef_search parameter")
+        .def("save", [](const Index& self, const std::string& filename) {
                 py::gil_scoped_release release;
                 self.save(filename);
             },
             py::arg("filename"), "Saves the index to a binary file")
         .def_static("load", [](const std::string& filename) {
                 py::gil_scoped_release release;
-                return HNSWIndex::load(filename);
+                return Index::load(filename);
             },
             py::arg("filename"), "Loads the index from a binary file",
             py::return_value_policy::take_ownership);
 
-    // Bind VectorStore class (brute-force, thread-safe)
-    py::class_<VectorStore>(m, "VectorStore")
-        .def(py::init<size_t, DistanceMetric>(),
+    // Bind Store class (brute-force, thread-safe)
+    py::class_<Store>(m, "Store")
+        .def(py::init<size_t, Metric>(),
              py::arg("dimension"),
-             py::arg("metric") = DistanceMetric::L2,
+             py::arg("metric") = Metric::L2,
              "Creates a new in-memory vector store")
-        .def("add", [](VectorStore& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
+        .def("add", [](Store& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
                 py::buffer_info buf = vector_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Vector must be a 1-dimensional array");
@@ -143,7 +142,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the store")
-        .def("get", [](const VectorStore& self, uint64_t id) -> py::object {
+        .def("get", [](const Store& self, uint64_t id) -> py::object {
                 // Use get_copy() for thread-safe copy while holding the lock
                 std::vector<float> vec = self.get_copy(id);
                 if (vec.empty()) {
@@ -163,7 +162,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"),
             "Gets a vector by ID, returns None if not found")
-        .def("search", [](const VectorStore& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
+        .def("search", [](const Store& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
                 py::buffer_info buf = query_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Query vector must be a 1-dimensional array");
@@ -192,8 +191,8 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("query_vector"), py::arg("k"),
             "Searches for k nearest neighbors. Returns (ids, distances).")
-        .def("remove", &VectorStore::remove, py::arg("id"), "Removes a vector by ID")
-        .def("update", [](VectorStore& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
+        .def("remove", &Store::remove, py::arg("id"), "Removes a vector by ID")
+        .def("update", [](Store& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
                 py::buffer_info buf = vector_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Vector must be a 1-dimensional array");
@@ -206,19 +205,19 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"), py::arg("vector"),
             "Updates an existing vector")
-        .def("size", &VectorStore::size, "Returns the number of vectors")
-        .def("dimension", &VectorStore::dimension, "Returns the dimension")
-        .def("contains", &VectorStore::contains, py::arg("id"), "Checks if ID exists")
-        .def("clear", &VectorStore::clear, "Removes all vectors")
-        .def("reserve", &VectorStore::reserve, py::arg("capacity"), "Pre-allocates space");
+        .def("size", &Store::size, "Returns the number of vectors")
+        .def("dimension", &Store::dimension, "Returns the dimension")
+        .def("contains", &Store::contains, py::arg("id"), "Checks if ID exists")
+        .def("clear", &Store::clear, "Removes all vectors")
+        .def("reserve", &Store::reserve, py::arg("capacity"), "Pre-allocates space");
 
-    // Bind MMapVectorStoreBuilder class
-    py::class_<MMapVectorStoreBuilder>(m, "MMapVectorStoreBuilder")
-        .def(py::init<size_t, DistanceMetric>(),
+    // Bind DiskStoreBuilder class
+    py::class_<DiskStoreBuilder>(m, "DiskStoreBuilder")
+        .def(py::init<size_t, Metric>(),
              py::arg("dimension"),
-             py::arg("metric") = DistanceMetric::L2,
+             py::arg("metric") = Metric::L2,
              "Creates a new builder for memory-mapped vector store")
-        .def("add", [](MMapVectorStoreBuilder& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
+        .def("add", [](DiskStoreBuilder& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
                 py::buffer_info buf = vector_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Vector must be a 1-dimensional array");
@@ -230,22 +229,22 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the builder")
-        .def("save", [](const MMapVectorStoreBuilder& self, const std::string& filename) {
+        .def("save", [](const DiskStoreBuilder& self, const std::string& filename) {
                 py::gil_scoped_release release;
                 self.save(filename);
             },
             py::arg("filename"),
             "Saves to a memory-mappable file")
-        .def("size", &MMapVectorStoreBuilder::size, "Returns the number of vectors")
-        .def("dimension", &MMapVectorStoreBuilder::dimension, "Returns the dimension")
-        .def("reserve", &MMapVectorStoreBuilder::reserve, py::arg("capacity"), "Pre-allocates space");
+        .def("size", &DiskStoreBuilder::size, "Returns the number of vectors")
+        .def("dimension", &DiskStoreBuilder::dimension, "Returns the dimension")
+        .def("reserve", &DiskStoreBuilder::reserve, py::arg("capacity"), "Pre-allocates space");
 
-    // Bind MMapVectorStore class (read-only, memory-mapped)
-    py::class_<MMapVectorStore>(m, "MMapVectorStore")
+    // Bind DiskStore class (read-only, memory-mapped)
+    py::class_<DiskStore>(m, "DiskStore")
         .def(py::init<const std::string&>(),
              py::arg("filename"),
              "Opens a memory-mapped vector store file")
-        .def("get", [](const MMapVectorStore& self, uint64_t id) -> py::object {
+        .def("get", [](const DiskStore& self, uint64_t id) -> py::object {
                 const float* ptr = self.get(id);
                 if (ptr == nullptr) {
                     return py::none();
@@ -265,7 +264,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             py::arg("id"),
             "Gets a read-only zero-copy vector from mmap, or None if not found. "
             "The array keeps the mapping alive; use .copy() for an editable array.")
-        .def("search", [](const MMapVectorStore& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
+        .def("search", [](const DiskStore& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
                 py::buffer_info buf = query_array.request();
                 if (buf.ndim != 1) {
                     throw std::runtime_error("Query vector must be a 1-dimensional array");
@@ -294,7 +293,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             },
             py::arg("query_vector"), py::arg("k"),
             "Searches for k nearest neighbors. Returns (ids, distances).")
-        .def("size", &MMapVectorStore::size, "Returns the number of vectors")
-        .def("dimension", &MMapVectorStore::dimension, "Returns the dimension")
-        .def("contains", &MMapVectorStore::contains, py::arg("id"), "Checks if ID exists");
+        .def("size", &DiskStore::size, "Returns the number of vectors")
+        .def("dimension", &DiskStore::dimension, "Returns the dimension")
+        .def("contains", &DiskStore::contains, py::arg("id"), "Checks if ID exists");
 }

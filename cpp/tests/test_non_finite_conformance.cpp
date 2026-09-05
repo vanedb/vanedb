@@ -1,6 +1,6 @@
-#include "core/hnsw_index.h"
-#include "core/mmap_vector_store.h"
-#include "core/vector_store.h"
+#include "core/index.h"
+#include "core/disk_store.h"
+#include "core/store.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -40,10 +40,10 @@ TEST_CASE("Shared non-finite fixture parses as non-finite", "[conformance][non-f
   }
 }
 
-TEST_CASE("VectorStore rejects non-finite public inputs", "[conformance][non-finite]") {
+TEST_CASE("Store rejects non-finite public inputs", "[conformance][non-finite]") {
   for (const auto& [name, value] : cases()) {
     CAPTURE(name);
-    vanedb::VectorStore store(2);
+    vanedb::Store store(2);
     const float invalid[2] = {value, 0.0f};
     REQUIRE_THROWS_AS(store.add(1, invalid), std::invalid_argument);
     REQUIRE(store.size() == 0);
@@ -56,10 +56,10 @@ TEST_CASE("VectorStore rejects non-finite public inputs", "[conformance][non-fin
   }
 }
 
-TEST_CASE("HNSWIndex rejects non-finite public inputs", "[conformance][non-finite]") {
+TEST_CASE("Index rejects non-finite public inputs", "[conformance][non-finite]") {
   for (const auto& [name, value] : cases()) {
     CAPTURE(name);
-    vanedb::HNSWIndex index(2, vanedb::DistanceMetric::L2, 4);
+    vanedb::Index index(2, vanedb::Metric::L2, 4);
     const float invalid[2] = {value, 0.0f};
     REQUIRE_THROWS_AS(index.add(1, invalid), std::invalid_argument);
     REQUIRE(index.size() == 0);
@@ -73,7 +73,7 @@ TEST_CASE("HNSWIndex rejects non-finite public inputs", "[conformance][non-finit
 TEST_CASE("MMap builder rejects non-finite vectors", "[conformance][non-finite]") {
   for (const auto& [name, value] : cases()) {
     CAPTURE(name);
-    vanedb::MMapVectorStoreBuilder builder(2);
+    vanedb::DiskStoreBuilder builder(2);
     const float invalid[2] = {value, 0.0f};
     REQUIRE_THROWS_AS(builder.add(1, invalid), std::invalid_argument);
     REQUIRE(builder.size() == 0);
@@ -90,7 +90,7 @@ TEST_CASE("Finite results sort before non-finite results", "[conformance][non-fi
 }
 
 TEST_CASE("Finite exact match outranks overflowed distance", "[conformance][non-finite]") {
-  vanedb::VectorStore store(2);
+  vanedb::Store store(2);
   const float huge[2] = {std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
   const float exact[2] = {0.0f, 0.0f};
   store.add(1, huge);

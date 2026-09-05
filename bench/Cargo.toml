@@ -20,10 +20,10 @@ harness = false
 name = "store"
 harness = false
 [[bench]]
-name = "hnsw"
+name = "index"
 harness = false
 [[bench]]
-name = "mmap"
+name = "disk"
 harness = false
 
 [[bin]]

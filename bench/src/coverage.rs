@@ -15,11 +15,11 @@ pub mod groups {
     pub const DOT: &str = "dot";
     pub const STORE_ADD: &str = "store_add";
     pub const STORE_SEARCH: &str = "store_search";
-    pub const HNSW_BUILD: &str = "hnsw_build";
-    pub const HNSW_SEARCH: &str = "hnsw_search";
-    pub const MMAP_BUILD: &str = "mmap_build";
-    pub const MMAP_OPEN: &str = "mmap_open";
-    pub const MMAP_SEARCH: &str = "mmap_search";
+    pub const HNSW_BUILD: &str = "index_build";
+    pub const HNSW_SEARCH: &str = "index_search";
+    pub const MMAP_BUILD: &str = "disk_build";
+    pub const MMAP_OPEN: &str = "disk_open";
+    pub const MMAP_SEARCH: &str = "disk_search";
 }
 
 /// One operation the approved scope promises, and where it is measured.
@@ -55,27 +55,27 @@ pub const SCOPE: &[Coverage] = &[
         must_reference: "groups::DOT",
     },
     Coverage {
-        operation: "VectorStore add throughput",
+        operation: "Store add throughput",
         measured_by: "store_add/n=10000",
         source: "benches/store.rs",
         must_reference: "groups::STORE_ADD",
     },
     Coverage {
-        operation: "VectorStore search latency",
+        operation: "Store search latency",
         measured_by: "store_search/n={1000,10000}",
         source: "benches/store.rs",
         must_reference: "groups::STORE_SEARCH",
     },
     Coverage {
         operation: "HNSW build latency",
-        measured_by: "hnsw_build",
-        source: "benches/hnsw.rs",
+        measured_by: "index_build",
+        source: "benches/index.rs",
         must_reference: "groups::HNSW_BUILD",
     },
     Coverage {
         operation: "HNSW search latency",
-        measured_by: "hnsw_search",
-        source: "benches/hnsw.rs",
+        measured_by: "index_search",
+        source: "benches/index.rs",
         must_reference: "groups::HNSW_SEARCH",
     },
     Coverage {
@@ -86,20 +86,20 @@ pub const SCOPE: &[Coverage] = &[
     },
     Coverage {
         operation: "mmap build latency",
-        measured_by: "mmap_build",
-        source: "benches/mmap.rs",
+        measured_by: "disk_build",
+        source: "benches/disk.rs",
         must_reference: "groups::MMAP_BUILD",
     },
     Coverage {
         operation: "mmap open latency",
-        measured_by: "mmap_open",
-        source: "benches/mmap.rs",
+        measured_by: "disk_open",
+        source: "benches/disk.rs",
         must_reference: "groups::MMAP_OPEN",
     },
     Coverage {
         operation: "mmap search latency",
-        measured_by: "mmap_search",
-        source: "benches/mmap.rs",
+        measured_by: "disk_search",
+        source: "benches/disk.rs",
         must_reference: "groups::MMAP_SEARCH",
     },
 ];
@@ -114,8 +114,8 @@ mod tests {
         match path {
             "benches/distance.rs" => include_str!("../benches/distance.rs"),
             "benches/store.rs" => include_str!("../benches/store.rs"),
-            "benches/hnsw.rs" => include_str!("../benches/hnsw.rs"),
-            "benches/mmap.rs" => include_str!("../benches/mmap.rs"),
+            "benches/index.rs" => include_str!("../benches/index.rs"),
+            "benches/disk.rs" => include_str!("../benches/disk.rs"),
             "src/bin/report.rs" => include_str!("bin/report.rs"),
             other => panic!("SCOPE names {other}, which the test cannot read"),
         }

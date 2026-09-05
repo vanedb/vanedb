@@ -20,13 +20,13 @@ typedef enum { VANEDB_L2 = 0, VANEDB_COSINE = 1, VANEDB_DOT = 2 } vanedb_metric;
  *  - out_ids / out_dists are caller-owned buffers of length k.
  *  - Stored vectors and search queries must contain only finite values. Adds
  *    fail with a non-zero return; searches fail with a zero result count.
- *  - vanedb_cpp_hnsw_search takes ef_search per call (the implementation sets it
+ *  - vanedb_cpp_index_search takes ef_search per call (the implementation sets it
  *    then searches). This mirrors the Rust ABI; it is not thread-safe to call
  *    concurrently with different ef_search values on the same handle, which the
  *    single-threaded benchmark consumer never does. Do not remove this parameter.
  *    Callers needing concurrent search must use a separate handle per thread.
  *  - to_metric maps any unrecognized metric value to L2 (no error).
- *  - vanedb_cpp_hnsw_new: seed is uint64_t for ABI parity but only the low 32 bits are used
+ *  - vanedb_cpp_index_new: seed is uint64_t for ABI parity but only the low 32 bits are used
  *    (the C++ core takes uint32_t); cross-implementation graphs differ by RNG regardless,
  *    so this does not affect the recall-based comparison.
  */
@@ -36,7 +36,7 @@ float vanedb_cpp_l2_sq(const float* a, const float* b, size_t dim);
 float vanedb_cpp_cosine_distance(const float* a, const float* b, size_t dim);
 float vanedb_cpp_dot_product(const float* a, const float* b, size_t dim);
 
-/* VectorStore (brute force) */
+/* Store (brute force) */
 typedef struct vanedb_cpp_store vanedb_cpp_store;
 vanedb_cpp_store* vanedb_cpp_store_new(size_t dim, vanedb_metric metric);
 int    vanedb_cpp_store_add(vanedb_cpp_store* s, uint64_t id, const float* v);
@@ -46,23 +46,23 @@ void   vanedb_cpp_store_free(vanedb_cpp_store* s);
 
 /* HNSW */
 typedef struct vanedb_cpp_hnsw vanedb_cpp_hnsw;
-vanedb_cpp_hnsw* vanedb_cpp_hnsw_new(size_t dim, vanedb_metric metric, size_t capacity,
+vanedb_cpp_hnsw* vanedb_cpp_index_new(size_t dim, vanedb_metric metric, size_t capacity,
                                      size_t M, size_t ef_construction, uint64_t seed);
-int    vanedb_cpp_hnsw_add(vanedb_cpp_hnsw* h, uint64_t id, const float* v);
-size_t vanedb_cpp_hnsw_search(vanedb_cpp_hnsw* h, const float* q, size_t k, size_t ef_search,
+int    vanedb_cpp_index_add(vanedb_cpp_hnsw* h, uint64_t id, const float* v);
+size_t vanedb_cpp_index_search(vanedb_cpp_hnsw* h, const float* q, size_t k, size_t ef_search,
                               uint64_t* out_ids, float* out_dists);
-int    vanedb_cpp_hnsw_save(vanedb_cpp_hnsw* h, const char* path);
-vanedb_cpp_hnsw* vanedb_cpp_hnsw_load(const char* path);
-void   vanedb_cpp_hnsw_free(vanedb_cpp_hnsw* h);
+int    vanedb_cpp_index_save(vanedb_cpp_hnsw* h, const char* path);
+vanedb_cpp_hnsw* vanedb_cpp_index_load(const char* path);
+void   vanedb_cpp_index_free(vanedb_cpp_hnsw* h);
 
 /* MMap store */
 typedef struct vanedb_cpp_mmap vanedb_cpp_mmap;
-int    vanedb_cpp_mmap_build(const char* path, size_t dim, vanedb_metric metric,
+int    vanedb_cpp_disk_build(const char* path, size_t dim, vanedb_metric metric,
                              const uint64_t* ids, const float* vecs, size_t n);
-vanedb_cpp_mmap* vanedb_cpp_mmap_open(const char* path);
-size_t vanedb_cpp_mmap_search(vanedb_cpp_mmap* m, const float* q, size_t k,
+vanedb_cpp_mmap* vanedb_cpp_disk_open(const char* path);
+size_t vanedb_cpp_disk_search(vanedb_cpp_mmap* m, const float* q, size_t k,
                               uint64_t* out_ids, float* out_dists);
-void   vanedb_cpp_mmap_free(vanedb_cpp_mmap* m);
+void   vanedb_cpp_disk_free(vanedb_cpp_mmap* m);
 
 #ifdef __cplusplus
 }

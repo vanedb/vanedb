@@ -9,13 +9,13 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
-use super::{HnswIndex, Inner, MAX_LEVEL};
-use crate::distance::{distance_fn, DistanceMetric};
+use super::{Index, Inner, MAX_LEVEL};
+use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
 
 /// On-disk magic ("HNSW" little-endian) and format version.
 ///
-/// Mirrors the framing in vanedb-cpp src/core/hnsw_index.h. The C++ side
+/// Mirrors the framing in vanedb-cpp src/core/index.h. The C++ side
 /// uses a different MAGIC (legacy "QVRD") because it needs on-disk
 /// compatibility with files written before the rename. Rust never shipped
 /// pre-rename, so we use a clean per-format magic.
@@ -53,24 +53,24 @@ struct HnswData {
     id_map: HashMap<u64, usize>,
 }
 
-fn metric_to_u32(m: DistanceMetric) -> u32 {
+fn metric_to_u32(m: Metric) -> u32 {
     match m {
-        DistanceMetric::L2 => 0,
-        DistanceMetric::Cosine => 1,
-        DistanceMetric::Dot => 2,
+        Metric::L2 => 0,
+        Metric::Cosine => 1,
+        Metric::Dot => 2,
     }
 }
 
-fn u32_to_metric(v: u32) -> Result<DistanceMetric> {
+fn u32_to_metric(v: u32) -> Result<Metric> {
     match v {
-        0 => Ok(DistanceMetric::L2),
-        1 => Ok(DistanceMetric::Cosine),
-        2 => Ok(DistanceMetric::Dot),
+        0 => Ok(Metric::L2),
+        1 => Ok(Metric::Cosine),
+        2 => Ok(Metric::Dot),
         _ => Err(VaneError::Io("invalid metric in file".to_string())),
     }
 }
 
-impl HnswIndex {
+impl Index {
     /// Writes the index to `path`.
     ///
     /// Written beside the destination and renamed in after an fsync, so an
@@ -152,7 +152,7 @@ impl HnswIndex {
         // never validates values, so a corrupt or hostile file could otherwise
         // claim e.g. count > max_elements, an out-of-range entry point, or
         // neighbor indices pointing past the live set. Each check below maps
-        // to one in the C++ load() path (vanedb-cpp src/core/hnsw_index.h).
+        // to one in the C++ load() path (vanedb-cpp src/core/index.h).
         let metric = u32_to_metric(data.metric)?;
         if data.dim == 0 {
             return Err(VaneError::Io("invalid dim: 0".to_string()));
@@ -299,10 +299,10 @@ impl HnswIndex {
         // serializes the std::mt19937 engine state directly.
         let mut rng = StdRng::seed_from_u64(data.seed);
         for _ in 0..data.count {
-            let _ = HnswIndex::get_level(&mut rng, data.mult);
+            let _ = Index::get_level(&mut rng, data.mult);
         }
 
-        Ok(HnswIndex {
+        Ok(Index {
             dim: data.dim,
             metric,
             dist_fn: distance_fn(metric),

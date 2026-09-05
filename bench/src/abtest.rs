@@ -210,8 +210,8 @@ mod tests {
     /// Real criterion output, including the shapes that break naive parsers:
     /// a wrapped benchmark name, throughput and change lines, outlier notes.
     const RUN: &str = "\
-Benchmarking mmap_build/cpp: Warming up for 3.0000 s
-mmap_build/cpp          time:   [4.7941 ms 4.8888 ms 4.9125 ms]
+Benchmarking disk_build/cpp: Warming up for 3.0000 s
+disk_build/cpp          time:   [4.7941 ms 4.8888 ms 4.9125 ms]
                         change: [-1.2345% +0.1234% +1.5678%] (p = 0.42 > 0.05)
                         No change in performance detected.
 Found 2 outliers among 10 measurements (20.00%)
@@ -226,7 +226,7 @@ l2_sq/dim=128/rs/128    time:   [16.472 ns 16.706 ns 16.764 ns]
     #[test]
     fn reads_the_median_of_each_measurement() {
         let m = parse_run(RUN);
-        assert_eq!(m[0].id, "mmap_build/cpp");
+        assert_eq!(m[0].id, "disk_build/cpp");
         assert!(
             (m[0].median_ns - 4_888_800.0).abs() < 1e-6,
             "got {}",

@@ -11,7 +11,7 @@ categories = ["database", "science"]
 
 [features]
 default = []
-mmap = ["dep:memmap2"]
+disk = ["dep:memmap2"]
 gpu-metal = ["dep:metal", "dep:objc"]
 gpu-cuda = ["dep:cudarc"]
 
@@ -43,5 +43,5 @@ name = "store_bench"
 harness = false
 
 [[bench]]
-name = "hnsw_bench"
+name = "index_bench"
 harness = false

@@ -17,7 +17,7 @@ both issue trackers:
 - HNSW construction in both engines rejects overflow in
   capacity-times-dimension and doubled-`M` derived sizes before allocation;
   the C++ legacy-format loader applies the same cases as corruption checks.
-  The architecture-neutral symbolic cases live in `hnsw_derived_sizes.tsv`;
+  The architecture-neutral symbolic cases live in `index_derived_sizes.tsv`;
 - HNSW persistence with inconsistent external-id maps.
 
 ## Distance semantics
@@ -52,9 +52,9 @@ accepted files in which an external id resolved to a different slot — reads
 returned well-formed data under the wrong identity, which is worse than a
 refusal to load.
 
-`hnsw_id_map_consistency.tsv` pins these cases for both engines and is consumed
-by `vanedb/tests/hnsw_id_map_conformance.rs` and
-`cpp/tests/test_hnsw_id_map_conformance.cpp`.
+`index_id_map_consistency.tsv` pins these cases for both engines and is consumed
+by `vanedb/tests/index_id_map_conformance.rs` and
+`cpp/tests/test_index_id_map_conformance.cpp`.
 
 ## Universal persistence
 

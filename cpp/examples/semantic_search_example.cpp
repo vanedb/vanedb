@@ -1,4 +1,4 @@
-#include "core/vector_store.h"
+#include "core/store.h"
 #include <iostream>
 #include <random>
 #include <vector>
@@ -11,7 +11,7 @@ int main() {
 
   // Create a vector store for 384-dimensional embeddings (common for smaller models)
   const size_t dim = 384;
-  vanedb::VectorStore store(dim, vanedb::DistanceMetric::COSINE);
+  vanedb::Store store(dim, vanedb::Metric::COSINE);
 
   // Simulate document embeddings (in practice, these would come from an embedding model)
   std::mt19937 gen(42);
@@ -146,13 +146,13 @@ int main() {
   std::cout << "Vector dimension: " << store.dimension() << "\n";
   std::cout << "Distance metric: ";
   switch (store.metric()) {
-    case vanedb::DistanceMetric::L2:
+    case vanedb::Metric::L2:
       std::cout << "L2 (Euclidean)\n";
       break;
-    case vanedb::DistanceMetric::COSINE:
+    case vanedb::Metric::COSINE:
       std::cout << "Cosine\n";
       break;
-    case vanedb::DistanceMetric::DOT:
+    case vanedb::Metric::DOT:
       std::cout << "Dot Product (MIPS)\n";
       break;
   }

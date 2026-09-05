@@ -20,7 +20,7 @@ jobs:
         with:
           components: clippy, rustfmt
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features mmap --locked -- -D warnings
+      - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features disk --locked -- -D warnings
 
   check-py:
     name: Check (Python bindings)
@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap --locked
+      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
 
   test-macos:
     name: Test (macOS ARM)
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap,gpu-metal --locked
+      - run: cargo test --workspace --exclude vanedb-py --features disk,gpu-metal --locked
 
   test-windows:
     name: Test (Windows x86_64)
@@ -94,7 +94,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features mmap --locked
+      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
 
   test-wasm:
     name: Test (WASM)
@@ -119,7 +119,7 @@ jobs:
           targets: aarch64-apple-ios
       # Cross-compile only: there is no iOS test runner, mirroring the
       # build-only verification the C++ repo uses for mobile.
-      - run: cargo build -p vanedb --target aarch64-apple-ios --features mmap --release --locked
+      - run: cargo build -p vanedb --target aarch64-apple-ios --features disk --release --locked
 
   build-android:
     name: Build (Android arm64-v8a, x86_64)
@@ -136,4 +136,4 @@ jobs:
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --version 4.1.2 --locked
       - name: Cross-compile core for Android
-        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features mmap --release --locked
+        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features disk --release --locked

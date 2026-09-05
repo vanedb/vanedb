@@ -9,13 +9,13 @@ use std::os::raw::c_char;
 use std::slice;
 
 use vanedb::distance::distance_fn;
-use vanedb::{DistanceMetric, HnswIndex, MmapVectorStore, MmapVectorStoreBuilder, VectorStore};
+use vanedb::{DiskStore, DiskStoreBuilder, Index, Metric, Store};
 
-fn to_metric(m: u32) -> DistanceMetric {
+fn to_metric(m: u32) -> Metric {
     match m {
-        1 => DistanceMetric::Cosine,
-        2 => DistanceMetric::Dot,
-        _ => DistanceMetric::L2,
+        1 => Metric::Cosine,
+        2 => Metric::Dot,
+        _ => Metric::L2,
     }
 }
 
@@ -23,7 +23,7 @@ fn to_metric(m: u32) -> DistanceMetric {
 /// `a` and `b` must each point to at least `dim` valid `f32` values.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_l2_sq(a: *const f32, b: *const f32, dim: usize) -> f32 {
-    distance_fn(DistanceMetric::L2)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
+    distance_fn(Metric::L2)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
 }
 
 /// # Safety
@@ -34,10 +34,7 @@ pub unsafe extern "C" fn vanedb_rs_cosine_distance(
     b: *const f32,
     dim: usize,
 ) -> f32 {
-    distance_fn(DistanceMetric::Cosine)(
-        slice::from_raw_parts(a, dim),
-        slice::from_raw_parts(b, dim),
-    )
+    distance_fn(Metric::Cosine)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
 }
 
 /// # Safety
@@ -47,15 +44,15 @@ pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim
     // Negate to get the raw inner product (+a·b). The core's distance_fn(Dot) returns the
     // negated distance form (-a·b, lower=closer) for search ranking. This C ABI function must
     // return the raw product to match vanedb_cpp_dot_product, which returns +a·b.
-    -distance_fn(DistanceMetric::Dot)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
+    -distance_fn(Metric::Dot)(slice::from_raw_parts(a, dim), slice::from_raw_parts(b, dim))
 }
 
 /// # Safety
 /// Safe to call with any arguments; returns an owning handle (or null on error)
 /// that must eventually be freed with `vanedb_rs_store_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut VectorStore {
-    match VectorStore::new(dim, to_metric(metric)) {
+pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut Store {
+    match Store::new(dim, to_metric(metric)) {
         Ok(s) => Box::into_raw(Box::new(s)),
         Err(_) => std::ptr::null_mut(),
     }
@@ -65,7 +62,7 @@ pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut Ve
 /// `s` must be a live handle from `vanedb_rs_store_new` (or null), and
 /// `v` must point to at least `dim` valid `f32` values (where `dim` matches the store).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_add(s: *mut VectorStore, id: u64, v: *const f32) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_store_add(s: *mut Store, id: u64, v: *const f32) -> i32 {
     if s.is_null() {
         return 1;
     }
@@ -83,7 +80,7 @@ pub unsafe extern "C" fn vanedb_rs_store_add(s: *mut VectorStore, id: u64, v: *c
 /// All-or-nothing: on error (duplicate id, length mismatch) the store is unchanged.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_add_batch(
-    s: *mut VectorStore,
+    s: *mut Store,
     ids: *const u64,
     vecs: *const f32,
     n: usize,
@@ -111,7 +108,7 @@ pub unsafe extern "C" fn vanedb_rs_store_add_batch(
 /// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_search(
-    s: *mut VectorStore,
+    s: *mut Store,
     q: *const f32,
     k: usize,
     out_ids: *mut u64,
@@ -139,7 +136,7 @@ pub unsafe extern "C" fn vanedb_rs_store_search(
 /// The handle must have come from `vanedb_rs_store_new` and not been freed already
 /// (or be null, which is a no-op).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut VectorStore) {
+pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut Store) {
     if !s.is_null() {
         drop(Box::from_raw(s));
     }
@@ -147,17 +144,17 @@ pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut VectorStore) {
 
 /// # Safety
 /// Safe to call with any arguments; returns an owning handle (or null on error)
-/// that must eventually be freed with `vanedb_rs_hnsw_free`.
+/// that must eventually be freed with `vanedb_rs_index_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_new(
+pub unsafe extern "C" fn vanedb_rs_index_new(
     dim: usize,
     metric: u32,
     capacity: usize,
     m: usize,
     ef_construction: usize,
     seed: u64,
-) -> *mut HnswIndex {
-    match HnswIndex::builder(dim, to_metric(metric))
+) -> *mut Index {
+    match Index::builder(dim, to_metric(metric))
         .capacity(capacity)
         .m(m)
         .ef_construction(ef_construction)
@@ -170,10 +167,10 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_new(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_hnsw_new` (or null), and
+/// `h` must be a live handle from `vanedb_rs_index_new` (or null), and
 /// `v` must point to at least `dim` valid `f32` values (where `dim` matches the index).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_add(h: *mut HnswIndex, id: u64, v: *const f32) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_add(h: *mut Index, id: u64, v: *const f32) -> i32 {
     if h.is_null() {
         return 1;
     }
@@ -186,12 +183,12 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_add(h: *mut HnswIndex, id: u64, v: *cons
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `ids` must point to
+/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `ids` must point to
 /// `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
 /// All-or-nothing: on error (duplicate id, capacity, length mismatch) the index is unchanged.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_add_batch(
-    h: *mut HnswIndex,
+pub unsafe extern "C" fn vanedb_rs_index_add_batch(
+    h: *mut Index,
     ids: *const u64,
     vecs: *const f32,
     n: usize,
@@ -215,11 +212,11 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_add_batch(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_hnsw_new` (or null); `q` must point to
+/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
 /// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_search(
-    h: *mut HnswIndex,
+pub unsafe extern "C" fn vanedb_rs_index_search(
+    h: *mut Index,
     q: *const f32,
     k: usize,
     ef_search: usize,
@@ -246,10 +243,10 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_search(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_hnsw_new` (or null);
+/// `h` must be a live handle from `vanedb_rs_index_new` (or null);
 /// `path` must be a valid NUL-terminated C string.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_save(h: *mut HnswIndex, path: *const c_char) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_save(h: *mut Index, path: *const c_char) -> i32 {
     if h.is_null() {
         return 1;
     }
@@ -268,14 +265,14 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_save(h: *mut HnswIndex, path: *const c_c
 
 /// # Safety
 /// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
-/// that must be freed with `vanedb_rs_hnsw_free`.
+/// that must be freed with `vanedb_rs_index_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_load(path: *const c_char) -> *mut HnswIndex {
+pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> *mut Index {
     if path.is_null() {
         return std::ptr::null_mut();
     }
     match CStr::from_ptr(path).to_str() {
-        Ok(p) => match HnswIndex::load(p) {
+        Ok(p) => match Index::load(p) {
             Ok(h) => Box::into_raw(Box::new(h)),
             Err(_) => std::ptr::null_mut(),
         },
@@ -284,10 +281,10 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_load(path: *const c_char) -> *mut HnswIn
 }
 
 /// # Safety
-/// The handle must have come from `vanedb_rs_hnsw_new` or `vanedb_rs_hnsw_load`
+/// The handle must have come from `vanedb_rs_index_new` or `vanedb_rs_index_load`
 /// and not been freed already (or be null, which is a no-op).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_hnsw_free(h: *mut HnswIndex) {
+pub unsafe extern "C" fn vanedb_rs_index_free(h: *mut Index) {
     if !h.is_null() {
         drop(Box::from_raw(h));
     }
@@ -297,7 +294,7 @@ pub unsafe extern "C" fn vanedb_rs_hnsw_free(h: *mut HnswIndex) {
 /// `path` must be a valid NUL-terminated C string; `ids` must point to `n` valid `u64`s
 /// and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_mmap_build(
+pub unsafe extern "C" fn vanedb_rs_disk_build(
     path: *const c_char,
     dim: usize,
     metric: u32,
@@ -312,7 +309,7 @@ pub unsafe extern "C" fn vanedb_rs_mmap_build(
         Ok(s) => s,
         Err(_) => return 1,
     };
-    let mut b = match MmapVectorStoreBuilder::new(dim, to_metric(metric)) {
+    let mut b = match DiskStoreBuilder::new(dim, to_metric(metric)) {
         Ok(b) => b,
         Err(_) => return 1,
     };
@@ -335,14 +332,14 @@ pub unsafe extern "C" fn vanedb_rs_mmap_build(
 
 /// # Safety
 /// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
-/// that must be freed with `vanedb_rs_mmap_free`.
+/// that must be freed with `vanedb_rs_disk_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_mmap_open(path: *const c_char) -> *mut MmapVectorStore {
+pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut DiskStore {
     if path.is_null() {
         return std::ptr::null_mut();
     }
     match CStr::from_ptr(path).to_str() {
-        Ok(p) => match MmapVectorStore::open(p) {
+        Ok(p) => match DiskStore::open(p) {
             Ok(m) => Box::into_raw(Box::new(m)),
             Err(_) => std::ptr::null_mut(),
         },
@@ -351,11 +348,11 @@ pub unsafe extern "C" fn vanedb_rs_mmap_open(path: *const c_char) -> *mut MmapVe
 }
 
 /// # Safety
-/// `m` must be a live handle from `vanedb_rs_mmap_open` (or null); `q` must point to
+/// `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
 /// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_mmap_search(
-    m: *mut MmapVectorStore,
+pub unsafe extern "C" fn vanedb_rs_disk_search(
+    m: *mut DiskStore,
     q: *const f32,
     k: usize,
     out_ids: *mut u64,
@@ -380,10 +377,10 @@ pub unsafe extern "C" fn vanedb_rs_mmap_search(
 }
 
 /// # Safety
-/// The handle must have come from `vanedb_rs_mmap_open` and not been freed already
+/// The handle must have come from `vanedb_rs_disk_open` and not been freed already
 /// (or be null, which is a no-op).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_mmap_free(m: *mut MmapVectorStore) {
+pub unsafe extern "C" fn vanedb_rs_disk_free(m: *mut DiskStore) {
     if !m.is_null() {
         drop(Box::from_raw(m));
     }

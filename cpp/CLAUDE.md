@@ -32,9 +32,9 @@ embed path is C++-only.
 | Feature | Status |
 |---------|--------|
 | Distance Functions | L2, Cosine, Dot (ARM NEON, x86 AVX2) |
-| VectorStore | In-memory k-NN, thread-safe |
-| HNSWIndex | Approximate NN with save/load |
-| MMapVectorStore | Memory-mapped zero-copy |
+| Store | In-memory k-NN, thread-safe |
+| Index | Approximate NN with save/load |
+| DiskStore | Memory-mapped zero-copy |
 | GPU Acceleration | Metal (Apple Silicon). CUDA experimental — unwired, untested |
 | Python Bindings | pybind11 + NumPy |
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
@@ -88,13 +88,13 @@ Run these commands from the repository root.
 // Distance
 float d = vanedb::l2_sq(a, b, dim);
 
-// VectorStore
-vanedb::VectorStore store(768, vanedb::DistanceMetric::COSINE);
+// Store
+vanedb::Store store(768, vanedb::Metric::COSINE);
 store.add(id, vec);
 auto results = store.search(query, k);
 
-// HNSWIndex
-vanedb::HNSWIndex idx(768, vanedb::DistanceMetric::COSINE, 100000);
+// Index
+vanedb::Index idx(768, vanedb::Metric::COSINE, 100000);
 idx.add(id, vec);
 idx.save("index.bin");
 
@@ -134,7 +134,7 @@ batch/metadata APIs are owned by the Rust component and tracked in this
 repository's issue tracker.
 
 ## Known Limitations
-- No deletion in HNSWIndex (rebuild required)
+- No deletion in Index (rebuild required)
 - GPU requires dim % 4 == 0
-- VectorStore `get()` pointer invalidated by writes
+- Store `get()` pointer invalidated by writes
 - Single-file persistence (no sharding)
