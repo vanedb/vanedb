@@ -46,9 +46,13 @@ impl ChunkedVectors {
     }
 
     /// Pre-allocates room for `n` vectors. A hint only: pushing past `n` grows.
+    ///
+    /// The reservation is fallible and best-effort. `Vec::reserve` aborts on
+    /// failure, and a hint is not worth killing the process over -- if the
+    /// chunk list cannot be reserved, it simply grows later.
     pub(crate) fn with_capacity(dim: usize, n: usize) -> Self {
         let mut s = Self::new(dim);
-        s.chunks.reserve(n.div_ceil(s.per_chunk));
+        let _ = s.chunks.try_reserve(n.div_ceil(s.per_chunk));
         s
     }
 

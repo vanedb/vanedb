@@ -20,6 +20,14 @@ use storage::ChunkedVectors;
 /// entry, but a hint of 10^9 should still not allocate gigabytes up front.
 const RESERVE_CAP: usize = 1 << 20;
 
+/// Largest number of vectors this engine will accept, from a builder hint or
+/// from a file. Mirrors `MAX_VEC_SIZE` in vanedb-cpp `src/core/index.h`.
+///
+/// Storage grows on demand, so this is not an allocation bound. It rejects
+/// values that can only be a mistake -- a capacity of `usize::MAX / 4096` is
+/// a bug in the caller, not a plan.
+pub(super) const MAX_ELEMENTS: usize = 100_000_000;
+
 mod persistence;
 mod storage;
 
@@ -470,8 +478,6 @@ impl Index {
         level.min(MAX_LEVEL)
     }
 
-    /// Get a vector slice by internal ID.
-
     /// Beam search on a single graph layer.
     /// Returns results sorted by distance ascending.
     ///
@@ -665,6 +671,11 @@ impl IndexBuilder {
             .ok_or(VaneError::InvalidParameter(
                 "capacity * dim overflows usize",
             ))?;
+        if self.capacity > MAX_ELEMENTS {
+            return Err(VaneError::InvalidParameter(
+                "capacity exceeds the maximum this engine accepts",
+            ));
+        }
         let vectors = ChunkedVectors::with_capacity(self.dim, self.capacity);
 
         Ok(Index {

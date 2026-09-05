@@ -14,6 +14,7 @@ use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
 
 use super::storage::ChunkedVectors;
+use super::MAX_ELEMENTS;
 
 /// On-disk magic ("HNSW" little-endian) and format version.
 ///
@@ -22,15 +23,6 @@ use super::storage::ChunkedVectors;
 /// compatibility with files written before the rename. Rust never shipped
 /// pre-rename, so we use a clean per-format magic.
 const MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
-
-/// Upper bound on `max_elements` accepted from a file. Mirrors `MAX_VEC_SIZE`
-/// in vanedb-cpp `src/core/index.h`.
-///
-/// Storage now grows on demand, so load no longer expands anything to this
-/// value and it cannot drive an allocation. It stays as a corruption check:
-/// a file declaring more slots than the engine can address is not a file this
-/// engine wrote.
-const MAX_ELEMENTS: usize = 100_000_000;
 /// v1 stored the full pre-allocated arrays (`max_elements` entries even when
 /// only `count` were inserted). v2 stores only the `count` live entries and
 /// re-expands to `max_elements` on load (issue #18). v1 files remain loadable.
