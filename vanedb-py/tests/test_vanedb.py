@@ -6,7 +6,15 @@ import pytest
 
 
 def test_version():
-    assert vanedb.__version__ == "0.1.0"
+    # Compared against the distribution's own metadata rather than a literal:
+    # a literal has to be edited on every bump, and silently passed while
+    # __version__ and the wheel metadata disagreed. Version() normalises, so
+    # the SemVer spelling (0.1.0-rc.1) and the PEP 440 one (0.1.0rc1) match.
+    from importlib.metadata import version
+
+    from packaging.version import Version
+
+    assert Version(vanedb.__version__) == Version(version("vanedb"))
 
 
 # --- VectorStore ---

@@ -322,7 +322,10 @@ impl PyHnswIndex {
 
 #[pymodule]
 fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("__version__", "0.1.0")?;
+    // From Cargo.toml, never a literal: a hardcoded string silently
+    // disagreed with the wheel's own metadata the first time the
+    // version moved.
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PyDistanceMetric>()?;
     m.add_class::<PyVectorStore>()?;
     m.add_class::<PyHnswIndex>()?;
