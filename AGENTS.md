@@ -85,9 +85,12 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
   reverse lists use distance sort+truncate rather than the diversity heuristic.
   Change either only with cross-engine conformance and interleaved benchmarks.
-- **Top-k, not full sorts**: `SearchResult`'s `Ord` tie-breaks on id, which
-  makes full sorts slow. Search paths use `select_nth_unstable` + truncate +
-  small sort (see `store/mod.rs` and `disk.rs`) — keep that pattern.
+- **Bounded top-k, not full sorts and not quickselect**: `SearchResult`'s
+  `Ord` tie-breaks on id, which makes full sorts slow — but `select_nth_unstable`
+  over the whole candidate array is also wrong, because it swaps ~n 16-byte
+  structs through a buffer that outgrows L1. Scans stream into a k-element heap
+  (`store/topk.rs`, used by `store/mod.rs` and `disk.rs`); the graph search sorts
+  its ef-bounded candidate set. Keep the bound.
 - **SIMD kernels** use multi-accumulator unrolling (4 accumulators for l2/dot,
   2-way for cosine) because single-accumulator FMA loops are latency-bound.
   Keep NEON, AVX2, and scalar paths semantically in sync; scalar is the

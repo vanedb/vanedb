@@ -1,6 +1,7 @@
 //! In-memory exact vector storage.
 
 mod search_result;
+pub(crate) mod topk;
 
 pub use search_result::SearchResult;
 
@@ -209,24 +210,24 @@ impl Store {
         }
 
         debug_assert_eq!(inner.data.len(), n * self.dim);
+        // Bounded top-k over the stream: never materialise one result per
+        // stored vector. See the note in topk.rs for why quickselect over the
+        // full array was the wrong shape.
         let vecs = inner.data.chunks_exact(self.dim).zip(&inner.ids);
-        let mut results: Vec<SearchResult> = match self.metric {
-            Metric::L2 => vecs
-                .map(|(v, &id)| SearchResult::new(id, d::l2_squared(query, v)))
-                .collect(),
-            Metric::Cosine => vecs
-                .map(|(v, &id)| SearchResult::new(id, d::cosine_distance(query, v)))
-                .collect(),
-            Metric::Dot => vecs
-                .map(|(v, &id)| SearchResult::new(id, d::dot_distance(query, v)))
-                .collect(),
+        let results = match self.metric {
+            Metric::L2 => topk::select(
+                vecs.map(|(v, &id)| SearchResult::new(id, d::l2_squared(query, v))),
+                k,
+            ),
+            Metric::Cosine => topk::select(
+                vecs.map(|(v, &id)| SearchResult::new(id, d::cosine_distance(query, v))),
+                k,
+            ),
+            Metric::Dot => topk::select(
+                vecs.map(|(v, &id)| SearchResult::new(id, d::dot_distance(query, v))),
+                k,
+            ),
         };
-
-        if k < results.len() {
-            results.select_nth_unstable(k - 1);
-            results.truncate(k);
-        }
-        results.sort_unstable();
         Ok(results)
     }
 }
