@@ -54,8 +54,12 @@ searches a graph instead: sub-linear, and it can miss a true neighbour.
 `ef_construction` set the graph's quality at build time.
 
 Every type takes a `Metric` (`L2`, cosine, or dot) and returns results
-nearest first. `DiskStore` is written by `DiskStoreBuilder` and opened
-read-only. `Store` and `Index` persist with `save`/`load`.
+nearest first. Only `Index` persists, with `save`/`load`. `DiskStore` is
+written by `DiskStoreBuilder` and then opened read-only; `Store` is in-memory
+only and is rebuilt on each run.
+
+`Index` allocates its full `capacity` up front, so size it to the corpus:
+100k x 768 floats reserves roughly 300 MB before the first insert.
 
 The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
 Python and JavaScript packages use `Metric.COSINE`. Type names are identical
