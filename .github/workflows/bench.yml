@@ -25,18 +25,19 @@ jobs:
       - name: Install critcmp
         run: cargo install critcmp --version 0.1.8 --locked
 
-      # --benches runs every [[bench]] target without naming them, so
-      # renaming or adding one does not break the main baseline run. The lib's
-      # libtest harness (which rejects --save-baseline) is excluded by
-      # `bench = false` in vanedb/Cargo.toml.
+      # -p vanedb --benches runs every [[bench]] target without naming them,
+      # so renaming or adding one does not break the main baseline run. Both
+      # halves matter: only vanedb sets `bench = false`, so a workspace-wide
+      # --benches would also run the sibling libs' libtest harnesses, which
+      # reject --save-baseline.
       - name: Benchmark (PR branch)
-        run: cargo bench --locked --benches -- --save-baseline pr
+        run: cargo bench -p vanedb --locked --benches -- --save-baseline pr
 
       - name: Checkout main
         run: git checkout origin/main
 
       - name: Benchmark (main baseline)
-        run: cargo bench --locked --benches -- --save-baseline main
+        run: cargo bench -p vanedb --locked --benches -- --save-baseline main
 
       - name: Compare benchmarks
         run: |
