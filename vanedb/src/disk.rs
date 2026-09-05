@@ -293,22 +293,19 @@ impl DiskStore {
         // Store::search (O(n log n) -> O(n + k log k)).
         macro_rules! scan {
             ($dist:path) => {
-                (0..self.num_vectors)
-                    .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i))))
-                    .collect()
+                // Bounded top-k over the stream; see store/topk.rs.
+                crate::store::topk::select(
+                    (0..self.num_vectors)
+                        .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i)))),
+                    k,
+                )
             };
         }
-        let mut results: Vec<SearchResult> = match self.metric {
+        let results = match self.metric {
             Metric::L2 => scan!(d::l2_squared),
             Metric::Cosine => scan!(d::cosine_distance),
             Metric::Dot => scan!(d::dot_distance),
         };
-
-        if k < results.len() {
-            results.select_nth_unstable(k - 1);
-            results.truncate(k);
-        }
-        results.sort_unstable();
         Ok(results)
     }
 
