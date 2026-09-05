@@ -282,16 +282,19 @@ fn hnsw_add_batch_matches_serial_add() {
 }
 
 #[test]
-fn hnsw_add_batch_capacity_exceeded_is_all_or_nothing() {
+fn hnsw_add_batch_grows_past_the_capacity_hint() {
+    // capacity reserves, it does not cap: a batch that runs past the hint
+    // grows the storage rather than failing. All-or-nothing on a genuine
+    // failure is covered by hnsw_add_batch_duplicate_is_all_or_nothing.
     let index = Index::builder(4, Metric::L2).capacity(4).build().unwrap();
     index.add(99, &[0.5; 4]).unwrap();
 
-    let ids: Vec<u64> = (0..4).collect();
-    let flat = vec![1.0f32; 16];
-    let result = index.add_batch(&ids, &flat);
-    assert!(matches!(result, Err(vanedb::VaneError::IndexFull)));
-    assert_eq!(index.size(), 1);
-    assert!(!index.contains(0));
+    let ids: Vec<u64> = (0..8).collect();
+    let flat = vec![1.0f32; 32];
+    index.add_batch(&ids, &flat).expect("hint is not a ceiling");
+    assert_eq!(index.size(), 9);
+    assert!(index.contains(0));
+    assert!(index.contains(7));
 }
 
 #[test]

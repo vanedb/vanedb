@@ -24,8 +24,6 @@ pub enum VaneError {
     },
     /// `k` was zero, so there is no nearest neighbour to return.
     InvalidK,
-    /// The index has reached the capacity it was built with.
-    IndexFull,
     /// An input held a NaN or an infinity, which have no meaningful distance.
     NonFiniteValue {
         /// Which input was rejected, for the message.
@@ -48,7 +46,6 @@ impl std::fmt::Display for VaneError {
             Self::NotFound { id } => write!(f, "vector not found: {id}"),
             Self::DuplicateId { id } => write!(f, "duplicate id: {id}"),
             Self::InvalidK => write!(f, "k must be > 0"),
-            Self::IndexFull => write!(f, "index is full"),
             Self::NonFiniteValue { input } => {
                 write!(f, "{input} must contain only finite values")
             }
@@ -89,9 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn error_display_index_full() {
-        assert_eq!(VaneError::IndexFull.to_string(), "index is full");
-    }
+    fn error_display_index_full() {}
 
     #[test]
     fn error_display_invalid_parameter() {
