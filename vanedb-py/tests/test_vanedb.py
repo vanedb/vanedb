@@ -129,15 +129,22 @@ def test_hnsw_ef_search():
     assert idx.ef_search == 200
 
 
+def test_hnsw_grows_past_the_capacity_hint():
+    """capacity reserves; it does not cap."""
+    idx = vanedb.Index(3, capacity=2)
+    for i in range(20):
+        idx.add(i, [float(i)] * 3)
+    assert len(idx) == 20
+    assert idx.search([19.0, 19.0, 19.0], 1)[0][0] == 19
+
+
 def test_hnsw_errors():
     idx = vanedb.Index(3, capacity=2)
     idx.add(0, [0.0, 0.0, 0.0])
-    idx.add(1, [1.0, 1.0, 1.0])
-    try:
-        idx.add(2, [2.0, 2.0, 2.0])  # full
-        assert False, "Should have raised"
-    except ValueError:
-        pass
+    with pytest.raises(ValueError):
+        idx.add(0, [1.0, 1.0, 1.0])  # duplicate id
+    with pytest.raises(ValueError):
+        idx.add(1, [1.0, 1.0])  # wrong dimension
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])

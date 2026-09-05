@@ -13,6 +13,9 @@ use super::{Index, Inner, MAX_LEVEL};
 use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
 
+use super::storage::ChunkedVectors;
+use super::MAX_ELEMENTS;
+
 /// On-disk magic ("HNSW" little-endian) and format version.
 ///
 /// Mirrors the framing in vanedb-cpp src/core/index.h. The C++ side
@@ -20,11 +23,6 @@ use crate::error::{Result, VaneError};
 /// compatibility with files written before the rename. Rust never shipped
 /// pre-rename, so we use a clean per-format magic.
 const MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
-
-/// Upper bound on `max_elements` accepted from a file. Mirrors `MAX_VEC_SIZE`
-/// in vanedb-cpp `src/core/index.h`: `load` re-expands every array to
-/// `max_elements`, so without a cap a few hundred bytes can request terabytes.
-const MAX_ELEMENTS: usize = 100_000_000;
 /// v1 stored the full pre-allocated arrays (`max_elements` entries even when
 /// only `count` were inserted). v2 stores only the `count` live entries and
 /// re-expands to `max_elements` on load (issue #18). v1 files remain loadable.
@@ -98,7 +96,7 @@ impl Index {
             max_level: inner.max_level,
             // v2: persist only the `count` live entries, not the full
             // pre-allocated capacity; load() re-expands to max_elements.
-            vectors: inner.vectors[..inner.count * self.dim].to_vec(),
+            vectors: inner.vectors.to_flat(inner.count),
             ext_ids: inner.ext_ids[..inner.count].to_vec(),
             levels: inner.levels[..inner.count].to_vec(),
             neighbors: inner.neighbors[..inner.count].to_vec(),
@@ -292,8 +290,7 @@ impl Index {
                 }
             }
         }
-        let full_vecs_len = data
-            .max_elements
+        data.max_elements
             .checked_mul(data.dim)
             .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
         if data.vectors.len() != stored * data.dim {
@@ -323,18 +320,15 @@ impl Index {
         // failure, and this is the path that reads untrusted files. The cap
         // above bounds the request; this turns a genuine OOM into an error
         // rather than killing the host application (#89).
-        let mut vectors = data.vectors;
-        try_grow(&mut vectors, full_vecs_len, "vectors")?;
-        vectors.resize(full_vecs_len, 0.0);
+        // Storage grows on demand, so only the live vectors are rebuilt --
+        // the old format re-expanded to max_elements here.
+        let vectors = ChunkedVectors::from_flat(data.dim, &data.vectors[..live_vectors_len]);
         let mut ext_ids = data.ext_ids;
-        try_grow(&mut ext_ids, data.max_elements, "ext_ids")?;
-        ext_ids.resize(data.max_elements, 0);
+        ext_ids.truncate(data.count);
         let mut levels = data.levels;
-        try_grow(&mut levels, data.max_elements, "levels")?;
-        levels.resize(data.max_elements, 0);
+        levels.truncate(data.count);
         let mut neighbors = data.neighbors;
-        try_grow(&mut neighbors, data.max_elements, "neighbors")?;
-        neighbors.resize_with(data.max_elements, Vec::new);
+        neighbors.truncate(data.count);
 
         // Reconstitute RNG: seed from the original seed, then advance through
         // `count` get_level calls so the next add() resumes the original
@@ -370,18 +364,4 @@ impl Index {
             }),
         })
     }
-}
-
-/// Reserve room for `target` elements without aborting on failure.
-///
-/// `Vec::resize` cannot fail: allocation failure aborts the process. Every
-/// growth on the load path goes through here, so a hostile or corrupt file
-/// yields an error instead of killing the host application (#89).
-fn try_grow<T>(v: &mut Vec<T>, target: usize, what: &str) -> Result<()> {
-    let additional = target.saturating_sub(v.len());
-    v.try_reserve_exact(additional).map_err(|_| {
-        VaneError::Io(format!(
-            "corrupted file: cannot allocate {target} {what} entries"
-        ))
-    })
 }
