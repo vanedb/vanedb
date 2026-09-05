@@ -13,4 +13,4 @@ Criterion is canonical; see the README table. This bin times l2_sq in batches of
 | store_search | 79500 | 88250 | 1.11 |
 | index_search | 20042 | 21834 | 1.09 |
 
-HNSW recall@10: C++ 0.689, Rust 0.700
+Index recall@10: C++ 0.689, Rust 0.700

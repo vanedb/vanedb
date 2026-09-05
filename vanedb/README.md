@@ -18,7 +18,8 @@ let index = Index::builder(768, Metric::Cosine)
     .build()?;
 index.add(1, &embedding)?;
 
-let hits = index.search(&query, 10)?;  // nearest first
+// Results come back nearest first.
+let hits = index.search(&query, 10)?;
 ```
 
 Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a

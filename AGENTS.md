@@ -87,7 +87,7 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   Change either only with cross-engine conformance and interleaved benchmarks.
 - **Top-k, not full sorts**: `SearchResult`'s `Ord` tie-breaks on id, which
   makes full sorts slow. Search paths use `select_nth_unstable` + truncate +
-  small sort (see `store/store.rs` and `disk.rs`) — keep that pattern.
+  small sort (see `store/mod.rs` and `disk.rs`) — keep that pattern.
 - **SIMD kernels** use multi-accumulator unrolling (4 accumulators for l2/dot,
   2-way for cosine) because single-accumulator FMA loops are latency-bound.
   Keep NEON, AVX2, and scalar paths semantically in sync; scalar is the
@@ -112,7 +112,7 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   A-B-A(-B) runs before claiming a regression or a win.
 - Never make performance claims from cloud/CI timings. Benchmarks are meaningful
   only on dedicated hardware.
-- `examples/profile_hnsw_build.rs` builds a 10k×128 index and reports build time
+- `examples/profile_index_build.rs` builds a 10k×128 index and reports build time
   + recall@10 — the quick profiling loop for graph-construction changes.
 
 ## Conventions

@@ -8,7 +8,7 @@ implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
 
 **Implemented.** Criterion benches covering every operation the design spec
 promises, plus a `report` binary that writes a [`RESULTS.md`](RESULTS.md)
-snapshot with HNSW recall@10 averaged over 100 queries. Design spec:
+snapshot with Index recall@10 averaged over 100 queries. Design spec:
 [`docs/superpowers/specs/2026-05-28-vanedb-bench-design.md`](docs/superpowers/specs/2026-05-28-vanedb-bench-design.md).
 
 ## Running
@@ -61,12 +61,12 @@ end-to-end smoke check and asserts recall, never a timing.
 | Dot distance latency | `dot/dim={128,768}` |
 | Store add throughput | `store_add/n=10000` |
 | Store search latency | `store_search/n={1000,10000}` |
-| HNSW build latency | `index_build` |
-| HNSW search latency | `index_search` |
-| HNSW recall@k | `report` binary |
-| mmap build latency | `disk_build` |
-| mmap open latency | `disk_open` |
-| mmap search latency | `disk_search` |
+| Index build latency | `index_build` |
+| Index search latency | `index_search` |
+| Index recall@k | `report` binary |
+| Disk build latency | `disk_build` |
+| Disk open latency | `disk_open` |
+| Disk search latency | `disk_search` |
 
 `coverage::SCOPE` holds this table as data and a test fails if a bench stops
 implementing a row, so a scope claim cannot drift from the code (#63).
@@ -93,7 +93,7 @@ treat smaller differences as noise.
 | disk_open | 507 µs | 576 µs | 1.14 |
 | disk_search (k=10) | 78.6 µs | 95.7 µs | 1.22 |
 
-HNSW recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
+Index recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
 
 Rust leads the distance kernels at 768 dimensions and is at parity at 128. It
 trails on every scan (1.08–1.22, vanedb#32) and, now that the write paths are
