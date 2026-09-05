@@ -55,6 +55,16 @@ pub struct DiskStoreBuilder {
     id_set: HashSet<u64>,
 }
 
+impl std::fmt::Debug for DiskStoreBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiskStoreBuilder")
+            .field("dim", &self.dim)
+            .field("metric", &self.metric)
+            .field("len", &self.ids.len())
+            .finish()
+    }
+}
+
 impl DiskStoreBuilder {
     /// Starts a store for vectors of `dim` components.
     pub fn new(dim: usize, metric: Metric) -> Result<Self> {
@@ -165,6 +175,16 @@ pub struct DiskStore {
     ids_offset: usize,
     vectors_offset: usize,
     id_map: HashMap<u64, usize>,
+}
+
+impl std::fmt::Debug for DiskStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiskStore")
+            .field("dim", &self.dim)
+            .field("metric", &self.metric)
+            .field("len", &self.num_vectors)
+            .finish()
+    }
 }
 
 impl DiskStore {
