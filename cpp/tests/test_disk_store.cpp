@@ -7,7 +7,7 @@
 
 using Catch::Approx;
 
-TEST_CASE("DiskStoreBuilder - construction", "[mmap][builder]") {
+TEST_CASE("DiskStoreBuilder - construction", "[disk][builder]") {
   SECTION("Valid dimension") {
     REQUIRE_NOTHROW(vanedb::DiskStoreBuilder(768));
     REQUIRE_NOTHROW(vanedb::DiskStoreBuilder(128, vanedb::Metric::COSINE));
@@ -18,7 +18,7 @@ TEST_CASE("DiskStoreBuilder - construction", "[mmap][builder]") {
   }
 }
 
-TEST_CASE("DiskStoreBuilder - add vectors", "[mmap][builder]") {
+TEST_CASE("DiskStoreBuilder - add vectors", "[disk][builder]") {
   vanedb::DiskStoreBuilder builder(3);
 
   SECTION("Add single vector") {
@@ -50,7 +50,7 @@ TEST_CASE("DiskStoreBuilder - add vectors", "[mmap][builder]") {
   }
 }
 
-TEST_CASE("DiskStore - save and load", "[mmap]") {
+TEST_CASE("DiskStore - save and load", "[disk]") {
   const std::string filename = "test_mmap_store.bin";
 
   // Cleanup before test
@@ -132,7 +132,7 @@ TEST_CASE("DiskStore - save and load", "[mmap]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - error handling", "[mmap]") {
+TEST_CASE("DiskStore - error handling", "[disk]") {
   SECTION("Non-existent file throws") {
     REQUIRE_THROWS_AS(vanedb::DiskStore("nonexistent_file.bin"), std::runtime_error);
   }
@@ -317,7 +317,7 @@ TEST_CASE("DiskStore - error handling", "[mmap]") {
   }
 }
 
-TEST_CASE("DiskStore - search validation", "[mmap]") {
+TEST_CASE("DiskStore - search validation", "[disk]") {
   const std::string filename = "test_mmap_search_validation.bin";
   std::filesystem::remove(filename);
 
@@ -347,7 +347,7 @@ TEST_CASE("DiskStore - search validation", "[mmap]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - rejects non-finite stored vectors", "[mmap][persistence]") {
+TEST_CASE("DiskStore - rejects non-finite stored vectors", "[disk][persistence]") {
   const std::string filename = "test_mmap_non_finite.bin";
   vanedb::DiskStoreBuilder builder(2);
   const float vector[] = {0.0f, 0.0f};
@@ -367,7 +367,7 @@ TEST_CASE("DiskStore - rejects non-finite stored vectors", "[mmap][persistence]"
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - large scale", "[mmap][stress]") {
+TEST_CASE("DiskStore - large scale", "[disk][stress]") {
   const std::string filename = "test_mmap_large.bin";
   std::filesystem::remove(filename);
 
@@ -421,7 +421,7 @@ TEST_CASE("DiskStore - large scale", "[mmap][stress]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - cosine metric", "[mmap]") {
+TEST_CASE("DiskStore - cosine metric", "[disk]") {
   const std::string filename = "test_mmap_cosine.bin";
   std::filesystem::remove(filename);
 
@@ -453,7 +453,7 @@ TEST_CASE("DiskStore - cosine metric", "[mmap]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - dot product metric", "[mmap]") {
+TEST_CASE("DiskStore - dot product metric", "[disk]") {
   const std::string filename = "test_mmap_dot.bin";
   std::filesystem::remove(filename);
 

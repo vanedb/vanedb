@@ -83,7 +83,7 @@ void append_count(const std::filesystem::path& path, size_t count) {
 }  // namespace
 
 TEST_CASE("HNSW construction rejects shared derived-size overflows",
-          "[conformance][hnsw][sizes]") {
+          "[conformance][index][sizes]") {
   const auto fixture_cases = cases();
   REQUIRE(fixture_cases.size() == 2);
   for (const auto& test_case : fixture_cases) {
@@ -100,7 +100,7 @@ TEST_CASE("HNSW construction rejects shared derived-size overflows",
 }
 
 TEST_CASE("HNSW load rejects derived-size overflows before allocation",
-          "[conformance][hnsw][sizes][persistence]") {
+          "[conformance][index][sizes][persistence]") {
   for (const auto& test_case : cases()) {
     CAPTURE(test_case.name);
     const auto path = std::filesystem::path("test_hnsw_" + test_case.name + ".bin");
@@ -112,7 +112,7 @@ TEST_CASE("HNSW load rejects derived-size overflows before allocation",
 }
 
 TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
-          "[conformance][hnsw][sizes][persistence]") {
+          "[conformance][index][sizes][persistence]") {
   const auto path = std::filesystem::path("test_hnsw_count_times_dimension.bin");
   const Case safe_header{"count_times_dimension", 2, 1, 2, "count_times_dimension"};
   write_header(path, safe_header);

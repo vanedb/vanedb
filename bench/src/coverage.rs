@@ -151,3 +151,58 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod bench_targets {
+    /// Bench target names are runtime strings: nothing in a build or a lint
+    /// notices when a renamed bench leaves a stale name behind, and `abtest`
+    /// shipped broken for exactly that reason. `Cargo.toml` is the source of
+    /// truth, so anything naming a target is checked against it.
+    fn declared_targets() -> Vec<String> {
+        include_str!("../Cargo.toml")
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("name = \""))
+            .filter_map(|l| l.strip_suffix('"'))
+            .map(str::to_string)
+            .collect()
+    }
+
+    #[test]
+    fn abtest_defaults_name_real_bench_targets() {
+        let src = include_str!("bin/abtest.rs");
+        let list = src
+            .lines()
+            .find(|l| l.contains("const DEFAULT_BENCHES"))
+            .expect("DEFAULT_BENCHES not found");
+        let declared = declared_targets();
+        for name in list.split('"').skip(1).step_by(2) {
+            assert!(
+                declared.contains(&name.to_string()),
+                "abtest defaults to bench target {name:?}, which Cargo.toml does not declare"
+            );
+        }
+    }
+
+    #[test]
+    fn the_usage_text_lists_the_same_defaults() {
+        let src = include_str!("bin/abtest.rs");
+        let list: Vec<&str> = src
+            .lines()
+            .find(|l| l.contains("const DEFAULT_BENCHES"))
+            .expect("DEFAULT_BENCHES not found")
+            .split('"')
+            .skip(1)
+            .step_by(2)
+            .collect();
+        let usage = src
+            .lines()
+            .find(|l| l.contains("bench target, repeatable"))
+            .expect("usage line not found");
+        for name in &list {
+            assert!(
+                usage.contains(name),
+                "usage text omits default bench target {name:?}"
+            );
+        }
+    }
+}

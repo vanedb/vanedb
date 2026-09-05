@@ -14,7 +14,7 @@
 
 using Catch::Approx;
 
-TEST_CASE("Index - construction", "[hnsw]") {
+TEST_CASE("Index - construction", "[index]") {
   SECTION("Valid construction") {
     REQUIRE_NOTHROW(vanedb::Index(768));
     REQUIRE_NOTHROW(vanedb::Index(128, vanedb::Metric::COSINE));
@@ -46,7 +46,7 @@ TEST_CASE("Index - construction", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - add and search", "[hnsw]") {
+TEST_CASE("Index - add and search", "[index]") {
   constexpr size_t dim = 64;
   vanedb::Index index(dim, vanedb::Metric::L2, 1000);
 
@@ -119,7 +119,7 @@ TEST_CASE("Index - add and search", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - search quality", "[hnsw]") {
+TEST_CASE("Index - search quality", "[index]") {
   constexpr size_t dim = 32;
   constexpr size_t num_vectors = 500;
   vanedb::Index index(dim, vanedb::Metric::L2, num_vectors, 16, 100);
@@ -206,7 +206,7 @@ TEST_CASE("Index - search quality", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - distance metrics", "[hnsw]") {
+TEST_CASE("Index - distance metrics", "[index]") {
   constexpr size_t dim = 8;
 
   SECTION("L2 distance") {
@@ -265,7 +265,7 @@ TEST_CASE("Index - distance metrics", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - stress test", "[hnsw][stress]") {
+TEST_CASE("Index - stress test", "[index][stress]") {
   constexpr size_t dim = 128;
   constexpr size_t num_vectors = 1000;
   vanedb::Index index(dim, vanedb::Metric::L2, num_vectors);
@@ -295,7 +295,7 @@ TEST_CASE("Index - stress test", "[hnsw][stress]") {
   }
 }
 
-TEST_CASE("Index - concurrent search", "[hnsw][thread]") {
+TEST_CASE("Index - concurrent search", "[index][thread]") {
   constexpr size_t dim = 64;
   constexpr size_t num_vectors = 500;
   vanedb::Index index(dim, vanedb::Metric::L2, num_vectors);
@@ -345,7 +345,7 @@ TEST_CASE("Index - concurrent search", "[hnsw][thread]") {
   }
 }
 
-TEST_CASE("Index - concurrent add and search", "[hnsw][thread]") {
+TEST_CASE("Index - concurrent add and search", "[index][thread]") {
   constexpr size_t dim = 32;
   constexpr size_t initial_vectors = 100;
   constexpr size_t max_elements = 1000;
@@ -417,7 +417,7 @@ TEST_CASE("Index - concurrent add and search", "[hnsw][thread]") {
   }
 }
 
-TEST_CASE("Index - serialization", "[hnsw][serialization]") {
+TEST_CASE("Index - serialization", "[index][serialization]") {
   const std::string filename = "test_hnsw_index.bin";
   constexpr size_t dim = 16;
   constexpr size_t max_elements = 100;
@@ -589,7 +589,7 @@ TEST_CASE("Index - serialization", "[hnsw][serialization]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("Index - recall benchmark", "[hnsw][.benchmark]") {
+TEST_CASE("Index - recall benchmark", "[index][.benchmark]") {
   // This test measures recall rate - marked as hidden benchmark
 
   constexpr size_t dim = 128;
@@ -655,7 +655,7 @@ TEST_CASE("Index - recall benchmark", "[hnsw][.benchmark]") {
   }
 }
 
-TEST_CASE("Index - ef_search validation", "[hnsw]") {
+TEST_CASE("Index - ef_search validation", "[index]") {
   constexpr size_t dim = 16;
   vanedb::Index index(dim, vanedb::Metric::L2, 100);
 
@@ -675,7 +675,7 @@ TEST_CASE("Index - ef_search validation", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - get_vector edge cases", "[hnsw]") {
+TEST_CASE("Index - get_vector edge cases", "[index]") {
   constexpr size_t dim = 8;
   vanedb::Index index(dim, vanedb::Metric::L2, 100);
 
@@ -699,7 +699,7 @@ TEST_CASE("Index - get_vector edge cases", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - corrupted RNG state", "[hnsw][serialization]") {
+TEST_CASE("Index - corrupted RNG state", "[index][serialization]") {
   const std::string filename = "test_hnsw_rng_corrupt.bin";
   constexpr size_t dim = 8;
 
@@ -733,7 +733,7 @@ TEST_CASE("Index - corrupted RNG state", "[hnsw][serialization]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("Index - corruption validation tests", "[hnsw][serialization]") {
+TEST_CASE("Index - corruption validation tests", "[index][serialization]") {
   SECTION("Loading file with invalid metric throws") {
     const std::string filename = "test_hnsw_bad_metric.bin";
     {
@@ -782,7 +782,7 @@ TEST_CASE("Index - corruption validation tests", "[hnsw][serialization]") {
 
 }
 
-TEST_CASE("Index - contains edge cases", "[hnsw]") {
+TEST_CASE("Index - contains edge cases", "[index]") {
   constexpr size_t dim = 8;
   vanedb::Index index(dim, vanedb::Metric::L2, 100);
 
@@ -802,7 +802,7 @@ TEST_CASE("Index - contains edge cases", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - search_layer epoch wrap", "[hnsw]") {
+TEST_CASE("Index - search_layer epoch wrap", "[index]") {
   // Drive >65k searches to exercise the visited-bitmap epoch wrap-and-reset.
   constexpr size_t dim = 4;
   constexpr size_t n = 32;
@@ -834,7 +834,7 @@ TEST_CASE("Index - search_layer epoch wrap", "[hnsw]") {
   }
 }
 
-TEST_CASE("Index - save writes count-proportional files", "[hnsw][persistence]") {
+TEST_CASE("Index - save writes count-proportional files", "[index][persistence]") {
   // Issue #24 (mirror of vanedb/vanedb#18): an index with a large
   // pre-allocated capacity but few inserted vectors must not write
   // capacity-sized arrays. 10 vectors x 32 dims x 4 bytes is ~1.3 KB of
@@ -905,7 +905,7 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
 }
 }  // namespace
 
-TEST_CASE("Index - load accepts legacy v1/v2 full-capacity files", "[hnsw][persistence]") {
+TEST_CASE("Index - load accepts legacy v1/v2 full-capacity files", "[index][persistence]") {
   for (uint32_t ver : {1u, 2u}) {
     const std::string filename = "test_hnsw_legacy_v" + std::to_string(ver) + ".bin";
     write_hnsw_fixture(filename, ver, /*full_arrays=*/true);
@@ -925,7 +925,7 @@ TEST_CASE("Index - load accepts legacy v1/v2 full-capacity files", "[hnsw][persi
   }
 }
 
-TEST_CASE("Index - load rejects v3 with capacity-sized arrays", "[hnsw][persistence]") {
+TEST_CASE("Index - load rejects v3 with capacity-sized arrays", "[index][persistence]") {
   // The legacy full-capacity layout is NOT valid under v3, which stores
   // exactly `count` entries per array.
   const std::string filename = "test_hnsw_v3_full_arrays.bin";
@@ -934,7 +934,7 @@ TEST_CASE("Index - load rejects v3 with capacity-sized arrays", "[hnsw][persiste
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("Index - load rejects non-finite stored vectors", "[hnsw][persistence]") {
+TEST_CASE("Index - load rejects non-finite stored vectors", "[index][persistence]") {
   const std::string filename = "test_hnsw_non_finite.bin";
   write_hnsw_fixture(filename, 3, /*full_arrays=*/false,
                      std::numeric_limits<float>::quiet_NaN());
@@ -942,7 +942,7 @@ TEST_CASE("Index - load rejects non-finite stored vectors", "[hnsw][persistence]
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("Index - empty index save/load roundtrip", "[hnsw][persistence]") {
+TEST_CASE("Index - empty index save/load roundtrip", "[index][persistence]") {
   // v3 stores zero-length arrays for an empty index; load must re-expand to
   // full capacity so subsequent adds work.
   const std::string filename = "test_hnsw_empty_roundtrip.bin";

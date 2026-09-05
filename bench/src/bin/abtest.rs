@@ -11,7 +11,7 @@ use std::process::{Command, ExitCode};
 
 use vanedb_bench::abtest::{self, Comparison, Measurement, Verdict, NOISE_FLOOR};
 
-const DEFAULT_BENCHES: &[&str] = &["distance", "store", "hnsw", "mmap"];
+const DEFAULT_BENCHES: &[&str] = &["distance", "store", "index", "disk"];
 
 const USAGE: &str = "\
 usage: abtest --a <rev> --b <rev> [options] [-- <criterion args>]
@@ -19,7 +19,7 @@ usage: abtest --a <rev> --b <rev> [options] [-- <criterion args>]
   --a <rev>        baseline revision (default: origin/main)
   --b <rev>        revision under test (default: HEAD)
   --rounds <n>     interleaved rounds; each arm runs n times (default: 2)
-  --bench <name>   bench target, repeatable (default: distance store hnsw mmap)
+  --bench <name>   bench target, repeatable (default: distance store index disk)
   --workdir <dir>  where worktrees are built (default: the system temp dir)
   --keep           do not remove the worktrees on success
   -h, --help       this message

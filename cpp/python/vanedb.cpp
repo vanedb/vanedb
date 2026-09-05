@@ -262,7 +262,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
                 return view;
             },
             py::arg("id"),
-            "Gets a read-only zero-copy vector from mmap, or None if not found. "
+            "Gets a read-only zero-copy vector from the mapped file, or None if not found. "
             "The array keeps the mapping alive; use .copy() for an editable array.")
         .def("search", [](const DiskStore& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
                 py::buffer_info buf = query_array.request();
