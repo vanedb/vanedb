@@ -50,12 +50,11 @@ impl VisitedBuffer {
         }
         self.epoch = self.epoch.wrapping_add(1);
         if self.epoch == 0 {
-            // Wrap: zero the active range so stale marks can't masquerade as
-            // current. uint16 wraps every 65536 searches, frequently enough
-            // that a real test exercises this path.
-            for m in self.marks.iter_mut().take(total) {
-                *m = 0;
-            }
+            // Wrap: zero the whole buffer, not just the active range. It is
+            // shared across every Index on this thread and never shrunk, so
+            // marks above `total` belong to some larger index and would be
+            // read as current once the epoch climbs past them again.
+            self.marks.fill(0);
             self.epoch = 1;
         }
         self.epoch
@@ -449,9 +448,12 @@ impl Index {
             inner.count,
         );
 
+        // Sort the whole candidate set before cutting to k: `SearchResult`'s
+        // Ord tie-breaks on id, and truncating first would pick among equal
+        // distances in heap order instead. vanedb-cpp sorts then takes k for
+        // the same reason.
         let mut results: Vec<SearchResult> = top
             .into_iter()
-            .take(k)
             .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
             .collect();
         results.sort();
