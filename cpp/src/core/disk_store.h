@@ -36,7 +36,11 @@ namespace vanedb {
 
 class DiskStore {
 public:
-  static constexpr uint32_t MAGIC = 0x42445651;
+  // Literal 'VNDB' on a little-endian host: 0x56='V', 0x4E='N', 0x44='D',
+  // 0x42='B'. Matches vanedb's disk.rs so either engine can read the other's
+  // file. The writer below emits native byte order, so this is little-endian
+  // hosts only -- the only ones either engine currently targets.
+  static constexpr uint32_t MAGIC = 0x42444E56;
   static constexpr uint32_t VERSION = 1;
   static constexpr size_t HEADER_SIZE = 32;
 
