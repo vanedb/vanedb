@@ -6,6 +6,9 @@ The Rust engine in [`vanedb/`](vanedb) is the one that ships. A header-only
 C++ engine in [`cpp/`](cpp) is kept as reference code and as the other arm of
 a cross-engine benchmark; it is frozen, and features are not ported to it.
 
+Bring your own embeddings: VaneDB stores and searches vectors; it does not
+generate them. This checkout is pre-release.
+
 ## Quick start
 
 ### Rust
@@ -17,7 +20,8 @@ cargo run -p vanedb --example quickstart --locked
 ```
 
 For a local application, add `vanedb = { path = "/path/to/vanedb/vanedb" }`
-to its Cargo dependencies. The complete example is:
+to its Cargo dependencies. Add `features = ["disk"]` when using disk indexes.
+The complete example is:
 
 ```rust
 use vanedb::{ApproxIndex, Metric};
@@ -74,7 +78,7 @@ this query — and each name says why you would pick it over the others.
 |---|---|---|---|
 | `FlatIndex` | yes | memory | the corpus is small, or you need exact results |
 | `ApproxIndex` | **no** | memory | search must stay fast as the corpus grows |
-| `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
+| `DiskIndex` | yes | a file, paged in on demand | many processes or runs share one corpus |
 
 `FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
 results are exact under the selected distance metric. `ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades that recall against speed

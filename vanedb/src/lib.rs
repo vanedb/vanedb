@@ -26,10 +26,14 @@
 //! Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 //! portable scalar path, which is the reference the others must agree with.
 //!
-//! A header-only C++ implementation is maintained alongside this crate. The two
-//! share the `DiskIndex` format — either engine reads the other's file, checked
-//! by a cross-load test — and share graph construction. The `ApproxIndex` format is
-//! still engine-specific.
+//! Both formats are little-endian. `DiskIndex` writes `VNDB` v1, a specified,
+//! versioned format anchored to shared fixtures; either engine reads the
+//! other's file, checked by a cross-load test. [`ApproxIndex::save`] is
+//! engine-specific and not yet a stable public format — treat a saved graph as
+//! a way to avoid rebuilding, not as a system of record.
+//!
+//! A header-only C++ implementation is maintained alongside this crate; the two
+//! share graph construction as well as the `DiskIndex` format.
 
 #![warn(missing_docs)]
 
