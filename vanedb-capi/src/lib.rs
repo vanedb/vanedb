@@ -310,6 +310,9 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
         if h.is_null() {
             return 0;
         }
+        if q.is_null() || out_ids.is_null() || out_dists.is_null() {
+            return 0;
+        }
         let idx = &*h;
         idx.set_ef_search(ef_search);
         let query = slice::from_raw_parts(q, idx.dimension());
@@ -405,14 +408,24 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
             Ok(b) => b,
             Err(_) => return 1,
         };
+        if n != 0 && (ids.is_null() || vecs.is_null()) {
+            return 1;
+        }
+        let Some(total) = elements(n, dim) else {
+            return 1;
+        };
         let id_slice: &[u64] = if n == 0 {
             &[]
         } else {
             slice::from_raw_parts(ids, n)
         };
+        let vec_slice: &[f32] = if total == 0 {
+            &[]
+        } else {
+            slice::from_raw_parts(vecs, total)
+        };
         for (i, &id) in id_slice.iter().enumerate() {
-            let v = slice::from_raw_parts(vecs.add(i * dim), dim);
-            if b.add(id, v).is_err() {
+            if b.add(id, &vec_slice[i * dim..(i + 1) * dim]).is_err() {
                 return 1;
             }
         }
@@ -507,6 +520,90 @@ mod tests {
     /// Null data pointers must return this ABI's failure value, not dereference.
     /// The handle was always checked; the buffers were not, and the C++ ABI
     /// rejects null buffers explicitly.
+    /// The index and disk entry points were added without the buffer checks
+    /// their store sibling has, so a null query segfaulted rather than
+    /// returning the ABI's failure value. `guard()` cannot help: that is UB,
+    /// not a panic.
+    #[test]
+    fn null_data_pointers_are_rejected_by_index_and_disk() {
+        unsafe {
+            let h = super::vanedb_rs_index_new(4, 0, 16, 16, 200, 42);
+            assert!(!h.is_null());
+            let (mut ids, mut ds) = ([0u64; 2], [0f32; 2]);
+            assert_eq!(
+                super::vanedb_rs_index_search(
+                    h,
+                    std::ptr::null(),
+                    2,
+                    50,
+                    ids.as_mut_ptr(),
+                    ds.as_mut_ptr()
+                ),
+                0
+            );
+            let q = [0.0f32; 4];
+            assert_eq!(
+                super::vanedb_rs_index_search(
+                    h,
+                    q.as_ptr(),
+                    2,
+                    50,
+                    std::ptr::null_mut(),
+                    ds.as_mut_ptr()
+                ),
+                0
+            );
+            assert_eq!(
+                super::vanedb_rs_index_search(
+                    h,
+                    q.as_ptr(),
+                    2,
+                    50,
+                    ids.as_mut_ptr(),
+                    std::ptr::null_mut()
+                ),
+                0
+            );
+            super::vanedb_rs_index_free(h);
+
+            let path = std::ffi::CString::new(
+                std::env::temp_dir()
+                    .join("vanedb_capi_null.disk")
+                    .to_str()
+                    .unwrap(),
+            )
+            .unwrap();
+            let ids2 = [1u64];
+            assert_eq!(
+                super::vanedb_rs_disk_build(
+                    path.as_ptr(),
+                    4,
+                    0,
+                    ids2.as_ptr(),
+                    std::ptr::null(),
+                    1
+                ),
+                1
+            );
+            assert_eq!(
+                super::vanedb_rs_disk_build(path.as_ptr(), 4, 0, std::ptr::null(), q.as_ptr(), 1),
+                1
+            );
+            // n * dim overflowing must fail rather than wrap into a bogus slice.
+            assert_eq!(
+                super::vanedb_rs_disk_build(
+                    path.as_ptr(),
+                    usize::MAX,
+                    0,
+                    ids2.as_ptr(),
+                    q.as_ptr(),
+                    3
+                ),
+                1
+            );
+        }
+    }
+
     #[test]
     fn null_data_pointers_are_rejected() {
         unsafe {

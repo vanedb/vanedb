@@ -26,7 +26,10 @@ where
     if k == 0 {
         return Vec::new();
     }
-    let mut heap: BinaryHeap<SearchResult> = BinaryHeap::with_capacity(k);
+    // Deliberately not `with_capacity(k)`: k comes from the caller, so
+    // reserving it aborts the process on `search(q, usize::MAX)`. The heap is
+    // bounded by k as it fills, so growth is amortised and the bound holds.
+    let mut heap: BinaryHeap<SearchResult> = BinaryHeap::new();
     for candidate in candidates {
         if heap.len() < k {
             heap.push(candidate);

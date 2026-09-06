@@ -105,10 +105,20 @@ impl FlatIndex {
     /// All-or-nothing: every length and id is validated before any insert, so
     /// an error leaves the store unchanged.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
-        if vectors.len() != ids.len() * self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: ids.len() * self.dim,
-                got: vectors.len(),
+        // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
+        // wrapped zero matches an empty slice -- so the batch silently
+        // inserted nothing and returned Ok.
+        let expected = ids
+            .len()
+            .checked_mul(self.dim)
+            .ok_or(VaneError::InvalidParameter(
+                "ids.len() * dim overflows usize",
+            ))?;
+        if vectors.len() != expected {
+            return Err(VaneError::BatchLengthMismatch {
+                ids: ids.len(),
+                vectors: vectors.len(),
+                dim: self.dim,
             });
         }
         validate_finite(vectors, "vector batch")?;
@@ -440,11 +450,18 @@ mod tests {
         let result = store.add_batch(&[1, 2], &[1.0, 2.0, 3.0, 4.0, 5.0]);
         assert!(matches!(
             result,
-            Err(VaneError::DimensionMismatch {
-                expected: 6,
-                got: 5
+            Err(VaneError::BatchLengthMismatch {
+                ids: 2,
+                vectors: 5,
+                dim: 3
             })
         ));
+        // The old message reported total float counts through
+        // DimensionMismatch, so a 3-dimensional index reported "expected 6".
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "batch length mismatch: 2 ids need 6 floats at dimension 3, got 5"
+        );
         assert!(store.is_empty());
     }
 

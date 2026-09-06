@@ -1,5 +1,7 @@
 use pyo3::buffer::PyBuffer;
-use pyo3::exceptions::{PyFileNotFoundError, PyOSError, PyTypeError, PyValueError};
+use pyo3::exceptions::{
+    PyFileNotFoundError, PyOSError, PyOverflowError, PyTypeError, PyValueError,
+};
 use pyo3::prelude::*;
 
 use ::vanedb::approx::ApproxIndex;
@@ -29,8 +31,16 @@ fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
     if let Ok(id) = obj.extract::<u64>() {
         return Ok(id);
     }
-    let signed: i64 = obj.extract()?;
-    u64::try_from(signed).map_err(|_| PyValueError::new_err(format!("negative id: {signed}")))
+    match obj.extract::<i64>() {
+        Ok(signed) => u64::try_from(signed)
+            .map_err(|_| PyValueError::new_err(format!("negative id: {signed}"))),
+        // An integer too large for i64 as well: still out of range for an id,
+        // and still must not escape as OverflowError.
+        Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => Err(PyValueError::new_err(
+            "id out of range: must be between 0 and 2**64 - 1",
+        )),
+        Err(e) => Err(e),
+    }
 }
 
 /// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
@@ -127,20 +137,18 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
             })
             .collect();
     }
-    match obj.extract::<Vec<u64>>() {
-        Ok(ids) => Ok(ids),
-        Err(_) => {
-            // Retry as signed so a negative id in a plain list reports as
-            // ValueError, matching the buffer path above.
-            let signed: Vec<i64> = obj.extract()?;
-            signed
-                .into_iter()
-                .map(|x| {
-                    u64::try_from(x).map_err(|_| PyValueError::new_err(format!("negative id: {x}")))
-                })
-                .collect()
-        }
+    // Fall back element-wise through the same converter the single-id
+    // methods use, so a list and a numpy array report identically: negative
+    // and out-of-range ids are ValueError, never OverflowError.
+    if let Ok(ids) = obj.extract::<Vec<u64>>() {
+        return Ok(ids);
     }
+    let items = obj.try_iter()?;
+    let mut ids = Vec::new();
+    for item in items {
+        ids.push(one_id(&item?)?);
+    }
+    Ok(ids)
 }
 
 fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {

@@ -83,3 +83,23 @@ def test_contains_rejects_a_negative_id_consistently():
     index = vanedb.ApproxIndex(dim=4)
     with pytest.raises(ValueError):
         index.contains(-1)
+
+
+def test_an_id_above_u64_max_is_a_valueerror_not_overflowerror():
+    # The negative case was fixed by retrying the conversion as i64, but a
+    # value too large for i64 as well still escaped as OverflowError, which
+    # `except ValueError` does not catch.
+    index = vanedb.ApproxIndex(dim=4)
+    for call in (
+        lambda: index.add(2**64, [1.0, 0.0, 0.0, 0.0]),
+        lambda: index.get_vector(2**64),
+        lambda: index.contains(2**70),
+    ):
+        with pytest.raises(ValueError):
+            call()
+
+
+def test_an_out_of_range_id_in_a_list_batch_is_a_valueerror():
+    index = vanedb.ApproxIndex(dim=2)
+    with pytest.raises(ValueError):
+        index.add_batch([1, 2**64], [[1.0, 0.0], [0.0, 1.0]])

@@ -12,6 +12,10 @@ use vanedb::{ApproxIndex, Metric, VaneError};
 use vanedb::{DiskIndex, DiskIndexBuilder};
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
+/// Must match `disk::MAGIC`. Written as bytes, not as a hex literal: the
+/// hand-written 0x564E4442 was byte-reversed (`BDNV`), so every DiskIndex
+/// header test below rejected on magic and never reached the guard it names.
+const DISK_MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const HNSW_VERSION: u32 = 2;
 
 /// Field-order mirror of the private `HnswData` struct in
@@ -300,7 +304,7 @@ fn hnsw_save_load_preserves_rng_determinism() {
 fn mmap_load_rejects_unsupported_version() {
     let path = std::env::temp_dir().join("vanedb_mmap_bad_version.bin");
     let mut data = Vec::new();
-    data.extend_from_slice(&0x564E4442u32.to_le_bytes()); // "VNDB"
+    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&999u32.to_le_bytes()); // unsupported
     data.extend_from_slice(&3u64.to_le_bytes()); // dim
     data.extend_from_slice(&0u64.to_le_bytes()); // num_vectors
@@ -319,7 +323,7 @@ fn mmap_load_rejects_unsupported_version() {
 fn mmap_load_rejects_zero_dim_with_vectors() {
     let path = std::env::temp_dir().join("vanedb_mmap_zero_dim.bin");
     let mut data = Vec::new();
-    data.extend_from_slice(&0x564E4442u32.to_le_bytes());
+    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
     data.extend_from_slice(&0u64.to_le_bytes()); // dim = 0 (corrupted)
     data.extend_from_slice(&5u64.to_le_bytes()); // but claims 5 vectors
@@ -339,7 +343,7 @@ fn mmap_load_rejects_truncated_data() {
     // Header claims 1000 vectors but file ends after the header.
     let path = std::env::temp_dir().join("vanedb_mmap_truncated.bin");
     let mut data = Vec::new();
-    data.extend_from_slice(&0x564E4442u32.to_le_bytes());
+    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
     data.extend_from_slice(&3u64.to_le_bytes());
     data.extend_from_slice(&1000u64.to_le_bytes());
@@ -359,7 +363,7 @@ fn mmap_load_rejects_size_overflow() {
     // num_vectors * dim that overflows usize when multiplied by sizeof(f32).
     let path = std::env::temp_dir().join("vanedb_mmap_overflow.bin");
     let mut data = Vec::new();
-    data.extend_from_slice(&0x564E4442u32.to_le_bytes());
+    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
     data.extend_from_slice(&u64::MAX.to_le_bytes()); // dim huge
     data.extend_from_slice(&u64::MAX.to_le_bytes()); // num_vectors huge
@@ -379,7 +383,7 @@ fn mmap_load_rejects_invalid_metric() {
     let path = std::env::temp_dir().join("vanedb_mmap_bad_metric.bin");
     // Valid header, dim=3, num=0, metric=99 (out of range)
     let mut data = Vec::new();
-    data.extend_from_slice(&0x564E4442u32.to_le_bytes());
+    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
     data.extend_from_slice(&3u64.to_le_bytes());
     data.extend_from_slice(&0u64.to_le_bytes());
