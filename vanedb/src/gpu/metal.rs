@@ -95,33 +95,33 @@ impl MetalCompute {
     /// Initialize Metal compute. Returns error if no Metal device is available.
     pub fn new() -> Result<Self> {
         let device = Device::system_default()
-            .ok_or_else(|| VaneError::Io("no Metal device available".to_string()))?;
+            .ok_or_else(|| VaneError::backend("no Metal device available"))?;
         let queue = device.new_command_queue();
 
         let options = CompileOptions::new();
         let library = device
             .new_library_with_source(MSL_SOURCE, &options)
-            .map_err(|e| VaneError::Io(format!("MSL compile error: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("MSL compile error: {e}")))?;
 
         let l2_fn = library
             .get_function("l2", None)
-            .map_err(|e| VaneError::Io(format!("get l2 function: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("get l2 function: {e}")))?;
         let dp_fn = library
             .get_function("dp", None)
-            .map_err(|e| VaneError::Io(format!("get dp function: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("get dp function: {e}")))?;
         let cs_fn = library
             .get_function("cs", None)
-            .map_err(|e| VaneError::Io(format!("get cs function: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("get cs function: {e}")))?;
 
         let l2_pipeline = device
             .new_compute_pipeline_state_with_function(&l2_fn)
-            .map_err(|e| VaneError::Io(format!("l2 pipeline: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("l2 pipeline: {e}")))?;
         let dot_pipeline = device
             .new_compute_pipeline_state_with_function(&dp_fn)
-            .map_err(|e| VaneError::Io(format!("dot pipeline: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("dot pipeline: {e}")))?;
         let cos_pipeline = device
             .new_compute_pipeline_state_with_function(&cs_fn)
-            .map_err(|e| VaneError::Io(format!("cos pipeline: {e}")))?;
+            .map_err(|e| VaneError::backend(format!("cos pipeline: {e}")))?;
 
         Ok(Self {
             device,

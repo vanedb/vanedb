@@ -4,6 +4,7 @@ use std::hint::black_box;
 use std::os::raw::c_char;
 use std::time::{Duration, Instant};
 use vanedb_bench::coverage::groups;
+use vanedb_bench::workloads::QUERY_SET;
 use vanedb_bench::{ffi, workloads};
 
 const DIM: usize = 128;
@@ -30,7 +31,7 @@ unsafe fn build_into(build: MmapBuildFn, path: &CString, w: &workloads::Workload
 }
 
 fn bench_mmap(c: &mut Criterion) {
-    let w = workloads::generate(4, DIM, N, 1);
+    let w = workloads::generate(4, DIM, N, QUERY_SET);
     let q = &w.queries[0..DIM];
     let cpp_path = CString::new(CPP_FILE).unwrap();
     let rs_path = CString::new(RS_FILE).unwrap();
@@ -136,26 +137,36 @@ fn bench_mmap(c: &mut Criterion) {
             10
         );
         let mut g = c.benchmark_group(groups::MMAP_SEARCH);
+        // One timed iteration sweeps QUERY_SET queries (#111).
+        g.throughput(criterion::Throughput::Elements(QUERY_SET as u64));
         g.bench_function("cpp", |bn| {
             bn.iter(|| {
-                ffi::vanedb_cpp_disk_search(
-                    mc,
-                    black_box(q.as_ptr()),
-                    10,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+                let mut found = 0;
+                for qi in 0..QUERY_SET {
+                    found += ffi::vanedb_cpp_disk_search(
+                        mc,
+                        black_box(w.queries[qi * DIM..].as_ptr()),
+                        10,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    );
+                }
+                found
             })
         });
         g.bench_function("rs", |bn| {
             bn.iter(|| {
-                ffi::vanedb_rs_disk_search(
-                    mr,
-                    black_box(q.as_ptr()),
-                    10,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+                let mut found = 0;
+                for qi in 0..QUERY_SET {
+                    found += ffi::vanedb_rs_disk_search(
+                        mr,
+                        black_box(w.queries[qi * DIM..].as_ptr()),
+                        10,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    );
+                }
+                found
             })
         });
         g.finish();

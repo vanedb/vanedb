@@ -10,7 +10,11 @@ pub mod neon;
 pub mod scalar;
 
 /// Distance metric for vector comparison.
+///
+/// `#[non_exhaustive]`: matching on a `Metric` needs a `_` arm, so a new
+/// metric can be added without a breaking release.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Metric {
     /// Squared Euclidean distance
     L2,

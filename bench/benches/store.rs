@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 use vanedb_bench::coverage::groups;
+use vanedb_bench::workloads::QUERY_SET;
 use vanedb_bench::{ffi, workloads};
 
 const DIM: usize = 128;
@@ -64,9 +65,11 @@ fn bench_store_add(c: &mut Criterion) {
 
 fn bench_store_search(c: &mut Criterion) {
     for &n in &[1_000usize, 10_000] {
-        let w = workloads::generate(2, DIM, n, 1);
+        let w = workloads::generate(2, DIM, n, QUERY_SET);
         let q = &w.queries[0..DIM];
         let mut g = c.benchmark_group(format!("{}/n={n}", groups::STORE_SEARCH));
+        // One timed iteration sweeps QUERY_SET queries (#111).
+        g.throughput(criterion::Throughput::Elements(QUERY_SET as u64));
 
         unsafe {
             // Measurement policy: both engines' stores stay resident for the
@@ -95,24 +98,32 @@ fn bench_store_search(c: &mut Criterion) {
             );
             g.bench_function("cpp", |bn| {
                 bn.iter(|| {
-                    ffi::vanedb_cpp_store_search(
-                        sc,
-                        black_box(q.as_ptr()),
-                        10,
-                        ids.as_mut_ptr(),
-                        ds.as_mut_ptr(),
-                    )
+                    let mut found = 0;
+                    for qi in 0..QUERY_SET {
+                        found += ffi::vanedb_cpp_store_search(
+                            sc,
+                            black_box(w.queries[qi * DIM..].as_ptr()),
+                            10,
+                            ids.as_mut_ptr(),
+                            ds.as_mut_ptr(),
+                        );
+                    }
+                    found
                 })
             });
             g.bench_function("rs", |bn| {
                 bn.iter(|| {
-                    ffi::vanedb_rs_store_search(
-                        sr,
-                        black_box(q.as_ptr()),
-                        10,
-                        ids.as_mut_ptr(),
-                        ds.as_mut_ptr(),
-                    )
+                    let mut found = 0;
+                    for qi in 0..QUERY_SET {
+                        found += ffi::vanedb_rs_store_search(
+                            sr,
+                            black_box(w.queries[qi * DIM..].as_ptr()),
+                            10,
+                            ids.as_mut_ptr(),
+                            ds.as_mut_ptr(),
+                        );
+                    }
+                    found
                 })
             });
             ffi::vanedb_cpp_store_free(sc);
