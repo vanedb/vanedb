@@ -104,11 +104,14 @@ resolution. Treat 128-dimension kernel ratios as noise.
 **‡ ** Rust's internal id maps use the default SipHash hasher where C++ uses
 identity, worth about 40 ns per add (vanedb#109).
 
-**◊ Do not trust this row.** The bench times a *single* query, and the two
-engines build different graphs from the same seed (`StdRng` versus
-`std::mt19937`), so per-query work differs by graph luck. Measured over 16
-queries the mean is 0.97 with a 41% spread — Rust is ahead on average. Fixing
-the bench to sweep a query set is vanedb#111.
+**◊ Superseded harness; awaiting a re-run.** This figure was timed against a
+*single* query, and the two engines build different graphs from the same seed
+(`StdRng` versus `std::mt19937`), so per-query work differed by graph luck.
+Measured over 16 queries the mean was 0.97 with a 41% spread — Rust ahead on
+average, and every ratio ever published for this row sits inside that spread.
+The bench now sweeps 32 queries (vanedb#111), so this row, along with the two
+other search rows, is replaced by the next snapshot taken on dedicated
+hardware. Until then it measures nothing.
 
 **¶ Measured against mismatched durability; awaiting a re-run.** When this
 snapshot was taken the engines called different primitives: Rust `sync_all()`

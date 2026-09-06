@@ -2,6 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use std::hint::black_box;
 use std::time::{Duration, Instant};
 use vanedb_bench::coverage::groups;
+use vanedb_bench::workloads::QUERY_SET;
 use vanedb_bench::{ffi, workloads};
 
 const DIM: usize = 128;
@@ -12,7 +13,8 @@ const EFS: usize = 50;
 const SEED: u64 = 7;
 
 fn bench_hnsw(c: &mut Criterion) {
-    let w = workloads::generate(3, DIM, N, 1);
+    let w = workloads::generate(3, DIM, N, QUERY_SET);
+    // One query per iteration measured graph luck, not engine speed (#111).
     let q = &w.queries[0..DIM];
 
     let mut build = c.benchmark_group(groups::HNSW_BUILD);
@@ -72,6 +74,8 @@ fn bench_hnsw(c: &mut Criterion) {
 
     // Pre-build once each for the search benchmark.
     let mut search = c.benchmark_group(groups::HNSW_SEARCH);
+    // One timed iteration is a sweep of QUERY_SET queries, not one query.
+    search.throughput(criterion::Throughput::Elements(QUERY_SET as u64));
     unsafe {
         let hc = ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED);
         let hr = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
@@ -106,26 +110,34 @@ fn bench_hnsw(c: &mut Criterion) {
         );
         search.bench_function("cpp", |bn| {
             bn.iter(|| {
-                ffi::vanedb_cpp_index_search(
-                    hc,
-                    black_box(q.as_ptr()),
-                    10,
-                    EFS,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+                let mut found = 0;
+                for qi in 0..QUERY_SET {
+                    found += ffi::vanedb_cpp_index_search(
+                        hc,
+                        black_box(w.queries[qi * DIM..].as_ptr()),
+                        10,
+                        EFS,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    );
+                }
+                found
             })
         });
         search.bench_function("rs", |bn| {
             bn.iter(|| {
-                ffi::vanedb_rs_index_search(
-                    hr,
-                    black_box(q.as_ptr()),
-                    10,
-                    EFS,
-                    ids.as_mut_ptr(),
-                    ds.as_mut_ptr(),
-                )
+                let mut found = 0;
+                for qi in 0..QUERY_SET {
+                    found += ffi::vanedb_rs_index_search(
+                        hr,
+                        black_box(w.queries[qi * DIM..].as_ptr()),
+                        10,
+                        EFS,
+                        ids.as_mut_ptr(),
+                        ds.as_mut_ptr(),
+                    );
+                }
+                found
             })
         });
         ffi::vanedb_cpp_index_free(hc);
