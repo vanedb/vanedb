@@ -457,7 +457,11 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     // m < 2 makes mult and the level distribution meaningless; C++ validates
     // it on load and Rust did not.
     let mut data = v2_huge_max_elements(4);
+    // Keep m_max/m_max0 consistent with m, or the `m_max0 != m * 2` check
+    // rejects the file first and this case never reaches the `m < 2` guard.
     data.m = 1;
+    data.m_max = 1;
+    data.m_max0 = 2;
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_m", &bytes);
     assert!(
@@ -473,4 +477,62 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
         matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
         "ef_construction = 0 must be rejected on load"
     );
+}
+
+#[test]
+fn hnsw_load_rejects_a_count_times_dim_overflow() {
+    // `count * dim` sizes the vector array. v2 deliberately does not bound
+    // count by max_elements (growth past capacity is supported), and dim is
+    // bounded only by `dim * 4` not overflowing — so the product is an
+    // unchecked multiply on two attacker-controlled values.
+    //
+    // 8 * 2^61 is exactly 2^64, which wraps to 0, so an EMPTY vector array
+    // satisfies the length check and a few hundred bytes describe an index
+    // claiming 2^61 dimensions.
+    let count = 8usize;
+    let dim = 1usize << 61;
+    assert_eq!(
+        count.wrapping_mul(dim),
+        0,
+        "the wrap is what this test is about"
+    );
+
+    let mut data = v2_huge_max_elements(1);
+    data.dim = dim;
+    data.count = count;
+    data.vectors = vec![];
+    data.ext_ids = (0..count as u64).collect();
+    data.levels = vec![0; count];
+    data.neighbors = (0..count).map(|_| vec![vec![]]).collect();
+    data.id_map = (0..count as u64).map(|i| (i, i as usize)).collect();
+
+    let bytes = hnsw_file_bytes(2, &data);
+    let p = write_tmp("count_dim_overflow", &bytes);
+    assert!(
+        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        "count * dim overflow must be rejected, not wrapped"
+    );
+    let _ = fs::remove_file(&p);
+}
+
+#[test]
+fn hnsw_load_rejects_an_m_doubling_overflow() {
+    // `m_max0 != m * 2` is itself an unchecked multiply. At m = 2^63 the
+    // product wraps to 0, so a file declaring m_max0 = 0 passes the very
+    // check that exists to keep the graph parameters consistent.
+    let m = 1usize << 63;
+    assert_eq!(m.wrapping_mul(2), 0, "the wrap is what this test is about");
+
+    let mut data = v2_huge_max_elements(1);
+    data.m = m;
+    data.m_max = m;
+    data.m_max0 = 0;
+
+    let bytes = hnsw_file_bytes(2, &data);
+    let p = write_tmp("m_doubling_overflow", &bytes);
+    assert!(
+        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        "m * 2 overflow must be rejected, not wrapped"
+    );
+    let _ = fs::remove_file(&p);
 }
