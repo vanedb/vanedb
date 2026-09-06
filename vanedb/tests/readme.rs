@@ -88,7 +88,12 @@ fn documented_methods_exist() {
     ] {
         // Markdown wraps sentences across lines, so judge sentences, not lines:
         // a type and a method sharing a line may belong to different claims.
-        let flat = readme.replace('\n', " ");
+        //
+        // Strip \r before \n: a CRLF checkout leaves ".\r " where the split
+        // expects ". ", so two paragraphs merge into one apparent sentence and
+        // a method gets attributed to a type from the next paragraph. That
+        // failed on Windows only.
+        let flat = readme.replace('\r', "").replace('\n', " ");
         for sentence in flat.split(". ") {
             for (ty, methods) in [
                 ("DiskIndexBuilder", disk_builder),
