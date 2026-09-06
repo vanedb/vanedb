@@ -74,6 +74,14 @@ jobs:
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: Lint GitHub Actions workflows
         run: actionlint -color
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Check release wheel tripwires against the build matrices
+        shell: bash
+        run: |
+          python -m pip install --constraint .github/requirements-release.txt PyYAML
+          python .github/scripts/check_wheel_matrix.py
 
   rust:
     name: Rust component

@@ -14,7 +14,14 @@ const MIN_RECALL: f32 = 0.5;
 /// and cache drift hit both engines equally — measuring one engine's block
 /// first and the other's second biases the verdict toward whichever runs on
 /// the warmer machine state (observed flipping store_search vs criterion).
-fn median_pair_ns(mut a: impl FnMut(), mut b: impl FnMut()) -> (u128, u128) {
+/// Median wall time per operation, in nanoseconds.
+///
+/// `ops` is how many operations each closure performs, so a closure that
+/// sweeps a query set still reports a per-query figure. Search closures sweep
+/// rather than repeating one query: the engines build different graphs from
+/// the same seed, so a single query measured graph luck, with a 41% spread
+/// across queries (#111).
+fn median_pair_ns(mut a: impl FnMut(), mut b: impl FnMut(), ops: usize) -> (u128, u128) {
     const WARMUP: usize = 200;
     const SAMPLES: usize = 501;
     for _ in 0..WARMUP {
@@ -33,7 +40,8 @@ fn median_pair_ns(mut a: impl FnMut(), mut b: impl FnMut()) -> (u128, u128) {
     }
     ta.sort_unstable();
     tb.sort_unstable();
-    (ta[SAMPLES / 2], tb[SAMPLES / 2])
+    let ops = ops.max(1) as u128;
+    (ta[SAMPLES / 2] / ops, tb[SAMPLES / 2] / ops)
 }
 
 fn main() -> ExitCode {
@@ -92,11 +100,11 @@ fn main() -> ExitCode {
                     black_box(ffi::vanedb_rs_l2_sq(a.as_ptr(), b.as_ptr(), dim));
                 }
             },
+            1,
         );
         // Ratio from the raw batch totals — dividing to per-call ns first
         // truncates ~13.9 vs ~15.0 into 13 vs 15 and distorts the ratio.
         let ratio = rs as f64 / cpp as f64;
-        let (cpp, rs) = (cpp / 1000, rs / 1000);
         md.push_str(&format!("| l2_sq | {cpp} | {rs} | {ratio:.2} |\n"));
 
         // FlatIndex search. Setup asserts keep a failed engine from benchmarking
@@ -128,23 +136,28 @@ fn main() -> ExitCode {
         );
         let (cpp, rs) = median_pair_ns(
             || {
-                ffi::vanedb_cpp_store_search(
-                    sc,
-                    q.as_ptr(),
-                    k,
-                    ids_c.as_mut_ptr(),
-                    ds_c.as_mut_ptr(),
-                );
+                for qi in 0..queries {
+                    ffi::vanedb_cpp_store_search(
+                        sc,
+                        w.queries[qi * dim..].as_ptr(),
+                        k,
+                        ids_c.as_mut_ptr(),
+                        ds_c.as_mut_ptr(),
+                    );
+                }
             },
             || {
-                ffi::vanedb_rs_store_search(
-                    sr,
-                    q.as_ptr(),
-                    k,
-                    ids_r.as_mut_ptr(),
-                    ds_r.as_mut_ptr(),
-                );
+                for qi in 0..queries {
+                    ffi::vanedb_rs_store_search(
+                        sr,
+                        w.queries[qi * dim..].as_ptr(),
+                        k,
+                        ids_r.as_mut_ptr(),
+                        ds_r.as_mut_ptr(),
+                    );
+                }
             },
+            queries,
         );
         md.push_str(&format!(
             "| store_search | {cpp} | {rs} | {:.2} |\n",
@@ -200,25 +213,30 @@ fn main() -> ExitCode {
         let rec_r = rec_r / queries as f32;
         let (cpp, rs) = median_pair_ns(
             || {
-                ffi::vanedb_cpp_index_search(
-                    hc,
-                    q.as_ptr(),
-                    k,
-                    50,
-                    ic.as_mut_ptr(),
-                    dc.as_mut_ptr(),
-                );
+                for qi in 0..queries {
+                    ffi::vanedb_cpp_index_search(
+                        hc,
+                        w.queries[qi * dim..].as_ptr(),
+                        k,
+                        50,
+                        ic.as_mut_ptr(),
+                        dc.as_mut_ptr(),
+                    );
+                }
             },
             || {
-                ffi::vanedb_rs_index_search(
-                    hr,
-                    q.as_ptr(),
-                    k,
-                    50,
-                    ir.as_mut_ptr(),
-                    dr.as_mut_ptr(),
-                );
+                for qi in 0..queries {
+                    ffi::vanedb_rs_index_search(
+                        hr,
+                        w.queries[qi * dim..].as_ptr(),
+                        k,
+                        50,
+                        ir.as_mut_ptr(),
+                        dr.as_mut_ptr(),
+                    );
+                }
             },
+            queries,
         );
         md.push_str(&format!(
             "| index_search | {cpp} | {rs} | {:.2} |\n",

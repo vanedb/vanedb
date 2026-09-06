@@ -39,7 +39,7 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
         0 => Ok(Metric::L2),
         1 => Ok(Metric::Cosine),
         2 => Ok(Metric::Dot),
-        _ => Err(VaneError::Io("invalid metric in file".to_string())),
+        _ => Err(VaneError::corrupt("invalid metric in file")),
     }
 }
 
@@ -67,9 +67,13 @@ impl std::fmt::Debug for DiskIndexBuilder {
 
 impl DiskIndexBuilder {
     /// Starts a store for vectors of `dim` components.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VaneError::ZeroDimension`] if `dim` is zero.
     pub fn new(dim: usize, metric: Metric) -> Result<Self> {
         if dim == 0 {
-            return Err(VaneError::EmptyVector);
+            return Err(VaneError::ZeroDimension);
         }
         Ok(Self {
             dim,
@@ -124,45 +128,45 @@ impl DiskIndexBuilder {
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
-        let file =
-            fs::File::create(temp.path()).map_err(|e| VaneError::Io(format!("create: {e}")))?;
+        let file = fs::File::create(temp.path()).map_err(|e| VaneError::from_io("create", e))?;
         let mut f = BufWriter::with_capacity(WRITE_BUFFER_BYTES, file);
 
         // Header
         f.write_all(&MAGIC.to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&VERSION.to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&(self.dim as u64).to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&(self.ids.len() as u64).to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&metric_to_u32(self.metric).to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&0u32.to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?; // reserved
+            .map_err(|e| VaneError::from_io("write", e))?; // reserved
 
         // IDs
         for &id in &self.ids {
             f.write_all(&id.to_le_bytes())
-                .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+                .map_err(|e| VaneError::from_io("write", e))?;
         }
 
         // Vectors
         for &v in &self.vectors {
             f.write_all(&v.to_le_bytes())
-                .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+                .map_err(|e| VaneError::from_io("write", e))?;
         }
 
         // into_inner flushes the buffer; the fsync below must see every byte.
+        // into_inner yields an IntoInnerError wrapping the writer; take the
+        // io::Error out of it so the classification and source chain work.
         let f = f
             .into_inner()
-            .map_err(|e| VaneError::Io(format!("flush: {e}")))?;
+            .map_err(|e| VaneError::from_io("flush", e.into_error()))?;
         // Durability: fsync data + metadata before rename so a crash mid-write
         // can't leave a half-written file in place. Mirrors fsync_file in
         // vanedb-cpp src/core/detail/file_utils.h.
-        f.sync_all()
-            .map_err(|e| VaneError::Io(format!("sync: {e}")))?;
+        f.sync_all().map_err(|e| VaneError::from_io("sync", e))?;
         drop(f);
 
         temp.commit(path)
@@ -202,21 +206,22 @@ impl DiskIndex {
     /// constant-cost mapping. A corrupt or truncated file is rejected here
     /// rather than surfacing as a wrong answer later.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let file =
-            fs::File::open(path.as_ref()).map_err(|e| VaneError::Io(format!("open: {e}")))?;
-        let mmap = unsafe { Mmap::map(&file) }.map_err(|e| VaneError::Io(format!("mmap: {e}")))?;
+        let file = fs::File::open(path.as_ref()).map_err(|e| VaneError::from_io("open", e))?;
+        let mmap = unsafe { Mmap::map(&file) }.map_err(|e| VaneError::from_io("mmap", e))?;
 
         if mmap.len() < HEADER_SIZE {
-            return Err(VaneError::Io("file too small".to_string()));
+            return Err(VaneError::corrupt("file too small"));
         }
 
         let magic = u32::from_le_bytes(mmap[0..4].try_into().unwrap());
         if magic != MAGIC {
-            return Err(VaneError::Io("invalid magic".to_string()));
+            return Err(VaneError::corrupt("invalid magic"));
         }
         let version = u32::from_le_bytes(mmap[4..8].try_into().unwrap());
         if version != VERSION {
-            return Err(VaneError::Io(format!("unsupported version: {version}")));
+            return Err(VaneError::corrupt(format!(
+                "unsupported version: {version}"
+            )));
         }
 
         let dim = u64::from_le_bytes(mmap[8..16].try_into().unwrap()) as usize;
@@ -225,23 +230,23 @@ impl DiskIndex {
         let metric = u32_to_metric(metric_raw)?;
 
         if dim == 0 && num_vectors > 0 {
-            return Err(VaneError::Io("zero dimension with vectors".to_string()));
+            return Err(VaneError::corrupt("zero dimension with vectors"));
         }
 
         let ids_size = num_vectors
             .checked_mul(8)
-            .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
+            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
         let vecs_size = num_vectors
             .checked_mul(dim)
             .and_then(|n| n.checked_mul(4))
-            .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
+            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
         let expected = HEADER_SIZE
             .checked_add(ids_size)
             .and_then(|n| n.checked_add(vecs_size))
-            .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
+            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
 
         if mmap.len() < expected {
-            return Err(VaneError::Io("file truncated".to_string()));
+            return Err(VaneError::corrupt("file truncated"));
         }
 
         let ids_offset = HEADER_SIZE;
@@ -249,8 +254,8 @@ impl DiskIndex {
 
         for offset in (vectors_offset..expected).step_by(4) {
             if !f32::from_le_bytes(mmap[offset..offset + 4].try_into().unwrap()).is_finite() {
-                return Err(VaneError::Io(
-                    "corrupted file: vector values must be finite".to_string(),
+                return Err(VaneError::corrupt(
+                    "corrupted file: vector values must be finite",
                 ));
             }
         }
