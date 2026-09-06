@@ -4,6 +4,10 @@ use std::time::Instant;
 use vanedb_bench::config::ReportConfig;
 use vanedb_bench::{ffi, ground_truth, workloads};
 
+/// Metric for the recall comparison, in the C ABI's encoding
+/// (0 = L2, 1 = cosine, 2 = dot). The index and its ground truth share it.
+const METRIC: u32 = 0;
+
 /// Sanity floor, not a performance assertion: a healthy graph recalls ~0.7 at
 /// these settings and a broken one collapses to near zero. It exists so the
 /// smoke run fails on a graph that builds but does not retrieve.
@@ -166,9 +170,11 @@ fn main() -> ExitCode {
         ffi::vanedb_cpp_store_free(sc);
         ffi::vanedb_rs_store_free(sr);
 
-        // HNSW search + recall@k vs brute-force truth, averaged over all queries
-        let hc = ffi::vanedb_cpp_index_new(dim, 0, n, 16, 200, 7);
-        let hr = ffi::vanedb_rs_index_new(dim, 0, n, 16, 200, 7);
+        // HNSW search + recall@k vs brute-force truth, averaged over all queries.
+        // METRIC is used to build the index and to compute the truth: a recall
+        // figure only means anything if both rank by the same distance.
+        let hc = ffi::vanedb_cpp_index_new(dim, METRIC, n, 16, 200, 7);
+        let hr = ffi::vanedb_rs_index_new(dim, METRIC, n, 16, 200, 7);
         assert!(!hc.is_null() && !hr.is_null(), "hnsw_new failed");
         for i in 0..n {
             assert_eq!(
@@ -187,7 +193,7 @@ fn main() -> ExitCode {
         let (mut rec_c, mut rec_r) = (0.0f32, 0.0f32);
         for qi in 0..queries {
             let query = &w.queries[qi * dim..(qi + 1) * dim];
-            let truth = ground_truth::brute_force_topk(&w.vectors, &w.ids, dim, query, k);
+            let truth = ground_truth::brute_force_topk(&w.vectors, &w.ids, dim, query, k, METRIC);
             let nc = ffi::vanedb_cpp_index_search(
                 hc,
                 query.as_ptr(),
