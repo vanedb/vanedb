@@ -4,18 +4,9 @@ use std::io;
 
 /// Everything that can go wrong in this crate.
 ///
-/// # Matching
-///
-/// This enum is `#[non_exhaustive]`, so a `match` over it needs a `_` arm.
-/// That is deliberate: a new variant should not need a major release.
-///
-/// # Comparing
-///
-/// `VaneError` is deliberately not `PartialEq`: comparing errors would make
-/// `err == VaneError::InvalidParameter("M must be >= 2")` compile, turning
-/// every diagnostic string into public API that could not be reworded. Match
-/// on the variant instead. It is also not `Clone`, because [`io::Error`] is
-/// not.
+/// `#[non_exhaustive]`, so a `match` needs a `_` arm and a new variant is not
+/// a breaking change. Not `PartialEq`, so message text stays out of the public
+/// API — match on the variant. Not `Clone`, because [`io::Error`] is not.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum VaneError {
@@ -26,28 +17,20 @@ pub enum VaneError {
         /// The length actually supplied.
         got: usize,
     },
-    /// A batch's id count and vector data do not describe the same number of
-    /// rows.
-    ///
-    /// Separate from [`VaneError::DimensionMismatch`], which reports a single
-    /// vector's length against the index dimension. This one counts rows, so
-    /// the message names ids and floats rather than dimensions.
+    /// A batch's ids and vector data describe different row counts.
     BatchLengthMismatch {
-        /// How many ids were supplied.
+        /// Ids supplied.
         ids: usize,
-        /// How many floats were supplied.
+        /// Floats supplied; `ids * dim` were expected.
         vectors: usize,
-        /// The index dimension, so `ids * dim` is the expected float count.
+        /// The index dimension.
         dim: usize,
     },
-    /// A dimension of zero was requested when creating a store or index.
-    ///
-    /// This is a constructor error. A zero-length vector passed to `add`
-    /// reports [`VaneError::DimensionMismatch`] with `got: 0` instead.
+    /// A dimension of zero at construction. An empty vector passed to `add`
+    /// reports [`VaneError::DimensionMismatch`] instead.
     ZeroDimension,
-    /// No vector is stored under this id.
-    ///
-    /// This is a lookup miss, unrelated to [`VaneError::FileNotFound`].
+    /// No vector under this id. A lookup miss, not
+    /// [`VaneError::FileNotFound`].
     NotFound {
         /// The id that was looked up.
         id: u64,
@@ -67,11 +50,8 @@ pub enum VaneError {
     /// A parameter was outside its valid range, or an allocation it implies
     /// would overflow.
     InvalidParameter(&'static str),
-    /// The file does not exist.
-    ///
-    /// Separate from every other I/O failure because "load it, or build it if
-    /// it isn't there" is the most common thing an application does with a
-    /// persisted index, and it should not require inspecting a message.
+    /// The file does not exist, so "load it, or build it if it isn't there"
+    /// can branch on the variant.
     FileNotFound {
         /// The operation that failed, such as `"open"`.
         context: &'static str,
@@ -79,16 +59,13 @@ pub enum VaneError {
         /// [`io::ErrorKind::NotFound`].
         source: io::Error,
     },
-    /// The file was readable but does not hold a valid vanedb structure.
-    ///
-    /// Retrying will not help; the file has to be rebuilt.
+    /// Readable, but not a valid vanedb structure. Retrying will not help.
     Corrupt {
         /// What was wrong with it, for diagnostics only. Not stable API.
         detail: String,
     },
-    /// A compute backend (Metal, CUDA) could not be initialised or used.
-    ///
-    /// Callers that can run on the CPU should fall back rather than retry.
+    /// A compute backend (Metal, CUDA) is unavailable. Fall back to the CPU
+    /// rather than retry.
     Backend {
         /// What failed, for diagnostics only. Not stable API.
         detail: String,
@@ -104,10 +81,8 @@ pub enum VaneError {
 }
 
 impl VaneError {
-    /// Classifies an [`io::Error`], tagging it with the operation that failed.
-    ///
-    /// A missing file becomes [`VaneError::FileNotFound`]; everything else
-    /// becomes [`VaneError::Io`].
+    /// Tags an [`io::Error`] with the operation that failed. A missing file
+    /// becomes [`VaneError::FileNotFound`], everything else [`VaneError::Io`].
     pub fn from_io(context: &'static str, source: io::Error) -> Self {
         if source.kind() == io::ErrorKind::NotFound {
             Self::FileNotFound { context, source }

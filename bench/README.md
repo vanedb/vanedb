@@ -6,10 +6,10 @@ implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
 
 ## Status
 
-**Implemented.** Criterion benches covering every operation the design spec
-promises, plus a `report` binary that writes a [`RESULTS.md`](RESULTS.md)
-snapshot with ApproxIndex recall@10 averaged over 100 queries. Design spec:
-[`docs/superpowers/specs/2026-05-28-vanedb-bench-design.md`](docs/superpowers/specs/2026-05-28-vanedb-bench-design.md).
+Criterion benches cover every operation in [`src/coverage.rs`](src/coverage.rs),
+which is the list of record and is asserted against the benches themselves. A
+`report` binary writes the [`RESULTS.md`](RESULTS.md) snapshot, with
+ApproxIndex recall@10 averaged over 100 queries.
 
 ## Running
 

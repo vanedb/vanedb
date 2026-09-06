@@ -1,11 +1,8 @@
 //! Bounded top-k selection for brute-force scans.
 //!
-//! A `k`-element max-heap, not a full sort and not quickselect over the whole
-//! candidate array. Quickselect costs about `2n` comparisons plus roughly `n`
-//! swaps of 16-byte structs through a buffer that outgrows L1 as the corpus
-//! grows; the heap never allocates that buffer at all. `k` is tiny and stays
-//! in L1, and most candidates are rejected by one comparison against the
-//! current worst.
+//! A `k`-element max-heap, not a full sort and not quickselect: quickselect
+//! swaps ~n 16-byte structs through a buffer that outgrows L1, while `k` stays
+//! in L1 and most candidates lose a single comparison.
 
 use std::collections::BinaryHeap;
 
@@ -23,9 +20,8 @@ where
     if k == 0 {
         return Vec::new();
     }
-    // Deliberately not `with_capacity(k)`: k comes from the caller, and
-    // reserving it up front aborts on `search(q, usize::MAX)`. The heap is
-    // bounded by k as it fills, so growth is amortised and the bound holds.
+    // Not `with_capacity(k)`: k is caller-supplied, and reserving it aborts
+    // on `search(q, usize::MAX)`. The heap is bounded by k as it fills.
     let mut heap: BinaryHeap<SearchResult> = BinaryHeap::new();
     for candidate in candidates {
         if heap.len() < k {

@@ -27,10 +27,8 @@ pub(crate) struct ChunkedVectors {
 /// A power of two is what makes indexing a shift and a mask rather than a
 /// division, so this rounds *down*: rounding up would overshoot the target.
 fn vectors_per_chunk(dim: usize) -> usize {
-    // `dim * 4` wraps to zero for absurd dimensions, and `dim` reaches here
-    // from an untrusted file, so a wrap would divide by zero rather than
-    // return an error. Saturating keeps the result at one vector per chunk,
-    // which is what such a dimension would get anyway.
+    // Saturating: `dim * 4` wraps to zero for absurd dimensions, which would
+    // divide by zero. Such a dimension gets one vector per chunk anyway.
     let bytes = dim.saturating_mul(std::mem::size_of::<f32>()).max(1);
     let fits = (TARGET_CHUNK_BYTES / bytes).max(1);
     1usize << (usize::BITS - 1 - fits.leading_zeros())

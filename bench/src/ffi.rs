@@ -35,8 +35,6 @@ extern "C" {
         out_ids: *mut u64,
         out_dists: *mut f32,
     ) -> usize;
-    pub fn vanedb_cpp_index_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
-    pub fn vanedb_cpp_index_load(path: *const c_char) -> *mut std::ffi::c_void;
     pub fn vanedb_cpp_index_free(h: *mut std::ffi::c_void);
 
     pub fn vanedb_cpp_disk_build(
@@ -62,7 +60,6 @@ extern "C" {
 pub use vanedb_capi::{
     vanedb_rs_cosine_distance, vanedb_rs_disk_build, vanedb_rs_disk_free, vanedb_rs_disk_open,
     vanedb_rs_disk_search, vanedb_rs_dot_product, vanedb_rs_index_add, vanedb_rs_index_free,
-    vanedb_rs_index_load, vanedb_rs_index_new, vanedb_rs_index_save, vanedb_rs_index_search,
-    vanedb_rs_l2_sq, vanedb_rs_store_add, vanedb_rs_store_free, vanedb_rs_store_new,
-    vanedb_rs_store_search,
+    vanedb_rs_index_new, vanedb_rs_index_search, vanedb_rs_l2_sq, vanedb_rs_store_add,
+    vanedb_rs_store_free, vanedb_rs_store_new, vanedb_rs_store_search,
 };
