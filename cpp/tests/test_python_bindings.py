@@ -667,3 +667,96 @@ def test_mmap_writes_raise_without_crashing(tmp_path, operation):
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestBufferAliasing:
+    """A released GIL must not expose the caller's numpy buffer to the core.
+
+    `py::array_t<..., c_style | forcecast>` does not copy an input that is
+    already float32 and C-contiguous, so the buffer pointer aliases the
+    caller's array. Reading through it after `gil_scoped_release` let another
+    Python thread mutate the data mid-operation — and because the finite check
+    runs inside the core, after the release, a value could pass validation and
+    then become NaN before it was stored (vanedb#95).
+
+    A vector that is already NaN when the call is made is a legitimate
+    rejection, so these tests allow that. What must never happen is a *torn*
+    read: a value that was finite at validation time and NaN by the time the
+    core consumed it.
+    """
+
+    def test_add_never_stores_a_torn_vector(self):
+        import threading
+
+        import vanedb_cpp
+
+        dim = 4096
+        index = vanedb_cpp.FlatIndex(dim, vanedb_cpp.Metric.L2)
+        stop = threading.Event()
+        stored_ids = []
+
+        def scribble(vec):
+            # Both writers hold the GIL for these assignments, so the only
+            # window in which this can interleave with add() is the one add()
+            # opens by releasing the GIL.
+            while not stop.is_set():
+                vec[:] = np.nan
+                vec[:] = 1.0
+
+        for i in range(300):
+            vec = np.ones(dim, dtype=np.float32)
+            writer = threading.Thread(target=scribble, args=(vec,), daemon=True)
+            writer.start()
+            try:
+                index.add(i, vec)
+                stored_ids.append(i)
+            except ValueError:
+                pass  # the array was NaN at call time: a correct rejection
+            finally:
+                stop.set()
+                writer.join()
+                stop.clear()
+
+        for i in stored_ids:
+            stored = index.get(i)
+            assert stored is not None
+            assert not np.isnan(stored).any(), (
+                f"id {i} stored a torn vector: validated finite, then mutated"
+            )
+
+    def test_search_never_scans_a_torn_query(self):
+        import threading
+
+        import vanedb_cpp
+
+        dim = 4096
+        index = vanedb_cpp.FlatIndex(dim, vanedb_cpp.Metric.L2)
+        for i in range(32):
+            v = np.zeros(dim, dtype=np.float32)
+            v[i] = 1.0
+            index.add(i, v)
+
+        query = np.zeros(dim, dtype=np.float32)
+        query[0] = 1.0
+        stop = threading.Event()
+
+        def scribble():
+            while not stop.is_set():
+                query[:] = np.nan
+                query[:] = 0.0
+                query[0] = 1.0
+
+        writer = threading.Thread(target=scribble, daemon=True)
+        writer.start()
+        try:
+            for _ in range(300):
+                try:
+                    _ids, dists = index.search(query, 4)
+                except ValueError:
+                    continue  # NaN at call time: a correct rejection
+                assert not np.isnan(dists).any(), (
+                    "search scanned a query that changed under it"
+                )
+        finally:
+            stop.set()
+            writer.join()
