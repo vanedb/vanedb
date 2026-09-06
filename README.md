@@ -6,6 +6,20 @@ The Rust engine in [`vanedb/`](vanedb) is the one that ships. A header-only
 C++ engine in [`cpp/`](cpp) is kept as reference code and as the other arm of
 a cross-engine benchmark; it is frozen, and features are not ported to it.
 
+Bring your own embeddings: VaneDB stores and searches vectors, it does not
+generate them.
+
+## Status
+
+Pre-release. Nothing is published to crates.io or PyPI yet, so there is no
+install command to give — build from this repository. Install lines land with
+the first release (#122).
+
+```toml
+# Cargo.toml — DiskIndex is behind the non-default `disk` feature
+vanedb = { path = "vanedb", features = ["disk"] }
+```
+
 ## Quick start
 
 ### Rust
@@ -48,10 +62,12 @@ this query — and each name says why you would pick it over the others.
 |---|---|---|---|
 | `FlatIndex` | yes | memory | the corpus is small, or you need exact results |
 | `ApproxIndex` | **no** | memory | search must stay fast as the corpus grows |
-| `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
+| `DiskIndex` | yes | a file, paged in on demand | many processes or runs share one corpus |
 
 `FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
-answer is always right. `ApproxIndex` walks an HNSW graph instead: sub-linear,
+answer is always right. `DiskIndexBuilder` holds the corpus in memory until
+`save`, so the saving is on the reading side: opening a file maps it instead
+of loading it. `ApproxIndex` walks an HNSW graph instead: sub-linear,
 and it can miss a true neighbour. `ef_search` trades that recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
@@ -75,12 +91,14 @@ is a full rebuild and holds the write lock throughout, so call it deliberately
 rather than on every write. `save` writes tombstoned slots too, so compact first
 if file size matters.
 
-All three are reachable from every binding except wasm, which has no
-filesystem to map and so omits `DiskIndex`.
+All three are reachable from Rust, Python and the C ABI. The wasm bindings
+have no filesystem, so `DiskIndex` is absent there. `ApproxIndex` in wasm has
+no `save`/`load` either — an index is built in the page it is used in.
 
-The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
-Python and JavaScript packages use `Metric.COSINE`. Type names are identical
-in every binding, so switching engines is an import change.
+The Rust crate spells enum variants in Rust style (`Metric::Cosine`) and
+Python uses `Metric.COSINE`; the wasm bindings take a lowercase string
+(`"l2"`, `"cosine"`, `"dot"`). Type names are otherwise identical across
+bindings.
 
 ## Repository layout
 
