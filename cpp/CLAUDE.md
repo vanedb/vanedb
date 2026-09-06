@@ -13,20 +13,16 @@ This implementation also provides supplementary Python bindings as
 `pip install vanedb-cpp` / `import vanedb_cpp`; it does not own the canonical
 `vanedb` PyPI name.
 
-**Why two implementations:**
-- **C++** (this component): drop a header into any CMake/Bazel project. No Rust
-  toolchain needed. The embed path for iOS/Android native code and existing C++
-  codebases.
-- **Rust**: cleaner concurrency, ergonomic Python/WASM bindings, the path for new
-  language ecosystems.
+**Why this engine still exists:** it is the other arm of the cross-engine
+benchmark, and a header you can drop into a CMake/Bazel project with no Rust
+toolchain. It is not a second product, and not a path a new user should be
+steered down.
 
-**Alignment policy:** Features generally land in Rust first. C++ syncs core
-algorithms, distance functions, and the universal on-disk persistence contract.
-Shared regression vectors and cross-load fixtures live in `../conformance/`.
-Intentional divergence remains at the edges — WASM is Rust-only; the header-only
-embed path is C++-only.
+**Alignment policy:** none — features are not synced. Shared regression
+vectors and cross-load fixtures live in `../conformance/`, and those must keep
+passing, but that is a constraint on changes rather than a sync obligation.
 
-## Current Status: v0.1.0 (frozen for sync work)
+## Current Status: v0.1.0, frozen
 
 ### Features
 | Feature | Status |
@@ -115,19 +111,21 @@ python3 search.py interactive             # REPL mode
 
 ## Maintenance Posture
 
-This C++ component accepts:
-- Bug fixes and CVE patches
-- Performance work on hot paths (HNSW search, SIMD distance)
-- New platform/compiler support (CI matrix expansion)
-- On-disk format additions that mirror the Rust component (so files are
-  interchangeable when feasible)
-- Packaging and release fixes for the supplementary `vanedb-cpp` Python
-  distribution
+**This engine is frozen.** The root `AGENTS.md` is authoritative; this section
+restates it rather than widening it, because the two disagreed before and an
+agent reading only this file drew the wrong conclusion.
 
-This C++ component defers to the Rust component for:
-- New high-level features (batch search API, metadata filtering, PQ, sharding)
-- Language bindings beyond Python (Node/WASM, Swift, Go)
-- Canonical `vanedb` PyPI distribution work and npm packaging
+Change it only to:
+- Fix a defect in the engine itself, including CVEs
+- Keep it building and its own tests passing
+- Keep the shared `DiskIndex` format loadable both ways
+- Keep the benchmark comparison honest — where a Rust change makes a row
+  measure something different, annotate the row rather than porting to match
+
+Do **not** port features. `add_batch`, growable capacity and delete are
+Rust-only by decision, not by omission. Performance work and new platform
+support are not reasons to touch this engine either: an optimisation here
+buys nothing that ships, and changes the comparison it exists to provide.
 
 The canonical PyPI distribution (`pip install vanedb`), WASM, and
 batch/metadata APIs are owned by the Rust component and tracked in this
