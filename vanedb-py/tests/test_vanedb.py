@@ -227,3 +227,24 @@ def test_disk_store_rejects_a_bad_file(tmp_path):
 def test_disk_store_is_in_the_public_surface():
     assert "DiskIndex" in vanedb.__all__
     assert "DiskIndexBuilder" in vanedb.__all__
+
+
+def test_approx_index_delete():
+    """Deletion is what the release was waiting on (#91)."""
+    idx = vanedb.ApproxIndex(2, capacity=64)
+    for i in range(40):
+        idx.add(i, [float(i), 0.0])
+    assert len(idx) == 40
+
+    idx.remove(7)
+    assert len(idx) == 39
+    assert not idx.contains(7)
+    assert all(hit[0] != 7 for hit in idx.search([7.0, 0.0], 5))
+
+    with pytest.raises(ValueError):
+        idx.remove(7)
+
+    # The id is free again.
+    idx.add(7, [700.0, 0.0])
+    assert len(idx) == 40
+    assert idx.search([700.0, 0.0], 1)[0][0] == 7

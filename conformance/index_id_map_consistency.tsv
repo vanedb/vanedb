@@ -1,11 +1,16 @@
-# Shared HNSW id_map integrity cases. A persisted index must carry an exact
-# one-to-one relationship between live slots and external ids:
+# Shared HNSW id_map integrity cases. Every entry in id_map must name a slot
+# that carries that external id:
 #
-#   id_map.len() == count   and   id_map[ext_ids[i]] == i   for every live i
+#   id_map[k] == i  implies  i < count  and  ext_ids[i] == k
 #
 # Checking only length and value range accepted files where an external id
 # resolved to another slot's vector, so reads returned the right bytes under
 # the wrong identity.
+#
+# The converse does NOT hold: a slot absent from id_map is a tombstone, not
+# corruption. Those cases are engine-specific and live in each engine's own
+# test rather than here, because the Rust engine supports deletion and the
+# frozen C++ engine does not.
 #
 # `ext_ids` and `id_map` describe the `count` live slots. `id_map` entries are
 # `key:value` pairs; an empty list is written as `-`.
@@ -14,6 +19,4 @@ consistent	2	10,20	10:0,20:1	accept
 key_mismatch	1	10	20:0	reject
 duplicate_external_id	2	10,10	10:0,99:1	reject
 duplicated_internal_id	2	10,20	10:0,20:0	reject
-missing_entry	2	10,20	10:0	reject
 out_of_range_internal	1	10	10:5	reject
-empty_map_for_live_slots	1	10	-	reject

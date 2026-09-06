@@ -61,7 +61,9 @@ std::vector<Case> cases() {
     test_case.accept = fields[4] == "accept";
     result.push_back(std::move(test_case));
   }
-  REQUIRE(result.size() >= 6);
+  // Two cases left the shared fixture when the Rust engine gained deletion:
+  // a slot absent from id_map is a tombstone there, not corruption.
+  REQUIRE(result.size() >= 5);
   return result;
 }
 

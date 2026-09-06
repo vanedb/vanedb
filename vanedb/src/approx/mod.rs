@@ -147,6 +147,13 @@ pub(super) struct Inner {
     pub(super) entry_point: Option<usize>,
     pub(super) max_level: i32,
     pub(super) count: usize,
+    /// Tombstones, indexed by internal id. A deleted node keeps its links and
+    /// keeps being traversed -- it may be the only path to a live
+    /// neighbourhood -- but never appears in a result.
+    pub(super) deleted: Vec<bool>,
+    /// Live nodes, i.e. `count` minus the tombstones. Kept rather than
+    /// recomputed so `len()` stays O(1).
+    pub(super) live: usize,
     pub(super) rng: StdRng,
 }
 
@@ -186,14 +193,22 @@ impl ApproxIndex {
         }
     }
 
-    /// Number of vectors in the graph.
+    /// Number of vectors in the graph, excluding deleted ones.
     pub fn size(&self) -> usize {
-        self.inner.read().count
+        self.inner.read().live
+    }
+
+    /// Number of vectors in the graph, excluding deleted ones.
+    ///
+    /// `len` and `size` are the same call; `len` is the Rust spelling and
+    /// `size` is what the C++ engine and the wasm bindings expose.
+    pub fn len(&self) -> usize {
+        self.inner.read().live
     }
 
     /// Whether the graph holds no vectors.
     pub fn is_empty(&self) -> bool {
-        self.size() == 0
+        self.len() == 0
     }
 
     /// The capacity this index reserved for.
@@ -218,6 +233,23 @@ impl ApproxIndex {
     /// Whether a vector is stored under `id`.
     pub fn contains(&self, id: u64) -> bool {
         self.inner.read().id_map.contains_key(&id)
+    }
+
+    /// Removes the vector stored under `id`.
+    ///
+    /// The node is tombstoned rather than unlinked: its edges may be the only
+    /// route between live neighbourhoods, so it keeps being traversed and
+    /// simply never appears in a result. The id becomes free for reuse.
+    ///
+    /// Space is not reclaimed. A graph that is mostly tombstones is slower to
+    /// search than its live count suggests; rebuild it if that happens.
+    pub fn remove(&self, id: u64) -> Result<()> {
+        let mut inner = self.inner.write();
+        let iid = inner.id_map.remove(&id).ok_or(VaneError::NotFound { id })?;
+        debug_assert!(!inner.deleted[iid], "id_map held a tombstoned node");
+        inner.deleted[iid] = true;
+        inner.live -= 1;
+        Ok(())
     }
 
     /// Returns a copy of the vector stored under `id`.
@@ -297,6 +329,8 @@ impl ApproxIndex {
         // Storage grows here rather than being pre-sized to capacity, so an
         // empty index costs nothing and there is no ceiling to hit (#90).
         inner.vectors.push(vector);
+        inner.deleted.push(false);
+        inner.live += 1;
         debug_assert_eq!(
             inner.vectors.len(),
             inner.count,
@@ -361,6 +395,9 @@ impl ApproxIndex {
                 self.ef_construction,
                 lev,
                 inner.count,
+                // Build links to whatever is nearest, tombstoned or not:
+                // excluding them here could disconnect the graph.
+                &[],
             );
 
             // New nodes get M links; m_for_layer (2M at level 0) is only the
@@ -468,6 +505,7 @@ impl ApproxIndex {
             ef,
             0,
             inner.count,
+            &inner.deleted,
         );
 
         // Sort the whole candidate set before cutting to k: `SearchResult`'s
@@ -506,8 +544,13 @@ impl ApproxIndex {
         ef: usize,
         level: usize,
         total: usize,
+        // Tombstones. Deleted nodes still expand the frontier -- their edges
+        // may be the only route to a live neighbourhood -- but never occupy a
+        // result slot. Empty means nothing is deleted, which is the build path.
+        deleted: &[bool],
     ) -> Vec<(f32, usize)> {
         debug_assert!(entry < total, "search_layer: entry out of range");
+        let live = |iid: usize| deleted.get(iid).is_none_or(|d| !d);
 
         VISITED.with_borrow_mut(|vb| {
             let epoch = vb.begin(total);
@@ -520,7 +563,9 @@ impl ApproxIndex {
 
             // Max-heap of results (farthest first, capped at ef)
             let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
-            results.push((FloatOrd(entry_dist), entry));
+            if live(entry) {
+                results.push((FloatOrd(entry_dist), entry));
+            }
 
             vb.marks[entry] = epoch;
 
@@ -553,9 +598,11 @@ impl ApproxIndex {
 
                     if should_add {
                         candidates.push(Reverse((FloatOrd(nb_dist), nb)));
-                        results.push((FloatOrd(nb_dist), nb));
-                        if results.len() > ef {
-                            results.pop();
+                        if live(nb) {
+                            results.push((FloatOrd(nb_dist), nb));
+                            if results.len() > ef {
+                                results.pop();
+                            }
                         }
                     }
                 }
@@ -722,6 +769,8 @@ impl ApproxIndexBuilder {
                 id_map: HashMap::new(),
                 levels: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
                 neighbors: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
+                deleted: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
+                live: 0,
                 entry_point: None,
                 max_level: -1,
                 count: 0,

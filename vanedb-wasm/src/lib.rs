@@ -133,6 +133,13 @@ pub struct WasmIndex {
 
 #[wasm_bindgen(js_class = ApproxIndex)]
 impl WasmIndex {
+    /// Removes the vector stored under `id`. Tombstoned: the node keeps its
+    /// graph links, which may be the only route between live neighbourhoods,
+    /// and simply stops appearing in results.
+    pub fn remove(&mut self, id: u64) -> Result<(), JsError> {
+        self.inner.remove(id).map_err(to_jserr)
+    }
+
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: usize,

@@ -1,0 +1,122 @@
+//! Deleting from an approximate index.
+//!
+//! A tombstoned node must keep participating in graph traversal — its links
+//! are what hold the neighbourhood together — while never appearing in a
+//! result. Removing it from the graph instead would disconnect whatever it
+//! was the bridge to.
+
+use vanedb::{ApproxIndex, Metric, VaneError};
+
+fn index(n: u64) -> ApproxIndex {
+    let idx = ApproxIndex::builder(2, Metric::L2)
+        .capacity(n as usize)
+        .seed(7)
+        .build()
+        .unwrap();
+    for i in 0..n {
+        idx.add(i, &[i as f32, 0.0]).unwrap();
+    }
+    idx
+}
+
+#[test]
+fn a_removed_vector_stops_being_found() {
+    let idx = index(50);
+    assert!(idx.contains(7));
+    idx.remove(7).unwrap();
+    assert!(!idx.contains(7));
+    assert_eq!(idx.len(), 49);
+
+    // Querying its exact position must not return it.
+    let hits = idx.search(&[7.0, 0.0], 5).unwrap();
+    assert!(
+        hits.iter().all(|r| r.id != 7),
+        "removed id came back: {hits:?}"
+    );
+    // The neighbours around it are still reachable.
+    assert!(hits.iter().any(|r| r.id == 6 || r.id == 8), "{hits:?}");
+}
+
+#[test]
+fn removing_the_same_id_twice_is_an_error() {
+    let idx = index(10);
+    idx.remove(3).unwrap();
+    assert!(matches!(idx.remove(3), Err(VaneError::NotFound { id: 3 })));
+}
+
+#[test]
+fn removing_an_unknown_id_is_an_error() {
+    let idx = index(10);
+    assert!(matches!(
+        idx.remove(999),
+        Err(VaneError::NotFound { id: 999 })
+    ));
+}
+
+#[test]
+fn the_id_can_be_reused_after_removal() {
+    let idx = index(10);
+    idx.remove(4).unwrap();
+    idx.add(4, &[100.0, 0.0]).unwrap();
+    assert!(idx.contains(4));
+    assert_eq!(idx.len(), 10);
+    assert_eq!(idx.get_vector(4).unwrap(), vec![100.0, 0.0]);
+    // The new position is what is found, not the old one.
+    let hits = idx.search(&[100.0, 0.0], 1).unwrap();
+    assert_eq!(hits[0].id, 4);
+}
+
+#[test]
+fn deleting_many_leaves_the_rest_searchable() {
+    let idx = index(200);
+    for i in (0..200).step_by(2) {
+        idx.remove(i).unwrap();
+    }
+    assert_eq!(idx.len(), 100);
+    // Every surviving odd id must still be its own nearest neighbour.
+    let mut found = 0;
+    for i in (1..200).step_by(2) {
+        let hits = idx.search(&[i as f32, 0.0], 1).unwrap();
+        assert!(
+            hits.iter().all(|r| r.id % 2 == 1),
+            "even id returned: {hits:?}"
+        );
+        if hits[0].id == i {
+            found += 1;
+        }
+    }
+    assert!(found >= 95, "recall collapsed after deletion: {found}/100");
+}
+
+#[test]
+fn an_emptied_index_searches_without_panicking() {
+    let idx = index(20);
+    for i in 0..20 {
+        idx.remove(i).unwrap();
+    }
+    assert_eq!(idx.len(), 0);
+    assert!(idx.is_empty());
+    assert!(idx.search(&[1.0, 0.0], 5).unwrap().is_empty());
+}
+
+#[test]
+fn deletions_survive_save_and_load() {
+    let dir = std::env::temp_dir().join(format!("vanedb-del-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("idx.vndb");
+
+    let idx = index(40);
+    idx.remove(5).unwrap();
+    idx.remove(9).unwrap();
+    idx.save(&path).unwrap();
+
+    let loaded = ApproxIndex::load(&path).unwrap();
+    assert_eq!(loaded.len(), 38);
+    assert!(!loaded.contains(5));
+    assert!(!loaded.contains(9));
+    assert!(loaded.contains(6));
+    let hits = loaded.search(&[5.0, 0.0], 5).unwrap();
+    assert!(hits.iter().all(|r| r.id != 5 && r.id != 9), "{hits:?}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

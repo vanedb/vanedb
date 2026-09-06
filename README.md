@@ -63,6 +63,12 @@ and is rebuilt on each run.
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
 hint rather than a ceiling and an unused index costs nothing.
 
+`remove` tombstones: the node keeps its graph links, which may be the only
+route between live neighbourhoods, and simply stops appearing in results. The
+id becomes free for reuse. Space is not reclaimed, so an index that is mostly
+tombstones searches more slowly than its length suggests — rebuild it if that
+happens.
+
 All three are reachable from every binding except wasm, which has no
 filesystem to map and so omits `DiskIndex`.
 

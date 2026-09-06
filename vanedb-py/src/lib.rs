@@ -319,6 +319,15 @@ impl PyIndex {
         self.inner.size()
     }
 
+    /// Removes the vector stored under `id`.
+    ///
+    /// Tombstoned: the node keeps its graph links, which may be the only
+    /// route between live neighbourhoods, and simply stops appearing in
+    /// results. The id becomes free for reuse. Space is not reclaimed.
+    fn remove(&self, id: u64) -> PyResult<()> {
+        self.inner.remove(id).map_err(to_pyerr)
+    }
+
     /// Number of vectors in the graph. See `FlatIndex.size`.
     fn size(&self) -> usize {
         self.inner.size()

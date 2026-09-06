@@ -226,9 +226,12 @@ impl ApproxIndex {
                 }
             }
         }
-        if data.id_map.len() != data.count {
+        // With tombstones id_map holds only the live ids, so it may be
+        // smaller than count. More than count is still corrupt: every entry
+        // must name a distinct slot.
+        if data.id_map.len() > data.count {
             return Err(VaneError::Io(format!(
-                "corrupted file: id_map size {} != count {}",
+                "corrupted file: id_map size {} exceeds count {}",
                 data.id_map.len(),
                 data.count
             )));
@@ -239,21 +242,25 @@ impl ApproxIndex {
         // ids, and missing entries in one pass. The previous length-and-range
         // check accepted `ext_ids[0] = 10` alongside `id_map = {20: 0}`, so a
         // lookup of 20 returned slot 0's vector under the wrong identity (#42).
-        for (index, &ext_id) in data.ext_ids.iter().take(data.count).enumerate() {
-            match data.id_map.get(&ext_id) {
-                Some(&mapped) if mapped == index => {}
-                Some(&mapped) => {
-                    return Err(VaneError::Io(format!(
-                        "corrupted file: id_map[{ext_id}] is {mapped}, expected {index}"
-                    )))
-                }
-                None => {
-                    return Err(VaneError::Io(format!(
-                        "corrupted file: id_map has no entry for external id {ext_id}"
-                    )))
-                }
+        // Tombstones make this one-directional: a deleted slot keeps its
+        // ext_id but is absent from id_map, and its id may since have been
+        // reused by a later slot. So every id_map entry must point at a slot
+        // carrying that id, and a slot absent from id_map is simply deleted.
+        for (&ext_id, &mapped) in &data.id_map {
+            if mapped >= data.count {
+                return Err(VaneError::Io(format!(
+                    "corrupted file: id_map[{ext_id}] is {mapped}, beyond count {}",
+                    data.count
+                )));
+            }
+            if data.ext_ids[mapped] != ext_id {
+                return Err(VaneError::Io(format!(
+                    "corrupted file: id_map[{ext_id}] is {mapped}, whose ext_id is {}",
+                    data.ext_ids[mapped]
+                )));
             }
         }
+        {}
         for &iid in data.id_map.values() {
             if iid >= data.count {
                 return Err(VaneError::Io(
@@ -330,6 +337,15 @@ impl ApproxIndex {
         let mut neighbors = data.neighbors;
         neighbors.truncate(data.count);
 
+        // A slot is live exactly when id_map maps its ext_id back to it. That
+        // is the same relation the check above enforces, read the other way,
+        // so tombstones need no field in the file format and v1/v2 files
+        // (which have no deletions) load with every slot live.
+        let deleted_flags: Vec<bool> = (0..data.count)
+            .map(|iid| data.id_map.get(&ext_ids[iid]) != Some(&iid))
+            .collect();
+        let live = data.count - deleted_flags.iter().filter(|d| **d).count();
+
         // Reconstitute RNG: seed from the original seed, then advance through
         // `count` get_level calls so the next add() resumes the original
         // sequence. This is the equivalent of the C++ v2 file format that
@@ -352,6 +368,8 @@ impl ApproxIndex {
             mult: data.mult,
             seed: data.seed,
             inner: RwLock::new(Inner {
+                deleted: deleted_flags,
+                live,
                 vectors,
                 ext_ids,
                 id_map: data.id_map,
