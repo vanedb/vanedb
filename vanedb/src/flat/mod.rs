@@ -106,8 +106,8 @@ impl FlatIndex {
     /// an error leaves the store unchanged.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
         // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
-        // wrapped zero matches an empty slice -- so the batch silently
-        // inserted nothing and returned Ok.
+        // wrapped zero would match an empty slice, accepting a batch that
+        // inserts nothing.
         let expected = ids
             .len()
             .checked_mul(self.dim)
@@ -456,8 +456,8 @@ mod tests {
                 dim: 3
             })
         ));
-        // The old message reported total float counts through
-        // DimensionMismatch, so a 3-dimensional index reported "expected 6".
+        // The message names ids and floats, not dimensions: on a
+        // 3-dimensional index "expected 6" would read as a dimension.
         assert_eq!(
             result.unwrap_err().to_string(),
             "batch length mismatch: 2 ids need 6 floats at dimension 3, got 5"

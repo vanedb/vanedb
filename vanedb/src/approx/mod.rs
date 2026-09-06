@@ -381,8 +381,8 @@ impl ApproxIndex {
     /// in batch order, so the resulting graph is identical to serial `add`.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
         // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
-        // wrapped zero matches an empty slice -- so the batch silently
-        // inserted nothing and returned Ok.
+        // wrapped zero would match an empty slice, accepting a batch that
+        // inserts nothing.
         let expected = ids
             .len()
             .checked_mul(self.dim)
@@ -844,7 +844,7 @@ impl ApproxIndexBuilder {
             return Err(VaneError::ZeroDimension);
         }
         // A dimension whose byte size overflows can never hold a vector, and
-        // it used to wrap to zero in the chunk sizing and divide by zero.
+        // would wrap to zero in the chunk sizing, dividing by zero.
         if self.dim.checked_mul(std::mem::size_of::<f32>()).is_none() {
             return Err(VaneError::InvalidParameter(
                 "dim * size_of::<f32>() overflows usize",

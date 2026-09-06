@@ -1,9 +1,8 @@
 //! The error model's public contract.
 //!
 //! The motivating use case is "load the index, build it if it isn't there".
-//! That needs a missing file, a corrupt file, and a failing disk to be three
-//! distinguishable things. Before this contract they were all `Io(String)`,
-//! and the only way to tell them apart was `msg.contains("No such file")`.
+//! That needs a missing file, a corrupt file and a failing disk to be three
+//! distinguishable things, decided by variant rather than by message text.
 
 use std::error::Error as _;
 use std::io;
@@ -62,8 +61,7 @@ fn load_or_build_is_expressible_without_matching_on_strings() {
 
 #[test]
 fn a_zero_dimension_is_named_for_what_it_means() {
-    // Previously `EmptyVector`, which described neither the cause (dim == 0 at
-    // construction) nor the argument, and contradicted its own doc comment.
+    // Named for the cause: a dimension of zero at construction.
     assert!(matches!(
         FlatIndex::new(0, Metric::L2),
         Err(VaneError::ZeroDimension)
@@ -72,7 +70,7 @@ fn a_zero_dimension_is_named_for_what_it_means() {
 
 #[test]
 fn an_actually_empty_vector_still_reports_a_dimension_mismatch() {
-    // The name `EmptyVector` implied this case; it never produced it.
+    // An empty vector is a length mismatch, not a zero dimension.
     let index = FlatIndex::new(4, Metric::L2).unwrap();
     assert!(matches!(
         index.add(1, &[]),

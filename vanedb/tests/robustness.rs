@@ -1,9 +1,6 @@
 //! No panic, abort, or silent wrong answer from an untrusted file or a
-//! caller-supplied parameter.
-//!
-//! Every case here aborted the process, panicked, or silently did nothing
-//! before the fix. The C ABI turns any of those into a dead host application,
-//! so they are correctness bugs rather than hygiene.
+//! caller-supplied parameter — the C ABI turns any of them into a dead host
+//! application.
 
 use std::fs;
 use vanedb::{ApproxIndex, FlatIndex, Metric, VaneError};
@@ -16,9 +13,8 @@ fn scratch(tag: &str) -> std::path::PathBuf {
 
 #[test]
 fn an_index_grown_past_its_capacity_hint_round_trips() {
-    // capacity() is a hint and growing past it is supported, but save() wrote
-    // the hint while load() rejected count > max_elements — so the file could
-    // be written and never read back. Silent data loss.
+    // capacity() is a hint that may be grown past, so save() records what it
+    // wrote: bounding the file by the hint makes it unreadable.
     let path = scratch("grown").join("grown.vane");
     let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(2)
@@ -37,8 +33,7 @@ fn an_index_grown_past_its_capacity_hint_round_trips() {
 
 #[test]
 fn a_caller_supplied_k_cannot_abort_the_process() {
-    // BinaryHeap::with_capacity(k) on a caller-supplied k aborted with
-    // "capacity overflow" long before any allocation was actually needed.
+    // Reserving a caller-supplied k aborts with "capacity overflow".
     let store = FlatIndex::new(2, Metric::L2).unwrap();
     store.add(1, &[0.0, 0.0]).unwrap();
     assert_eq!(store.search(&[0.0, 0.0], usize::MAX).unwrap().len(), 1);
@@ -47,8 +42,8 @@ fn a_caller_supplied_k_cannot_abort_the_process() {
 
 #[test]
 fn an_absurd_dimension_is_an_error_not_a_panic() {
-    // dim * size_of::<f32>() wrapped to zero and divided by zero. dim also
-    // arrives from a file, so this was reachable on the load path.
+    // dim * size_of::<f32>() would wrap to zero and divide by zero. load()
+    // needs the same bound, since dim arrives from a file.
     match ApproxIndex::builder(1usize << 62, Metric::L2)
         .capacity(1)
         .build()
@@ -61,8 +56,8 @@ fn an_absurd_dimension_is_an_error_not_a_panic() {
 
 #[test]
 fn a_batch_whose_length_overflows_is_rejected() {
-    // ids.len() * dim wrapped to zero, which matched the empty slice, so
-    // add_batch returned Ok and inserted nothing.
+    // A wrapped ids.len() * dim would match the empty slice and insert
+    // nothing.
     let store = FlatIndex::new(1usize << 63, Metric::L2).unwrap();
     let result = store.add_batch(&[1, 2], &[]);
     assert!(
@@ -84,16 +79,16 @@ fn a_batch_length_mismatch_names_ids_and_floats_not_dimensions() {
             dim: 4
         }
     ));
-    // Previously "dimension mismatch: expected 8, got 4" on a 4-dim index.
+    // Named in ids and floats: "expected 8" alone would read as a dimension.
     assert_eq!(
         err.to_string(),
         "batch length mismatch: 2 ids need 8 floats at dimension 4, got 4"
     );
 }
 
-/// `mult` is fully derived from `m`, but it was deserialized and trusted. A
-/// negative value made `get_level` return a negative level, which
-/// `0..=level as usize` wrapped into a ~2^64 range, aborting on the next add.
+/// `mult` is derived from `m`, so load recomputes it. A negative value would
+/// make `get_level` return a negative level, and `0..=level as usize` wraps
+/// that into a ~2^64 range.
 #[test]
 fn a_crafted_negative_mult_cannot_abort_the_process() {
     let dir = scratch("mult");
@@ -122,7 +117,7 @@ fn a_crafted_negative_mult_cannot_abort_the_process() {
     fs::write(&hostile, &bytes).unwrap();
 
     let loaded = ApproxIndex::load(&hostile).expect("mult is recomputed, so the file still loads");
-    // The abort happened here, on the first insert after loading.
+    // Inserting is where a bad level would be used.
     for i in 10..40u64 {
         loaded.add(i, &[i as f32, 0.0, 0.0, 0.0]).unwrap();
     }

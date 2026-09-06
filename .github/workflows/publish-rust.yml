@@ -347,9 +347,9 @@ jobs:
           python -m twine check --strict dist/*
           # Matrix contract: Linux (2 libc x 2 arch x 4 Python) = 16,
           # macOS (2 arch x 4) = 8, Windows 4. Total 28, and each cpXXX tag
-          # appears 7 times (4 Linux legs + 2 macOS + 1 Windows). Keep these
-          # aligned with the build matrices above -- they exist to catch drift
-          # and had themselves drifted, claiming 24 while asserting 16.
+          # appears 7 times (4 Linux legs + 2 macOS + 1 Windows).
+          # check_wheel_matrix.py derives these from the matrices above and
+          # fails if they disagree.
           python .github/scripts/validate_python_release.py \
             --directory dist \
             --distribution vanedb \

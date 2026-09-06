@@ -1,10 +1,8 @@
 //! The generated header must compile with a C compiler.
 //!
-//! It did not. cbindgen emitted `typedef FlatIndex vanedb_rs_store;` from the
-//! Rust type aliases, naming types C has never heard of, alongside the correct
-//! opaque declarations from `after_includes`. Nothing caught it: the C test in
-//! CI exercises the *C++* engine's hand-written header, so this one — the
-//! entire point of the crate — had never been fed to a C compiler.
+//! It is this crate's whole public interface, and CI's C test exercises the
+//! *C++* engine's hand-written header, so nothing else feeds this one to a C
+//! compiler.
 
 use std::process::Command;
 

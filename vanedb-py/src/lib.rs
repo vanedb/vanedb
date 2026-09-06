@@ -25,8 +25,8 @@ fn to_pyerr(e: VaneError) -> PyErr {
 /// Converts a Python int to an id.
 ///
 /// PyO3's own `u64` conversion raises `OverflowError` for a negative value,
-/// and `OverflowError` is not a `ValueError` subclass -- so `except ValueError`
-/// silently missed negative ids. Every method taking an id goes through this.
+/// and `OverflowError` is not a `ValueError` subclass, so `except ValueError`
+/// would miss it. Every method taking an id goes through this.
 fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
     if let Ok(id) = obj.extract::<u64>() {
         return Ok(id);

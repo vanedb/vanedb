@@ -23,9 +23,8 @@ fn bench_hnsw(c: &mut Criterion) {
     // nanoseconds against ~0.1 ms inserts; they turn a failed engine into a
     // loud failure instead of an infinitely fast one.
     build.bench_function("cpp", |bn| {
-        // Only construction is timed. `hnsw_free` used to sit inside the
-        // measured closure, so every reported build time included teardown of
-        // a 10k-node graph (#62).
+        // Only construction is timed: `hnsw_free` sits outside the measured
+        // closure so teardown of a 10k-node graph is not counted.
         bn.iter_custom(|iterations| {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
@@ -47,9 +46,8 @@ fn bench_hnsw(c: &mut Criterion) {
         });
     });
     build.bench_function("rs", |bn| {
-        // Only construction is timed. `hnsw_free` used to sit inside the
-        // measured closure, so every reported build time included teardown of
-        // a 10k-node graph (#62).
+        // Only construction is timed: `hnsw_free` sits outside the measured
+        // closure so teardown of a 10k-node graph is not counted.
         bn.iter_custom(|iterations| {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
