@@ -1,4 +1,9 @@
 //! Distance metrics and their SIMD implementations.
+//!
+//! Every kernel compares `a.len().min(b.len())` elements: mismatched
+//! lengths truncate to the shorter slice rather than reading past its
+//! end. The index types reject a dimension mismatch before they get
+//! here, so this governs only direct callers of [`distance_fn`].
 
 /// AVX2 kernels, compiled on x86-64.
 #[cfg(target_arch = "x86_64")]
@@ -24,7 +29,8 @@ pub enum Metric {
     Dot,
 }
 
-/// Function type for distance computation.
+/// Function type for distance computation. Compares the first
+/// `a.len().min(b.len())` elements; see the module documentation.
 pub type DistanceFn = fn(&[f32], &[f32]) -> f32;
 
 /// Returns the distance function for the given metric.
