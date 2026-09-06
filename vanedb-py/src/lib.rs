@@ -319,6 +319,31 @@ impl PyIndex {
         self.inner.size()
     }
 
+    /// Inserts `vector` under `id`, replacing any existing entry.
+    ///
+    /// Both halves happen under one write lock, so a concurrent reader never
+    /// observes the id missing. The old slot is tombstoned, so a long upsert
+    /// loop still needs `compact()`.
+    fn upsert(&self, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+        let v = vec_f32(vector)?;
+        self.inner.upsert(id, &v).map_err(to_pyerr)
+    }
+
+    /// Number of tombstoned slots: removed vectors whose space is not yet
+    /// reclaimed. Re-adding a removed id allocates a fresh slot, so an upsert
+    /// loop grows this even at constant length.
+    fn tombstones(&self) -> usize {
+        self.inner.tombstones()
+    }
+
+    /// Rebuilds the graph without tombstoned slots, reclaiming their space.
+    ///
+    /// A full rebuild, holding the write lock throughout, so concurrent
+    /// searches block. Ids and vectors are preserved.
+    fn compact(&self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.inner.compact()).map_err(to_pyerr)
+    }
+
     /// Removes the vector stored under `id`.
     ///
     /// Tombstoned: the node keeps its graph links, which may be the only

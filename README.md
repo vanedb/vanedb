@@ -64,10 +64,16 @@ and is rebuilt on each run.
 hint rather than a ceiling and an unused index costs nothing.
 
 `remove` tombstones: the node keeps its graph links, which may be the only
-route between live neighbourhoods, and simply stops appearing in results. The
-id becomes free for reuse. Space is not reclaimed, so an index that is mostly
-tombstones searches more slowly than its length suggests — rebuild it if that
-happens.
+route between live neighbourhoods, and simply stops appearing in results.
+`upsert` replaces an entry under one lock, so a concurrent reader never sees
+the id missing.
+
+Neither reclaims space — a replaced or removed slot stays allocated, so a
+long-running upsert loop grows the index even at constant length. `tombstones()`
+reports how many are outstanding and `compact()` rebuilds without them. Compaction
+is a full rebuild and holds the write lock throughout, so call it deliberately
+rather than on every write. `save` writes tombstoned slots too, so compact first
+if file size matters.
 
 All three are reachable from every binding except wasm, which has no
 filesystem to map and so omits `DiskIndex`.

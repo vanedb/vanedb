@@ -248,3 +248,18 @@ def test_approx_index_delete():
     idx.add(7, [700.0, 0.0])
     assert len(idx) == 40
     assert idx.search([700.0, 0.0], 1)[0][0] == 7
+
+
+def test_upsert_and_compaction():
+    """Tombstones accumulate; compact() reclaims them (#91)."""
+    idx = vanedb.ApproxIndex(2, capacity=8)
+    idx.add(1, [1.0, 0.0])
+    for i in range(200):
+        idx.upsert(1, [float(i), 0.0])
+    assert len(idx) == 1
+    assert idx.tombstones() == 200
+
+    idx.compact()
+    assert idx.tombstones() == 0
+    assert len(idx) == 1
+    assert idx.search([199.0, 0.0], 1)[0][0] == 1

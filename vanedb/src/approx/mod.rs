@@ -235,6 +235,90 @@ impl ApproxIndex {
         self.inner.read().id_map.contains_key(&id)
     }
 
+    /// Inserts `vector` under `id`, replacing any existing entry.
+    ///
+    /// Both halves happen under one write lock, so a concurrent reader never
+    /// observes the id missing — `remove` followed by `add` takes the lock
+    /// twice and does.
+    ///
+    /// The old slot is tombstoned rather than overwritten: its graph links
+    /// were built for the old vector's position and would be wrong for the
+    /// new one. That leaves a slot behind, so a long upsert loop still needs
+    /// [`compact`](Self::compact).
+    pub fn upsert(&self, id: u64, vector: &[f32]) -> Result<()> {
+        if vector.len() != self.dim {
+            return Err(VaneError::DimensionMismatch {
+                expected: self.dim,
+                got: vector.len(),
+            });
+        }
+        validate_finite(vector, "vector")?;
+
+        let mut inner = self.inner.write();
+        if let Some(iid) = inner.id_map.remove(&id) {
+            inner.deleted[iid] = true;
+            inner.live -= 1;
+        }
+        self.insert_into(&mut inner, id, vector);
+        Ok(())
+    }
+
+    /// Number of tombstoned slots: removed vectors whose space has not been
+    /// reclaimed.
+    ///
+    /// Each `remove` leaves one, and re-adding the same id allocates a fresh
+    /// slot rather than reusing it — so a long-lived upsert loop grows the
+    /// index even at constant [`len`](Self::len). Call [`compact`](Self::compact)
+    /// when this gets large relative to `len`.
+    pub fn tombstones(&self) -> usize {
+        let inner = self.inner.read();
+        inner.count - inner.live
+    }
+
+    /// Rebuilds the graph without the tombstoned slots, reclaiming their space.
+    ///
+    /// This is a full rebuild — cost is comparable to constructing the index
+    /// from the live vectors — and it takes the write lock throughout, so
+    /// concurrent searches block. Ids, vectors and the configured parameters
+    /// are preserved; the graph itself is rebuilt, so results may shift
+    /// exactly as much as any two independently built graphs differ.
+    ///
+    /// A tombstone-free index is rebuilt too rather than skipped, so the
+    /// result does not depend on how the index got to its current contents.
+    pub fn compact(&self) -> Result<()> {
+        let mut inner = self.inner.write();
+        if inner.count == 0 {
+            return Ok(());
+        }
+
+        // Snapshot the live entries in slot order, so a compacted index
+        // matches one built by inserting them in that order.
+        let live: Vec<(u64, Vec<f32>)> = (0..inner.count)
+            .filter(|&iid| !inner.deleted[iid])
+            .map(|iid| (inner.ext_ids[iid], inner.vectors.get(iid).to_vec()))
+            .collect();
+
+        *inner = Inner {
+            vectors: ChunkedVectors::with_capacity(self.dim, live.len()),
+            ext_ids: Vec::with_capacity(live.len()),
+            id_map: HashMap::with_capacity(live.len()),
+            levels: Vec::with_capacity(live.len()),
+            neighbors: Vec::with_capacity(live.len()),
+            deleted: Vec::with_capacity(live.len()),
+            live: 0,
+            entry_point: None,
+            max_level: -1,
+            count: 0,
+            // Replay from the original seed so a compacted index is the one
+            // you would have built from these vectors in this order.
+            rng: StdRng::seed_from_u64(self.seed),
+        };
+        for (id, vector) in &live {
+            self.insert_into(&mut inner, *id, vector);
+        }
+        Ok(())
+    }
+
     /// Removes the vector stored under `id`.
     ///
     /// The node is tombstoned rather than unlinked: its edges may be the only

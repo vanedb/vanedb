@@ -120,3 +120,106 @@ fn deletions_survive_save_and_load() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The entry point is where every search starts. Deleting it must not strand
+/// the graph — the classic tombstone failure mode.
+#[test]
+fn removing_the_entry_point_keeps_the_graph_searchable() {
+    let idx = index(300);
+    // The first inserted vector is the entry point until a higher level is
+    // drawn; remove a spread of early ids to be sure it goes.
+    for id in 0..8 {
+        idx.remove(id).unwrap();
+    }
+    let mut found = 0;
+    for i in 8..300u64 {
+        let hits = idx.search(&[i as f32, 0.0], 1).unwrap();
+        assert!(
+            hits.iter().all(|r| r.id >= 8),
+            "deleted entry-point region returned"
+        );
+        if hits[0].id == i {
+            found += 1;
+        }
+    }
+    assert!(
+        found >= 277,
+        "recall collapsed after deleting the entry point: {found}/292"
+    );
+}
+
+/// Deleting most of the graph should degrade gracefully, not silently return
+/// nothing for live vectors that are still there.
+#[test]
+fn a_mostly_tombstoned_index_still_finds_its_survivors() {
+    let idx = index(500);
+    for id in 0..500 {
+        if id % 25 != 0 {
+            idx.remove(id).unwrap();
+        }
+    }
+    assert_eq!(idx.len(), 20);
+    let mut found = 0;
+    for id in (0..500).step_by(25) {
+        let hits = idx.search(&[id as f32, 0.0], 1).unwrap();
+        assert!(!hits.is_empty(), "no result at all for live id {id}");
+        if hits[0].id == id {
+            found += 1;
+        }
+    }
+    assert!(
+        found >= 18,
+        "survivors unreachable at 96% tombstones: {found}/20"
+    );
+}
+
+/// `remove` then `add` takes the write lock twice, so a concurrent reader can
+/// observe the id missing in between. `upsert` does both under one lock.
+///
+/// What this test actually proves: it fails against a `remove`-then-`add`
+/// implementation with a `yield_now` between the two, and passes against
+/// `upsert`. Against an un-widened `remove`-then-`add` it also passes — the
+/// natural window is microseconds and a sampling reader misses it. So this
+/// catches the class of bug but is not a guarantee; the guarantee comes from
+/// `upsert` taking the lock exactly once, which is visible in the code.
+#[test]
+fn upsert_is_atomic_for_concurrent_readers() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let idx = Arc::new(index(200));
+    let stop = Arc::new(AtomicBool::new(false));
+    let missing = Arc::new(AtomicBool::new(false));
+
+    let reader = {
+        let (idx, stop, missing) = (idx.clone(), stop.clone(), missing.clone());
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::Relaxed) {
+                if !idx.contains(42) {
+                    missing.store(true, Ordering::Relaxed);
+                }
+            }
+        })
+    };
+
+    for i in 0..2000 {
+        idx.upsert(42, &[i as f32, 0.0]).unwrap();
+    }
+    stop.store(true, Ordering::Relaxed);
+    reader.join().unwrap();
+
+    assert!(
+        !missing.load(Ordering::Relaxed),
+        "a concurrent reader saw id 42 disappear during upsert"
+    );
+    assert_eq!(idx.len(), 200);
+    assert_eq!(idx.search(&[1999.0, 0.0], 1).unwrap()[0].id, 42);
+}
+
+#[test]
+fn upsert_inserts_when_the_id_is_new() {
+    let idx = index(10);
+    idx.upsert(999, &[999.0, 0.0]).unwrap();
+    assert_eq!(idx.len(), 11);
+    assert_eq!(idx.search(&[999.0, 0.0], 1).unwrap()[0].id, 999);
+}
