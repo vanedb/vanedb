@@ -9,6 +9,9 @@ description = "Embeddable vector database for edge AI"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+# MIT requires the notice to travel with copies, so the text has to be in
+# the wheel itself; a link in the description does not satisfy it.
+license-files = ["LICENSE"]
 keywords = ["vector", "database", "embedding", "embeddings", "hnsw",
             "similarity-search", "machine-learning"]
 classifiers = [
