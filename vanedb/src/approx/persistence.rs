@@ -347,25 +347,33 @@ impl ApproxIndex {
                 }
             }
         }
-        data.max_elements
-            .checked_mul(data.dim)
-            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
+        data.max_elements.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: max_elements {} * dim {} overflows",
+                data.max_elements, data.dim
+            ))
+        })?;
         // `stored` is max_elements for v1 but `count` for v2, and v2 does not
         // bound count by max_elements — so this product is over two values the
         // file controls. At 8 * 2^61 it wraps to exactly 0, and an empty
         // vector array then satisfies the length check below.
-        let stored_len = stored
-            .checked_mul(data.dim)
-            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
+        let stored_len = stored.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: stored {} * dim {} overflows",
+                stored, data.dim
+            ))
+        })?;
         if data.vectors.len() != stored_len {
             return Err(VaneError::corrupt(
                 "corrupted file: vectors length != expected * dim",
             ));
         }
-        let live_vectors_len = data
-            .count
-            .checked_mul(data.dim)
-            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
+        let live_vectors_len = data.count.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: count {} * dim {} overflows",
+                data.count, data.dim
+            ))
+        })?;
         if data.vectors[..live_vectors_len]
             .iter()
             .any(|value| !value.is_finite())
