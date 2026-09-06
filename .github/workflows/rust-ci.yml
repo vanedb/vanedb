@@ -203,6 +203,31 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
         run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb -p vanedb-capi --features disk --release --locked
+      - name: Check the ELF alignment guard on a 4 KiB test library
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          printf '%s\n' 'int probe(void) { return 0; }' > target/android-alignment-probe.c
+          "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" \
+            -shared -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096 \
+            target/android-alignment-probe.c -o target/android-unaligned.so
+          if python3 scripts/check_android_elf.py target/android-unaligned.so; then
+            echo 'alignment guard accepted a 4 KiB ELF library'
+            exit 1
+          fi
+      - name: Build ARM64 runtime acceptance bundle
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          VANEDB_ANDROID_ABI: arm64-v8a
+        run: |
+          bash scripts/test_android.sh --build-only
+          git rev-parse HEAD > target/android-arm64-v8a-runtime/source-revision.txt
+          cp LICENSE target/android-arm64-v8a-runtime/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-android-arm64-runtime
+          path: target/android-arm64-v8a-runtime/*
+          if-no-files-found: error
       - name: Enable emulator hardware acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
