@@ -59,10 +59,12 @@ impl std::fmt::Debug for FlatIndex {
 impl FlatIndex {
     /// Creates an empty store for vectors of `dim` components.
     ///
-    /// Fails with [`VaneError::InvalidParameter`] if `dim` is zero.
+    /// # Errors
+    ///
+    /// Returns [`VaneError::ZeroDimension`] if `dim` is zero.
     pub fn new(dim: usize, metric: Metric) -> Result<Self> {
         if dim == 0 {
-            return Err(VaneError::EmptyVector);
+            return Err(VaneError::ZeroDimension);
         }
         Ok(Self {
             dim,
