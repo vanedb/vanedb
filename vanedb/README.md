@@ -29,8 +29,9 @@ Both formats are little-endian. `DiskIndex` writes `VNDB` v1, a specified,
 versioned format anchored to shared fixtures; either engine reads the other's
 file. `ApproxIndex::save` is engine-specific and not yet a stable public
 format — treat a saved graph as a way to avoid rebuilding, not as a system of
-record, until the `VNDB` graph payload lands. The loader accepts the current
-version and the one before it.
+record, until the `VNDB` graph payload lands. Its loader accepts the current
+version and the one before it; `DiskIndex` accepts `VNDB` v1 only, since there
+is no earlier version to accept.
 
 A header-only C++ implementation is maintained alongside this crate, with a
 cross-engine benchmark harness, in the

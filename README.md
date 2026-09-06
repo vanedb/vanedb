@@ -62,12 +62,13 @@ this query — and each name says why you would pick it over the others.
 |---|---|---|---|
 | `FlatIndex` | yes | memory | the corpus is small, or you need exact results |
 | `ApproxIndex` | **no** | memory | search must stay fast as the corpus grows |
-| `DiskIndex` | yes | a file, paged in on demand | many processes or runs share one corpus |
+| `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
 
 `FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
-answer is always right. `DiskIndexBuilder` holds the corpus in memory until
-`save`, so the saving is on the reading side: opening a file maps it instead
-of loading it. `ApproxIndex` walks an HNSW graph instead: sub-linear,
+answer is always right. The saving is on the reading side: `DiskIndex` maps
+the file and the kernel pages vectors in as the scan touches them, so a corpus
+larger than RAM stays searchable. Building one is the other half —
+`DiskIndexBuilder` holds the vectors in memory until `save`. `ApproxIndex` walks an HNSW graph instead: sub-linear,
 and it can miss a true neighbour. `ef_search` trades that recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
@@ -96,9 +97,9 @@ have no filesystem, so `DiskIndex` is absent there. `ApproxIndex` in wasm has
 no `save`/`load` either — an index is built in the page it is used in.
 
 The Rust crate spells enum variants in Rust style (`Metric::Cosine`) and
-Python uses `Metric.COSINE`; the wasm bindings take a lowercase string
-(`"l2"`, `"cosine"`, `"dot"`). Type names are otherwise identical across
-bindings.
+Python uses `Metric.COSINE`; the wasm bindings take a string naming the
+metric (`"l2"` or `"L2"`, `"cosine"` or `"Cosine"`, `"dot"` or `"Dot"` — not
+`"COSINE"`). Type names are otherwise identical across bindings.
 
 ## Repository layout
 

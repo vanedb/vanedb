@@ -414,7 +414,7 @@ impl ApproxIndex {
     }
 
     /// Graph insertion body shared by `add` and `add_batch`. Caller must hold
-    /// the write lock and have already validated dimension, capacity, and id
+    /// the write lock and have already validated dimension and id
     /// uniqueness — from here on insertion cannot fail.
     fn insert_into(&self, inner: &mut Inner, id: u64, vector: &[f32]) {
         let iid = inner.count;
