@@ -22,3 +22,7 @@ classifiers = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+# Ships py.typed and __init__.pyi alongside the compiled module; a generated
+# __init__ cannot carry them.
+python-source = "python"
+module-name = "vanedb.vanedb"
