@@ -78,37 +78,69 @@ jobs:
           fi
 
   linux:
-    name: Linux wheels (x86_64, Python 3.11–3.14)
+    # "Edge" is mostly ARM Linux — Raspberry Pi, Jetson, Graviton, and Docker
+    # on Apple Silicon, which defaults to linux/arm64. musl covers Alpine.
+    # Each leg builds natively; no emulation.
+    name: Linux wheels (${{ matrix.libc }} ${{ matrix.arch }}, Python 3.11–3.14)
     needs: validate-version
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            libc: manylinux
+            runner: ubuntu-latest
+            manylinux: '2_17'
+          - arch: aarch64
+            libc: manylinux
+            runner: ubuntu-24.04-arm
+            manylinux: '2_17'
+          - arch: x86_64
+            libc: musllinux
+            runner: ubuntu-latest
+            manylinux: musllinux_1_2
+          - arch: aarch64
+            libc: musllinux
+            runner: ubuntu-24.04-arm
+            manylinux: musllinux_1_2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - name: Build manylinux wheels
+      - name: Build Linux wheels
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
-          target: x86_64
-          manylinux: '2_17'
+          target: ${{ matrix.arch }}
+          manylinux: ${{ matrix.manylinux }}
           args: >-
             --release --locked --compatibility pypi --out dist
             --manifest-path vanedb-py/Cargo.toml
             -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vanedb-linux-x86_64
+          name: vanedb-linux-${{ matrix.libc }}-${{ matrix.arch }}
           path: dist/*.whl
           if-no-files-found: error
 
   linux-test:
-    name: Test Linux wheel (Python ${{ matrix.python-version }})
+    name: Test Linux wheel (${{ matrix.arch }}, Python ${{ matrix.python-version }})
     needs: linux
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        # arch is a real matrix axis so it crosses with python-version;
+        # include only supplies the runner for each arch. Putting arch solely
+        # in include would overwrite rather than cross-product.
         python-version: ['3.11', '3.12', '3.13', '3.14']
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -116,7 +148,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: vanedb-linux-x86_64
+          name: vanedb-linux-manylinux-${{ matrix.arch }}
           path: dist
       - name: Install and test wheel
         shell: bash
@@ -127,6 +159,53 @@ jobs:
           python -m pip check
           python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
+
+  musl-test:
+    # Alpine/musl is a shipped target, so it must be exercised before release.
+    # The wheel is tested inside an Alpine container driven from the host:
+    # running the job *in* a container instead would break the JS-based
+    # actions, whose bundled Node is glibc-linked and cannot start on musl.
+    name: Test musl wheel (${{ matrix.arch }})
+    needs: linux
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: vanedb-linux-musllinux-${{ matrix.arch }}
+          path: dist
+      - name: Confirm the artifact really is musl-tagged
+        shell: bash
+        run: |
+          set -euo pipefail
+          ls dist/*.whl
+          if ls dist/*.whl | grep -qv musllinux; then
+            echo "non-musllinux wheel in the musl artifact" >&2
+            exit 1
+          fi
+      - name: Install and test the wheel under Alpine
+        shell: bash
+        run: |
+          set -euo pipefail
+          # pip selects the wheel matching the container's interpreter, so the
+          # Alpine image pins which cp3XX wheel this leg covers.
+          docker run --rm --volume "$PWD:/work" --workdir /work alpine:3.22 sh -euc '
+            apk add --no-cache python3 py3-pip
+            python3 -m venv /venv
+            /venv/bin/python -m pip install --disable-pip-version-check --quiet \
+              --no-index --no-deps --find-links dist vanedb
+            /venv/bin/python -m pip install --disable-pip-version-check --quiet pytest numpy
+            /venv/bin/python scripts/check_wheel_install.py vanedb
+            /venv/bin/python -m pytest vanedb-py/tests -v
+          '
 
   macos:
     name: macOS wheels (${{ matrix.target }}, Python ${{ matrix.python-version }})
@@ -244,7 +323,7 @@ jobs:
 
   validate-artifacts:
     name: Validate release artifacts
-    needs: [linux-test, macos, windows, sdist-test]
+    needs: [linux-test, musl-test, macos, windows, sdist-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -261,20 +340,23 @@ jobs:
           python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
           python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" packaging twine
           python -m twine check --strict dist/*
-          # Matrix contract: 6 Linux + (2 macOS architectures x 6) +
-          # 6 Windows wheels = 24. Keep these tripwires aligned with the
-          # linux, macos, and windows build matrices above.
+          # Matrix contract: Linux (2 libc x 2 arch x 4 Python) = 16,
+          # macOS (2 arch x 4) = 8, Windows 4. Total 28, and each cpXXX tag
+          # appears 7 times (4 Linux legs + 2 macOS + 1 Windows). Keep these
+          # aligned with the build matrices above -- they exist to catch drift
+          # and had themselves drifted, claiming 24 while asserting 16.
           python .github/scripts/validate_python_release.py \
             --directory dist \
             --distribution vanedb \
             --pyproject vanedb-py/pyproject.toml \
-            --wheel-count 16 \
+            --wheel-count 28 \
             --sdist-count 1 \
-            --python-tag cp311=4 \
-            --python-tag cp312=4 \
-            --python-tag cp313=4 \
-            --python-tag cp314=4 \
-            --platform-prefix manylinux=4 \
+            --python-tag cp311=7 \
+            --python-tag cp312=7 \
+            --python-tag cp313=7 \
+            --python-tag cp314=7 \
+            --platform-prefix manylinux=8 \
+            --platform-prefix musllinux=8 \
             --platform-prefix macosx=8 \
             --platform-prefix win=4
 
