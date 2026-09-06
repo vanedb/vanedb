@@ -1,6 +1,39 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
 #[test]
+fn search_beam_width_is_per_call() {
+    unsafe {
+        let h = vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42);
+        assert!(!h.is_null());
+        (*h).set_ef_search(73);
+        let vector = [1.0];
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(h, 1, vector.as_ptr()), 0);
+        let mut ids = [0];
+        let mut distances = [0.0];
+        for ef in [1, 100] {
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_search(
+                    h,
+                    vector.as_ptr(),
+                    1,
+                    ef,
+                    ids.as_mut_ptr(),
+                    distances.as_mut_ptr(),
+                ),
+                1
+            );
+            assert_eq!(ids, [1]);
+            assert_eq!(
+                (*h).get_ef_search(),
+                73,
+                "a query must not change another query's beam width"
+            );
+        }
+        vanedb_capi::vanedb_rs_index_free(h);
+    }
+}
+
+#[test]
 fn null_path_guards() {
     unsafe {
         assert_eq!(

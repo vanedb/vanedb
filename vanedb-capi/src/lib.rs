@@ -315,9 +315,8 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
             return 0;
         }
         let idx = &*h;
-        idx.set_ef_search(ef_search);
         let query = slice::from_raw_parts(q, idx.dimension());
-        match idx.search(query, k) {
+        match idx.search_with_ef(query, k, ef_search) {
             Ok(res) => {
                 let n = res.len().min(k);
                 for (i, r) in res.iter().take(k).enumerate() {

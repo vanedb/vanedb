@@ -96,14 +96,7 @@ impl PartialOrd for FloatOrd {
 
 impl Ord for FloatOrd {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0
-            .partial_cmp(&other.0)
-            .unwrap_or_else(|| match (self.0.is_nan(), other.0.is_nan()) {
-                (false, true) => std::cmp::Ordering::Less,
-                (true, false) => std::cmp::Ordering::Greater,
-                (true, true) => self.0.total_cmp(&other.0),
-                (false, false) => unreachable!("only NaN is unordered"),
-            })
+        compare_distances(self.0, other.0)
     }
 }
 
@@ -466,7 +459,7 @@ impl ApproxIndex {
                     .unwrap_or_default();
                 for &nb in &neighbor_list {
                     let nb_dist = (self.dist_fn)(inner.vectors.get(nb), vector);
-                    if nb_dist < cur_dist {
+                    if compare_distances(nb_dist, cur_dist).is_lt() {
                         cur_dist = nb_dist;
                         cur_ep = nb;
                         changed = true;
@@ -551,6 +544,18 @@ impl ApproxIndex {
     /// Approximate: a true neighbour can be missed. Raise the beam width with
     /// [`set_ef_search`](Self::set_ef_search) to trade speed for recall.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        self.search_with_ef(query, k, self.get_ef_search())
+    }
+
+    /// Searches with a beam width for this query, leaving the index's default
+    /// unchanged. Concurrent queries can use different recall/speed settings.
+    /// The effective beam width is at least `k`.
+    pub fn search_with_ef(
+        &self,
+        query: &[f32],
+        k: usize,
+        ef_search: usize,
+    ) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
                 expected: self.dim,
@@ -578,7 +583,7 @@ impl ApproxIndex {
                 if lu < inner.neighbors[curr].len() {
                     for &n in &inner.neighbors[curr][lu] {
                         let nd = (self.dist_fn)(query, inner.vectors.get(n));
-                        if nd < d {
+                        if compare_distances(nd, d).is_lt() {
                             d = nd;
                             curr = n;
                             changed = true;
@@ -589,7 +594,7 @@ impl ApproxIndex {
         }
 
         // Search at layer 0 with ef = max(ef_search, k)
-        let ef = self.ef_search.load(Ordering::Relaxed).max(k);
+        let ef = ef_search.max(k);
         let top = Self::search_layer(
             &inner.vectors,
             self.dist_fn,
@@ -683,7 +688,7 @@ impl ApproxIndex {
                 // is unchanged.
                 if results.len() >= ef {
                     if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
-                        if c_dist > f_dist {
+                        if compare_distances(c_dist, f_dist).is_gt() {
                             break;
                         }
                     }
@@ -703,7 +708,7 @@ impl ApproxIndex {
                     let should_add = if results.len() < ef {
                         true
                     } else if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
-                        nb_dist < f_dist
+                        compare_distances(nb_dist, f_dist).is_lt()
                     } else {
                         true
                     };
@@ -755,7 +760,7 @@ impl ApproxIndex {
             // Heuristic: include only if not closer to any already-selected neighbor
             let is_diverse = selected.iter().all(|&(_, sid)| {
                 let inter_dist = dist_fn(vectors.get(cid), vectors.get(sid));
-                inter_dist >= dist
+                !compare_distances(inter_dist, dist).is_lt()
             });
 
             if is_diverse {

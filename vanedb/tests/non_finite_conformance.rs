@@ -128,3 +128,14 @@ fn finite_exact_match_outranks_overflowed_distance() {
     assert_eq!(results[0].distance, 0.0);
     assert!(!results[1].distance.is_finite());
 }
+
+#[test]
+fn hnsw_small_beam_prefers_finite_distance_to_overflow() {
+    let index = ApproxIndex::builder(1, Metric::Dot).build().unwrap();
+    index.add(1, &[1e20]).unwrap();
+    index.add(2, &[0.0]).unwrap();
+    index.set_ef_search(1);
+    let results = index.search(&[1e20], 1).unwrap();
+    assert_eq!(results[0].id, 2);
+    assert!(results[0].distance.is_finite());
+}

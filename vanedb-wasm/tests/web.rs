@@ -11,20 +11,20 @@ fn test_version() {
 #[wasm_bindgen_test]
 fn test_vector_store_basic() {
     let store = WasmStore::new(3, "l2").unwrap();
-    store.add(1, &[1.0, 0.0, 0.0]).unwrap();
-    store.add(2, &[0.0, 1.0, 0.0]).unwrap();
+    store.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
+    store.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(store.size(), 2);
     assert_eq!(store.dimension(), 3);
-    assert!(store.contains(1));
-    assert!(!store.contains(99));
+    assert!(store.contains(1u64.into()).unwrap());
+    assert!(!store.contains(99u64.into()).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_vector_store_search() {
     let store = WasmStore::new(2, "l2").unwrap();
-    store.add(1, &[0.0, 0.0]).unwrap();
-    store.add(2, &[1.0, 0.0]).unwrap();
-    store.add(3, &[10.0, 10.0]).unwrap();
+    store.add(1u64.into(), &[0.0, 0.0]).unwrap();
+    store.add(2u64.into(), &[1.0, 0.0]).unwrap();
+    store.add(3u64.into(), &[10.0, 10.0]).unwrap();
 
     let hits = store.search(&[0.0, 0.1], 2).unwrap();
     assert_eq!(hits.length(), 2);
@@ -35,17 +35,17 @@ fn test_vector_store_search() {
 #[wasm_bindgen_test]
 fn test_hnsw_basic() {
     let idx = WasmIndex::new(3, "l2", 100, 16, 200).unwrap();
-    idx.add(1, &[1.0, 0.0, 0.0]).unwrap();
-    idx.add(2, &[0.0, 1.0, 0.0]).unwrap();
+    idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
+    idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(idx.size(), 2);
-    assert!(idx.contains(1));
+    assert!(idx.contains(1u64.into()).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_hnsw_search() {
     let idx = WasmIndex::new(3, "l2", 100, 16, 200).unwrap();
-    idx.add(1, &[0.0, 0.0, 0.0]).unwrap();
-    idx.add(2, &[10.0, 10.0, 10.0]).unwrap();
+    idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
+    idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
 
     let hits = idx.search(&[0.0, 0.0, 0.0], 1).unwrap();
     assert_eq!(hits.ids()[0], 1);
@@ -54,8 +54,8 @@ fn test_hnsw_search() {
 #[wasm_bindgen_test]
 fn test_cosine_metric() {
     let store = WasmStore::new(2, "cosine").unwrap();
-    store.add(1, &[1.0, 0.0]).unwrap();
-    store.add(2, &[0.0, 1.0]).unwrap();
+    store.add(1u64.into(), &[1.0, 0.0]).unwrap();
+    store.add(2u64.into(), &[0.0, 1.0]).unwrap();
     let hits = store.search(&[0.9, 0.1], 1).unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
@@ -79,7 +79,7 @@ fn test_store_add_batch() {
     // duplicate -> Err, all-or-nothing
     assert!(store.add_batch(&[4, 1], &flat[..4]).is_err());
     assert_eq!(store.size(), 3);
-    assert!(!store.contains(4));
+    assert!(!store.contains(4u64.into()).unwrap());
 }
 
 #[wasm_bindgen_test]
@@ -101,7 +101,7 @@ const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
 fn store_search_round_trips_ids_beyond_f32_precision() {
     let store = WasmStore::new(2, "l2").unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        store.add(*id, &[i as f32, 0.0]).unwrap();
+        store.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
     let mut got = store.search(&[0.0, 0.0], 4).unwrap().ids();
     got.sort_unstable();
@@ -114,7 +114,7 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
 fn hnsw_search_round_trips_ids_beyond_f32_precision() {
     let index = WasmIndex::new(2, "l2", 16, 16, 100).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        index.add(*id, &[i as f32, 0.0]).unwrap();
+        index.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
     let mut got = index.search(&[0.0, 0.0], 4).unwrap().ids();
     got.sort_unstable();
@@ -127,13 +127,13 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
 fn test_non_finite_vectors_and_queries_are_rejected() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
         let store = WasmStore::new(2, "l2").unwrap();
-        assert!(store.add(1, &[value, 0.0]).is_err());
+        assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(store.size(), 0);
-        store.add(2, &[0.0, 0.0]).unwrap();
+        store.add(2u64.into(), &[0.0, 0.0]).unwrap();
         assert!(store.search(&[value, 0.0], 1).is_err());
 
         let index = WasmIndex::new(2, "l2", 4, 2, 10).unwrap();
-        assert!(index.add(1, &[value, 0.0]).is_err());
+        assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(index.size(), 0);
     }
 }

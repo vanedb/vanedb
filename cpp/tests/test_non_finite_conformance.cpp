@@ -101,3 +101,15 @@ TEST_CASE("Finite exact match outranks overflowed distance", "[conformance][non-
   REQUIRE(results[0].distance == 0.0f);
   REQUIRE_FALSE(std::isfinite(results[1].distance));
 }
+
+TEST_CASE("HNSW small beam prefers finite distance to overflow", "[conformance]") {
+  vanedb::ApproxIndex index(1, vanedb::Metric::DOT, 10);
+  const float large[] = {1e20f}, zero[] = {0.0f};
+  index.add(1, large);
+  index.add(2, zero);
+  index.set_ef_search(1);
+  const auto results = index.search(large, 1);
+  REQUIRE(results.size() == 1);
+  REQUIRE(results[0].id == 2);
+  REQUIRE(std::isfinite(results[0].distance));
+}

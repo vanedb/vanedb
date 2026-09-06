@@ -1,3 +1,4 @@
+use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
 use vanedb::approx::ApproxIndex;
@@ -51,6 +52,11 @@ fn to_jserr(e: vanedb::VaneError) -> JsError {
     JsError::new(&e.to_string())
 }
 
+// Accept the JavaScript bigint before the Wasm i64 boundary can wrap it.
+fn one_id(id: BigInt) -> Result<u64, JsError> {
+    u64::try_from(id).map_err(|_| JsError::new("id must be between 0 and 2**64 - 1"))
+}
+
 fn parse_metric(metric: &str) -> Result<Metric, JsError> {
     match metric {
         "l2" | "L2" => Ok(Metric::L2),
@@ -84,8 +90,8 @@ impl WasmStore {
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: u64, vector: &[f32]) -> Result<(), JsError> {
-        self.inner.add(id, vector).map_err(to_jserr)
+    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
+        self.inner.add(one_id(id)?, vector).map_err(to_jserr)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
@@ -106,16 +112,16 @@ impl WasmStore {
         Ok(WasmSearchResults::from(results))
     }
 
-    pub fn get(&self, id: u64) -> Result<Vec<f32>, JsError> {
-        self.inner.get(id).map_err(to_jserr)
+    pub fn get(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+        self.inner.get(one_id(id)?).map_err(to_jserr)
     }
 
-    pub fn remove(&self, id: u64) -> Result<(), JsError> {
-        self.inner.remove(id).map_err(to_jserr)
+    pub fn remove(&self, id: BigInt) -> Result<(), JsError> {
+        self.inner.remove(one_id(id)?).map_err(to_jserr)
     }
 
-    pub fn contains(&self, id: u64) -> bool {
-        self.inner.contains(id)
+    pub fn contains(&self, id: BigInt) -> Result<bool, JsError> {
+        Ok(self.inner.contains(one_id(id)?))
     }
 
     pub fn size(&self) -> usize {
@@ -138,8 +144,8 @@ impl WasmIndex {
     /// Removes the vector stored under `id`. Tombstoned: the node keeps its
     /// graph links, which may be the only route between live neighbourhoods,
     /// and simply stops appearing in results.
-    pub fn remove(&mut self, id: u64) -> Result<(), JsError> {
-        self.inner.remove(id).map_err(to_jserr)
+    pub fn remove(&mut self, id: BigInt) -> Result<(), JsError> {
+        self.inner.remove(one_id(id)?).map_err(to_jserr)
     }
 
     #[wasm_bindgen(constructor)]
@@ -161,8 +167,8 @@ impl WasmIndex {
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: u64, vector: &[f32]) -> Result<(), JsError> {
-        self.inner.add(id, vector).map_err(to_jserr)
+    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
+        self.inner.add(one_id(id)?, vector).map_err(to_jserr)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
@@ -183,8 +189,8 @@ impl WasmIndex {
         Ok(WasmSearchResults::from(results))
     }
 
-    pub fn contains(&self, id: u64) -> bool {
-        self.inner.contains(id)
+    pub fn contains(&self, id: BigInt) -> Result<bool, JsError> {
+        Ok(self.inner.contains(one_id(id)?))
     }
 
     pub fn size(&self) -> usize {
