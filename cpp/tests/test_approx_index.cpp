@@ -7,12 +7,87 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <limits>
 #include <random>
 #include <thread>
 #include <unordered_set>
 #include <vector>
 
 using Catch::Approx;
+
+static std::filesystem::path legacy_graph_fixture(int version) {
+#ifdef __GLIBCXX__
+  const std::string rng_layout = "_indexed";
+#else
+  const std::string rng_layout = "_state";  // libc++ and MSVC
+#endif
+  return std::filesystem::path(VANEDB_LEGACY_GRAPH_DIR) /
+      ("v" + std::to_string(version) + (version == 1 ? "" : rng_layout) + ".qvrd");
+}
+
+TEST_CASE("ApproxIndex - fixed legacy files preserve graph state", "[index][persistence][legacy]") {
+  auto bytes = [](const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    REQUIRE(input.good());
+    return std::vector<char>(std::istreambuf_iterator<char>(input), {});
+  };
+  for (int version = 1; version <= 3; ++version) {
+    INFO(version);
+    auto index = vanedb::ApproxIndex::load(legacy_graph_fixture(version).string());
+    REQUIRE(index->size() == 3);
+    REQUIRE(index->dimension() == 2);
+    REQUIRE(index->capacity() == 4);
+    REQUIRE(index->get_ef_search() == 16);
+    REQUIRE(index->get_vector(101) == std::vector<float>{1.0f, 0.0f});
+    REQUIRE(index->get_vector(202) == std::vector<float>{0.0f, 1.0f});
+    REQUIRE(index->get_vector(UINT64_MAX) == std::vector<float>{0.8f, 0.2f});
+    const float query[] = {1.0f, 0.0f};
+    auto hits = index->search(query, 3);
+    REQUIRE(hits.size() == 3);
+    REQUIRE(hits[0].id == 101);
+    REQUIRE(hits[1].id == UINT64_MAX);
+    REQUIRE(hits[2].id == 202);
+    REQUIRE(hits[0].distance == (version == 3 ? -1.0f : 0.0f));
+
+    const std::string saved = "legacy_graph_roundtrip_" + std::to_string(version) + ".qvrd";
+    index->save(saved);
+    auto actual = bytes(saved);
+    auto expected = bytes(legacy_graph_fixture(3));
+    std::filesystem::remove(saved);
+    REQUIRE(actual.size() == expected.size());
+    // v3's graph and RNG bytes must survive exactly. Ignore unordered map
+    // iteration order (bytes 164..220), metric, and the derived multiplier.
+    actual.erase(actual.begin() + 164, actual.begin() + 220);
+    expected.erase(expected.begin() + 164, expected.begin() + 220);
+    expected[16] = static_cast<char>(version - 1);
+    std::fill(actual.begin() + 52, actual.begin() + 60, 0);
+    std::fill(expected.begin() + 52, expected.begin() + 60, 0);
+    REQUIRE(actual == expected);
+    const float added[] = {0.25f, 0.75f};
+    REQUIRE_NOTHROW(index->add(303, added));
+    REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  }
+}
+
+TEST_CASE("ApproxIndex - legacy level multiplier is derived on load", "[index][persistence][legacy]") {
+  for (double multiplier : {-100.0, std::numeric_limits<double>::infinity(),
+                            std::numeric_limits<double>::quiet_NaN()}) {
+    const std::string path = "legacy_graph_untrusted_multiplier.qvrd";
+    std::filesystem::copy_file(legacy_graph_fixture(3),
+                              path, std::filesystem::copy_options::overwrite_existing);
+    {
+      std::fstream file(path, std::ios::in | std::ios::out | std::ios::binary);
+      file.seekp(52);
+      file.write(reinterpret_cast<const char*>(&multiplier), sizeof(multiplier));
+    }
+    auto index = vanedb::ApproxIndex::load(path);
+    std::filesystem::remove(path);
+    const float added[] = {0.25f, 0.75f};
+    REQUIRE_NOTHROW(index->add(303, added));
+    REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  }
+}
 
 TEST_CASE("ApproxIndex - construction", "[index]") {
   SECTION("Valid construction") {

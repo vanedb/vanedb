@@ -448,3 +448,74 @@ impl ApproxIndex {
         })
     }
 }
+
+#[cfg(test)]
+mod legacy_fixtures {
+    use super::*;
+
+    #[test]
+    fn fixed_legacy_files_preserve_graph_identity_and_mutability() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/legacy_graph");
+        for (name, metric, deleted) in [
+            ("v1_l2", Metric::L2, false),
+            ("v1_cosine", Metric::Cosine, false),
+            ("v1_dot", Metric::Dot, false),
+            ("v2_l2", Metric::L2, false),
+            ("v2_cosine", Metric::Cosine, false),
+            ("v2_dot", Metric::Dot, false),
+            ("v2_deleted_id_reuse", Metric::Cosine, true),
+        ] {
+            let index = ApproxIndex::load(fixtures.join(format!("{name}.hnsw"))).unwrap();
+            assert_eq!(index.dim, 2, "{name}");
+            assert_eq!(index.metric, metric, "{name}");
+            assert_eq!(index.max_elements, 4);
+            assert_eq!((index.m, index.ef_construction, index.seed), (2, 16, 42));
+            assert_eq!(index.ef_search.load(Ordering::Relaxed), 16);
+            {
+                let inner = index.inner.read();
+                assert_eq!(inner.count, 3);
+                assert_eq!((inner.entry_point, inner.max_level), (Some(0), 1));
+                assert_eq!(inner.levels, [1, 0, 1]);
+                assert_eq!(inner.deleted, [false, deleted, false]);
+                assert_eq!(
+                    inner.neighbors,
+                    [
+                        vec![vec![1, 2], vec![2]],
+                        vec![vec![0, 2]],
+                        vec![vec![0, 1], vec![0]],
+                    ]
+                );
+                assert_eq!(inner.vectors.to_flat(3), [1.0, 0.0, 0.0, 1.0, 0.8, 0.2]);
+            }
+            let results = index.search(&[1.0, 0.0], 3).unwrap();
+            let expected = if deleted {
+                vec![101, u64::MAX]
+            } else {
+                vec![101, u64::MAX, 202]
+            };
+            assert_eq!(
+                results.iter().map(|r| r.id).collect::<Vec<_>>(),
+                expected,
+                "{name}"
+            );
+            assert_eq!(
+                results[0].distance,
+                if metric == Metric::Dot { -1.0 } else { 0.0 }
+            );
+            assert_eq!(index.contains(202), !deleted);
+            assert_eq!(index.get_vector(101).unwrap(), [1.0, 0.0]);
+            index.add(303, &[0.25, 0.75]).unwrap();
+            let path = std::env::temp_dir()
+                .join(format!("vanedb-legacy-{}-{name}.hnsw", std::process::id()));
+            index.save(&path).unwrap();
+            let reloaded = ApproxIndex::load(&path).unwrap();
+            fs::remove_file(path).unwrap();
+            assert_eq!(
+                reloaded.inner.read().neighbors,
+                index.inner.read().neighbors
+            );
+            assert_eq!(reloaded.inner.read().levels, index.inner.read().levels);
+            assert_eq!(reloaded.get_vector(303).unwrap(), [0.25, 0.75]);
+        }
+    }
+}

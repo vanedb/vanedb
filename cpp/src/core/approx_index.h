@@ -341,7 +341,8 @@ public:
     auto idx = std::unique_ptr<ApproxIndex>(
         new ApproxIndex(dim, static_cast<Metric>(met), max_el, M, ef_con, 42, sizes));
     idx->ef_search_.store(ef_s);
-    idx->mult_ = mult;
+    // mult is derived from M by the constructor. Trusting the stored value
+    // can produce negative or non-finite levels on the next insertion.
     idx->count_.store(cnt);
     idx->ep_.store(ep_val);
     idx->max_level_.store(max_level_val);

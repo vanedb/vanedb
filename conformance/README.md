@@ -118,3 +118,7 @@ engine-specific (Rust uses `HNSW` magic and bincode; C++ uses its legacy
 `QVRD` framing). Its field table and fixtures will land
 with that implementation rather than being guessed during the repository
 migration.
+
+[Fixed legacy graph files](legacy_graph/README.md) protect existing readers
+during that transition, including graph topology, IDs, metrics, and deleted
+Rust slots. They do not replace the future VNDB graph specification.
