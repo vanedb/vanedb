@@ -16,6 +16,12 @@ const METRICS: [(&str, Metric, Kernel); 3] = [
     ("dot", Metric::Dot, scalar::dot_distance),
 ];
 
+/// Relative bound: an absolute epsilon shrinks in headroom as `n` grows,
+/// and the AVX2 tiers accumulate in a different order from NEON's.
+fn close(got: f32, want: f32) -> bool {
+    (got - want).abs() <= 1e-5 * want.abs().max(1.0)
+}
+
 /// Values with mixed signs and magnitudes, so a dropped lane changes the sum.
 fn ramp(n: usize, phase: f32) -> Vec<f32> {
     (0..n)
@@ -34,7 +40,7 @@ fn dispatched_kernels_match_scalar_at_every_length() {
             let got = distance_fn(metric)(&a, &b);
             let want = reference(&a, &b);
             assert!(
-                (got - want).abs() < 1e-4,
+                close(got, want),
                 "{name} n={n}: dispatched={got}, scalar={want}"
             );
         }
@@ -53,14 +59,14 @@ fn mismatched_lengths_truncate_to_the_shorter_slice() {
             let got = distance_fn(metric)(&a, &b);
             let want = reference(&a[..short], &b);
             assert!(
-                (got - want).abs() < 1e-4,
+                close(got, want),
                 "{name} a={long} b={short}: dispatched={got}, truncated-scalar={want}"
             );
             // And symmetrically, with the short slice first.
             let got = distance_fn(metric)(&b, &a);
             let want = reference(&b, &a[..short]);
             assert!(
-                (got - want).abs() < 1e-4,
+                close(got, want),
                 "{name} a={short} b={long}: dispatched={got}, truncated-scalar={want}"
             );
         }
