@@ -143,7 +143,8 @@ target_link_options(test_flat_index PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_index tests/test_approx_index.cpp)
 target_link_libraries(test_index PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_index PRIVATE
-  VANEDB_LEGACY_GRAPH_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/legacy_graph")
+  VANEDB_LEGACY_GRAPH_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/legacy_graph"
+  VANEDB_GRAPH_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/vndb_graph")
 target_compile_options(test_index PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
   $<$<AND:$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<BOOL:${VANEDB_X86_64}>>:-mavx2 -mfma>

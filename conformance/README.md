@@ -63,8 +63,8 @@ by `vanedb/tests/approx_id_map_conformance.rs` and
 ## Universal persistence
 
 The shared disk persistence format is **VNDB v1**, implemented by both engines.
-Approximate graph persistence is still engine-specific and pre-release; its
-existing version numbers do not determine a future public graph-format version.
+The shared graph release candidate is **VNDB v2**, specified in
+[graph/README.md](graph/README.md). Disk v1 is unchanged.
 
 A shared persistence format must:
 
@@ -118,12 +118,16 @@ wrong meaning — while the fixture fails at offset 24.
 Regenerate the fixtures only when this table changes, and treat any change to
 them as a format version change.
 
-The remaining format work is the `ApproxIndex` graph payload, which is still
-engine-specific (Rust uses `HNSW` magic and bincode; C++ uses its legacy
-`QVRD` framing). Its field table and fixtures will land
-with that implementation rather than being guessed during the repository
-migration.
+### VNDB v2 — ApproxIndex
 
-[Fixed legacy graph files](legacy_graph/README.md) protect existing readers
-during that transition, including graph topology, IDs, metrics, and deleted
-Rust slots. They do not replace the future VNDB graph specification.
+The [graph field table and fixtures](graph/README.md) define the release
+candidate. Both engines reproduce the fixtures exactly, including all metrics,
+continuation encodings, deleted entries and ID reuse. The benchmark harness's
+`cross_engine_graph.rs` also crosses engine-written files both ways, verifies
+byte-for-byte graph preservation, compares query results within the distance
+tolerance, and inserts into imported graphs before crossing them again.
+
+[Fixed legacy graph files](legacy_graph/README.md) protect the old Rust
+`HNSW`/bincode and C++ `QVRD` readers. Migrate an old file in its original engine
+by loading it and saving to a new path. They are compatibility fixtures for
+those readers; the new format is defined by the VNDB v2 field table.

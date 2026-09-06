@@ -76,10 +76,10 @@ and toolchain for checks that cannot run locally.
 - **Persistence contract**: `DiskIndex` already uses shared `VNDB` v1:
   literal `VNDB` magic, fixed-width little-endian fields, and fixtures in
   `conformance/vndb/` that each engine reads and reproduces. Preserve that
-  contract. Approximate graph formats remain pre-release and engine-specific;
-  replace them only in dedicated universal-format work, with cross-load fixtures
-  and graph preservation checks. Do not promise public graph-format stability
-  before that work is complete. Keep all existing corruption checks passing.
+  contract. Approximate graphs now use the shared VNDB v2 release candidate in
+  `conformance/graph/`; keep its golden files, cross-load preservation and legacy
+  reader checks passing. Do not promise public graph-format stability before
+  final platform verification and release review. Keep all corruption checks.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep
@@ -112,8 +112,10 @@ reference code and the other arm of the benchmark comparison. Do not port
 features to it. Change it only to fix a defect in the engine itself, or to
 keep a comparison honest.
 
-- Keep it building and passing its own tests, and keep the shared `DiskIndex`
-  format loadable both ways (`bench/tests/cross_engine_format.rs`).
+- Keep it building and passing its own tests, and preserve both shared VNDB
+  formats (`bench/tests/cross_engine_format.rs` and `cross_engine_graph.rs`).
+  Loaded Rust graph tombstones remain traversable but absent from results;
+  this file compatibility does not add a C++ public delete API.
 - Do not port feature-level API additions. `add_batch`, growable capacity and
   delete are Rust-only by decision, not by omission.
 - Where a Rust change makes a benchmark row measure something different from

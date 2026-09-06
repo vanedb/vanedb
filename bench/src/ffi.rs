@@ -35,6 +35,8 @@ extern "C" {
         out_ids: *mut u64,
         out_dists: *mut f32,
     ) -> usize;
+    pub fn vanedb_cpp_index_save(h: *mut std::ffi::c_void, path: *const c_char) -> i32;
+    pub fn vanedb_cpp_index_load(path: *const c_char) -> *mut std::ffi::c_void;
     pub fn vanedb_cpp_index_free(h: *mut std::ffi::c_void);
 
     pub fn vanedb_cpp_disk_build(

@@ -53,16 +53,11 @@ TEST_CASE("ApproxIndex - fixed legacy files preserve graph state", "[index][pers
     const std::string saved = "legacy_graph_roundtrip_" + std::to_string(version) + ".qvrd";
     index->save(saved);
     auto actual = bytes(saved);
-    auto expected = bytes(legacy_graph_fixture(3));
+    const std::string metric = version == 1 ? "l2" : (version == 2 ? "cosine" : "dot");
+    auto expected = bytes(std::filesystem::path(VANEDB_GRAPH_DIR) /
+        (metric + "_rng" + std::to_string(vanedb::detail::graph::NATIVE_RNG) + ".vndb"));
     std::filesystem::remove(saved);
-    REQUIRE(actual.size() == expected.size());
-    // v3's graph and RNG bytes must survive exactly. Ignore unordered map
-    // iteration order (bytes 164..220), metric, and the derived multiplier.
-    actual.erase(actual.begin() + 164, actual.begin() + 220);
-    expected.erase(expected.begin() + 164, expected.begin() + 220);
-    expected[16] = static_cast<char>(version - 1);
-    std::fill(actual.begin() + 52, actual.begin() + 60, 0);
-    std::fill(expected.begin() + 52, expected.begin() + 60, 0);
+    // Exact bytes cover topology, configuration, vectors, identity and RNG.
     REQUIRE(actual == expected);
     const float added[] = {0.25f, 0.75f};
     REQUIRE_NOTHROW(index->add(303, added));
@@ -612,11 +607,10 @@ TEST_CASE("ApproxIndex - serialization", "[index][serialization]") {
                               std::istreambuf_iterator<char>());
       ifs.close();
 
-      // ep_ is at offset: 4(magic) + 4(version) + 8(dim) + 4(metric) + 8(max_el) + 8(M) +
-      //                   8(ef_con) + 8(ef_s) + 8(mult) + 8(count) = 68 bytes
+      // VNDB v2 entry point is at byte 72.
       // Write invalid ep_ value (999999, much larger than count)
       size_t invalid_ep = 999999;
-      std::memcpy(data.data() + 68, &invalid_ep, sizeof(invalid_ep));
+      std::memcpy(data.data() + 72, &invalid_ep, sizeof(invalid_ep));
 
       std::ofstream ofs(corrupt_file, std::ios::binary);
       ofs.write(data.data(), data.size());
@@ -635,9 +629,9 @@ TEST_CASE("ApproxIndex - serialization", "[index][serialization]") {
                               std::istreambuf_iterator<char>());
       ifs.close();
 
-      // max_level_ is at offset 68 + 8(ep_) = 76 bytes
+      // VNDB v2 max_level is at byte 80.
       int invalid_max_level = 100;  // > MAX_LEVEL (32)
-      std::memcpy(data.data() + 76, &invalid_max_level, sizeof(invalid_max_level));
+      std::memcpy(data.data() + 80, &invalid_max_level, sizeof(invalid_max_level));
 
       std::ofstream ofs(corrupt_file, std::ios::binary);
       ofs.write(data.data(), data.size());
@@ -1027,7 +1021,7 @@ TEST_CASE("ApproxIndex - load rejects non-finite stored vectors", "[index][persi
 }
 
 TEST_CASE("ApproxIndex - empty index save/load roundtrip", "[index][persistence]") {
-  // v3 stores zero-length arrays for an empty index; load must re-expand to
+  // VNDB stores no nodes for an empty index; load must re-expand to
   // full capacity so subsequent adds work.
   const std::string filename = "test_hnsw_empty_roundtrip.bin";
   vanedb::ApproxIndex idx(4, vanedb::Metric::L2, 10);
@@ -1054,4 +1048,98 @@ TEST_CASE("ApproxIndex - load rejects inconsistent graph structure", "[index][pe
     REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
+}
+
+TEST_CASE("ApproxIndex - portable graph fixtures preserve every byte", "[index][persistence][vndb]") {
+  for (const auto& entry : std::filesystem::directory_iterator(VANEDB_GRAPH_DIR)) {
+    if (entry.path().extension() != ".vndb") continue;
+    INFO(entry.path().filename().string());
+    auto index = vanedb::ApproxIndex::load(entry.path().string());
+    const std::string saved = "portable_graph_roundtrip.vndb";
+    index->save(saved);
+    auto bytes = [](const std::filesystem::path& path) {
+      std::ifstream input(path, std::ios::binary);
+      return std::vector<char>(std::istreambuf_iterator<char>(input), {});
+    };
+    REQUIRE(bytes(saved) == bytes(entry.path()));
+    REQUIRE(index->dimension() == 2);
+    REQUIRE(index->capacity() == 4);
+    const float query[] = {1.0f, 0.0f};
+    const auto hits = index->search(query, 3);
+    const auto name = entry.path().stem().string();
+    const size_t count = (name == "empty" || name == "all_deleted") ? 0 : (name.starts_with("deleted_") ? 2 : 3);
+    REQUIRE(index->size() == count);
+    REQUIRE(hits.size() == count);
+    if (count) {
+      REQUIRE(hits[0].id == (name == "deleted_entry" ? UINT64_MAX : 101));
+      REQUIRE(hits[1].id == (name == "deleted_entry" ? 202 : UINT64_MAX));
+      if (name != "deleted_entry")
+        REQUIRE(hits[0].distance == (name.starts_with("dot") ? -1.0f : 0.0f));
+      REQUIRE(index->get_vector(UINT64_MAX) == std::vector<float>{0.8f, 0.2f});
+    }
+    const float added[] = {0.25f, 0.75f};
+    index->add(303, added);
+    index->save(saved);
+    auto reloaded = vanedb::ApproxIndex::load(saved);
+    REQUIRE(reloaded->size() == count + 1);
+    REQUIRE(reloaded->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+    std::filesystem::remove(saved);
+  }
+}
+
+TEST_CASE("ApproxIndex - portable graph rejects malformed files", "[index][persistence][vndb]") {
+  std::ifstream input(std::filesystem::path(VANEDB_GRAPH_DIR) / "l2_rng1.vndb", std::ios::binary);
+  const std::vector<char> base(std::istreambuf_iterator<char>(input), {});
+  REQUIRE(base.size() == 272);
+  const std::string path = "portable_graph_corruption.vndb";
+  auto rejects = [&](const std::vector<char>& bytes) {
+    { std::ofstream file(path, std::ios::binary); file.write(bytes.data(), bytes.size()); }
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path), std::runtime_error);
+  };
+  for (size_t end = 0; end < base.size(); ++end) {
+    INFO(end);
+    rejects(std::vector<char>(base.begin(), base.begin() + end));
+  }
+  auto trailing = base;
+  trailing.push_back(0);
+  rejects(trailing);
+  struct Change { size_t offset, width; uint64_t value; };
+  for (auto change : std::vector<Change>{
+      {4,4,3}, {8,4,2}, {12,4,99}, {16,8,0}, {24,8,UINT64_MAX}, {32,8,2},
+      {40,8,UINT64_MAX}, {40,8,1}, {48,8,0}, {72,8,3}, {72,8,1}, {72,8,UINT64_MAX},
+      {80,4,UINT32_MAX}, {84,4,0}, {88,8,UINT64_MAX}, {104,4,33}, {108,4,2},
+      {112,4,0x7fc00000}, {120,8,5}, {128,8,0}, {136,8,1}, {136,8,3}, {152,8,1}, {160,8,101}}) {
+    INFO(change.offset);
+    auto bytes = base;
+    for (size_t i = 0; i < change.width; ++i)
+      bytes[change.offset + i] = static_cast<char>(change.value >> (8 * i));
+    rejects(bytes);
+  }
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("ApproxIndex - portable graph validates continuation metadata", "[index][persistence][vndb]") {
+  auto read = [](const std::string& name) {
+    std::ifstream file(std::filesystem::path(VANEDB_GRAPH_DIR) / name, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(file), {});
+  };
+  const auto base = read("l2_rng1.vndb");
+  const auto words = read("l2_rng2.vndb").substr(272);
+  const std::string path = "portable_graph_rng_corruption.vndb";
+  const auto rest = words.substr(words.find(' '));
+  for (auto [kind, state] : std::vector<std::pair<uint32_t, std::string>>{
+      {1, "0"}, {2, ""}, {2, "-42" + rest}, {2, "+42" + rest},
+      {2, "4294967296" + rest}, {2, words.substr(0, words.rfind(' ')) + " 625"},
+      {3, words}, {2, words + "\xc2\xa0"}}) {
+    {
+      std::ofstream file(path, std::ios::binary);
+      file.write(base.data(), 84);
+      vanedb::detail::graph::write(file, kind);
+      vanedb::detail::graph::write(file, static_cast<uint64_t>(state.size()));
+      file.write(base.data() + 96, base.size() - 96);
+      file.write(state.data(), state.size());
+    }
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path), std::runtime_error);
+  }
+  std::filesystem::remove(path);
 }

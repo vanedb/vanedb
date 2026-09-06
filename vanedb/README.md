@@ -39,11 +39,13 @@ Removed and replaced entries occupy storage until compaction rebuilds the graph.
 
 `DiskIndex` files use the shared VNDB v1 format; Rust and the supplementary C++
 engine can read each other's disk files. Disk index construction buffers vectors
-in memory before saving. Approximate graph files remain engine-specific and
-pre-release. Universal graph persistence is unfinished, and no public 1.0.0
-format compatibility promise has been made. Keep source vectors for migration.
-The Rust graph loader accepts its current and previous versions; `DiskIndex`
-accepts VNDB v1 only.
+in memory before saving. `ApproxIndex` writes shared VNDB v2 graph files,
+preserving vectors, graph links, IDs and deleted slots across both engines.
+Further insertions can produce different graphs across engines. The Rust loader
+also reads legacy Rust v1/v2 graphs; load and save to a new path to migrate.
+Older readers cannot open VNDB v2. Keep originals and source vectors while
+verifying migration: this is a release candidate, without a public 1.0.0 format
+compatibility promise yet. `DiskIndex` continues to accept VNDB v1 only.
 
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,
 platform verification scope, persistence details, and source builds. The

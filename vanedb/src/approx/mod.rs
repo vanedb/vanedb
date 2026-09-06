@@ -28,6 +28,7 @@ const RESERVE_CAP: usize = 1 << 20;
 /// a bug in the caller, not a plan.
 pub(super) const MAX_ELEMENTS: usize = 100_000_000;
 
+mod graph_format;
 mod persistence;
 mod storage;
 
@@ -148,6 +149,7 @@ pub(super) struct Inner {
     /// recomputed so `len()` stays O(1).
     pub(super) live: usize,
     pub(super) rng: StdRng,
+    pub(super) persisted_rng: Option<persistence::RngState>,
 }
 
 /// Configures an [`ApproxIndex`] before construction.
@@ -305,6 +307,7 @@ impl ApproxIndex {
             // Replay from the original seed so a compacted index is the one
             // you would have built from these vectors in this order.
             rng: StdRng::seed_from_u64(self.seed),
+            persisted_rng: None,
         };
         for (id, vector) in &live {
             self.insert_into(&mut inner, *id, vector);
@@ -911,6 +914,7 @@ impl ApproxIndexBuilder {
                 max_level: -1,
                 count: 0,
                 rng: StdRng::seed_from_u64(self.seed),
+                persisted_rng: None,
             }),
         })
     }

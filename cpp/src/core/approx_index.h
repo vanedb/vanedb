@@ -2,6 +2,7 @@
 #pragma once
 #include "distance_strategy.h"
 #include "detail/file_utils.h"
+#include "detail/graph_format.h"
 #include "validation.h"
 #include <algorithm>
 #include <atomic>
@@ -34,12 +35,6 @@ template <typename T> void read_bin(std::ifstream& f, T& v) {
 template <typename T> void write_vec(std::ofstream& f, const std::vector<T>& v) {
   write_bin(f, v.size());
   if (!v.empty()) f.write(reinterpret_cast<const char*>(v.data()), v.size() * sizeof(T));
-}
-// Write only the first `n` elements of `v`, with the same size-prefix framing
-// as write_vec. Used by the v3 compact format to skip unused capacity.
-template <typename T> void write_vec_prefix(std::ofstream& f, const std::vector<T>& v, size_t n) {
-  write_bin(f, n);
-  if (n) f.write(reinterpret_cast<const char*>(v.data()), n * sizeof(T));
 }
 constexpr size_t MAX_VEC_SIZE = 100000000ULL;
 constexpr size_t MAX_RNG_STATE_SIZE = 10000;  // Reasonable upper bound for serialized RNG state
@@ -103,16 +98,17 @@ class ApproxIndex {
       : dim_(dimension), metric_(metric), dist_(metric, dimension),
         max_elements_(max_elements), M_(M), M_max_(M),
         M_max0_(sizes.m_max0), ef_construction_(std::max(ef_construction, M)), ef_search_(50),
-        mult_(M > 1 ? 1.0 / std::log(static_cast<double>(M)) : 1.0), level_gen_(seed) {
+        mult_(M > 1 ? 1.0 / std::log(static_cast<double>(M)) : 1.0), level_gen_(seed), serialization_seed_(seed) {
     vectors_.resize(sizes.vector_count);
     ext_ids_.resize(max_elements);
     levels_.resize(max_elements, 0);
+    deleted_.resize(max_elements, false);
     neighbors_.resize(max_elements);
   }
 
 public:
   static constexpr uint32_t MAGIC = 0x51565244;  // "QVRD" (legacy QuiverDB magic, retained for on-disk compat)
-  static constexpr uint32_t VERSION = 3;  // v3: compact arrays, count-sized (issue #24); v2 added RNG state
+  static constexpr uint32_t VERSION = 3;  // Latest readable legacy version; save writes VNDB v2.
   static constexpr int MAX_LEVEL = 32;  // Reasonable upper bound for HNSW levels
   static constexpr size_t INVALID_ID = static_cast<size_t>(-1);  // Sentinel for empty entry point
 
@@ -199,7 +195,7 @@ public:
     detail::require_finite(query, dim_, "Query");
     if (k == 0) throw std::invalid_argument("k must be > 0");
     std::shared_lock glock(global_mtx_);
-    if (count_ == 0) return {};
+    if (id_map_.empty()) return {};
 
     size_t curr = ep_.load();
     float d = dist_(query, get_vec(curr));
@@ -215,7 +211,7 @@ public:
       }
     }
 
-    auto top = search_layer(query, curr, std::max(ef_search_.load(std::memory_order_relaxed), k), 0);
+    auto top = search_layer(query, curr, std::max(ef_search_.load(std::memory_order_relaxed), k), 0, true);
     std::vector<std::pair<float, size_t>> temp;
     while (!top.empty()) { temp.push_back(top.top()); top.pop(); }
     std::sort(temp.begin(), temp.end(), detail::DistanceIdLess{});
@@ -232,7 +228,7 @@ public:
     ef_search_.store(ef, std::memory_order_relaxed);
   }
   size_t get_ef_search() const { return ef_search_.load(std::memory_order_relaxed); }
-  size_t size() const { std::shared_lock lk(global_mtx_); return count_; }
+  size_t size() const { std::shared_lock lk(global_mtx_); return id_map_.size(); }
   size_t dimension() const { return dim_; }
   size_t capacity() const { return max_elements_; }
   bool contains(uint64_t id) const { std::shared_lock lk(global_mtx_); return id_map_.count(id); }
@@ -251,37 +247,34 @@ public:
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
     try {
-      detail::write_bin(f, MAGIC);
-      detail::write_bin(f, VERSION);
-      detail::write_bin(f, dim_);
-      detail::write_bin(f, static_cast<uint32_t>(metric_));
-      detail::write_bin(f, max_elements_);
-      detail::write_bin(f, M_);
-      detail::write_bin(f, ef_construction_);
-      detail::write_bin(f, ef_search_.load());
-      detail::write_bin(f, mult_);
-      const size_t cnt = count_.load();
-      detail::write_bin(f, cnt);
-      detail::write_bin(f, ep_.load());
-      detail::write_bin(f, max_level_.load());
-      // v3: persist only the `cnt` live entries, not the full pre-allocated
-      // capacity; load() re-expands to max_elements_.
-      detail::write_vec_prefix(f, vectors_, cnt * dim_);
-      detail::write_vec_prefix(f, ext_ids_, cnt);
-      detail::write_vec_prefix(f, levels_, cnt);
-      detail::write_bin(f, id_map_.size());
-      for (const auto& [k, v] : id_map_) { detail::write_bin(f, k); detail::write_bin(f, v); }
-      detail::write_bin(f, cnt);
-      for (size_t i = 0; i < cnt; ++i) {
-        detail::write_bin(f, neighbors_[i].size());
-        for (size_t l = 0; l < neighbors_[i].size(); ++l) detail::write_vec(f, neighbors_[i][l]);
+      using detail::graph::write;
+      const size_t count = count_.load();
+      const bool preserve_rng = origin_count_ == count;
+      std::ostringstream rng_stream;
+      rng_stream.imbue(std::locale::classic());
+      if (!preserve_rng) rng_stream << level_gen_;
+      const std::string rng = preserve_rng ? origin_rng_ : rng_stream.str();
+      f.write("VNDB", 4);
+      for (uint32_t value : {2u, 1u, static_cast<uint32_t>(metric_)}) write(f, value);
+      for (uint64_t value : {static_cast<uint64_t>(dim_), static_cast<uint64_t>(count),
+           static_cast<uint64_t>(max_elements_), static_cast<uint64_t>(M_),
+           static_cast<uint64_t>(ef_construction_), static_cast<uint64_t>(ef_search_.load()),
+           serialization_seed_, count == 0 ? UINT64_MAX : static_cast<uint64_t>(ep_.load())})
+        write(f, value);
+      write(f, std::bit_cast<uint32_t>(static_cast<int32_t>(max_level_.load())));
+      write(f, preserve_rng ? origin_rng_kind_ : detail::graph::NATIVE_RNG);
+      write(f, static_cast<uint64_t>(rng.size()));
+      for (size_t slot = 0; slot < count; ++slot) {
+        write(f, ext_ids_[slot]);
+        write(f, static_cast<uint32_t>(levels_[slot]));
+        write(f, static_cast<uint32_t>(deleted_[slot]));
+        for (size_t d = 0; d < dim_; ++d) write(f, std::bit_cast<uint32_t>(get_vec(slot)[d]));
+        for (const auto& layer : neighbors_[slot]) {
+          write(f, static_cast<uint64_t>(layer.size()));
+          for (size_t neighbor : layer) write(f, static_cast<uint64_t>(neighbor));
+        }
       }
-      // Save RNG state for deterministic behavior after load
-      std::stringstream rng_ss;
-      rng_ss << level_gen_;
-      std::string rng_state = rng_ss.str();
-      detail::write_bin(f, rng_state.size());
-      f.write(rng_state.data(), rng_state.size());
+      f.write(rng.data(), rng.size());
       f.flush();
       if (!f) { std::filesystem::remove(tmp); throw std::runtime_error("Write failed: " + tmp); }
       f.close();  // close before fsync_file (see file_utils.h: Windows lock contract)
@@ -293,6 +286,10 @@ public:
   static std::unique_ptr<ApproxIndex> load(const std::string& filename) {
     std::ifstream f(filename, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + filename);
+    char prefix[4];
+    if (!f.read(prefix, 4)) throw std::runtime_error("Truncated graph file");
+    f.seekg(0);
+    if (std::string(prefix, 4) == "VNDB") return load_vndb(f);
     uint32_t magic, ver;
     detail::read_bin(f, magic);
     if (magic != MAGIC) throw std::runtime_error("Invalid magic");
@@ -441,6 +438,40 @@ public:
   }
 
 private:
+  static std::unique_ptr<ApproxIndex> load_vndb(std::ifstream& file) {
+    auto data = detail::graph::read(file);
+    const auto sizes = checked_persisted_sizes(data.dim, data.capacity, data.m);
+    auto index = std::unique_ptr<ApproxIndex>(new ApproxIndex(
+        data.dim, static_cast<Metric>(data.metric), data.capacity, data.m,
+        data.ef_construction, static_cast<uint32_t>(data.seed), sizes));
+    index->ef_construction_ = data.ef_construction;
+    index->ef_search_.store(data.ef_search);
+    index->serialization_seed_ = data.seed;
+    index->count_.store(data.count);
+    index->ep_.store(data.count == 0 ? INVALID_ID : static_cast<size_t>(data.entry));
+    index->max_level_.store(data.max_level);
+    std::copy(data.vectors.begin(), data.vectors.end(), index->vectors_.begin());
+    std::copy(data.ids.begin(), data.ids.end(), index->ext_ids_.begin());
+    std::copy(data.levels.begin(), data.levels.end(), index->levels_.begin());
+    std::copy(data.deleted.begin(), data.deleted.end(), index->deleted_.begin());
+    for (size_t slot = 0; slot < data.count; ++slot) {
+      index->neighbors_[slot] = std::move(data.neighbors[slot]);
+      if (!data.deleted[slot]) index->id_map_.emplace(data.ids[slot], slot);
+    }
+    if (data.rng_kind == detail::graph::NATIVE_RNG) {
+      std::istringstream input(data.rng);
+      input.imbue(std::locale::classic());
+      detail::graph::require(static_cast<bool>(input >> index->level_gen_),
+                             "Invalid native VNDB graph RNG state");
+    } else {
+      for (size_t slot = 0; slot < data.count; ++slot) index->get_level();
+    }
+    index->origin_rng_kind_ = data.rng_kind;
+    index->origin_rng_ = std::move(data.rng);
+    index->origin_count_ = data.count;
+    return index;
+  }
+
   static constexpr double MIN_LEVEL_RANDOM = 1e-9;  // Clamp floor for level generation RNG
   using DistanceId = std::pair<float, size_t>;
   using MaxHeap = std::priority_queue<DistanceId, std::vector<DistanceId>, detail::DistanceIdLess>;
@@ -455,7 +486,7 @@ private:
 
   const float* get_vec(size_t iid) const { return vectors_.data() + iid * dim_; }
 
-  MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level) const {
+  MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level, bool live_only = false) const {
     // Versioned thread-local visited bitmap. vis[i] == vis_epoch means
     // visited; bumping the epoch each call replaces the per-search O(N)
     // zero-init a fresh bitmap would need with one O(count_) fill every
@@ -468,8 +499,8 @@ private:
     static thread_local std::vector<uint16_t> vis;
     static thread_local uint16_t vis_epoch = 0;
     const size_t total = count_.load(std::memory_order_relaxed);
-    // Entry-point ID must be a live node. load() validates this for persisted
-    // indexes; this hot-path guard also catches in-memory corruption or future
+    // The entry is a stored node, possibly a tombstone. load() validates it;
+    // this hot-path guard also catches in-memory corruption or future
     // call-site bugs. Defensive — unreachable by construction in tests.
     if (ep >= total) [[unlikely]]  // LCOV_EXCL_LINE
       throw std::logic_error("ApproxIndex::search_layer: entry point out of range");  // LCOV_EXCL_LINE
@@ -483,7 +514,7 @@ private:
     MaxHeap res;
     float d = dist_(q, get_vec(ep));
     cands.emplace(d, ep);
-    res.emplace(d, ep);
+    if (!live_only || !deleted_[ep]) res.emplace(d, ep);
     float lb = d;
 
     while (!cands.empty()) {
@@ -497,7 +528,7 @@ private:
         float nd = dist_(q, get_vec(n));
         if (res.size() < ef || detail::distance_less(nd, lb)) {
           cands.emplace(nd, n);
-          res.emplace(nd, n);
+          if (!live_only || !deleted_[n]) res.emplace(nd, n);
           if (res.size() > ef) res.pop();
           if (!res.empty()) lb = res.top().first;
         }
@@ -543,6 +574,12 @@ private:
   std::atomic<size_t> ef_search_;  // Atomic for thread-safe reads during search
   double mult_;
   std::mt19937 level_gen_;
+  uint64_t serialization_seed_;
+  size_t origin_count_ = INVALID_ID;
+  uint32_t origin_rng_kind_ = detail::graph::NATIVE_RNG;
+  std::string origin_rng_;  // Retain foreign continuation metadata until insertion.
+  std::vector<bool> deleted_;  // Loaded tombstones: traversable, absent from results.
+
   std::vector<float> vectors_;
   std::vector<uint64_t> ext_ids_;
   std::unordered_map<uint64_t, size_t> id_map_;

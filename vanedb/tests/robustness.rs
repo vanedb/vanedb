@@ -92,23 +92,15 @@ fn a_batch_length_mismatch_names_ids_and_floats_not_dimensions() {
 #[test]
 fn a_crafted_negative_mult_cannot_abort_the_process() {
     let dir = scratch("mult");
-    let seed_path = dir.join("seed.vane");
-    let idx = ApproxIndex::builder(4, Metric::L2)
-        .capacity(8)
-        .m(16)
-        .seed(7)
-        .build()
-        .unwrap();
-    idx.add(1, &[1.0, 0.0, 0.0, 0.0]).unwrap();
-    idx.save(&seed_path).unwrap();
-
-    let mut bytes = fs::read(&seed_path).unwrap();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/legacy_graph/v2_l2.hnsw");
+    let mut bytes = fs::read(fixture).unwrap();
     // Layout is fixint little-endian; mult sits at offset 68 (verified by
     // locating the derived 1/ln(m) value in a freshly written file).
     const MULT_OFFSET: usize = 68;
     let found = f64::from_le_bytes(bytes[MULT_OFFSET..MULT_OFFSET + 8].try_into().unwrap());
     assert!(
-        (found - 1.0 / 16f64.ln()).abs() < 1e-12,
+        (found - 1.0 / 2f64.ln()).abs() < 1e-12,
         "mult is not at offset {MULT_OFFSET}; layout changed, update this test (found {found})"
     );
     bytes[MULT_OFFSET..MULT_OFFSET + 8].copy_from_slice(&(-1000.0f64).to_le_bytes());
@@ -119,8 +111,8 @@ fn a_crafted_negative_mult_cannot_abort_the_process() {
     let loaded = ApproxIndex::load(&hostile).expect("mult is recomputed, so the file still loads");
     // Inserting is where a bad level would be used.
     for i in 10..40u64 {
-        loaded.add(i, &[i as f32, 0.0, 0.0, 0.0]).unwrap();
+        loaded.add(i, &[i as f32, 0.0]).unwrap();
     }
-    assert_eq!(loaded.len(), 31);
+    assert_eq!(loaded.len(), 33);
     let _ = fs::remove_dir_all(&dir);
 }

@@ -26,14 +26,14 @@
 //! Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 //! portable scalar path, which is the reference the others must agree with.
 //!
-//! Both formats are little-endian. `DiskIndex` writes `VNDB` v1, a specified,
-//! versioned format anchored to shared fixtures; either engine reads the
-//! other's file, checked by a cross-load test. [`ApproxIndex::save`] is
-//! engine-specific and not yet a stable public format — treat a saved graph as
-//! a way to avoid rebuilding, not as a system of record.
-//!
-//! A header-only C++ implementation is maintained alongside this crate; the two
-//! share graph construction as well as the `DiskIndex` format.
+//! Both formats have fixed-width little-endian fields. `DiskIndex` writes
+//! `VNDB` v1; [`ApproxIndex::save`] writes the shared `VNDB` v2 graph format.
+//! Rust and the supplementary C++ engine preserve vectors, links, IDs and
+//! tombstones across graph load/save. Further insertions may differ across
+//! engines. The Rust loader also reads legacy Rust v1/v2 graphs; save to a new
+//! path to migrate, retaining the original and source vectors for verification.
+//! Older readers cannot open VNDB v2. The graph format remains a release
+//! candidate until the 1.0.0 compatibility gates pass.
 
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

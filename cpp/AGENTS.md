@@ -116,7 +116,8 @@ agent reading only this file drew the wrong conclusion.
 Change it only to:
 - Fix a defect in the engine itself, including CVEs
 - Keep it building and its own tests passing
-- Keep the shared `DiskIndex` format loadable both ways
+- Keep shared VNDB disk and graph files loadable both ways, preserving topology
+  and loaded tombstones without adding a public delete API
 - Keep the benchmark comparison honest — where a Rust change makes a row
   measure something different, annotate the row rather than porting to match
 

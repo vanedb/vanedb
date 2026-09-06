@@ -156,10 +156,14 @@ with [format specification and cross-engine fixtures](conformance/README.md).
 Both Rust and C++ can read these files. Building a disk index currently buffers
 its vectors in memory before saving; searches use a read-only memory mapping.
 
-`ApproxIndex` still uses an engine-specific pre-release format. Rust graph files
-cannot be loaded by C++, or vice versa. Universal graph persistence is unfinished;
-there is no public 1.0.0 persistence compatibility promise yet. Keep source vectors
-so you can rebuild when migrating formats.
+`ApproxIndex` now writes the shared [VNDB v2 graph format](conformance/graph/README.md).
+Both engines preserve its vectors, links, IDs and deleted slots across load/save.
+Further insertions can produce different graphs across engines. Rust still reads
+legacy Rust v1/v2 files; C++ still reads legacy C++ v1/v2/v3 files. To migrate,
+load a legacy file in its original engine and save to a new path; older readers
+cannot open VNDB v2. Keep the original file and source vectors while verifying
+the migration. This remains a release candidate, without a public 1.0.0
+compatibility promise until the release gates pass.
 
 ## Repository layout
 
