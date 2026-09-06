@@ -186,11 +186,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ls dist/*.whl
-          if ls dist/*.whl | grep -qv musllinux; then
-            echo "non-musllinux wheel in the musl artifact" >&2
-            exit 1
-          fi
+          for wheel in dist/*.whl; do
+            echo "$wheel"
+            case "$wheel" in
+              *musllinux*) ;;
+              *)
+                echo "non-musllinux wheel in the musl artifact: $wheel" >&2
+                exit 1
+                ;;
+            esac
+          done
       - name: Install and test the wheel under Alpine
         shell: bash
         run: |
