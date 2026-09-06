@@ -64,7 +64,9 @@ fn parse_metric(metric: &str) -> Result<Metric, JsError> {
 
 #[wasm_bindgen]
 pub fn version() -> String {
-    "0.1.0".to_string()
+    // From Cargo.toml, never a literal: a hardcoded string drifts
+    // silently, and the test that pinned it drifted with it.
+    env!("CARGO_PKG_VERSION").to_string()
 }
 
 /// Brute-force vector store for the browser.
