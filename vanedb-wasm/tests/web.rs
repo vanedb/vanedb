@@ -3,7 +3,9 @@ use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test]
 fn test_version() {
-    assert_eq!(version(), "0.1.0");
+    // Compared against the same source as the binding, so the two cannot
+    // drift apart the way a pair of literals did.
+    assert_eq!(version(), env!("CARGO_PKG_VERSION"));
 }
 
 #[wasm_bindgen_test]

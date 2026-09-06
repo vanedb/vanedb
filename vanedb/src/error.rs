@@ -28,6 +28,20 @@ pub enum VaneError {
         /// The length actually supplied.
         got: usize,
     },
+    /// A batch's id count and vector data do not describe the same number of
+    /// rows.
+    ///
+    /// Separate from [`VaneError::DimensionMismatch`], which was previously
+    /// reused here with *total float counts* in its fields — so a batch error
+    /// on a 4-dimensional index read "dimension mismatch: expected 8, got 4".
+    BatchLengthMismatch {
+        /// How many ids were supplied.
+        ids: usize,
+        /// How many floats were supplied.
+        vectors: usize,
+        /// The index dimension, so `ids * dim` is the expected float count.
+        dim: usize,
+    },
     /// A dimension of zero was requested when creating a store or index.
     ///
     /// This is a constructor error. A zero-length vector passed to `add`
@@ -131,6 +145,11 @@ impl std::fmt::Display for VaneError {
             Self::DimensionMismatch { expected, got } => {
                 write!(f, "dimension mismatch: expected {expected}, got {got}")
             }
+            Self::BatchLengthMismatch { ids, vectors, dim } => write!(
+                f,
+                "batch length mismatch: {ids} ids need {} floats at dimension {dim}, got {vectors}",
+                ids.saturating_mul(*dim)
+            ),
             Self::ZeroDimension => write!(f, "dimension must be > 0"),
             Self::NotFound { id } => write!(f, "vector not found: {id}"),
             Self::DuplicateId { id } => write!(f, "duplicate id: {id}"),

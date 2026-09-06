@@ -9,6 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
+use super::derive_mult;
 use super::{ApproxIndex, Inner, MAX_LEVEL};
 use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
@@ -83,7 +84,9 @@ impl ApproxIndex {
         let data = HnswData {
             dim: self.dim,
             metric: metric_to_u32(self.metric),
-            max_elements: self.max_elements,
+            // A capacity hint that has been grown past would describe a file
+            // that cannot be reloaded, so record what was actually written.
+            max_elements: self.max_elements.max(inner.count),
             m: self.m,
             m_max: self.m_max,
             m_max0: self.m_max0,
@@ -160,6 +163,12 @@ impl ApproxIndex {
         if data.dim == 0 {
             return Err(VaneError::corrupt("invalid dim: 0"));
         }
+        if data.dim.checked_mul(std::mem::size_of::<f32>()).is_none() {
+            return Err(VaneError::corrupt(format!(
+                "corrupted file: dim {} overflows when sized in bytes",
+                data.dim
+            )));
+        }
         if data.max_elements == 0 {
             return Err(VaneError::corrupt("invalid max_elements: 0"));
         }
@@ -190,10 +199,20 @@ impl ApproxIndex {
                 data.m_max, data.m_max0, data.m
             )));
         }
-        if data.count > data.max_elements {
+        // max_elements is a capacity *hint*, and growing past it is supported
+        // (#90), so it does not bound count in v2. v1 files pre-allocated
+        // their arrays to max_elements, so there the two really are tied and
+        // the array-length check below enforces it.
+        if version == V1 && data.count > data.max_elements {
             return Err(VaneError::corrupt(format!(
                 "corrupted file: count {} exceeds max_elements {}",
                 data.count, data.max_elements
+            )));
+        }
+        if data.count > MAX_ELEMENTS {
+            return Err(VaneError::corrupt(format!(
+                "corrupted file: count {} exceeds the {MAX_ELEMENTS} element cap",
+                data.count
             )));
         }
         if data.max_level > MAX_LEVEL {
@@ -244,6 +263,20 @@ impl ApproxIndex {
         // ext_id but is absent from id_map, and its id may since have been
         // reused by a later slot. So every id_map entry must point at a slot
         // carrying that id, and a slot absent from id_map is simply deleted.
+        // Length first: the id_map loop below indexes ext_ids, so a file
+        // claiming more elements than it carries would panic on the untrusted
+        // path rather than returning an error.
+        let stored = if version == V1 {
+            data.max_elements
+        } else {
+            data.count
+        };
+        if data.ext_ids.len() != stored || data.levels.len() != stored {
+            return Err(VaneError::corrupt(
+                "corrupted file: ext_ids/levels length != expected",
+            ));
+        }
+
         for (&ext_id, &mapped) in &data.id_map {
             if mapped >= data.count {
                 return Err(VaneError::corrupt(format!(
@@ -258,21 +291,6 @@ impl ApproxIndex {
                 )));
             }
         }
-        {}
-        for &iid in data.id_map.values() {
-            if iid >= data.count {
-                return Err(VaneError::corrupt(
-                    "corrupted file: id_map value out of range",
-                ));
-            }
-        }
-        // Array lengths are version-specific: v1 stored full pre-allocated
-        // arrays, v2 stores only the `count` live entries.
-        let stored = if version == V1 {
-            data.max_elements
-        } else {
-            data.count
-        };
         if data.neighbors.len() != stored {
             return Err(VaneError::corrupt(format!(
                 "corrupted file: neighbors length {} != expected {stored}",
@@ -312,12 +330,6 @@ impl ApproxIndex {
                 "corrupted file: vector values must be finite",
             ));
         }
-        if data.ext_ids.len() != stored || data.levels.len() != stored {
-            return Err(VaneError::corrupt(
-                "corrupted file: ext_ids/levels length != expected",
-            ));
-        }
-
         // Re-expand to the pre-allocated capacity layout Inner expects. For
         // v1 the arrays are already full-length, so these are no-ops.
         //
@@ -350,7 +362,7 @@ impl ApproxIndex {
         // serializes the std::mt19937 engine state directly.
         let mut rng = StdRng::seed_from_u64(data.seed);
         for _ in 0..data.count {
-            let _ = ApproxIndex::get_level(&mut rng, data.mult);
+            let _ = ApproxIndex::get_level(&mut rng, derive_mult(data.m));
         }
 
         Ok(ApproxIndex {
@@ -363,7 +375,11 @@ impl ApproxIndex {
             m_max0: data.m_max0,
             ef_construction: data.ef_construction,
             ef_search: AtomicUsize::new(data.ef_search),
-            mult: data.mult,
+            // Recomputed, not trusted: mult is fully derived from m, and a
+            // negative value from a crafted file made get_level return a
+            // negative level, which `0..=level as usize` wrapped into a
+            // ~2^64 range and aborted the process on the next add().
+            mult: derive_mult(data.m),
             seed: data.seed,
             inner: RwLock::new(Inner {
                 deleted: deleted_flags,

@@ -28,6 +28,9 @@ jobs:
         with:
           filters: |
             rust:
+              # scripts/check_wheel_install.py is the guard the wheel job runs;
+              # without this a change to it skipped every job that runs it.
+              - 'scripts/**'
               - 'conformance/**'
               - 'Cargo.toml'
               - 'Cargo.lock'

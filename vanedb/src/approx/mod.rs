@@ -380,10 +380,20 @@ impl ApproxIndex {
     /// so an error leaves the index unchanged. Levels are drawn from the RNG
     /// in batch order, so the resulting graph is identical to serial `add`.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
-        if vectors.len() != ids.len() * self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: ids.len() * self.dim,
-                got: vectors.len(),
+        // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
+        // wrapped zero matches an empty slice -- so the batch silently
+        // inserted nothing and returned Ok.
+        let expected = ids
+            .len()
+            .checked_mul(self.dim)
+            .ok_or(VaneError::InvalidParameter(
+                "ids.len() * dim overflows usize",
+            ))?;
+        if vectors.len() != expected {
+            return Err(VaneError::BatchLengthMismatch {
+                ids: ids.len(),
+                vectors: vectors.len(),
+                dim: self.dim,
             });
         }
         validate_finite(vectors, "vector batch")?;
@@ -610,7 +620,9 @@ impl ApproxIndex {
         use rand::RngExt;
         let r: f64 = rng.random::<f64>().max(MIN_LEVEL_RANDOM);
         let level = (-r.ln() * mult) as i32;
-        level.min(MAX_LEVEL)
+        // Clamped at both ends: a negative level is later used as
+        // `0..=level as usize`, which wraps to a ~2^64 range.
+        level.clamp(0, MAX_LEVEL)
     }
 
     /// Beam search on a single graph layer.
@@ -767,6 +779,15 @@ impl std::fmt::Debug for ApproxIndexBuilder {
     }
 }
 
+/// Level-generation constant, derived entirely from `m`.
+pub(super) fn derive_mult(m: usize) -> f64 {
+    if m > 1 {
+        1.0 / (m as f64).ln()
+    } else {
+        1.0
+    }
+}
+
 impl ApproxIndexBuilder {
     /// Vectors the index will be able to hold. Fixed once built.
     pub fn capacity(mut self, cap: usize) -> Self {
@@ -806,6 +827,13 @@ impl ApproxIndexBuilder {
         if self.dim == 0 {
             return Err(VaneError::ZeroDimension);
         }
+        // A dimension whose byte size overflows can never hold a vector, and
+        // it used to wrap to zero in the chunk sizing and divide by zero.
+        if self.dim.checked_mul(std::mem::size_of::<f32>()).is_none() {
+            return Err(VaneError::InvalidParameter(
+                "dim * size_of::<f32>() overflows usize",
+            ));
+        }
         if self.capacity == 0 {
             return Err(VaneError::InvalidParameter("capacity must be > 0"));
         }
@@ -813,11 +841,7 @@ impl ApproxIndexBuilder {
             return Err(VaneError::InvalidParameter("M must be >= 2"));
         }
         let ef_construction = self.ef_construction.max(self.m);
-        let mult = if self.m > 1 {
-            1.0 / (self.m as f64).ln()
-        } else {
-            1.0
-        };
+        let mult = derive_mult(self.m);
         // Derived sizes are checked before any allocation: unchecked `m * 2`
         // and `capacity * dim` panicked on overflow, which a fallible builder
         // must not do — and which aborts the host process when the C ABI calls
