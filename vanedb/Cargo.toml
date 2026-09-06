@@ -13,6 +13,9 @@ categories = ["database", "science"]
 # it unless docs.rs is told to build with it.
 [package.metadata.docs.rs]
 features = ["disk"]
+# Renders the "requires feature" badge, so the docs do not offer a type that
+# a default `cargo add vanedb` does not provide.
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = []

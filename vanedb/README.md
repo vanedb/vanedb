@@ -42,6 +42,8 @@ engine can read each other's disk files. Disk index construction buffers vectors
 in memory before saving. Approximate graph files remain engine-specific and
 pre-release. Universal graph persistence is unfinished, and no public 1.0.0
 format compatibility promise has been made. Keep source vectors for migration.
+The Rust graph loader accepts its current and previous versions; `DiskIndex`
+accepts VNDB v1 only.
 
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,
 platform verification scope, persistence details, and source builds. The

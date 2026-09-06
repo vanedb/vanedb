@@ -78,10 +78,13 @@ this query — and each name says why you would pick it over the others.
 |---|---|---|---|
 | `FlatIndex` | yes | memory | the corpus is small, or you need exact results |
 | `ApproxIndex` | **no** | memory | search must stay fast as the corpus grows |
-| `DiskIndex` | yes | a file, paged in on demand | many processes or runs share one corpus |
+| `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
 
 `FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
-results are exact under the selected distance metric. `ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades that recall against speed
+results are exact under the selected distance metric. `DiskIndex` maps the file
+and pages vectors in as the scan touches them, so a corpus larger than RAM stays
+searchable. Building one still buffers its vectors in memory until `save`.
+`ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
 Every type takes a `Metric` (`L2`, cosine, or dot) and returns results nearest

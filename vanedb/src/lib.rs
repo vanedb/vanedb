@@ -36,10 +36,12 @@
 //! share graph construction as well as the `DiskIndex` format.
 
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod approx;
 mod atomic_write;
 #[cfg(feature = "disk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "disk")))]
 pub mod disk;
 pub mod distance;
 pub mod error;
@@ -50,6 +52,7 @@ mod validation;
 
 pub use approx::ApproxIndex;
 #[cfg(feature = "disk")]
+#[cfg_attr(docsrs, doc(cfg(feature = "disk")))]
 pub use disk::{DiskIndex, DiskIndexBuilder};
 pub use distance::Metric;
 pub use error::{Result, VaneError};
