@@ -1,7 +1,10 @@
 # VaneDB
 
-Embeddable vector database for edge AI, with Rust and header-only C++
-implementations maintained under one contract.
+Embeddable vector database for edge AI.
+
+The Rust engine in [`vanedb/`](vanedb) is the one that ships. A header-only
+C++ engine in [`cpp/`](cpp) is kept as reference code and as the other arm of
+a cross-engine benchmark; it is frozen, and features are not ported to it.
 
 ## Quick start
 
