@@ -37,22 +37,27 @@ by `vanedb/tests/cosine_conformance.rs` and
 
 ## Persisted identity
 
-A loaded HNSW index must carry an exact one-to-one relationship between live
-slots and external ids:
+A loaded HNSW index must map each live external ID to the slot carrying that
+ID. Both engines enforce this direction, where `stored_count` includes every
+occupied slot:
 
 ```
-id_map.len() == count      and      id_map[ext_ids[i]] == i   for every live i
+id_map[id] == slot  implies  slot < stored_count  and  ext_ids[slot] == id
 ```
 
-Those two conditions together force a bijection, so one pass rejects
-key/value mismatches, duplicate external ids, duplicated internal ids, missing
-entries and out-of-range values. Checking only the length and the value range
-accepted files in which an external id resolved to a different slot — reads
-returned well-formed data under the wrong identity, which is worse than a
-refusal to load.
+This rejects key/value mismatches, duplicated internal IDs and out-of-range
+slots. Checking only map length and value range accepted files in which an ID
+resolved to another slot's vector.
+
+Rust supports deletion: a slot is live only when `id_map[ext_ids[slot]] == slot`.
+A slot missing that mapping is a tombstone, and its external ID may have been
+reused by another live slot. The public size counts live entries, while the
+legacy file's `count` includes tombstones. The frozen C++ engine has no deletion;
+it additionally requires a mapping for every stored slot. Missing mappings and
+duplicate stored IDs therefore have engine-specific rules.
 
 `index_id_map_consistency.tsv` pins these cases for both engines and is consumed
-by `vanedb/tests/index_id_map_conformance.rs` and
+by `vanedb/tests/approx_id_map_conformance.rs` and
 `cpp/tests/test_approx_id_map_conformance.cpp`.
 
 ## Universal persistence
