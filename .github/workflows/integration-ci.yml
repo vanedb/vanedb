@@ -51,7 +51,9 @@ jobs:
           VANEDB_BENCH_OUT: ${{ runner.temp }}/RESULTS.md
         run: |
           cargo run --release --manifest-path bench/Cargo.toml --locked --bin report
-          grep -q 'Index recall@10' "$VANEDB_BENCH_OUT"
+          # Match the metric, not the type name: this check has drifted
+          # from the report's wording three times across renames.
+          grep -q 'recall@10' "$VANEDB_BENCH_OUT"
       - name: The harness must not write into the source tree
         run: |
           if [[ -n "$(git status --porcelain)" ]]; then

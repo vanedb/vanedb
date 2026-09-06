@@ -1,5 +1,5 @@
 """
-Python binding tests for VaneDB Index.
+Python binding tests for VaneDB ApproxIndex.
 
 Run with: uv run pytest tests/test_python_bindings.py -v
 """
@@ -18,7 +18,7 @@ import weakref
 def test_import():
     """Test that the module can be imported."""
     import vanedb_cpp
-    assert hasattr(vanedb_cpp, 'Index')
+    assert hasattr(vanedb_cpp, 'ApproxIndex')
 
 
 def test_version():
@@ -55,7 +55,7 @@ def test_dispatched_search_matches_numpy(dimension, metric):
     rng = np.random.default_rng(59)
     vectors = rng.normal(size=(24, dimension)).astype(np.float32)
     query = rng.normal(size=dimension).astype(np.float32)
-    index = vanedb_cpp.Index(
+    index = vanedb_cpp.ApproxIndex(
         dimension, getattr(vanedb_cpp.Metric, metric), max_elements=32
     )
     index.set_ef_search(64)
@@ -89,7 +89,7 @@ def test_distance_metrics():
 def test_create_index_default():
     """Test creating an index with default parameters."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=128)
+    index = vanedb_cpp.ApproxIndex(dimension=128)
     assert index.size() == 0
     assert index.dimension() == 128
     assert index.capacity() == 100000
@@ -98,7 +98,7 @@ def test_create_index_default():
 def test_create_index_custom():
     """Test creating an index with custom parameters."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(
+    index = vanedb_cpp.ApproxIndex(
         dimension=64,
         metric=vanedb_cpp.Metric.COSINE,
         max_elements=1000,
@@ -114,7 +114,7 @@ def test_create_index_custom():
 def test_add_single_vector():
     """Test adding a single vector."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     vec = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
     index.add(1, vec)
@@ -127,7 +127,7 @@ def test_add_single_vector():
 def test_add_multiple_vectors():
     """Test adding multiple vectors."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     for i in range(100):
         vec = np.random.randn(4).astype(np.float32)
@@ -141,7 +141,7 @@ def test_add_multiple_vectors():
 def test_search_basic():
     """Test basic search functionality."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     vec = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
     index.add(42, vec)
@@ -156,7 +156,7 @@ def test_search_basic():
 def test_search_knn():
     """Test k-nearest neighbor search."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     # Add 10 vectors
     for i in range(10):
@@ -176,7 +176,7 @@ def test_search_knn():
 def test_search_returns_numpy_arrays():
     """Test that search returns numpy arrays."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     vec = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
     index.add(1, vec)
@@ -191,7 +191,7 @@ def test_search_returns_numpy_arrays():
 def test_get_vector():
     """Test retrieving a stored vector."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     original = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
     index.add(42, original)
@@ -206,7 +206,7 @@ def test_get_vector():
 def test_ef_search():
     """Test setting and getting ef_search parameter."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     # Default should be reasonable
     default_ef = index.get_ef_search()
@@ -222,7 +222,7 @@ def test_save_load(tmp_path):
     import vanedb_cpp
 
     # Create and populate index
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
     vectors = {}
     for i in range(10):
         vec = np.random.randn(4).astype(np.float32)
@@ -235,7 +235,7 @@ def test_save_load(tmp_path):
     assert os.path.exists(filepath)
 
     # Load from file
-    loaded = vanedb_cpp.Index.load(filepath)
+    loaded = vanedb_cpp.ApproxIndex.load(filepath)
 
     # Verify loaded index
     assert loaded.size() == 10
@@ -252,7 +252,7 @@ def test_save_load_search_consistency(tmp_path):
     import vanedb_cpp
 
     # Create and populate index
-    index = vanedb_cpp.Index(dimension=8)
+    index = vanedb_cpp.ApproxIndex(dimension=8)
     np.random.seed(42)
     for i in range(100):
         vec = np.random.randn(8).astype(np.float32)
@@ -265,7 +265,7 @@ def test_save_load_search_consistency(tmp_path):
     # Save and load
     filepath = str(tmp_path / "test_index.bin")
     index.save(filepath)
-    loaded = vanedb_cpp.Index.load(filepath)
+    loaded = vanedb_cpp.ApproxIndex.load(filepath)
 
     # Search after load
     ids_after, dists_after = loaded.search(query, 10)
@@ -278,7 +278,7 @@ def test_save_load_search_consistency(tmp_path):
 def test_dimension_mismatch_add():
     """Test that adding wrong dimension vector raises error."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     wrong_dim = np.array([1.0, 2.0, 3.0], dtype=np.float32)  # 3 instead of 4
     with pytest.raises(RuntimeError, match="dimension mismatch"):
@@ -288,7 +288,7 @@ def test_dimension_mismatch_add():
 def test_dimension_mismatch_search():
     """Test that searching with wrong dimension query raises error."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     vec = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
     index.add(1, vec)
@@ -305,7 +305,7 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
     invalid = np.array([value, 0.0], dtype=np.float32)
     finite = np.array([0.0, 0.0], dtype=np.float32)
 
-    store = vanedb_cpp.Store(dimension=2)
+    store = vanedb_cpp.FlatIndex(dimension=2)
     with pytest.raises(ValueError, match="finite"):
         store.add(1, invalid)
     assert store.size() == 0
@@ -313,7 +313,7 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
     with pytest.raises(ValueError, match="finite"):
         store.search(invalid, 1)
 
-    index = vanedb_cpp.Index(dimension=2, max_elements=4)
+    index = vanedb_cpp.ApproxIndex(dimension=2, max_elements=4)
     with pytest.raises(ValueError, match="finite"):
         index.add(1, invalid)
     assert index.size() == 0
@@ -322,7 +322,7 @@ def test_non_finite_vectors_and_queries_are_rejected(value):
 def test_2d_array_add_raises():
     """Test that adding a 2D array raises error."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=4)
+    index = vanedb_cpp.ApproxIndex(dimension=4)
 
     vec_2d = np.array([[1.0, 0.0, 0.0, 0.0]], dtype=np.float32)
     with pytest.raises(RuntimeError, match="1-dimensional"):
@@ -332,7 +332,7 @@ def test_2d_array_add_raises():
 def test_cosine_metric():
     """Test COSINE distance metric."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(
+    index = vanedb_cpp.ApproxIndex(
         dimension=4,
         metric=vanedb_cpp.Metric.COSINE
     )
@@ -353,7 +353,7 @@ def test_cosine_metric():
 def test_dot_metric():
     """Test DOT product metric."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(
+    index = vanedb_cpp.ApproxIndex(
         dimension=4,
         metric=vanedb_cpp.Metric.DOT
     )
@@ -374,7 +374,7 @@ def test_dot_metric():
 def test_large_scale():
     """Test with larger number of vectors."""
     import vanedb_cpp
-    index = vanedb_cpp.Index(dimension=128, max_elements=10000)
+    index = vanedb_cpp.ApproxIndex(dimension=128, max_elements=10000)
 
     np.random.seed(42)
     for i in range(1000):
@@ -394,18 +394,18 @@ def test_large_scale():
         assert dists[i] <= dists[i + 1]
 
 
-### Store Tests ###
+### FlatIndex Tests ###
 
 def test_vector_store_import():
-    """Test that Store can be imported."""
+    """Test that FlatIndex can be imported."""
     import vanedb_cpp
-    assert hasattr(vanedb_cpp, 'Store')
+    assert hasattr(vanedb_cpp, 'FlatIndex')
 
 
 def test_vector_store_basic():
-    """Test basic Store operations."""
+    """Test basic FlatIndex operations."""
     import vanedb_cpp
-    store = vanedb_cpp.Store(dimension=4)
+    store = vanedb_cpp.FlatIndex(dimension=4)
 
     vec = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
     store.add(1, vec)
@@ -419,9 +419,9 @@ def test_vector_store_basic():
 
 
 def test_vector_store_search():
-    """Test Store search."""
+    """Test FlatIndex search."""
     import vanedb_cpp
-    store = vanedb_cpp.Store(dimension=4, metric=vanedb_cpp.Metric.L2)
+    store = vanedb_cpp.FlatIndex(dimension=4, metric=vanedb_cpp.Metric.L2)
 
     store.add(1, np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32))
     store.add(2, np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32))
@@ -433,9 +433,9 @@ def test_vector_store_search():
 
 
 def test_vector_store_remove():
-    """Test Store remove operation."""
+    """Test FlatIndex remove operation."""
     import vanedb_cpp
-    store = vanedb_cpp.Store(dimension=4)
+    store = vanedb_cpp.FlatIndex(dimension=4)
 
     store.add(1, np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32))
     assert store.size() == 1
@@ -445,13 +445,13 @@ def test_vector_store_remove():
     assert not store.contains(1)
 
 
-### DiskStore Tests ###
+### DiskIndex Tests ###
 
 def test_mmap_store_import():
-    """Test that DiskStore can be imported."""
+    """Test that DiskIndex can be imported."""
     import vanedb_cpp
-    assert hasattr(vanedb_cpp, 'DiskStore')
-    assert hasattr(vanedb_cpp, 'DiskStoreBuilder')
+    assert hasattr(vanedb_cpp, 'DiskIndex')
+    assert hasattr(vanedb_cpp, 'DiskIndexBuilder')
 
 
 def test_mmap_store_build_and_load(tmp_path):
@@ -461,7 +461,7 @@ def test_mmap_store_build_and_load(tmp_path):
     filepath = str(tmp_path / "test_mmap.bin")
 
     # Build
-    builder = vanedb_cpp.DiskStoreBuilder(dimension=4)
+    builder = vanedb_cpp.DiskIndexBuilder(dimension=4)
     vec1 = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
     vec2 = np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32)
     builder.add(10, vec1)
@@ -469,7 +469,7 @@ def test_mmap_store_build_and_load(tmp_path):
     builder.save(filepath)
 
     # Load
-    store = vanedb_cpp.DiskStore(filepath)
+    store = vanedb_cpp.DiskIndex(filepath)
     assert store.size() == 2
     assert store.dimension() == 4
     assert store.contains(10)
@@ -477,17 +477,17 @@ def test_mmap_store_build_and_load(tmp_path):
 
 
 def test_mmap_store_search(tmp_path):
-    """Test DiskStore search."""
+    """Test DiskIndex search."""
     import vanedb_cpp
 
     filepath = str(tmp_path / "test_mmap_search.bin")
 
-    builder = vanedb_cpp.DiskStoreBuilder(dimension=4)
+    builder = vanedb_cpp.DiskIndexBuilder(dimension=4)
     builder.add(1, np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32))
     builder.add(2, np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32))
     builder.save(filepath)
 
-    store = vanedb_cpp.DiskStore(filepath)
+    store = vanedb_cpp.DiskIndex(filepath)
     query = np.array([0.9, 0.0, 0.0, 0.0], dtype=np.float32)
     ids, dists = store.search(query, 1)
 
@@ -495,17 +495,17 @@ def test_mmap_store_search(tmp_path):
 
 
 def test_mmap_store_zero_copy_get(tmp_path):
-    """Test that DiskStore get returns zero-copy array."""
+    """Test that DiskIndex get returns zero-copy array."""
     import vanedb_cpp
 
     filepath = str(tmp_path / "test_mmap_zerocopy.bin")
 
-    builder = vanedb_cpp.DiskStoreBuilder(dimension=4)
+    builder = vanedb_cpp.DiskIndexBuilder(dimension=4)
     original = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
     builder.add(42, original)
     builder.save(filepath)
 
-    store = vanedb_cpp.DiskStore(filepath)
+    store = vanedb_cpp.DiskIndex(filepath)
     retrieved = store.get(42)
 
     assert retrieved is not None
@@ -524,10 +524,10 @@ def _mapped_vector(tmp_path):
 
     path = tmp_path / "readonly.bin"
     original = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
-    builder = vanedb_cpp.DiskStoreBuilder(dimension=4)
+    builder = vanedb_cpp.DiskIndexBuilder(dimension=4)
     builder.add(42, original)
     builder.save(str(path))
-    return path, original, vanedb_cpp.DiskStore(str(path))
+    return path, original, vanedb_cpp.DiskIndex(str(path))
 
 
 @pytest.mark.parametrize("kind", ["direct", "slice", "asarray", "frombuffer"])
@@ -627,7 +627,7 @@ def test_mmap_writes_raise_without_crashing(tmp_path, operation):
             resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         import numpy as np
         import vanedb_cpp
-        store = vanedb_cpp.DiskStore(sys.argv[1])
+        store = vanedb_cpp.DiskIndex(sys.argv[1])
         vector = store.get(42)
         operation = sys.argv[2]
         expected_error = TypeError if operation == "memoryview" else ValueError

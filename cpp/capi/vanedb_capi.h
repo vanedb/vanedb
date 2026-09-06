@@ -36,7 +36,7 @@ float vanedb_cpp_l2_sq(const float* a, const float* b, size_t dim);
 float vanedb_cpp_cosine_distance(const float* a, const float* b, size_t dim);
 float vanedb_cpp_dot_product(const float* a, const float* b, size_t dim);
 
-/* Store (brute force) */
+/* FlatIndex (brute force) */
 typedef struct vanedb_cpp_store vanedb_cpp_store;
 vanedb_cpp_store* vanedb_cpp_store_new(size_t dim, vanedb_metric metric);
 int    vanedb_cpp_store_add(vanedb_cpp_store* s, uint64_t id, const float* v);

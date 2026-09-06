@@ -1,8 +1,8 @@
 use wasm_bindgen::prelude::*;
 
+use vanedb::approx::ApproxIndex;
 use vanedb::distance::Metric;
-use vanedb::index::Index;
-use vanedb::store::{SearchResult, Store};
+use vanedb::flat::{FlatIndex, SearchResult};
 
 /// Search results with lossless 64-bit ids.
 // The Wasm prefix disambiguates these wrappers from the core types
@@ -68,17 +68,17 @@ pub fn version() -> String {
 }
 
 /// Brute-force vector store for the browser.
-#[wasm_bindgen(js_name = Store)]
+#[wasm_bindgen(js_name = FlatIndex)]
 pub struct WasmStore {
-    inner: Store,
+    inner: FlatIndex,
 }
 
-#[wasm_bindgen(js_class = Store)]
+#[wasm_bindgen(js_class = FlatIndex)]
 impl WasmStore {
     #[wasm_bindgen(constructor)]
     pub fn new(dim: usize, metric: &str) -> Result<WasmStore, JsError> {
         let m = parse_metric(metric)?;
-        let inner = Store::new(dim, m).map_err(to_jserr)?;
+        let inner = FlatIndex::new(dim, m).map_err(to_jserr)?;
         Ok(Self { inner })
     }
 
@@ -126,13 +126,20 @@ impl WasmStore {
 }
 
 /// HNSW approximate nearest-neighbor index for the browser.
-#[wasm_bindgen(js_name = Index)]
+#[wasm_bindgen(js_name = ApproxIndex)]
 pub struct WasmIndex {
-    inner: Index,
+    inner: ApproxIndex,
 }
 
-#[wasm_bindgen(js_class = Index)]
+#[wasm_bindgen(js_class = ApproxIndex)]
 impl WasmIndex {
+    /// Removes the vector stored under `id`. Tombstoned: the node keeps its
+    /// graph links, which may be the only route between live neighbourhoods,
+    /// and simply stops appearing in results.
+    pub fn remove(&mut self, id: u64) -> Result<(), JsError> {
+        self.inner.remove(id).map_err(to_jserr)
+    }
+
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: usize,
@@ -142,7 +149,7 @@ impl WasmIndex {
         ef_construction: usize,
     ) -> Result<WasmIndex, JsError> {
         let met = parse_metric(metric)?;
-        let inner = Index::builder(dim, met)
+        let inner = ApproxIndex::builder(dim, met)
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)

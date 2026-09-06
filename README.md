@@ -11,9 +11,9 @@ a cross-engine benchmark; it is frozen, and features are not ported to it.
 ### Rust
 
 ```rust
-use vanedb::{Metric, Index};
+use vanedb::{Metric, ApproxIndex};
 
-let index = Index::builder(768, Metric::Cosine)
+let index = ApproxIndex::builder(768, Metric::Cosine)
     .capacity(100_000)
     .build()?;
 index.add(1, &embedding)?;             // single insert
@@ -27,7 +27,7 @@ let hits = index.search(&query, 10)?;
 import numpy as np
 import vanedb
 
-index = vanedb.Index(768, vanedb.Metric.COSINE, capacity=100_000)
+index = vanedb.ApproxIndex(768, vanedb.Metric.COSINE, capacity=100_000)
 vecs = np.asarray(embeddings, dtype=np.float32)  # shape (n, 768)
 index.add_batch(np.arange(len(vecs), dtype=np.uint64), vecs)
 hits = index.search(vecs[0], 10)  # [(id, distance), ...]
@@ -41,31 +41,36 @@ the C ABI (`vanedb_rs_*_add_batch`).
 
 ## API
 
-Three ways to hold vectors. All answer the same question — which stored
-vectors are nearest this query — and differ in where the data lives and
-whether the answer is exact.
+Three indexes. All answer the same question — which stored vectors are nearest
+this query — and each name says why you would pick it over the others.
 
-| Type | Data lives | Exact | Use it when |
+| Type | Exact | Data lives | Pick it when |
 |---|---|---|---|
-| `Store` | memory | yes | the corpus is small, or you need exact results |
-| `Index` | memory | no | search must stay fast as the corpus grows |
-| `DiskStore` | a file, paged in on demand | yes | the corpus is larger than RAM |
+| `FlatIndex` | yes | memory | the corpus is small, or you need exact results |
+| `ApproxIndex` | **no** | memory | search must stay fast as the corpus grows |
+| `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
 
-`Store` and `DiskStore` scan every vector, so cost grows linearly. `Index`
-searches a graph instead: sub-linear, and it can miss a true neighbour.
-`ef_search` trades that recall against speed per query; `m` and
-`ef_construction` set the graph's quality at build time.
+`FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
+answer is always right. `ApproxIndex` walks an HNSW graph instead: sub-linear,
+and it can miss a true neighbour. `ef_search` trades that recall against speed
+per query; `m` and `ef_construction` set the graph's quality at build time.
 
-Every type takes a `Metric` (`L2`, cosine, or dot) and returns results
-nearest first. Only `Index` persists, with `save`/`load`. `DiskStore` is
-written by `DiskStoreBuilder` and then opened read-only; `Store` is in-memory
-only and is rebuilt on each run.
+Every type takes a `Metric` (`L2`, cosine, or dot) and returns results nearest
+first. Only `ApproxIndex` persists, with `save`/`load`. `DiskIndex` is written
+by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
+and is rebuilt on each run.
 
-`Index` allocates its full `capacity` up front, so size it to the corpus:
-100k x 768 floats reserves roughly 300 MB before the first insert.
+`ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
+hint rather than a ceiling and an unused index costs nothing.
 
-All three types are reachable from every binding except wasm, which has no
-filesystem to map and so omits `DiskStore`.
+`remove` tombstones: the node keeps its graph links, which may be the only
+route between live neighbourhoods, and simply stops appearing in results. The
+id becomes free for reuse. Space is not reclaimed, so an index that is mostly
+tombstones searches more slowly than its length suggests — rebuild it if that
+happens.
+
+All three are reachable from every binding except wasm, which has no
+filesystem to map and so omits `DiskIndex`.
 
 The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
 Python and JavaScript packages use `Metric.COSINE`. Type names are identical

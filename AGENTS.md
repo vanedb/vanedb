@@ -8,7 +8,7 @@ benchmark harness, and the shared conformance contract.
 
 | Crate | What it is | Notes |
 |---|---|---|
-| `vanedb` | Core: `Store`, `Index`, `DiskStore` (feature `disk`), SIMD distance kernels (NEON/AVX2/scalar) | |
+| `vanedb` | Core: `FlatIndex`, `ApproxIndex`, `DiskIndex` (feature `disk`), SIMD distance kernels (NEON/AVX2/scalar) | |
 | `vanedb-py` | PyO3 bindings | **Excluded from workspace CI** — needs libpython; build with maturin |
 | `vanedb-wasm` | wasm-bindgen bindings | needs `wasm32-unknown-unknown` target |
 | `vanedb-capi` | C ABI (`vanedb_rs_*` symbols, metric as u32: 0=L2, 1=Cosine, 2=Dot) | header regenerated with cbindgen |
@@ -103,7 +103,7 @@ reference code and the other arm of the benchmark comparison. Do not port
 features to it. Change it only to fix a defect in the engine itself, or to
 keep a comparison honest.
 
-- Keep it building and passing its own tests, and keep the shared `DiskStore`
+- Keep it building and passing its own tests, and keep the shared `DiskIndex`
   format loadable both ways (`bench/tests/cross_engine_format.rs`).
 - Do not port feature-level API additions. `add_batch`, growable capacity and
   delete are Rust-only by decision, not by omission.

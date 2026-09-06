@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 
-use vanedb::Index;
+use vanedb::ApproxIndex;
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
@@ -123,11 +123,11 @@ fn loader_enforces_the_shared_id_map_contract() {
     fs::create_dir_all(&dir).unwrap();
 
     let all = cases();
-    assert!(all.len() >= 6, "fixture should cover every invalid shape");
+    assert!(all.len() >= 5, "fixture should cover every invalid shape");
 
     for case in &all {
         let path = write_case(&dir, case);
-        let result = Index::load(&path);
+        let result = ApproxIndex::load(&path);
         if case.accept {
             let index =
                 result.unwrap_or_else(|e| panic!("{}: expected load to succeed: {e}", case.name));
@@ -149,6 +149,45 @@ fn loader_enforces_the_shared_id_map_contract() {
             );
         }
     }
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// A slot absent from `id_map` is a tombstone, not corruption. These cases
+/// left the shared fixture when deletion landed: the Rust engine accepts
+/// them and the frozen C++ engine, which has no delete, does not.
+#[test]
+fn slots_absent_from_the_id_map_load_as_deleted() {
+    let dir = std::env::temp_dir().join(format!("vanedb-tombstone-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    // count 2, ext_ids [10, 20], id_map {10: 0} -- slot 1 is deleted.
+    let one_deleted = Case {
+        name: "one_tombstone".to_string(),
+        count: 2,
+        ext_ids: vec![10, 20],
+        id_map: HashMap::from([(10u64, 0usize)]),
+        accept: true,
+    };
+    let index =
+        ApproxIndex::load(write_case(&dir, &one_deleted)).expect("a tombstoned slot must load");
+    assert_eq!(index.len(), 1, "only the live slot counts");
+    assert!(index.contains(10));
+    assert!(!index.contains(20));
+
+    // Every slot deleted.
+    let all_deleted = Case {
+        name: "all_tombstones".to_string(),
+        count: 1,
+        ext_ids: vec![10],
+        id_map: HashMap::new(),
+        accept: true,
+    };
+    let index = ApproxIndex::load(write_case(&dir, &all_deleted))
+        .expect("an all-tombstone index must load");
+    assert_eq!(index.len(), 0);
+    assert!(index.is_empty());
 
     let _ = fs::remove_dir_all(&dir);
 }

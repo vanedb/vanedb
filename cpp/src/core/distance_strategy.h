@@ -10,7 +10,7 @@ namespace vanedb {
 enum class Metric { L2 = 0, COSINE = 1, DOT = 2 };
 
 // Default-constructed instances are invalid; operator() returns infinity.
-// Default-constructibility is required for DiskStore which assigns
+// Default-constructibility is required for DiskIndex which assigns
 // dist_ in its constructor body (after parsing metric/dim from the file).
 //
 // Header-only operator() dispatches via switch so the SIMD distance functions

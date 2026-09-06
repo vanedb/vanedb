@@ -63,7 +63,7 @@ struct HNSWSearchResult {
   bool operator>(const HNSWSearchResult& o) const { return o < *this; }
 };
 
-class Index {
+class ApproxIndex {
   struct DerivedSizes {
     size_t vector_count;
     size_t m_max0;
@@ -97,7 +97,7 @@ class Index {
     return left * right;
   }
 
-  Index(size_t dimension, Metric metric, size_t max_elements, size_t M,
+  ApproxIndex(size_t dimension, Metric metric, size_t max_elements, size_t M,
             size_t ef_construction, uint32_t seed, DerivedSizes sizes)
       : dim_(dimension), metric_(metric), dist_(metric, dimension),
         max_elements_(max_elements), M_(M), M_max_(M),
@@ -115,9 +115,9 @@ public:
   static constexpr int MAX_LEVEL = 32;  // Reasonable upper bound for HNSW levels
   static constexpr size_t INVALID_ID = static_cast<size_t>(-1);  // Sentinel for empty entry point
 
-  explicit Index(size_t dimension, Metric metric = Metric::L2,
+  explicit ApproxIndex(size_t dimension, Metric metric = Metric::L2,
       size_t max_elements = 100000, size_t M = 16, size_t ef_construction = 200, uint32_t seed = 42)
-      : Index(dimension, metric, max_elements, M, ef_construction, seed,
+      : ApproxIndex(dimension, metric, max_elements, M, ef_construction, seed,
                   checked_direct_sizes(dimension, max_elements, M)) {}
 
   // Thread-safety: global_mtx_ is the single sync point. add() holds it
@@ -129,7 +129,7 @@ public:
     detail::require_finite(vec, dim_, "Vector");
     std::unique_lock glock(global_mtx_);  // Exclusive: only one add() at a time
     if (id_map_.count(id)) throw std::invalid_argument("ID " + std::to_string(id) + " exists");
-    if (count_ >= max_elements_) throw std::runtime_error("Index full");
+    if (count_ >= max_elements_) throw std::runtime_error("ApproxIndex full");
 
     size_t iid = count_++;
     id_map_[id] = iid;
@@ -289,7 +289,7 @@ public:
     } catch (...) { f.close(); std::filesystem::remove(tmp); throw; }
   }
 
-  static std::unique_ptr<Index> load(const std::string& filename) {
+  static std::unique_ptr<ApproxIndex> load(const std::string& filename) {
     std::ifstream f(filename, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + filename);
     uint32_t magic, ver;
@@ -337,8 +337,8 @@ public:
     const size_t stored_vector_count =
         ver >= 3 ? live_vector_count : sizes.vector_count;
 
-    auto idx = std::unique_ptr<Index>(
-        new Index(dim, static_cast<Metric>(met), max_el, M, ef_con, 42, sizes));
+    auto idx = std::unique_ptr<ApproxIndex>(
+        new ApproxIndex(dim, static_cast<Metric>(met), max_el, M, ef_con, 42, sizes));
     idx->ef_search_.store(ef_s);
     idx->mult_ = mult;
     idx->count_.store(cnt);
@@ -443,7 +443,7 @@ private:
     // visited; bumping the epoch each call replaces the per-search O(N)
     // zero-init a fresh bitmap would need with one O(count_) fill every
     // 65k searches when the uint16_t epoch wraps. Buffer is shared across
-    // Index instances on a thread (monotonic epoch keeps cross-index
+    // ApproxIndex instances on a thread (monotonic epoch keeps cross-index
     // marks distinct) and is never shrunk.
     //
     // Relaxed load on count_ is safe: every caller holds global_mtx_
@@ -455,7 +455,7 @@ private:
     // indexes; this hot-path guard also catches in-memory corruption or future
     // call-site bugs. Defensive — unreachable by construction in tests.
     if (ep >= total) [[unlikely]]  // LCOV_EXCL_LINE
-      throw std::logic_error("Index::search_layer: entry point out of range");  // LCOV_EXCL_LINE
+      throw std::logic_error("ApproxIndex::search_layer: entry point out of range");  // LCOV_EXCL_LINE
     if (vis.size() < total) vis.resize(total, 0);
     if (++vis_epoch == 0) {
       std::fill(vis.begin(), vis.end(), 0);

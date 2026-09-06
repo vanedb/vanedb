@@ -2,7 +2,7 @@
 
 use vanedb::distance::{self, Metric};
 use vanedb::gpu::{GpuMetric, MetalCompute};
-use vanedb::Store;
+use vanedb::FlatIndex;
 
 #[test]
 fn gpu_search_matches_brute_force() {
@@ -16,7 +16,7 @@ fn gpu_search_matches_brute_force() {
         .collect();
     let ids: Vec<u64> = (0..n as u64).collect();
 
-    let store = Store::new(dim, Metric::L2).unwrap();
+    let store = FlatIndex::new(dim, Metric::L2).unwrap();
     for i in 0..n {
         store.add(i as u64, &flat[i * dim..(i + 1) * dim]).unwrap();
     }

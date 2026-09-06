@@ -5,7 +5,7 @@
 // could therefore resolve an external id to another slot's vector — the right
 // bytes under the wrong identity (vanedb#42 / vanedb-cpp#38).
 
-#include "core/index.h"
+#include "core/approx_index.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -61,7 +61,9 @@ std::vector<Case> cases() {
     test_case.accept = fields[4] == "accept";
     result.push_back(std::move(test_case));
   }
-  REQUIRE(result.size() >= 6);
+  // Two cases left the shared fixture when the Rust engine gained deletion:
+  // a slot absent from id_map is a tombstone there, not corruption.
+  REQUIRE(result.size() >= 5);
   return result;
 }
 
@@ -93,7 +95,7 @@ std::vector<char> read_all(const std::filesystem::path& path) {
 std::filesystem::path craft(const std::filesystem::path& dir, const Case& test_case, size_t dim) {
   const auto valid = dir / (test_case.name + "-valid.idx");
   {
-    vanedb::Index index(dim, vanedb::Metric::L2, std::max<size_t>(test_case.count, 1), 2, 10);
+    vanedb::ApproxIndex index(dim, vanedb::Metric::L2, std::max<size_t>(test_case.count, 1), 2, 10);
     for (size_t i = 0; i < test_case.count; ++i) {
       const std::vector<float> vector(dim, static_cast<float>(i));
       // Placeholder ids only: the crafted ext_ids are written over these
@@ -147,9 +149,9 @@ TEST_CASE("HNSW loader enforces the shared id_map contract", "[conformance][pers
     const auto path = craft(dir, test_case, DIM);
     INFO("case=" << test_case.name);
     if (test_case.accept) {
-      REQUIRE_NOTHROW(vanedb::Index::load(path.string()));
+      REQUIRE_NOTHROW(vanedb::ApproxIndex::load(path.string()));
     } else {
-      REQUIRE_THROWS_AS(vanedb::Index::load(path.string()), std::runtime_error);
+      REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path.string()), std::runtime_error);
     }
   }
 

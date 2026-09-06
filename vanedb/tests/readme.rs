@@ -34,7 +34,7 @@ fn readme_example_matches_the_compiled_one() {
     );
 }
 
-/// Prose drifts more easily than code blocks: the root README claimed `Store`
+/// Prose drifts more easily than code blocks: the root README claimed `FlatIndex`
 /// persisted with `save`/`load`, which it never has. Every sentence pairing a
 /// type with a method name is checked against that type's real methods.
 #[test]
@@ -80,7 +80,7 @@ fn documented_methods_exist() {
         "metric",
     ];
     let disk_builder: &[&str] = &["new", "add", "save", "size"];
-    let all_types = ["Store", "Index", "DiskStore", "DiskStoreBuilder"];
+    let all_types = ["FlatIndex", "ApproxIndex", "DiskIndex", "DiskIndexBuilder"];
 
     for readme in [
         include_str!("../../README.md"),
@@ -91,10 +91,10 @@ fn documented_methods_exist() {
         let flat = readme.replace('\n', " ");
         for sentence in flat.split(". ") {
             for (ty, methods) in [
-                ("DiskStoreBuilder", disk_builder),
-                ("DiskStore", disk),
-                ("Store", store),
-                ("Index", index),
+                ("DiskIndexBuilder", disk_builder),
+                ("DiskIndex", disk),
+                ("FlatIndex", store),
+                ("ApproxIndex", index),
             ] {
                 if !sentence.contains(&format!("`{ty}`")) {
                     continue;

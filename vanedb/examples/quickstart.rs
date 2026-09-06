@@ -3,14 +3,14 @@
 //! `tests/readme.rs` asserts the README's Rust block matches the body below,
 //! so the crates.io front page cannot drift from the API.
 
-use vanedb::{Index, Metric};
+use vanedb::{ApproxIndex, Metric};
 
 fn main() -> Result<(), vanedb::VaneError> {
     let embedding = vec![0.1_f32; 768];
     let query = vec![0.1_f32; 768];
 
     // README:begin
-    let index = Index::builder(768, Metric::Cosine)
+    let index = ApproxIndex::builder(768, Metric::Cosine)
         .capacity(100_000)
         .build()?;
     index.add(1, &embedding)?;

@@ -1,6 +1,6 @@
 # VaneDB for Python
 
-VaneDB is an embeddable vector database backed by Rust. Store vectors and search
+VaneDB is an embeddable vector database backed by Rust. FlatIndex vectors and search
 for their nearest neighbors inside your Python process, without a database
 server. Supply your own embeddings; VaneDB does not generate them.
 
@@ -20,26 +20,26 @@ can also be used for vector and batch inputs.
 
 ## Quick start
 
-Use `Store` for exact search, or `Index` for approximate search.
+Use `FlatIndex` for exact search, or `ApproxIndex` for approximate search.
 Both return `(id, distance)` pairs, with the nearest results first.
 
 ```python
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from vanedb import Metric, Index, Store
+from vanedb import Metric, ApproxIndex, FlatIndex
 
 ids = [101, 202]
 vectors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
 query = [1.0, 0.0, 0.0]
 
 # Exact cosine-distance search.
-store = Store(3, Metric.COSINE)
+store = FlatIndex(3, Metric.COSINE)
 store.add_batch(ids, vectors)
 assert store.search(query, 1) == [(101, 0.0)]
 
 # Approximate search, with a fixed maximum capacity.
-index = Index(3, Metric.COSINE, capacity=100, seed=42)
+index = ApproxIndex(3, Metric.COSINE, capacity=100, seed=42)
 index.add_batch(ids, vectors)
 index.ef_search = 100
 hits = index.search(query, 1)
@@ -49,7 +49,7 @@ assert hits == [(101, 0.0)]
 with TemporaryDirectory() as directory:
     path = str(Path(directory) / "index.bin")
     index.save(path)
-    restored = Index.load(path)
+    restored = ApproxIndex.load(path)
     assert restored.search(query, 1) == hits
 ```
 

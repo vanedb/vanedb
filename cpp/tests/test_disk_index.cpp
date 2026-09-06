@@ -1,4 +1,4 @@
-#include "core/disk_store.h"
+#include "core/disk_index.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
@@ -7,19 +7,19 @@
 
 using Catch::Approx;
 
-TEST_CASE("DiskStoreBuilder - construction", "[disk][builder]") {
+TEST_CASE("DiskIndexBuilder - construction", "[disk][builder]") {
   SECTION("Valid dimension") {
-    REQUIRE_NOTHROW(vanedb::DiskStoreBuilder(768));
-    REQUIRE_NOTHROW(vanedb::DiskStoreBuilder(128, vanedb::Metric::COSINE));
+    REQUIRE_NOTHROW(vanedb::DiskIndexBuilder(768));
+    REQUIRE_NOTHROW(vanedb::DiskIndexBuilder(128, vanedb::Metric::COSINE));
   }
 
   SECTION("Zero dimension throws") {
-    REQUIRE_THROWS_AS(vanedb::DiskStoreBuilder(0), std::invalid_argument);
+    REQUIRE_THROWS_AS(vanedb::DiskIndexBuilder(0), std::invalid_argument);
   }
 }
 
-TEST_CASE("DiskStoreBuilder - add vectors", "[disk][builder]") {
-  vanedb::DiskStoreBuilder builder(3);
+TEST_CASE("DiskIndexBuilder - add vectors", "[disk][builder]") {
+  vanedb::DiskIndexBuilder builder(3);
 
   SECTION("Add single vector") {
     float vec[] = {1.0f, 2.0f, 3.0f};
@@ -50,14 +50,14 @@ TEST_CASE("DiskStoreBuilder - add vectors", "[disk][builder]") {
   }
 }
 
-TEST_CASE("DiskStore - save and load", "[disk]") {
+TEST_CASE("DiskIndex - save and load", "[disk]") {
   const std::string filename = "test_mmap_store.bin";
 
   // Cleanup before test
   std::filesystem::remove(filename);
 
   constexpr size_t dim = 4;
-  vanedb::DiskStoreBuilder builder(dim, vanedb::Metric::L2);
+  vanedb::DiskIndexBuilder builder(dim, vanedb::Metric::L2);
 
   // Add test vectors
   float vec1[] = {1.0f, 0.0f, 0.0f, 0.0f};
@@ -71,7 +71,7 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
   SECTION("Save and load successfully") {
     REQUIRE_NOTHROW(builder.save(filename));
 
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     REQUIRE(store.size() == 3);
     REQUIRE(store.dimension() == dim);
@@ -80,7 +80,7 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
 
   SECTION("Get vector by ID") {
     builder.save(filename);
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     const float* retrieved = store.get(10);
     REQUIRE(retrieved != nullptr);
@@ -92,14 +92,14 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
 
   SECTION("Get non-existent ID returns nullptr") {
     builder.save(filename);
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     REQUIRE(store.get(999) == nullptr);
   }
 
   SECTION("Contains works correctly") {
     builder.save(filename);
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     REQUIRE(store.contains(10));
     REQUIRE(store.contains(20));
@@ -109,7 +109,7 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
 
   SECTION("Search finds nearest neighbors") {
     builder.save(filename);
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     float query[] = {0.9f, 0.0f, 0.0f, 0.0f};
     auto results = store.search(query, 1);
@@ -120,7 +120,7 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
 
   SECTION("Search with k > size returns all") {
     builder.save(filename);
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     float query[] = {0.0f, 0.0f, 0.0f, 0.0f};
     auto results = store.search(query, 100);
@@ -132,9 +132,9 @@ TEST_CASE("DiskStore - save and load", "[disk]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - error handling", "[disk]") {
+TEST_CASE("DiskIndex - error handling", "[disk]") {
   SECTION("Non-existent file throws") {
-    REQUIRE_THROWS_AS(vanedb::DiskStore("nonexistent_file.bin"), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex("nonexistent_file.bin"), std::runtime_error);
   }
 
   SECTION("Invalid magic throws") {
@@ -144,7 +144,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       uint32_t bad_magic = 0xDEADBEEF;
       ofs.write(reinterpret_cast<const char*>(&bad_magic), sizeof(bad_magic));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -153,10 +153,10 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     {
       std::ofstream ofs(filename, std::ios::binary);
       // Write only partial header
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       ofs.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -164,7 +164,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_bad_metric.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       uint64_t dim = 3;  // Fixed: was uint32_t, should be uint64_t per file format
       uint64_t num_vectors = 0;
@@ -175,7 +175,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&num_vectors), sizeof(num_vectors));
       ofs.write(reinterpret_cast<const char*>(&bad_metric), sizeof(bad_metric));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -183,7 +183,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_bad_version.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 99; // Unsupported version
       uint64_t dim = 3;
       uint64_t num_vectors = 0;
@@ -196,7 +196,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&metric), sizeof(metric));
       ofs.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -205,7 +205,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_zero_dim.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       uint64_t dim = 0; // Zero dimension
       uint64_t num_vectors = 1; // Non-zero vectors
@@ -218,7 +218,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&metric), sizeof(metric));
       ofs.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -226,7 +226,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_truncated_data.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       uint64_t dim = 4;
       uint64_t num_vectors = 10; // Claims 10 vectors but won't provide them
@@ -244,7 +244,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&id), sizeof(id));
       ofs.write(reinterpret_cast<const char*>(vec), sizeof(vec));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -252,7 +252,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_overflow_num.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       uint64_t dim = 4;
       uint64_t num_vectors = SIZE_MAX; // Causes overflow
@@ -265,7 +265,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&metric), sizeof(metric));
       ofs.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -273,7 +273,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_overflow_dim.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       uint64_t dim = SIZE_MAX; // Causes overflow
       uint64_t num_vectors = 1;
@@ -286,7 +286,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&metric), sizeof(metric));
       ofs.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 
@@ -296,7 +296,7 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
     const std::string filename = "test_overflow_combined.bin";
     {
       std::ofstream ofs(filename, std::ios::binary);
-      uint32_t magic = vanedb::DiskStore::MAGIC;
+      uint32_t magic = vanedb::DiskIndex::MAGIC;
       uint32_t version = 1;
       // dim = SIZE_MAX/8 passes dim check (< SIZE_MAX/sizeof(float))
       // num_vectors = 3 passes num_vectors check (< SIZE_MAX/sizeof(uint64_t))
@@ -312,22 +312,22 @@ TEST_CASE("DiskStore - error handling", "[disk]") {
       ofs.write(reinterpret_cast<const char*>(&metric), sizeof(metric));
       ofs.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
     }
-    REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }
 }
 
-TEST_CASE("DiskStore - search validation", "[disk]") {
+TEST_CASE("DiskIndex - search validation", "[disk]") {
   const std::string filename = "test_mmap_search_validation.bin";
   std::filesystem::remove(filename);
 
-  vanedb::DiskStoreBuilder builder(4, vanedb::Metric::L2);
+  vanedb::DiskIndexBuilder builder(4, vanedb::Metric::L2);
   float vec[] = {1.0f, 0.0f, 0.0f, 0.0f};
   builder.add(1, vec);
   builder.save(filename);
 
   {
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     SECTION("Search with null query throws") {
       REQUIRE_THROWS_AS(store.search(nullptr, 1), std::invalid_argument);
@@ -347,9 +347,9 @@ TEST_CASE("DiskStore - search validation", "[disk]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - rejects non-finite stored vectors", "[disk][persistence]") {
+TEST_CASE("DiskIndex - rejects non-finite stored vectors", "[disk][persistence]") {
   const std::string filename = "test_mmap_non_finite.bin";
-  vanedb::DiskStoreBuilder builder(2);
+  vanedb::DiskIndexBuilder builder(2);
   const float vector[] = {0.0f, 0.0f};
   builder.add(1, vector);
   builder.save(filename);
@@ -357,24 +357,24 @@ TEST_CASE("DiskStore - rejects non-finite stored vectors", "[disk][persistence]"
   {
     std::fstream file(filename, std::ios::binary | std::ios::in | std::ios::out);
     const auto vector_offset = static_cast<std::streamoff>(
-        vanedb::DiskStore::HEADER_SIZE + sizeof(uint64_t));
+        vanedb::DiskIndex::HEADER_SIZE + sizeof(uint64_t));
     file.seekp(vector_offset);
     const float nan = std::numeric_limits<float>::quiet_NaN();
     file.write(reinterpret_cast<const char*>(&nan), sizeof(nan));
   }
 
-  REQUIRE_THROWS_AS(vanedb::DiskStore(filename), std::runtime_error);
+  REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - large scale", "[disk][stress]") {
+TEST_CASE("DiskIndex - large scale", "[disk][stress]") {
   const std::string filename = "test_mmap_large.bin";
   std::filesystem::remove(filename);
 
   constexpr size_t dim = 128;
   constexpr size_t num_vectors = 1000;
 
-  vanedb::DiskStoreBuilder builder(dim, vanedb::Metric::COSINE);
+  vanedb::DiskIndexBuilder builder(dim, vanedb::Metric::COSINE);
   builder.reserve(num_vectors);
 
   std::mt19937 gen(42);
@@ -392,7 +392,7 @@ TEST_CASE("DiskStore - large scale", "[disk][stress]") {
   builder.save(filename);
 
   SECTION("Load and search") {
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     REQUIRE(store.size() == num_vectors);
     REQUIRE(store.dimension() == dim);
@@ -407,7 +407,7 @@ TEST_CASE("DiskStore - large scale", "[disk][stress]") {
   }
 
   SECTION("Vectors are preserved") {
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     for (size_t i = 0; i < num_vectors; ++i) {
       const float* retrieved = store.get(i);
@@ -421,11 +421,11 @@ TEST_CASE("DiskStore - large scale", "[disk][stress]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - cosine metric", "[disk]") {
+TEST_CASE("DiskIndex - cosine metric", "[disk]") {
   const std::string filename = "test_mmap_cosine.bin";
   std::filesystem::remove(filename);
 
-  vanedb::DiskStoreBuilder builder(4, vanedb::Metric::COSINE);
+  vanedb::DiskIndexBuilder builder(4, vanedb::Metric::COSINE);
 
   // Same direction, different magnitudes
   float vec1[] = {1.0f, 0.0f, 0.0f, 0.0f};
@@ -438,7 +438,7 @@ TEST_CASE("DiskStore - cosine metric", "[disk]") {
   builder.save(filename);
 
   {
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     float query[] = {3.0f, 0.0f, 0.0f, 0.0f};
     auto results = store.search(query, 2);
@@ -453,11 +453,11 @@ TEST_CASE("DiskStore - cosine metric", "[disk]") {
   std::filesystem::remove(filename);
 }
 
-TEST_CASE("DiskStore - dot product metric", "[disk]") {
+TEST_CASE("DiskIndex - dot product metric", "[disk]") {
   const std::string filename = "test_mmap_dot.bin";
   std::filesystem::remove(filename);
 
-  vanedb::DiskStoreBuilder builder(4, vanedb::Metric::DOT);
+  vanedb::DiskIndexBuilder builder(4, vanedb::Metric::DOT);
 
   float vec1[] = {1.0f, 0.0f, 0.0f, 0.0f};
   float vec2[] = {2.0f, 0.0f, 0.0f, 0.0f};  // Higher dot product
@@ -469,7 +469,7 @@ TEST_CASE("DiskStore - dot product metric", "[disk]") {
   builder.save(filename);
 
   {
-    vanedb::DiskStore store(filename);
+    vanedb::DiskIndex store(filename);
 
     float query[] = {1.0f, 0.0f, 0.0f, 0.0f};
     auto results = store.search(query, 1);

@@ -8,7 +8,7 @@ implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
 
 **Implemented.** Criterion benches covering every operation the design spec
 promises, plus a `report` binary that writes a [`RESULTS.md`](RESULTS.md)
-snapshot with Index recall@10 averaged over 100 queries. Design spec:
+snapshot with ApproxIndex recall@10 averaged over 100 queries. Design spec:
 [`docs/superpowers/specs/2026-05-28-vanedb-bench-design.md`](docs/superpowers/specs/2026-05-28-vanedb-bench-design.md).
 
 ## Running
@@ -59,11 +59,11 @@ end-to-end smoke check and asserts recall, never a timing.
 | L2 distance latency | `l2_sq/dim={128,768}` |
 | Cosine distance latency | `cosine/dim={128,768}` |
 | Dot distance latency | `dot/dim={128,768}` |
-| Store add throughput | `store_add/n=10000` |
-| Store search latency | `store_search/n={1000,10000}` |
-| Index build latency | `index_build` |
-| Index search latency | `index_search` |
-| Index recall@k | `report` binary |
+| FlatIndex add throughput | `store_add/n=10000` |
+| FlatIndex search latency | `store_search/n={1000,10000}` |
+| ApproxIndex build latency | `index_build` |
+| ApproxIndex search latency | `index_search` |
+| ApproxIndex recall@k | `report` binary |
 | Disk build latency | `disk_build` |
 | Disk open latency | `disk_open` |
 | Disk search latency | `disk_search` |
@@ -96,7 +96,7 @@ within a single interleaved run and is the comparable number.
 | disk_open | 503 µs | 565 µs | 1.12 ‡ |
 | disk_search (k=10) | 78.4 µs | 79.0 µs | 1.01 |
 
-Index recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
+ApproxIndex recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
 
 **† ** At 6–7 ns the difference is around one nanosecond, near this harness's
 resolution. Treat 128-dimension kernel ratios as noise.

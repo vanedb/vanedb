@@ -25,9 +25,9 @@ struct SearchResult {
   }
 };
 
-class Store {
+class FlatIndex {
 public:
-  explicit Store(size_t dimension, Metric metric = Metric::L2)
+  explicit FlatIndex(size_t dimension, Metric metric = Metric::L2)
       : dim_(dimension), metric_(metric), dist_(metric, dimension) {
     if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
   }

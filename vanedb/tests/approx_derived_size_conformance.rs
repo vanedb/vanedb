@@ -1,6 +1,6 @@
 //! Cross-engine HNSW size cases from `conformance/index_derived_sizes.tsv`.
 
-use vanedb::{Index, Metric, VaneError};
+use vanedb::{ApproxIndex, Metric, VaneError};
 
 #[derive(Debug)]
 struct Case<'a> {
@@ -43,7 +43,7 @@ fn builder_rejects_shared_derived_size_overflows() {
     assert_eq!(cases.len(), 2);
 
     for case in cases {
-        let result = Index::builder(case.dimension, Metric::L2)
+        let result = ApproxIndex::builder(case.dimension, Metric::L2)
             .capacity(case.max_elements)
             .m(case.m)
             .build();

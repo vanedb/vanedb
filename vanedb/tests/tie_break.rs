@@ -2,7 +2,7 @@
 //! deterministic order. That only holds if the tie-break is applied before the
 //! candidate set is cut down to k.
 
-use vanedb::{Index, Metric, Store};
+use vanedb::{ApproxIndex, FlatIndex, Metric};
 
 const N: u64 = 40;
 const K: usize = 5;
@@ -14,8 +14,8 @@ fn ids(results: Vec<vanedb::SearchResult>) -> Vec<u64> {
 
 #[test]
 fn equal_distances_break_on_id_in_both_backends() {
-    let store = Store::new(2, Metric::L2).unwrap();
-    let index = Index::builder(2, Metric::L2)
+    let store = FlatIndex::new(2, Metric::L2).unwrap();
+    let index = ApproxIndex::builder(2, Metric::L2)
         .capacity(N as usize)
         .seed(7)
         .build()
@@ -30,7 +30,7 @@ fn equal_distances_break_on_id_in_both_backends() {
     let from_index = ids(index.search(&V, K).unwrap());
     assert_eq!(
         from_store, from_index,
-        "Store and Index disagree on which of {N} equidistant vectors are the \
+        "FlatIndex and ApproxIndex disagree on which of {N} equidistant vectors are the \
          top {K}; the id tie-break is applied after truncation"
     );
     assert_eq!(
@@ -42,12 +42,12 @@ fn equal_distances_break_on_id_in_both_backends() {
 
 #[test]
 fn insertion_order_does_not_change_the_tie_break() {
-    let forward = Index::builder(2, Metric::L2)
+    let forward = ApproxIndex::builder(2, Metric::L2)
         .capacity(N as usize)
         .seed(7)
         .build()
         .unwrap();
-    let reverse = Index::builder(2, Metric::L2)
+    let reverse = ApproxIndex::builder(2, Metric::L2)
         .capacity(N as usize)
         .seed(7)
         .build()

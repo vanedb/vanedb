@@ -9,16 +9,16 @@ use std::os::raw::c_char;
 use std::slice;
 
 use vanedb::distance::distance_fn;
-use vanedb::{DiskStore, DiskStoreBuilder, Index, Metric, Store};
+use vanedb::{ApproxIndex, DiskIndex, DiskIndexBuilder, FlatIndex, Metric};
 
 // cbindgen emits one opaque typedef per exported type name. These aliases
 // give the C header namespaced names without renaming the Rust types.
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_store = Store;
+pub type vanedb_rs_store = FlatIndex;
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_index = Index;
+pub type vanedb_rs_index = ApproxIndex;
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_disk = DiskStore;
+pub type vanedb_rs_disk = DiskIndex;
 
 fn to_metric(m: u32) -> Metric {
     match m {
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut vanedb_rs_store {
     guard(std::ptr::null_mut(), || {
-        match Store::new(dim, to_metric(metric)) {
+        match FlatIndex::new(dim, to_metric(metric)) {
             Ok(s) => Box::into_raw(Box::new(s)),
             Err(_) => std::ptr::null_mut(),
         }
@@ -219,7 +219,7 @@ pub unsafe extern "C" fn vanedb_rs_index_new(
     seed: u64,
 ) -> *mut vanedb_rs_index {
     guard(std::ptr::null_mut(), || {
-        match Index::builder(dim, to_metric(metric))
+        match ApproxIndex::builder(dim, to_metric(metric))
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)
@@ -360,7 +360,7 @@ pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> *mut vaned
             return std::ptr::null_mut();
         }
         match CStr::from_ptr(path).to_str() {
-            Ok(p) => match Index::load(p) {
+            Ok(p) => match ApproxIndex::load(p) {
                 Ok(h) => Box::into_raw(Box::new(h)),
                 Err(_) => std::ptr::null_mut(),
             },
@@ -401,7 +401,7 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
             Ok(s) => s,
             Err(_) => return 1,
         };
-        let mut b = match DiskStoreBuilder::new(dim, to_metric(metric)) {
+        let mut b = match DiskIndexBuilder::new(dim, to_metric(metric)) {
             Ok(b) => b,
             Err(_) => return 1,
         };
@@ -433,7 +433,7 @@ pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb
             return std::ptr::null_mut();
         }
         match CStr::from_ptr(path).to_str() {
-            Ok(p) => match DiskStore::open(p) {
+            Ok(p) => match DiskIndex::open(p) {
                 Ok(m) => Box::into_raw(Box::new(m)),
                 Err(_) => std::ptr::null_mut(),
             },

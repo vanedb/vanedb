@@ -99,7 +99,7 @@ fn main() -> ExitCode {
         let (cpp, rs) = (cpp / 1000, rs / 1000);
         md.push_str(&format!("| l2_sq | {cpp} | {rs} | {ratio:.2} |\n"));
 
-        // Store search. Setup asserts keep a failed engine from benchmarking
+        // FlatIndex search. Setup asserts keep a failed engine from benchmarking
         // as infinitely fast.
         let sc = ffi::vanedb_cpp_store_new(dim, 0);
         let sr = ffi::vanedb_rs_store_new(dim, 0);
@@ -227,7 +227,7 @@ fn main() -> ExitCode {
         ffi::vanedb_cpp_index_free(hc);
         ffi::vanedb_rs_index_free(hr);
         md.push_str(&format!(
-            "\nIndex recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
+            "\nApproxIndex recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
         ));
 
         assert!(

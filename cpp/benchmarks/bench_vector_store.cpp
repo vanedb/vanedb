@@ -1,10 +1,10 @@
-#include "core/store.h"
+#include "core/flat_index.h"
 #include <benchmark/benchmark.h>
 #include <random>
 #include <vector>
 
 // ============================================================================
-// Store Add Benchmarks
+// FlatIndex Add Benchmarks
 // ============================================================================
 
 static void BM_VectorStore_Add(benchmark::State &state) {
@@ -14,7 +14,7 @@ static void BM_VectorStore_Add(benchmark::State &state) {
 
   for (auto _ : state) {
     state.PauseTiming();
-    vanedb::Store store(dim, vanedb::Metric::L2);
+    vanedb::FlatIndex store(dim, vanedb::Metric::L2);
     std::vector<float> vec(dim);
     for (size_t i = 0; i < dim; ++i) {
       vec[i] = dis(gen);
@@ -36,7 +36,7 @@ BENCHMARK(BM_VectorStore_Add)
     ->Arg(1536);
 
 // ============================================================================
-// Store Search Benchmarks - L2 Distance
+// FlatIndex Search Benchmarks - L2 Distance
 // ============================================================================
 
 static void BM_VectorStore_Search_L2(benchmark::State &state) {
@@ -44,7 +44,7 @@ static void BM_VectorStore_Search_L2(benchmark::State &state) {
   const size_t num_vectors = state.range(0);
   const size_t k = 10;
 
-  vanedb::Store store(dim, vanedb::Metric::L2);
+  vanedb::FlatIndex store(dim, vanedb::Metric::L2);
 
   std::mt19937 gen(42);
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
@@ -81,7 +81,7 @@ BENCHMARK(BM_VectorStore_Search_L2)
     ->Arg(10000);
 
 // ============================================================================
-// Store Search Benchmarks - Cosine Distance
+// FlatIndex Search Benchmarks - Cosine Distance
 // ============================================================================
 
 static void BM_VectorStore_Search_Cosine(benchmark::State &state) {
@@ -89,7 +89,7 @@ static void BM_VectorStore_Search_Cosine(benchmark::State &state) {
   const size_t num_vectors = state.range(0);
   const size_t k = 10;
 
-  vanedb::Store store(dim, vanedb::Metric::COSINE);
+  vanedb::FlatIndex store(dim, vanedb::Metric::COSINE);
 
   std::mt19937 gen(42);
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
@@ -126,7 +126,7 @@ BENCHMARK(BM_VectorStore_Search_Cosine)
     ->Arg(10000);
 
 // ============================================================================
-// Store Search Benchmarks - Varying k
+// FlatIndex Search Benchmarks - Varying k
 // ============================================================================
 
 static void BM_VectorStore_Search_VaryingK(benchmark::State &state) {
@@ -134,7 +134,7 @@ static void BM_VectorStore_Search_VaryingK(benchmark::State &state) {
   const size_t num_vectors = 1000;
   const size_t k = state.range(0);
 
-  vanedb::Store store(dim, vanedb::Metric::L2);
+  vanedb::FlatIndex store(dim, vanedb::Metric::L2);
 
   std::mt19937 gen(42);
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
@@ -171,7 +171,7 @@ BENCHMARK(BM_VectorStore_Search_VaryingK)
     ->Arg(100);
 
 // ============================================================================
-// Store Search Benchmarks - Varying Dimensions
+// FlatIndex Search Benchmarks - Varying Dimensions
 // ============================================================================
 
 static void BM_VectorStore_Search_VaryingDim(benchmark::State &state) {
@@ -179,7 +179,7 @@ static void BM_VectorStore_Search_VaryingDim(benchmark::State &state) {
   const size_t num_vectors = 1000;
   const size_t k = 10;
 
-  vanedb::Store store(dim, vanedb::Metric::L2);
+  vanedb::FlatIndex store(dim, vanedb::Metric::L2);
 
   std::mt19937 gen(42);
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);

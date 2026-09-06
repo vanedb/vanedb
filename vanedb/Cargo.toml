@@ -39,9 +39,9 @@ name = "distance_bench"
 harness = false
 
 [[bench]]
-name = "store_bench"
+name = "flat_bench"
 harness = false
 
 [[bench]]
-name = "index_bench"
+name = "approx_bench"
 harness = false

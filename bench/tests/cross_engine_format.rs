@@ -1,4 +1,4 @@
-//! Each engine must read the other's `DiskStore` file.
+//! Each engine must read the other's `DiskIndex` file.
 //!
 //! The engines write byte-identical headers and payloads, and this is what
 //! keeps that true. Every other conformance fixture has each engine check

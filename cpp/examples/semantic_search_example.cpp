@@ -1,4 +1,4 @@
-#include "core/store.h"
+#include "core/flat_index.h"
 #include <iostream>
 #include <random>
 #include <vector>
@@ -11,7 +11,7 @@ int main() {
 
   // Create a vector store for 384-dimensional embeddings (common for smaller models)
   const size_t dim = 384;
-  vanedb::Store store(dim, vanedb::Metric::COSINE);
+  vanedb::FlatIndex store(dim, vanedb::Metric::COSINE);
 
   // Simulate document embeddings (in practice, these would come from an embedding model)
   std::mt19937 gen(42);
@@ -62,7 +62,7 @@ int main() {
     store.add(i, embedding.data());
   }
 
-  std::cout << "Store size: " << store.size() << " vectors\n\n";
+  std::cout << "FlatIndex size: " << store.size() << " vectors\n\n";
 
   // Create query embeddings
   std::cout << "=== Query 1: AI/ML related ===\n";
@@ -134,7 +134,7 @@ int main() {
   // Remove a document
   std::cout << "Removing document 0...\n";
   store.remove(0);
-  std::cout << "  Store size after removal: " << store.size() << "\n";
+  std::cout << "  FlatIndex size after removal: " << store.size() << "\n";
 
   // Check if document exists
   std::cout << "Checking if document 0 exists: "
