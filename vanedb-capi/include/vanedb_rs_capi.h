@@ -31,12 +31,6 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  * matches vanedb_cpp_dot_product. */
 
 
-typedef FlatIndex vanedb_rs_store;
-
-typedef ApproxIndex vanedb_rs_index;
-
-typedef DiskIndex vanedb_rs_disk;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -201,6 +195,156 @@ uintptr_t vanedb_rs_disk_search(vanedb_rs_disk *m,
  * (or be null, which is a no-op).
  */
 void vanedb_rs_disk_free(vanedb_rs_disk *m);
+
+/**
+ * Number of vectors in the store, or 0 if `s` is null.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new`, or null.
+ */
+uintptr_t vanedb_rs_store_len(const vanedb_rs_store *s);
+
+/**
+ * Vector dimension of the store, or 0 if `s` is null.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new`, or null.
+ */
+uintptr_t vanedb_rs_store_dimension(const vanedb_rs_store *s);
+
+/**
+ * Whether `id` is present. False if `s` is null.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new`, or null.
+ */
+bool vanedb_rs_store_contains(const vanedb_rs_store *s, uint64_t id);
+
+/**
+ * Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
+ * absent or on error.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new` (or null); `out` must
+ * have room for `vanedb_rs_store_dimension(s)` floats.
+ */
+int32_t vanedb_rs_store_get(const vanedb_rs_store *s, uint64_t id, float *out);
+
+/**
+ * Removes `id`. Returns 0 on success, 1 if absent or on error.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new`, or null.
+ */
+int32_t vanedb_rs_store_remove(const vanedb_rs_store *s, uint64_t id);
+
+/**
+ * Number of live vectors in the index, or 0 if `h` is null.
+ *
+ * Excludes tombstones; see `vanedb_rs_index_tombstones`.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+uintptr_t vanedb_rs_index_len(const vanedb_rs_index *h);
+
+/**
+ * Vector dimension of the index, or 0 if `h` is null.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+uintptr_t vanedb_rs_index_dimension(const vanedb_rs_index *h);
+
+/**
+ * Whether `id` is present and not deleted. False if `h` is null.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+bool vanedb_rs_index_contains(const vanedb_rs_index *h, uint64_t id);
+
+/**
+ * Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
+ * absent or on error.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `out` must
+ * have room for `vanedb_rs_index_dimension(h)` floats.
+ */
+int32_t vanedb_rs_index_get_vector(const vanedb_rs_index *h, uint64_t id, float *out);
+
+/**
+ * Replaces the vector under `id`, inserting it if absent. Returns 0 on
+ * success, 1 on error.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `v` must
+ * point to `vanedb_rs_index_dimension(h)` valid floats.
+ */
+int32_t vanedb_rs_index_upsert(const vanedb_rs_index *h, uint64_t id, const float *v);
+
+/**
+ * Tombstones `id`. Returns 0 on success, 1 if absent or on error.
+ *
+ * The vector stops being returned by searches immediately; its graph links
+ * are retained until `vanedb_rs_index_compact`.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+int32_t vanedb_rs_index_remove(const vanedb_rs_index *h, uint64_t id);
+
+/**
+ * Number of tombstoned slots, or 0 if `h` is null.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+uintptr_t vanedb_rs_index_tombstones(const vanedb_rs_index *h);
+
+/**
+ * Rebuilds the graph from live vectors, clearing all tombstones. Returns 0 on
+ * success, 1 on error.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`, or null.
+ */
+int32_t vanedb_rs_index_compact(const vanedb_rs_index *h);
+
+/**
+ * Number of vectors in the mapped file, or 0 if `d` is null.
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+ */
+uintptr_t vanedb_rs_disk_len(const vanedb_rs_disk *d);
+
+/**
+ * Vector dimension of the mapped file, or 0 if `d` is null.
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+ */
+uintptr_t vanedb_rs_disk_dimension(const vanedb_rs_disk *d);
+
+/**
+ * Whether `id` is present. False if `d` is null.
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+ */
+bool vanedb_rs_disk_contains(const vanedb_rs_disk *d, uint64_t id);
+
+/**
+ * Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
+ * absent or on error.
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open` (or null); `out` must
+ * have room for `vanedb_rs_disk_dimension(d)` floats.
+ */
+int32_t vanedb_rs_disk_get(const vanedb_rs_disk *d, uint64_t id, float *out);
 
 #ifdef __cplusplus
 }  // extern "C"
