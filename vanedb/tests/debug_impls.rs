@@ -7,9 +7,9 @@ use vanedb::{ApproxIndex, DiskIndexBuilder, FlatIndex, Metric};
 fn unwrap_err_compiles_against_the_public_types() {
     // The idiom the whole suite had to avoid: it requires Debug on the Ok type.
     let err = ApproxIndex::builder(0, Metric::L2).build().unwrap_err();
-    assert!(matches!(err, vanedb::VaneError::EmptyVector));
+    assert!(matches!(err, vanedb::VaneError::ZeroDimension));
     let err = FlatIndex::new(0, Metric::L2).unwrap_err();
-    assert!(matches!(err, vanedb::VaneError::EmptyVector));
+    assert!(matches!(err, vanedb::VaneError::ZeroDimension));
 }
 
 #[test]

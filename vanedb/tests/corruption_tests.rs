@@ -6,7 +6,7 @@
 use std::fs;
 use std::io::Write;
 
-use vanedb::{ApproxIndex, Metric};
+use vanedb::{ApproxIndex, Metric, VaneError};
 
 #[cfg(feature = "disk")]
 use vanedb::{DiskIndex, DiskIndexBuilder};
@@ -173,7 +173,10 @@ fn hnsw_load_rejects_invalid_magic() {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
-    assert!(format!("{err}").contains("magic"), "got: {err}");
+    assert!(
+        matches!(&err, VaneError::Corrupt { detail } if detail.contains("magic")),
+        "got: {err:?}"
+    );
     let _ = fs::remove_file(&p);
 }
 
@@ -186,14 +189,20 @@ fn hnsw_load_rejects_unsupported_version() {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
-    assert!(format!("{err}").contains("version"), "got: {err}");
+    assert!(
+        matches!(&err, VaneError::Corrupt { detail } if detail.contains("version")),
+        "got: {err:?}"
+    );
     let _ = fs::remove_file(&p);
 }
 
 #[test]
 fn hnsw_load_rejects_truncated_header() {
     let p = write_tmp("trunc_header", b"HNS"); // 3 bytes — shorter than 8-byte header
-    assert!(ApproxIndex::load(&p).is_err());
+    assert!(matches!(
+        ApproxIndex::load(&p),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&p);
 }
 
@@ -204,7 +213,10 @@ fn hnsw_load_rejects_garbage_payload() {
     bytes.extend_from_slice(&HNSW_VERSION.to_le_bytes());
     bytes.extend_from_slice(&[0xFF; 32]);
     let p = write_tmp("garbage_payload", &bytes);
-    assert!(ApproxIndex::load(&p).is_err());
+    assert!(matches!(
+        ApproxIndex::load(&p),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&p);
 }
 
@@ -295,7 +307,10 @@ fn mmap_load_rejects_unsupported_version() {
     data.extend_from_slice(&0u32.to_le_bytes()); // metric
     data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     fs::write(&path, &data).unwrap();
-    assert!(DiskIndex::open(&path).is_err());
+    assert!(matches!(
+        DiskIndex::open(&path),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -311,7 +326,10 @@ fn mmap_load_rejects_zero_dim_with_vectors() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskIndex::open(&path).is_err());
+    assert!(matches!(
+        DiskIndex::open(&path),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -328,7 +346,10 @@ fn mmap_load_rejects_truncated_data() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskIndex::open(&path).is_err());
+    assert!(matches!(
+        DiskIndex::open(&path),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -345,7 +366,10 @@ fn mmap_load_rejects_size_overflow() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskIndex::open(&path).is_err());
+    assert!(matches!(
+        DiskIndex::open(&path),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -362,7 +386,10 @@ fn mmap_load_rejects_invalid_metric() {
     data.extend_from_slice(&99u32.to_le_bytes()); // bogus metric
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskIndex::open(&path).is_err());
+    assert!(matches!(
+        DiskIndex::open(&path),
+        Err(VaneError::Corrupt { .. })
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -374,7 +401,10 @@ fn mmap_search_rejects_zero_k() {
     b.add(1, &[1.0, 2.0, 3.0]).unwrap();
     b.save(&path).unwrap();
     let store = DiskIndex::open(&path).unwrap();
-    assert!(store.search(&[1.0, 2.0, 3.0], 0).is_err());
+    assert!(matches!(
+        store.search(&[1.0, 2.0, 3.0], 0),
+        Err(VaneError::InvalidK)
+    ));
     let _ = fs::remove_file(&path);
 }
 
@@ -427,7 +457,7 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_m", &bytes);
     assert!(
-        ApproxIndex::load(&p).is_err(),
+        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
         "m = 1 must be rejected on load"
     );
 
@@ -436,7 +466,7 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_efc", &bytes);
     assert!(
-        ApproxIndex::load(&p).is_err(),
+        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
         "ef_construction = 0 must be rejected on load"
     );
 }
