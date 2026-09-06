@@ -11,6 +11,9 @@ vanedb-capi = { path = "../vanedb-capi" }
 cmake = "0.1"
 
 [dev-dependencies]
+# Only so the ground-truth kernels can be pinned to the engine they claim to
+# reproduce; the harness itself talks to both engines through the C ABI.
+vanedb = { path = "../vanedb" }
 criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
