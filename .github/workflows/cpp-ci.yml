@@ -41,10 +41,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Cache CMake build
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: |
           cpp/build/_deps
@@ -95,7 +95,7 @@ jobs:
         .\${{ matrix.build_type }}\bench_hnsw_index.exe --benchmark_min_time=0.05s --benchmark_filter=BM_HNSW_Search/100 --benchmark_format=json > bench_hnsw_index.json
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: benchmarks-${{ matrix.os }}-${{ matrix.compiler }}
         path: cpp/build/bench_*.json
@@ -108,7 +108,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Install Doxygen
       run: |
@@ -122,7 +122,7 @@ jobs:
       run: test -s docs/html/index.html
 
     - name: Upload documentation artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: cpp-documentation
         path: cpp/docs/html
@@ -140,10 +140,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -243,7 +243,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Configure CMake with sanitizer
       run: |
@@ -275,7 +275,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Install lcov
       run: |
@@ -312,7 +312,7 @@ jobs:
         lcov --list coverage.info
 
     - name: Upload coverage artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: cpp-coverage
         path: cpp/coverage.info
@@ -337,7 +337,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Configure CMake
       run: |
@@ -358,7 +358,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Select Xcode
       run: |
@@ -394,10 +394,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up Android NDK
-      uses: android-actions/setup-android@v4
+      uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
 
     - name: Install NDK
       run: |
@@ -434,10 +434,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set up Android NDK
-      uses: android-actions/setup-android@v4
+      uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
 
     - name: Install NDK
       run: |
@@ -475,10 +475,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Cache CMake deps
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: cpp/build-capi/_deps
         key: ${{ runner.os }}-capi-deps-${{ hashFiles('cpp/CMakeLists.txt') }}
