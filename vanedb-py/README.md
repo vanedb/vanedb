@@ -1,6 +1,6 @@
 # VaneDB for Python
 
-VaneDB is an embeddable vector database backed by Rust. FlatIndex vectors and search
+VaneDB is an embeddable vector database backed by Rust. Store vectors and search
 for their nearest neighbors inside your Python process, without a database
 server. Supply your own embeddings; VaneDB does not generate them.
 
@@ -9,13 +9,18 @@ C++ package is named `vanedb-cpp` and imports as `vanedb_cpp`.
 
 ## Installation
 
-Requires Python 3.11 or newer. To install a published release:
+Requires Python 3.11 or newer. To build this checkout, also install a Rust
+toolchain. From the repository root, create and activate a virtual environment:
 
 ```sh
-python -m pip install vanedb
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install ./vanedb-py
 ```
 
-Python lists work without additional dependencies. NumPy is optional; its arrays
+These instructions install the checkout and do not assume a published 1.0.0
+release. Python lists work without additional dependencies. NumPy is optional; its arrays
 can also be used for vector and batch inputs.
 
 ## Quick start
@@ -38,7 +43,7 @@ store = FlatIndex(3, Metric.COSINE)
 store.add_batch(ids, vectors)
 assert store.search(query, 1) == [(101, 0.0)]
 
-# Approximate search, with a fixed maximum capacity.
+# Approximate search; capacity is a reserve hint and the index can grow.
 index = ApproxIndex(3, Metric.COSINE, capacity=100, seed=42)
 index.add_batch(ids, vectors)
 index.ef_search = 100
@@ -59,8 +64,15 @@ For each metric, smaller distances rank first. Vectors must match the store or
 index dimension and contain finite values; IDs must be unique unsigned 64-bit
 integers.
 
-Persistence formats are currently pre-release and engine-specific. Do not use
-the Rust package to load C++ files, or vice versa; a shared format is planned.
+`ApproxIndex` graph files are pre-release and engine-specific: do not load them
+with the C++ package, or vice versa. Universal graph persistence is unfinished;
+keep source vectors for migration. `DiskIndex` files already use the shared
+VNDB v1 format and can be read by both engines. Disk construction buffers vectors
+in memory before saving, while the opened index uses a read-only memory mapping.
+
+The C++ Python package has different constructor keywords and returns separate
+id and distance arrays. Changing engines requires adapting those calls and
+checking feature availability, in addition to changing the import.
 
 ## Project
 

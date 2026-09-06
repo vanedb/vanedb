@@ -6,8 +6,7 @@ proves a product behavior that both implementations must honor.
 
 ## Initial regression set
 
-The first conformance cases will cover the paired findings already present in
-both issue trackers:
+The current conformance cases cover paired findings from both engines:
 
 - cosine distance for small, identical vectors;
 - non-finite vectors and queries are rejected at every public store/index
@@ -58,11 +57,11 @@ by `vanedb/tests/index_id_map_conformance.rs` and
 
 ## Universal persistence
 
-The first public persistence format is **VNDB v1**. Existing Rust and C++
-format version numbers are pre-release implementation details and do not
-determine the public version.
+The shared disk persistence format is **VNDB v1**, implemented by both engines.
+Approximate graph persistence is still engine-specific and pre-release; its
+existing version numbers do not determine a future public graph-format version.
 
-The format design must:
+A shared persistence format must:
 
 - begin with the literal four-byte magic `VNDB`;
 - use explicitly sized, little-endian fields;
@@ -107,6 +106,7 @@ Regenerate the fixtures only when this table changes, and treat any change to
 them as a format version change.
 
 The remaining format work is the `ApproxIndex` graph payload, which is still
-engine-specific (`HNSW` magic, bincode). Its field table and fixtures will land
+engine-specific (Rust uses `HNSW` magic and bincode; C++ uses its legacy
+`QVRD` framing). Its field table and fixtures will land
 with that implementation rather than being guessed during the repository
 migration.

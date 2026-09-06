@@ -72,29 +72,32 @@ jobs:
           cd "$RUNNER_TEMP"
           python -m pytest wheel-tests -v
 
-  test-linux:
-    name: Test (Linux x86_64)
-    runs-on: ubuntu-latest
+  test-native:
+    name: Test (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x86_64
+            runner: ubuntu-latest
+            features: disk
+          - platform: Linux ARM64
+            runner: ubuntu-24.04-arm
+            features: disk
+          - platform: macOS ARM64
+            runner: macos-latest
+            features: disk,gpu-metal
+          - platform: macOS x86_64
+            runner: macos-15-intel
+            features: disk
+          - platform: Windows x86_64
+            runner: windows-latest
+            features: disk
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
-
-  test-macos:
-    name: Test (macOS ARM)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk,gpu-metal --locked
-
-  test-windows:
-    name: Test (Windows x86_64)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
+      - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
 
   test-wasm:
     name: Test (WASM)
@@ -108,6 +111,14 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Test WASM
         run: cd vanedb-wasm && wasm-pack test --node --locked
+      - name: Test WASM in Chrome
+        env:
+          WASM_BINDGEN_USE_BROWSER: '1'
+        run: cd vanedb-wasm && wasm-pack test --headless --chrome --locked
+      - name: Test generated JavaScript conversions
+        run: |
+          wasm-pack build vanedb-wasm --target nodejs --release --locked
+          node vanedb-wasm/tests/node.cjs ./vanedb-wasm/pkg
 
   build-ios:
     name: Build (iOS arm64)
@@ -119,7 +130,7 @@ jobs:
           targets: aarch64-apple-ios
       # Cross-compile only: there is no iOS test runner, mirroring the
       # build-only verification the C++ repo uses for mobile.
-      - run: cargo build -p vanedb --target aarch64-apple-ios --features disk --release --locked
+      - run: cargo build -p vanedb -p vanedb-capi --target aarch64-apple-ios --features disk --release --locked
 
   build-android:
     name: Build (Android arm64-v8a, x86_64)
@@ -135,5 +146,5 @@ jobs:
           ndk-version: r26b
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --version 4.1.2 --locked
-      - name: Cross-compile core for Android
-        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features disk --release --locked
+      - name: Cross-compile core and C ABI for Android
+        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb -p vanedb-capi --features disk --release --locked

@@ -12,7 +12,7 @@ Complete documentation for VaneDB - the embeddable vector database for edge AI.
 - [Architecture](#architecture)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Known Limitations](#known-limitations)
-- [Roadmap](#roadmap)
+- [Maintenance](#maintenance)
 
 ---
 
@@ -119,14 +119,8 @@ auto results = store.search(query, 5);
 
 ### Installation
 
-The Rust-backed `vanedb` distribution is the canonical Python package. To use
-these supplementary C++ bindings instead:
-
-```bash
-python -m pip install vanedb-cpp
-```
-
-From source:
+These bindings are maintained for reference and testing. They are not
+published to PyPI. Build them from the repository with Python 3.11 or newer:
 
 ```bash
 git clone https://github.com/vanedb/vanedb.git
@@ -187,7 +181,7 @@ The C++ package requires NumPy 1.24.2 or newer: older 1.24 releases let
 
 - CMake 3.20+
 - C++20 compiler (Clang 17+ / GCC 11+ / MSVC 19.30+)
-- Python 3.9+ (optional, for bindings)
+- Python 3.11+ (optional, for bindings)
 - Git (for fetching dependencies)
 
 ### Basic Build
@@ -276,7 +270,7 @@ vanedb/
 | Job | Platform | Description |
 |-----|----------|-------------|
 | build-and-test | Linux (GCC, Clang), macOS, Windows | Core build + tests |
-| python-tests | All platforms, Python 3.9/3.11 | Python binding tests |
+| python-tests | Linux, macOS, Windows; Python 3.11–3.14 | Python binding tests |
 | sanitizers | Linux | AddressSanitizer, UBSan |
 | coverage | Linux | Code coverage + Codecov |
 | linux-arm64 | Linux ARM64 (Native) | ARM NEON validation |
@@ -296,14 +290,11 @@ vanedb/
 
 ---
 
-## Roadmap
+## Maintenance
 
-- [ ] PyPI package distribution
-- [ ] npm/WebAssembly bindings
-- [ ] Product quantization (PQ) for memory efficiency
-- [ ] Incremental index updates
-- [ ] Multi-vector queries (batch search)
-- [ ] Filtering/metadata support
+This engine is frozen. Maintenance covers defects, source builds, tests, the
+shared disk format, and an honest benchmark comparison. New product features
+belong to the [Rust engine](../..).
 
 ---
 

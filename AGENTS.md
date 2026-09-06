@@ -9,7 +9,7 @@ benchmark harness, and the shared conformance contract.
 | Crate | What it is | Notes |
 |---|---|---|
 | `vanedb` | Core: `FlatIndex`, `ApproxIndex`, `DiskIndex` (feature `disk`), SIMD distance kernels (NEON/AVX2/scalar) | |
-| `vanedb-py` | PyO3 bindings | **Excluded from workspace CI** — needs libpython; build with maturin |
+| `vanedb-py` | PyO3 bindings | Excluded from workspace Cargo tests; CI builds, installs, and tests a wheel |
 | `vanedb-wasm` | wasm-bindgen bindings | needs `wasm32-unknown-unknown` target |
 | `vanedb-capi` | C ABI (`vanedb_rs_*` symbols, metric as u32: 0=L2, 1=Cosine, 2=Dot) | header regenerated with cbindgen |
 | `cpp` | Header-only C++ engine, C ABI, and supplementary `vanedb-cpp` Python package | CMake project; Python imports as `vanedb_cpp` |
@@ -18,13 +18,13 @@ benchmark harness, and the shared conformance contract.
 
 ## Build & test
 
-These are exactly what CI runs — use the same invocations:
+Use these local checks; the workflows add platform and installed-artifact checks:
 
 ```bash
 actionlint
 cargo fmt --all -- --check
-cargo clippy --workspace --exclude vanedb-py --all-targets --features disk -- -D warnings
-cargo test --workspace --exclude vanedb-py --features disk
+cargo clippy --workspace --exclude vanedb-py --all-targets --features disk --locked -- -D warnings
+cargo test --workspace --exclude vanedb-py --features disk --locked
 cargo fmt --manifest-path bench/Cargo.toml --all -- --check
 cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path bench/Cargo.toml --locked
@@ -34,12 +34,16 @@ ctest --test-dir cpp/build --output-on-failure
 ```
 
 Never run plain `cargo test --workspace`: `vanedb-py` fails to link outside a
-maturin/Python environment. To work on the Python bindings (not covered by CI —
-verify locally):
+maturin/Python environment. To work on the Python bindings locally (CI also tests the installed wheel):
 
 ```bash
-python -m venv .venv && . .venv/bin/activate && pip install maturin pytest
-cd vanedb-py && maturin develop --release && pytest tests
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install maturin pytest numpy packaging
+cd vanedb-py
+maturin develop --release --locked
+python -m pytest tests
 ```
 
 Verify a locally built C++ wheel carries the deployment floor rather than the
@@ -56,21 +60,24 @@ wasm tests:
 
 ```bash
 rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
-cd vanedb-wasm && wasm-pack test --node
+cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
 Feature caveats: `gpu-metal` builds/tests only on macOS; `gpu-cuda` needs a CUDA
-toolchain. iOS/Android are build-only CI targets (cross-compile; can't run
-tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them.
+toolchain. iOS/Android currently have build-only CI coverage; that does not prove runtime
+behavior. Node wasm tests likewise do not prove browser integration. Match each
+platform claim to the actual build and runtime evidence; use the relevant host
+and toolchain for checks that cannot run locally.
 
 ## Invariants — do not break
 
-- **Persistence contract**: the current Rust and C++ formats are pre-release,
-  engine-specific formats. Replace them only in the dedicated universal-format
-  work, not as part of unrelated refactors. The first public format will be
-  `VNDB` v1: literal `VNDB` magic, fixed-width little-endian fields, and
-  shared fixtures that each engine can write and the other can faithfully load.
-  Until that work lands, keep the existing corruption checks passing.
+- **Persistence contract**: `DiskIndex` already uses shared `VNDB` v1:
+  literal `VNDB` magic, fixed-width little-endian fields, and fixtures in
+  `conformance/vndb/` that each engine reads and reproduces. Preserve that
+  contract. Approximate graph formats remain pre-release and engine-specific;
+  replace them only in dedicated universal-format work, with cross-load fixtures
+  and graph preservation checks. Do not promise public graph-format stability
+  before that work is complete. Keep all existing corruption checks passing.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep

@@ -10,28 +10,54 @@ a cross-engine benchmark; it is frozen, and features are not ported to it.
 
 ### Rust
 
-```rust
-use vanedb::{Metric, ApproxIndex};
+With a Rust toolchain installed, run the example from this repository's root:
 
-let index = ApproxIndex::builder(768, Metric::Cosine)
-    .capacity(100_000)
-    .build()?;
-index.add(1, &embedding)?;             // single insert
-index.add_batch(&ids, &flat_vectors)?; // bulk insert, row-major n × dim floats
-let hits = index.search(&query, 10)?;
+```sh
+cargo run -p vanedb --example quickstart --locked
+```
+
+For a local application, add `vanedb = { path = "/path/to/vanedb/vanedb" }`
+to its Cargo dependencies. The complete example is:
+
+```rust
+use vanedb::{ApproxIndex, Metric};
+
+fn main() -> Result<(), vanedb::VaneError> {
+    let index = ApproxIndex::builder(3, Metric::Cosine)
+        .capacity(100)
+        .build()?;
+    index.add_batch(&[101, 202], &[1.0, 0.0, 0.0, 0.0, 1.0, 0.0])?;
+    let hits = index.search(&[1.0, 0.0, 0.0], 1)?;
+    assert_eq!(hits[0].id, 101);
+    println!("Nearest id: {}, distance: {}", hits[0].id, hits[0].distance);
+    Ok(())
+}
 ```
 
 ### Python
 
-```python
-import numpy as np
-import vanedb
+Requires Python 3.11 or newer and a Rust toolchain to build from source.
+From the repository root, create and activate a virtual environment, then install:
 
-index = vanedb.ApproxIndex(768, vanedb.Metric.COSINE, capacity=100_000)
-vecs = np.asarray(embeddings, dtype=np.float32)  # shape (n, 768)
-index.add_batch(np.arange(len(vecs), dtype=np.uint64), vecs)
-hits = index.search(vecs[0], 10)  # [(id, distance), ...]
+```sh
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install ./vanedb-py
 ```
+
+```python
+from vanedb import ApproxIndex, Metric
+
+index = ApproxIndex(3, Metric.COSINE, capacity=100)
+index.add_batch([101, 202], [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+hits = index.search([1.0, 0.0, 0.0], 1)
+assert hits == [(101, 0.0)]
+print(hits)
+```
+
+See the [Python guide](vanedb-py/README.md) for exact search and saving an index.
+These instructions use the checkout; they do not assume a published 1.0.0 package.
 
 Vector arguments accept any buffer-protocol object (numpy `float32` arrays,
 `array.array`, memoryviews) as well as plain Python lists. `add_batch` is
@@ -51,17 +77,16 @@ this query — and each name says why you would pick it over the others.
 | `DiskIndex` | yes | a file, paged in on demand | the corpus is larger than RAM |
 
 `FlatIndex` and `DiskIndex` scan every vector, so cost grows linearly and the
-answer is always right. `ApproxIndex` walks an HNSW graph instead: sub-linear,
-and it can miss a true neighbour. `ef_search` trades that recall against speed
+results are exact under the selected distance metric. `ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades that recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
 Every type takes a `Metric` (`L2`, cosine, or dot) and returns results nearest
-first. Only `ApproxIndex` persists, with `save`/`load`. `DiskIndex` is written
+first. The native `ApproxIndex` supports `save`/`load`. `DiskIndex` is written
 by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
 and is rebuilt on each run.
 
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
-hint rather than a ceiling and an unused index costs nothing.
+hint rather than a ceiling. Vector storage grows on demand.
 
 `remove` tombstones: the node keeps its graph links, which may be the only
 route between live neighbourhoods, and simply stops appearing in results.
@@ -75,12 +100,52 @@ is a full rebuild and holds the write lock throughout, so call it deliberately
 rather than on every write. `save` writes tombstoned slots too, so compact first
 if file size matters.
 
-All three are reachable from every binding except wasm, which has no
-filesystem to map and so omits `DiskIndex`.
+## Bindings and platforms
 
-The Rust crate spells enum variants in Rust style (`Metric::Cosine`); the
-Python and JavaScript packages use `Metric.COSINE`. Type names are identical
-in every binding, so switching engines is an import change.
+| Binding | Available indexes | Metrics and results |
+|---|---|---|
+| Rust | Flat, Approx, Disk (`disk` feature) | `Metric::Cosine`; `Vec<SearchResult>` |
+| Python (`vanedb`) | Flat, Approx, Disk | `Metric.COSINE`; list of `(id, distance)` pairs |
+| JavaScript / WebAssembly | Flat, Approx | `"cosine"` string; `SearchResults` with `ids` and `distances` arrays |
+| C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
+
+WebAssembly currently supports add, batch add, search, lookup methods, and
+remove; it does not expose persistence, upsert, or compaction. A single id is a
+JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
+`Float32Array`. Build a browser package from the repository root with
+`wasm-pack build vanedb-wasm --target web --release --locked` after installing
+`wasm-pack` and the `wasm32-unknown-unknown` Rust target. The generated `pkg/`
+directory includes JavaScript, TypeScript declarations, and the wasm module.
+Initialize that module before constructing an index. For example, the approximate
+constructor takes `(3, "cosine", 100, 16, 200)`.
+
+Build the native C library with `cargo build -p vanedb-capi --release --locked`.
+The library is written to `target/release`; use the generated
+[C header](vanedb-capi/include/vanedb_rs_capi.h) for ownership, buffer sizes,
+return conventions, and metric constants.
+
+CI runs native Rust tests on Linux x86-64/ARM64, macOS Intel/ARM64, and Windows x86-64,
+and WebAssembly tests in Node.js and headless Chrome. Python release workflows build and test
+Linux x86-64/ARM64 (glibc and musl), macOS Intel/ARM64, and Windows x64 wheels
+for Python 3.11–3.14. Mobile CI currently cross-compiles the Rust core and C ABI for
+iOS ARM64 and Android ARM64/x86-64; mobile runtime behavior still needs verification before claiming 1.0.0 support
+on every platform.
+
+The supplementary C++ engine has different constructor arguments, result shapes,
+and feature coverage. Moving between Python engines requires adapting the API,
+in addition to changing the import.
+
+## Persistence
+
+`DiskIndex` uses the shared **VNDB v1** format: fixed-width little-endian fields,
+with [format specification and cross-engine fixtures](conformance/README.md).
+Both Rust and C++ can read these files. Building a disk index currently buffers
+its vectors in memory before saving; searches use a read-only memory mapping.
+
+`ApproxIndex` still uses an engine-specific pre-release format. Rust graph files
+cannot be loaded by C++, or vice versa. Universal graph persistence is unfinished;
+there is no public 1.0.0 persistence compatibility promise yet. Keep source vectors
+so you can rebuild when migrating formats.
 
 ## Repository layout
 
@@ -90,17 +155,15 @@ in every binding, so switching engines is an import change.
 | [`vanedb-py/`](vanedb-py) | PyO3 bindings for `pip install vanedb` |
 | [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
 | [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
-| [`cpp/`](cpp) | Supplementary header-only C++ engine and `vanedb-cpp` Python package |
+| [`cpp/`](cpp) | Frozen C++ reference engine and local Python bindings |
 | [`bench/`](bench) | Reproducible cross-engine benchmark harness |
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
-The Rust and C++ engines may make different internal trade-offs, but distance
-semantics, persistence, structural safety, and search-quality expectations are
-tested as one product. The canonical Python package is `vanedb`;
-`vanedb-cpp` / `import vanedb_cpp` is supplementary.
+Rust is the shipping engine. C++ source tests and shared disk-format fixtures
+keep the reference implementation useful for the benchmark comparison.
 
-Release tags are product-scoped: `vanedb-vX.Y.Z` for the canonical product
-and `vanedb-cpp-vX.Y.Z` for the supplementary C++ distribution.
+Release tags are `vanedb-vX.Y.Z` for Python and `vanedb-crate-vX.Y.Z`
+for the Rust crate. The C++ reference is not published to PyPI.
 
 ## License
 

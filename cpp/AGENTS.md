@@ -6,12 +6,10 @@ Embeddable vector database for edge AI. Header-only C++20, SIMD-optimized, cross
 ## Role in the VaneDB Project
 
 This is the **C++ header-only** implementation in the `cpp/` directory. The
-Rust implementation lives at the repository root and is the primary entry
-point for Rust (`cargo add vanedb`), Python (`pip install vanedb`), and WASM
-consumers.
-This implementation also provides supplementary Python bindings as
-`pip install vanedb-cpp` / `import vanedb_cpp`; it does not own the canonical
-`vanedb` PyPI name.
+Rust implementation lives at the repository root and owns the Rust, Python,
+C and WASM product. See the root README for source-build instructions.
+The C++ Python bindings are built locally for reference and testing; there is
+no `vanedb-cpp` publication workflow.
 
 **Why this engine still exists:** it is the other arm of the cross-engine
 benchmark, and a header you can drop into a CMake/Bazel project with no Rust
@@ -75,7 +73,7 @@ Run these commands from the repository root.
 - ARM64: Native runners
 - iOS: Xcode arm64
 - Android: NDK arm64-v8a, x86_64
-- Python: 3 platforms x Python 3.9–3.14
+- Python: 3 platforms x Python 3.11–3.14
 - Sanitizers: ASan, UBSan
 - Coverage: Codecov
 
