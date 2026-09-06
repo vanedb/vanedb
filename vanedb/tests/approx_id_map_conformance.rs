@@ -1,4 +1,4 @@
-//! Cross-engine HNSW id_map cases from `conformance/index_id_map_consistency.tsv`.
+//! Cross-engine HNSW id_map cases from `tests/fixtures/conformance/index_id_map_consistency.tsv`.
 //!
 //! The loader validated only `id_map.len() == count` and that each internal
 //! index was in range, so a file could map an external id onto another slot.
@@ -47,7 +47,7 @@ struct Case {
 }
 
 fn cases() -> Vec<Case> {
-    include_str!("../../conformance/index_id_map_consistency.tsv")
+    include_str!("fixtures/conformance/index_id_map_consistency.tsv")
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))

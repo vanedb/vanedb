@@ -1,4 +1,4 @@
-// Cross-engine HNSW id_map cases from conformance/index_id_map_consistency.tsv.
+// Cross-engine HNSW id_map cases from vanedb/tests/fixtures/conformance/index_id_map_consistency.tsv.
 //
 // The loader accepted an id_map whose size was <= count and whose values were
 // in range, without checking that each key mapped back to its own slot. A file

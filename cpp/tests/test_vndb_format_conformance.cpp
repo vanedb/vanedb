@@ -1,6 +1,6 @@
 // The VNDB v1 on-disk contract, anchored to golden fixtures.
 //
-// conformance/vndb/*.vndb are written from the specification by generate.py,
+// vanedb/tests/fixtures/conformance/vndb/*.vndb are written from the specification by generate.py,
 // not by either engine. The Rust and C++ engines are otherwise only ever
 // compared to each other, so a layout change applied to both would pass every
 // test in either repo. These fixtures are the independent anchor, and the

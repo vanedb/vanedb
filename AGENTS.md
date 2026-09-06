@@ -75,7 +75,7 @@ and toolchain for checks that cannot run locally.
 
 - **Persistence contract**: `DiskIndex` already uses shared `VNDB` v1:
   literal `VNDB` magic, fixed-width little-endian fields, and fixtures in
-  `conformance/vndb/` that each engine reads and reproduces. Preserve that
+  `vanedb/tests/fixtures/conformance/vndb/` that each engine reads and reproduces. Preserve that
   contract. Approximate graphs now use the shared VNDB v2 release candidate in
   `conformance/graph/`; keep its golden files, cross-load preservation and legacy
   reader checks passing. Do not promise public graph-format stability before

@@ -1,6 +1,19 @@
 //! The crate README is the crates.io front page and nothing compiles it, so
 //! this pins it to `examples/quickstart.rs`, which the build does compile.
 
+fn readmes() -> Vec<String> {
+    let mut readmes = vec![include_str!("../README.md").to_owned()];
+    let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    // The repository guide is checked in the monorepo. It is not part of a
+    // standalone crate archive, whose own README is always checked above.
+    if repository.join("vanedb-py/Cargo.toml").is_file() {
+        readmes.push(std::fs::read_to_string(repository.join("README.md")).unwrap());
+    }
+    readmes
+}
+
 #[test]
 fn readme_example_matches_the_compiled_one() {
     let example = include_str!("../examples/quickstart.rs");
@@ -9,10 +22,7 @@ fn readme_example_matches_the_compiled_one() {
         .map(str::trim)
         .filter(|l| !l.is_empty())
         .collect();
-    for readme in [
-        include_str!("../README.md"),
-        include_str!("../../README.md"),
-    ] {
+    for readme in readmes() {
         let block: Vec<_> = readme
             .lines()
             .skip_while(|l| !l.starts_with("```rust"))
@@ -76,10 +86,7 @@ fn documented_methods_exist() {
     let disk_builder: &[&str] = &["new", "add", "save", "size"];
     let all_types = ["FlatIndex", "ApproxIndex", "DiskIndex", "DiskIndexBuilder"];
 
-    for readme in [
-        include_str!("../../README.md"),
-        include_str!("../README.md"),
-    ] {
+    for readme in readmes() {
         // Markdown wraps sentences across lines, so judge sentences, not lines:
         // a type and a method sharing a line may belong to different claims.
         //

@@ -1,8 +1,11 @@
 # VaneDB conformance
 
 This directory owns the contract shared by the Rust and C++ engines. A
-component-specific test may prove an implementation detail; a fixture here
-proves a product behavior that both implementations must honor.
+component-specific test may prove an implementation detail; the shared fixtures
+prove behaviors both engines must honor. Their canonical bytes live in
+[`vanedb/tests/fixtures/conformance/`](../vanedb/tests/fixtures/conformance/), so
+the Rust crate includes every file its tests need. Both engines read that same
+copy; this directory retains the specifications and independent generators.
 
 ## Initial regression set
 
@@ -84,7 +87,7 @@ require the reader to preserve the graph represented in the file.
 ### VNDB v1 — DiskIndex
 
 The `DiskIndex` payload already meets this contract and is specified here.
-`conformance/vndb/*.vndb` are the canonical fixtures, and both engines must
+`vanedb/tests/fixtures/conformance/vndb/*.vndb` are the canonical fixtures, and both engines must
 read them and reproduce them byte for byte.
 
 All fields are little-endian. The header is exactly 32 bytes:

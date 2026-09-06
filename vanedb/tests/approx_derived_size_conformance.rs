@@ -1,4 +1,4 @@
-//! Cross-engine HNSW size cases from `conformance/index_derived_sizes.tsv`.
+//! Cross-engine HNSW size cases from `tests/fixtures/conformance/index_derived_sizes.tsv`.
 
 use vanedb::{ApproxIndex, Metric, VaneError};
 
@@ -20,7 +20,7 @@ fn parse_size(value: &str) -> usize {
 }
 
 fn cases() -> Vec<Case<'static>> {
-    include_str!("../../conformance/index_derived_sizes.tsv")
+    include_str!("fixtures/conformance/index_derived_sizes.tsv")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| {

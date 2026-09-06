@@ -6,7 +6,7 @@ use vanedb::{ApproxIndex, FlatIndex, Metric, SearchResult, VaneError};
 use vanedb::{DiskIndex, DiskIndexBuilder};
 
 fn cases() -> Vec<(&'static str, f32)> {
-    include_str!("../../conformance/non_finite_vectors.tsv")
+    include_str!("fixtures/conformance/non_finite_vectors.tsv")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| {

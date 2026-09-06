@@ -1,6 +1,6 @@
 //! The VNDB v1 on-disk contract, anchored to golden fixtures.
 //!
-//! `conformance/vndb/*.vndb` are written from the specification by
+//! `tests/fixtures/conformance/vndb/*.vndb` are written from the specification by
 //! `generate.py`, not by either engine. That is the point: the Rust and C++
 //! engines are otherwise only ever compared to *each other*, so a layout
 //! change applied to both would pass every test in the repo. These fixtures
@@ -20,7 +20,7 @@ const IDS: [u64; 6] = [10, 20, 30, 40, 50, 60];
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../conformance/vndb")
+        .join("tests/fixtures/conformance/vndb")
         .join(name)
 }
 
