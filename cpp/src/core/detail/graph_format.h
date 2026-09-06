@@ -4,12 +4,14 @@
 #include <bit>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_set>
 #include <vector>
@@ -26,40 +28,62 @@ template <typename T> void write(std::ostream& out, T value) {
   out.write(bytes, sizeof(bytes));
 }
 
+inline void write_floats(std::ostream& out, const float* values, size_t count) {
+  static_assert(sizeof(float) == 4 && std::numeric_limits<float>::is_iec559);
+  if constexpr (std::endian::native == std::endian::little)
+    out.write(reinterpret_cast<const char*>(values), count * sizeof(float));
+  else
+    for (size_t i = 0; i < count; ++i) write(out, std::bit_cast<uint32_t>(values[i]));
+}
+
 class Reader {
-  std::ifstream& file_;
+  std::string buffer_;
+  size_t position_ = 0;
 public:
   uint64_t remaining;
-  explicit Reader(std::ifstream& file) : file_(file) {
+  explicit Reader(std::ifstream& file) {
     const auto start = file.tellg();
     file.seekg(0, std::ios::end);
     const auto end = file.tellg();
-    require(start >= 0 && end >= start, "Cannot measure VNDB graph");
+    require(start >= 0 && end >= start && static_cast<uint64_t>(end - start) <= SIZE_MAX,
+            "Cannot measure VNDB graph");
     remaining = static_cast<uint64_t>(end - start);
     file.seekg(start);
+    buffer_.resize(static_cast<size_t>(remaining));
+    require(static_cast<bool>(file.read(buffer_.data(), buffer_.size())), "Truncated VNDB graph");
   }
-  std::string bytes(size_t count) {
+  std::string_view view(size_t count) {
     require(count <= remaining, "Truncated VNDB graph");
-    std::string result(count, '\0');
-    require(static_cast<bool>(file_.read(result.data(), count)), "Truncated VNDB graph");
+    const auto result = std::string_view(buffer_).substr(position_, count);
+    position_ += count;
     remaining -= count;
     return result;
   }
+  std::string bytes(size_t count) { return std::string(view(count)); }
   template <typename T> T read() {
     static_assert(std::is_unsigned_v<T>);
-    require(sizeof(T) <= remaining, "Truncated VNDB graph");
-    unsigned char bytes[sizeof(T)];
-    require(static_cast<bool>(file_.read(reinterpret_cast<char*>(bytes), sizeof(bytes))),
-            "Truncated VNDB graph");
-    remaining -= sizeof(T);
+    const auto bytes = view(sizeof(T));
     T result = 0;
-    for (size_t i = 0; i < sizeof(T); ++i) result |= static_cast<T>(bytes[i]) << (8 * i);
+    for (size_t i = 0; i < sizeof(T); ++i)
+      result |= static_cast<T>(static_cast<unsigned char>(bytes[i])) << (8 * i);
     return result;
   }
   size_t size() {
     const auto value = read<uint64_t>();
     require(value <= SIZE_MAX, "VNDB graph size exceeds this platform");
     return static_cast<size_t>(value);
+  }
+  void floats(std::vector<float>& values, size_t count) {
+    const size_t start = values.size();
+    if constexpr (std::endian::native == std::endian::little) {
+      const auto bytes = view(count * sizeof(float));
+      values.resize(start + count);
+      std::memcpy(values.data() + start, bytes.data(), bytes.size());
+    } else {
+      for (size_t i = 0; i < count; ++i) values.push_back(std::bit_cast<float>(read<uint32_t>()));
+    }
+    for (size_t i = start; i < values.size(); ++i)
+      require(std::isfinite(values[i]), "Non-finite VNDB graph vector");
   }
 };
 
@@ -148,11 +172,7 @@ inline Data read(std::ifstream& file) {
     data.levels.push_back(static_cast<int>(level));
     data.deleted.push_back(flags == 1);
     observed_max = std::max(observed_max, static_cast<int>(level));
-    for (size_t d = 0; d < data.dim; ++d) {
-      const float value = std::bit_cast<float>(in.read<uint32_t>());
-      require(std::isfinite(value), "Non-finite VNDB graph vector");
-      data.vectors.push_back(value);
-    }
+    in.floats(data.vectors, data.dim);
     auto& layers = data.neighbors[slot];
     layers.resize(level + 1);
     for (size_t layer = 0; layer <= level; ++layer) {

@@ -19,7 +19,7 @@ const DISK_MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const HNSW_VERSION: u32 = 2;
 
 /// Field-order mirror of the private `HnswData` struct in
-/// `src/hnsw/persistence.rs` (bincode encodes by field order, so this
+/// `src/approx/persistence.rs` (bincode encodes by field order, so this
 /// serializes identically). Used to hand-craft v1/v2 payloads.
 #[derive(serde::Serialize)]
 struct HnswDataMirror {
@@ -225,19 +225,7 @@ fn hnsw_load_rejects_garbage_payload() {
 }
 
 #[test]
-fn hnsw_load_rejects_invalid_metric() {
-    // Path: build a valid index, save, then patch the serialized `metric` u32
-    // to an invalid value. We can't surgically patch a bincode field without
-    // parsing — but we can construct a bad index in memory by saving with a
-    // valid metric and then trying to load with the metric u32 mutated.
-    //
-    // Easier strategy: load + re-save with serde isn't exposed, so instead we
-    // test the path indirectly by creating a custom HnswData. That requires
-    // private types — so we settle for the public-API smoke test below
-    // (a real malformed file just ends up failing earlier in deserialize).
-    //
-    // The metric validation IS exercised in the public API by the round-trip:
-    // saving/loading with each valid metric must succeed.
+fn hnsw_save_load_preserves_all_metrics() {
     for &metric in &[Metric::L2, Metric::Cosine, Metric::Dot] {
         let path = std::env::temp_dir().join(format!("vanedb_metric_{metric:?}.bin"));
         let idx = ApproxIndex::builder(3, metric).capacity(4).build().unwrap();

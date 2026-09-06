@@ -128,6 +128,16 @@ public:
     if (id_map_.count(id)) throw std::invalid_argument("ID " + std::to_string(id) + " exists");
     if (count_ >= max_elements_) throw std::runtime_error("ApproxIndex full");
 
+    const size_t next = count_.load() + 1;
+    if (neighbors_.size() < next) {
+      // Loaded VNDB files allocate stored slots, independent of the capacity
+      // hint. Grow within the existing hard limit before publishing a slot.
+      vectors_.resize(next * dim_);
+      ext_ids_.resize(next);
+      levels_.resize(next);
+      deleted_.resize(next, false);
+      neighbors_.resize(next);
+    }
     size_t iid = count_++;
     id_map_[id] = iid;
     ext_ids_[iid] = id;
@@ -211,7 +221,9 @@ public:
       }
     }
 
-    auto top = search_layer(query, curr, std::max(ef_search_.load(std::memory_order_relaxed), k), 0, true);
+    const size_t ef = std::max(ef_search_.load(std::memory_order_relaxed), k);
+    auto top = id_map_.size() == count_.load(std::memory_order_relaxed)
+        ? search_layer(query, curr, ef, 0) : search_layer<true>(query, curr, ef, 0);
     std::vector<std::pair<float, size_t>> temp;
     while (!top.empty()) { temp.push_back(top.top()); top.pop(); }
     std::sort(temp.begin(), temp.end(), detail::DistanceIdLess{});
@@ -268,7 +280,7 @@ public:
         write(f, ext_ids_[slot]);
         write(f, static_cast<uint32_t>(levels_[slot]));
         write(f, static_cast<uint32_t>(deleted_[slot]));
-        for (size_t d = 0; d < dim_; ++d) write(f, std::bit_cast<uint32_t>(get_vec(slot)[d]));
+        detail::graph::write_floats(f, get_vec(slot), dim_);
         for (const auto& layer : neighbors_[slot]) {
           write(f, static_cast<uint64_t>(layer.size()));
           for (size_t neighbor : layer) write(f, static_cast<uint64_t>(neighbor));
@@ -442,22 +454,22 @@ private:
     auto data = detail::graph::read(file);
     const auto sizes = checked_persisted_sizes(data.dim, data.capacity, data.m);
     auto index = std::unique_ptr<ApproxIndex>(new ApproxIndex(
-        data.dim, static_cast<Metric>(data.metric), data.capacity, data.m,
-        data.ef_construction, static_cast<uint32_t>(data.seed), sizes));
+        data.dim, static_cast<Metric>(data.metric), 0, data.m,
+        data.ef_construction, static_cast<uint32_t>(data.seed), {0, sizes.m_max0}));
+    index->max_elements_ = data.capacity;
     index->ef_construction_ = data.ef_construction;
     index->ef_search_.store(data.ef_search);
     index->serialization_seed_ = data.seed;
     index->count_.store(data.count);
     index->ep_.store(data.count == 0 ? INVALID_ID : static_cast<size_t>(data.entry));
     index->max_level_.store(data.max_level);
-    std::copy(data.vectors.begin(), data.vectors.end(), index->vectors_.begin());
-    std::copy(data.ids.begin(), data.ids.end(), index->ext_ids_.begin());
-    std::copy(data.levels.begin(), data.levels.end(), index->levels_.begin());
-    std::copy(data.deleted.begin(), data.deleted.end(), index->deleted_.begin());
-    for (size_t slot = 0; slot < data.count; ++slot) {
-      index->neighbors_[slot] = std::move(data.neighbors[slot]);
-      if (!data.deleted[slot]) index->id_map_.emplace(data.ids[slot], slot);
-    }
+    index->vectors_ = std::move(data.vectors);
+    index->ext_ids_ = std::move(data.ids);
+    index->levels_ = std::move(data.levels);
+    index->deleted_ = std::move(data.deleted);
+    index->neighbors_ = std::move(data.neighbors);
+    for (size_t slot = 0; slot < data.count; ++slot)
+      if (!index->deleted_[slot]) index->id_map_.emplace(index->ext_ids_[slot], slot);
     if (data.rng_kind == detail::graph::NATIVE_RNG) {
       std::istringstream input(data.rng);
       input.imbue(std::locale::classic());
@@ -486,7 +498,8 @@ private:
 
   const float* get_vec(size_t iid) const { return vectors_.data() + iid * dim_; }
 
-  MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level, bool live_only = false) const {
+  template <bool LiveOnly = false>
+  MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level) const {
     // Versioned thread-local visited bitmap. vis[i] == vis_epoch means
     // visited; bumping the epoch each call replaces the per-search O(N)
     // zero-init a fresh bitmap would need with one O(count_) fill every
@@ -514,7 +527,7 @@ private:
     MaxHeap res;
     float d = dist_(q, get_vec(ep));
     cands.emplace(d, ep);
-    if (!live_only || !deleted_[ep]) res.emplace(d, ep);
+    if (!LiveOnly || !deleted_[ep]) res.emplace(d, ep);
     float lb = d;
 
     while (!cands.empty()) {
@@ -528,7 +541,7 @@ private:
         float nd = dist_(q, get_vec(n));
         if (res.size() < ef || detail::distance_less(nd, lb)) {
           cands.emplace(nd, n);
-          if (!live_only || !deleted_[n]) res.emplace(nd, n);
+          if (!LiveOnly || !deleted_[n]) res.emplace(nd, n);
           if (res.size() > ef) res.pop();
           if (!res.empty()) lb = res.top().first;
         }

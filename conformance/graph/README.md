@@ -44,8 +44,9 @@ point above a neighbor's level. Upper-layer degrees are at most M.
 Readers check sizes against the available bytes and platform limits before
 allocation, then validate the complete graph before exposing an index. Dimension
 and capacity must be nonzero; capacity is capped at 100 million slots. Sizes
-must fit the reader's address space and available memory. C++ reserves the full
-capacity in memory; Rust grows its storage as needed. Writers
+must fit the reader's address space and available memory. Readers allocate
+storage for saved slots. C++ treats capacity as a hard insertion limit; Rust
+can grow beyond the original hint. Writers
 preserve slot order, adjacency order, IDs, tombstones, and vector bits. They do
 not rebuild or compact the graph as a side effect of saving.
 

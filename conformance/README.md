@@ -52,11 +52,12 @@ resolved to another slot's vector.
 Rust supports deletion: a slot is live only when `id_map[ext_ids[slot]] == slot`.
 A slot missing that mapping is a tombstone, and its external ID may have been
 reused by another live slot. The public size counts live entries, while the
-legacy file's `count` includes tombstones. The frozen C++ engine has no deletion;
-it additionally requires a mapping for every stored slot. Missing mappings and
-duplicate stored IDs therefore have engine-specific rules.
+legacy file's `count` includes tombstones. Legacy C++ files instead require a
+mapping for every stored slot. VNDB v2 encodes liveness with node flags, and both
+readers rebuild the map from live slots while preserving tombstones. The frozen
+C++ engine still has no public deletion API.
 
-`index_id_map_consistency.tsv` pins these cases for both engines and is consumed
+`index_id_map_consistency.tsv` pins the legacy map cases for both engines and is consumed
 by `vanedb/tests/approx_id_map_conformance.rs` and
 `cpp/tests/test_approx_id_map_conformance.cpp`.
 

@@ -206,9 +206,13 @@ pub(super) fn read(bytes: &[u8]) -> Result<(HnswData, RngState)> {
         }
         ext_ids.push(id);
         levels.push(level as i32);
-        for _ in 0..dim {
-            vectors.push(f32::from_le_bytes(input.take()?));
-        }
+        let (components, rest) = input
+            .0
+            .split_at_checked(dim * 4)
+            .ok_or_else(|| VaneError::corrupt("truncated VNDB graph vectors"))?;
+        input.0 = rest;
+        let (bits, _) = components.as_chunks::<4>();
+        vectors.extend(bits.iter().copied().map(f32::from_le_bytes));
         let mut layers = reserve(level as usize + 1)?;
         for layer in 0..=level {
             let degree = input.size()?;

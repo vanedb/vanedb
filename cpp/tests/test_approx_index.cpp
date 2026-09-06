@@ -1143,3 +1143,26 @@ TEST_CASE("ApproxIndex - portable graph validates continuation metadata", "[inde
   }
   std::filesystem::remove(path);
 }
+
+TEST_CASE("ApproxIndex - graph capacity hint does not allocate unused slots", "[index][persistence][vndb]") {
+  const std::string path = "portable_graph_large_capacity.vndb";
+  std::filesystem::copy_file(std::filesystem::path(VANEDB_GRAPH_DIR) / "l2_rng1.vndb",
+                            path, std::filesystem::copy_options::overwrite_existing);
+  {
+    std::fstream file(path, std::ios::binary | std::ios::in | std::ios::out);
+    file.seekp(32);
+    vanedb::detail::graph::write(file, uint64_t{100000000});
+  }
+  auto index = vanedb::ApproxIndex::load(path);
+  REQUIRE(index->capacity() == 100000000);
+  REQUIRE(index->size() == 3);
+  const float added[] = {0.25f, 0.75f};
+  index->add(303, added);
+  REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  index->save(path);
+  REQUIRE(std::filesystem::file_size(path) < 10000);
+  auto reloaded = vanedb::ApproxIndex::load(path);
+  REQUIRE(reloaded->capacity() == 100000000);
+  REQUIRE(reloaded->size() == 4);
+  std::filesystem::remove(path);
+}
