@@ -5,8 +5,8 @@
 //! has a working CUDA backend today.
 
 use crate::error::{Result, VaneError};
+use crate::flat::SearchResult;
 use crate::gpu::GpuMetric;
-use crate::store::SearchResult;
 
 /// Unimplemented CUDA compute stub. Construction always fails — see the module
 /// docs. Requires NVIDIA GPU + CUDA toolkit and a real implementation first.

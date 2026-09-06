@@ -4,16 +4,16 @@ Embeddable vector database for edge AI.
 
 Three ways to hold vectors, all searchable by k nearest neighbours:
 
-- `Store` — exact brute-force scan, held in memory.
-- `Index` — approximate graph index: sub-linear search, recall traded
+- `FlatIndex` — exact brute-force scan, held in memory.
+- `ApproxIndex` — approximate graph index: sub-linear search, recall traded
   against speed through `ef_search`.
-- `DiskStore` — exact scan over a memory-mapped file, so a corpus larger
+- `DiskIndex` — exact scan over a memory-mapped file, so a corpus larger
   than RAM stays searchable (feature `disk`).
 
 ```rust
-use vanedb::{Metric, Index};
+use vanedb::{Metric, ApproxIndex};
 
-let index = Index::builder(768, Metric::Cosine)
+let index = ApproxIndex::builder(768, Metric::Cosine)
     .capacity(100_000)
     .build()?;
 index.add(1, &embedding)?;
@@ -23,14 +23,14 @@ let hits = index.search(&query, 10)?;
 ```
 
 Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
-portable scalar path. Index and mmap files are little-endian and stable across
+portable scalar path. ApproxIndex and mmap files are little-endian and stable across
 released versions.
 
 A header-only C++ implementation is maintained alongside this crate, with a
 cross-engine benchmark harness, in the
-[repository](https://github.com/vanedb/vanedb). The two share the `DiskStore`
+[repository](https://github.com/vanedb/vanedb). The two share the `DiskIndex`
 format — either engine reads the other's file — and share graph construction.
-The `Index` format is still engine-specific.
+The `ApproxIndex` format is still engine-specific.
 
 ## License
 

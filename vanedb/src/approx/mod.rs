@@ -11,7 +11,7 @@ use rand::SeedableRng;
 
 use crate::distance::{distance_fn, DistanceFn, Metric};
 use crate::error::{Result, VaneError};
-use crate::store::SearchResult;
+use crate::flat::SearchResult;
 use crate::validation::{compare_distances, validate_finite};
 use storage::ChunkedVectors;
 
@@ -35,7 +35,7 @@ mod storage;
 // the epoch is bumped each `search_layer` call, so the per-search work stays
 // O(visited) instead of O(N) (which a fresh-bitmap-per-call or HashSet
 // becomes at scale). On the rare epoch wrap (every 65k searches with u16
-// the buffer is reset once. Buffer is shared across Index instances on
+// the buffer is reset once. Buffer is shared across ApproxIndex instances on
 // a thread (monotonic epoch keeps cross-index marks distinct) and is
 // retained across calls so we pay the allocation cost at most once.
 //
@@ -66,7 +66,7 @@ impl VisitedBuffer {
         self.epoch = self.epoch.wrapping_add(1);
         if self.epoch == 0 {
             // Wrap: zero the whole buffer, not just the active range. It is
-            // shared across every Index on this thread and never shrunk, so
+            // shared across every ApproxIndex on this thread and never shrunk, so
             // marks above `total` belong to some larger index and would be
             // read as current once the epoch climbs past them again.
             self.marks.fill(0);
@@ -116,12 +116,12 @@ const MIN_LEVEL_RANDOM: f64 = 1e-9;
 /// Search is sub-linear in the corpus, at the cost of occasionally missing a
 /// true neighbour. Recall is traded against speed at query time with
 /// [`set_ef_search`](Self::set_ef_search) and at build time with
-/// [`m`](IndexBuilder::m) and
-/// [`ef_construction`](IndexBuilder::ef_construction).
+/// [`m`](ApproxIndexBuilder::m) and
+/// [`ef_construction`](ApproxIndexBuilder::ef_construction).
 ///
-/// Built through [`Index::builder`]. Mutating methods take `&self`; the
+/// Built through [`ApproxIndex::builder`]. Mutating methods take `&self`; the
 /// index is internally synchronised.
-pub struct Index {
+pub struct ApproxIndex {
     pub(super) dim: usize,
     pub(super) metric: Metric,
     pub(super) dist_fn: DistanceFn,
@@ -150,8 +150,8 @@ pub(super) struct Inner {
     pub(super) rng: StdRng,
 }
 
-/// Configures an [`Index`] before construction.
-pub struct IndexBuilder {
+/// Configures an [`ApproxIndex`] before construction.
+pub struct ApproxIndexBuilder {
     dim: usize,
     metric: Metric,
     capacity: usize,
@@ -160,10 +160,10 @@ pub struct IndexBuilder {
     seed: u64,
 }
 
-impl std::fmt::Debug for Index {
+impl std::fmt::Debug for ApproxIndex {
     /// Identity and size only; the graph sits behind a lock.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Index")
+        f.debug_struct("ApproxIndex")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
             .field("size", &self.size())
@@ -173,10 +173,10 @@ impl std::fmt::Debug for Index {
     }
 }
 
-impl Index {
+impl ApproxIndex {
     /// Starts configuring an index over vectors of `dim` components.
-    pub fn builder(dim: usize, metric: Metric) -> IndexBuilder {
-        IndexBuilder {
+    pub fn builder(dim: usize, metric: Metric) -> ApproxIndexBuilder {
+        ApproxIndexBuilder {
             dim,
             metric,
             capacity: 100_000,
@@ -623,9 +623,9 @@ impl Index {
     }
 }
 
-impl std::fmt::Debug for IndexBuilder {
+impl std::fmt::Debug for ApproxIndexBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IndexBuilder")
+        f.debug_struct("ApproxIndexBuilder")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
             .field("capacity", &self.capacity)
@@ -636,7 +636,7 @@ impl std::fmt::Debug for IndexBuilder {
     }
 }
 
-impl IndexBuilder {
+impl ApproxIndexBuilder {
     /// Vectors the index will be able to hold. Fixed once built.
     pub fn capacity(mut self, cap: usize) -> Self {
         self.capacity = cap;
@@ -665,7 +665,7 @@ impl IndexBuilder {
     }
 
     /// Allocates the graph and returns the index.
-    pub fn build(self) -> Result<Index> {
+    pub fn build(self) -> Result<ApproxIndex> {
         if self.dim == 0 {
             return Err(VaneError::EmptyVector);
         }
@@ -704,7 +704,7 @@ impl IndexBuilder {
         }
         let vectors = ChunkedVectors::with_capacity(self.dim, self.capacity);
 
-        Ok(Index {
+        Ok(ApproxIndex {
             dim: self.dim,
             metric: self.metric,
             dist_fn: distance_fn(self.metric),
@@ -737,7 +737,7 @@ mod tests {
 
     #[test]
     fn builder_defaults() {
-        let idx = Index::builder(128, Metric::Cosine).build().unwrap();
+        let idx = ApproxIndex::builder(128, Metric::Cosine).build().unwrap();
         assert_eq!(idx.dimension(), 128);
         assert_eq!(idx.capacity(), 100_000);
         assert!(idx.is_empty());
@@ -747,7 +747,7 @@ mod tests {
 
     #[test]
     fn builder_custom_params() {
-        let idx = Index::builder(64, Metric::L2)
+        let idx = ApproxIndex::builder(64, Metric::L2)
             .capacity(1000)
             .m(32)
             .ef_construction(400)
@@ -759,29 +759,35 @@ mod tests {
 
     #[test]
     fn builder_rejects_zero_dim() {
-        assert!(Index::builder(0, Metric::L2).build().is_err());
+        assert!(ApproxIndex::builder(0, Metric::L2).build().is_err());
     }
 
     #[test]
     fn builder_rejects_zero_capacity() {
-        assert!(Index::builder(64, Metric::L2).capacity(0).build().is_err());
+        assert!(ApproxIndex::builder(64, Metric::L2)
+            .capacity(0)
+            .build()
+            .is_err());
     }
 
     #[test]
     fn builder_rejects_m_below_2() {
-        assert!(Index::builder(64, Metric::L2).m(1).build().is_err());
+        assert!(ApproxIndex::builder(64, Metric::L2).m(1).build().is_err());
     }
 
     #[test]
     fn set_ef_search() {
-        let idx = Index::builder(64, Metric::L2).build().unwrap();
+        let idx = ApproxIndex::builder(64, Metric::L2).build().unwrap();
         idx.set_ef_search(100);
         assert_eq!(idx.get_ef_search(), 100);
     }
 
     #[test]
     fn add_single_vector() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert_eq!(idx.size(), 1);
         assert!(idx.contains(1));
@@ -790,7 +796,10 @@ mod tests {
 
     #[test]
     fn add_multiple_vectors() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         for i in 0..50u64 {
             idx.add(i, &[i as f32, 0.0, 0.0]).unwrap();
         }
@@ -802,20 +811,29 @@ mod tests {
 
     #[test]
     fn add_rejects_duplicate() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(idx.add(1, &[4.0, 5.0, 6.0]).is_err());
     }
 
     #[test]
     fn add_rejects_wrong_dim() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         assert!(idx.add(1, &[1.0, 2.0]).is_err());
     }
 
     #[test]
     fn adding_past_the_capacity_hint_grows_instead_of_failing() {
-        let idx = Index::builder(2, Metric::L2).capacity(2).build().unwrap();
+        let idx = ApproxIndex::builder(2, Metric::L2)
+            .capacity(2)
+            .build()
+            .unwrap();
         for i in 0..50u64 {
             idx.add(i, &[i as f32, i as f32])
                 .expect("capacity is a hint, not a ceiling");
@@ -828,7 +846,7 @@ mod tests {
 
     #[test]
     fn search_finds_exact_match() {
-        let idx = Index::builder(3, Metric::L2)
+        let idx = ApproxIndex::builder(3, Metric::L2)
             .capacity(100)
             .seed(42)
             .build()
@@ -844,7 +862,7 @@ mod tests {
 
     #[test]
     fn search_returns_k_results() {
-        let idx = Index::builder(2, Metric::L2)
+        let idx = ApproxIndex::builder(2, Metric::L2)
             .capacity(100)
             .seed(42)
             .build()
@@ -858,14 +876,20 @@ mod tests {
 
     #[test]
     fn search_empty_index() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         let results = idx.search(&[1.0, 2.0, 3.0], 5).unwrap();
         assert!(results.is_empty());
     }
 
     #[test]
     fn search_wrong_dimension() {
-        let idx = Index::builder(3, Metric::L2).capacity(100).build().unwrap();
+        let idx = ApproxIndex::builder(3, Metric::L2)
+            .capacity(100)
+            .build()
+            .unwrap();
         assert!(idx.search(&[1.0, 2.0], 5).is_err());
     }
 }

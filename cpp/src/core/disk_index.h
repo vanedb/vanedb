@@ -17,7 +17,7 @@
 
 #include "detail/file_utils.h"
 #include "distance_strategy.h"
-#include "store.h"
+#include "flat_index.h"
 #include "validation.h"
 #include <algorithm>
 #include <cstddef>
@@ -34,7 +34,7 @@
 
 namespace vanedb {
 
-class DiskStore {
+class DiskIndex {
 public:
   // Literal 'VNDB' on a little-endian host: 0x56='V', 0x4E='N', 0x44='D',
   // 0x42='B'. Matches vanedb's disk.rs so either engine can read the other's
@@ -44,7 +44,7 @@ public:
   static constexpr uint32_t VERSION = 1;
   static constexpr size_t HEADER_SIZE = 32;
 
-  explicit DiskStore(const std::string& filename) {
+  explicit DiskIndex(const std::string& filename) {
 #ifdef VANEDB_WINDOWS
     file_handle_ = CreateFileA(filename.c_str(), GENERIC_READ, FILE_SHARE_READ,
                                nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -123,11 +123,11 @@ public:
     } catch (...) { cleanup(); throw; }
   }
 
-  ~DiskStore() { cleanup(); }
-  DiskStore(const DiskStore&) = delete;
-  DiskStore& operator=(const DiskStore&) = delete;
+  ~DiskIndex() { cleanup(); }
+  DiskIndex(const DiskIndex&) = delete;
+  DiskIndex& operator=(const DiskIndex&) = delete;
 
-  DiskStore(DiskStore&& o) noexcept :
+  DiskIndex(DiskIndex&& o) noexcept :
 #ifdef VANEDB_WINDOWS
     file_handle_(o.file_handle_), mapping_handle_(o.mapping_handle_),
 #else
@@ -143,7 +143,7 @@ public:
     o.mapped_ = nullptr;
   }
 
-  DiskStore& operator=(DiskStore&& o) noexcept {
+  DiskIndex& operator=(DiskIndex&& o) noexcept {
     if (this != &o) {
       cleanup();
 #ifdef VANEDB_WINDOWS
@@ -211,9 +211,9 @@ private:
   std::unordered_map<uint64_t, size_t> id_map_;
 };
 
-class DiskStoreBuilder {
+class DiskIndexBuilder {
 public:
-  explicit DiskStoreBuilder(size_t dimension, Metric metric = Metric::L2)
+  explicit DiskIndexBuilder(size_t dimension, Metric metric = Metric::L2)
       : dim_(dimension), metric_(metric) {
     if (dimension == 0) throw std::invalid_argument("Dimension must be > 0");
   }
@@ -233,7 +233,7 @@ public:
     std::string tmp = filename + ".tmp";
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
-    uint32_t magic = DiskStore::MAGIC, ver = DiskStore::VERSION;
+    uint32_t magic = DiskIndex::MAGIC, ver = DiskIndex::VERSION;
     uint64_t dim = dim_, nv = ids_.size();
     uint32_t met = static_cast<uint32_t>(metric_), reserved = 0;
     f.write(reinterpret_cast<const char*>(&magic), 4);

@@ -1,4 +1,4 @@
-#include "core/store.h"
+#include "core/flat_index.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <random>
@@ -7,26 +7,26 @@
 
 using Catch::Approx;
 
-TEST_CASE("Store - construction", "[vector_store]") {
+TEST_CASE("FlatIndex - construction", "[vector_store]") {
   SECTION("Valid dimension") {
-    REQUIRE_NOTHROW(vanedb::Store(768));
-    REQUIRE_NOTHROW(vanedb::Store(128, vanedb::Metric::COSINE));
+    REQUIRE_NOTHROW(vanedb::FlatIndex(768));
+    REQUIRE_NOTHROW(vanedb::FlatIndex(128, vanedb::Metric::COSINE));
   }
 
   SECTION("Zero dimension throws") {
-    REQUIRE_THROWS_AS(vanedb::Store(0), std::invalid_argument);
+    REQUIRE_THROWS_AS(vanedb::FlatIndex(0), std::invalid_argument);
   }
 
   SECTION("Check initial state") {
-    vanedb::Store store(768);
+    vanedb::FlatIndex store(768);
     REQUIRE(store.size() == 0);
     REQUIRE(store.dimension() == 768);
     REQUIRE(store.metric() == vanedb::Metric::L2);
   }
 }
 
-TEST_CASE("Store - add vectors", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - add vectors", "[vector_store]") {
+  vanedb::FlatIndex store(3);
 
   SECTION("Add single vector") {
     float vec[] = {1.0f, 2.0f, 3.0f};
@@ -63,8 +63,8 @@ TEST_CASE("Store - add vectors", "[vector_store]") {
   }
 }
 
-TEST_CASE("Store - get vectors", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - get vectors", "[vector_store]") {
+  vanedb::FlatIndex store(3);
 
   SECTION("Get existing vector") {
     float vec[] = {1.0f, 2.0f, 3.0f};
@@ -95,8 +95,8 @@ TEST_CASE("Store - get vectors", "[vector_store]") {
   }
 }
 
-TEST_CASE("Store - remove vectors", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - remove vectors", "[vector_store]") {
+  vanedb::FlatIndex store(3);
   float vec1[] = {1.0f, 2.0f, 3.0f};
   float vec2[] = {4.0f, 5.0f, 6.0f};
   float vec3[] = {7.0f, 8.0f, 9.0f};
@@ -126,8 +126,8 @@ TEST_CASE("Store - remove vectors", "[vector_store]") {
   }
 }
 
-TEST_CASE("Store - clear", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - clear", "[vector_store]") {
+  vanedb::FlatIndex store(3);
   float vec1[] = {1.0f, 2.0f, 3.0f};
   float vec2[] = {4.0f, 5.0f, 6.0f};
 
@@ -140,8 +140,8 @@ TEST_CASE("Store - clear", "[vector_store]") {
   REQUIRE(!store.contains(2));
 }
 
-TEST_CASE("Store - search with L2 distance", "[vector_store][search]") {
-  vanedb::Store store(3, vanedb::Metric::L2);
+TEST_CASE("FlatIndex - search with L2 distance", "[vector_store][search]") {
+  vanedb::FlatIndex store(3, vanedb::Metric::L2);
 
   // Add test vectors
   float vec1[] = {1.0f, 0.0f, 0.0f};
@@ -202,8 +202,8 @@ TEST_CASE("Store - search with L2 distance", "[vector_store][search]") {
   }
 }
 
-TEST_CASE("Store - search with cosine distance", "[vector_store][search]") {
-  vanedb::Store store(3, vanedb::Metric::COSINE);
+TEST_CASE("FlatIndex - search with cosine distance", "[vector_store][search]") {
+  vanedb::FlatIndex store(3, vanedb::Metric::COSINE);
 
   // Add test vectors
   float vec1[] = {1.0f, 0.0f, 0.0f};
@@ -236,8 +236,8 @@ TEST_CASE("Store - search with cosine distance", "[vector_store][search]") {
   }
 }
 
-TEST_CASE("Store - search with dot product", "[vector_store][search]") {
-  vanedb::Store store(3, vanedb::Metric::DOT);
+TEST_CASE("FlatIndex - search with dot product", "[vector_store][search]") {
+  vanedb::FlatIndex store(3, vanedb::Metric::DOT);
 
   // Add test vectors
   float vec1[] = {1.0f, 0.0f, 0.0f};
@@ -258,9 +258,9 @@ TEST_CASE("Store - search with dot product", "[vector_store][search]") {
   }
 }
 
-TEST_CASE("Store - high dimensional vectors", "[vector_store][search]") {
+TEST_CASE("FlatIndex - high dimensional vectors", "[vector_store][search]") {
   constexpr size_t dim = 768;
-  vanedb::Store store(dim, vanedb::Metric::COSINE);
+  vanedb::FlatIndex store(dim, vanedb::Metric::COSINE);
 
   std::mt19937 gen(42);
   std::uniform_real_distribution<float> dis(0.0f, 1.0f);
@@ -305,8 +305,8 @@ TEST_CASE("Store - high dimensional vectors", "[vector_store][search]") {
   }
 }
 
-TEST_CASE("Store - update vector", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - update vector", "[vector_store]") {
+  vanedb::FlatIndex store(3);
   float vec1[] = {1.0f, 2.0f, 3.0f};
   float vec2[] = {4.0f, 5.0f, 6.0f};
 
@@ -331,8 +331,8 @@ TEST_CASE("Store - update vector", "[vector_store]") {
   }
 }
 
-TEST_CASE("Store - reserve", "[vector_store]") {
-  vanedb::Store store(3);
+TEST_CASE("FlatIndex - reserve", "[vector_store]") {
+  vanedb::FlatIndex store(3);
 
   SECTION("Reserve space") {
     REQUIRE_NOTHROW(store.reserve(100));
@@ -348,9 +348,9 @@ TEST_CASE("Store - reserve", "[vector_store]") {
   }
 }
 
-TEST_CASE("Store - stress test", "[vector_store][stress]") {
+TEST_CASE("FlatIndex - stress test", "[vector_store][stress]") {
   constexpr size_t dim = 128;
-  vanedb::Store store(dim, vanedb::Metric::L2);
+  vanedb::FlatIndex store(dim, vanedb::Metric::L2);
 
   std::mt19937 gen(12345);
   std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
@@ -385,9 +385,9 @@ TEST_CASE("Store - stress test", "[vector_store][stress]") {
   }
 }
 
-TEST_CASE("Store - concurrent access", "[vector_store][thread]") {
+TEST_CASE("FlatIndex - concurrent access", "[vector_store][thread]") {
   constexpr size_t dim = 64;
-  vanedb::Store store(dim, vanedb::Metric::L2);
+  vanedb::FlatIndex store(dim, vanedb::Metric::L2);
 
   SECTION("Concurrent reads are safe") {
     // Pre-populate store

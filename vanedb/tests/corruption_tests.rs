@@ -6,10 +6,10 @@
 use std::fs;
 use std::io::Write;
 
-use vanedb::{Index, Metric};
+use vanedb::{ApproxIndex, Metric};
 
 #[cfg(feature = "disk")]
-use vanedb::{DiskStore, DiskStoreBuilder};
+use vanedb::{DiskIndex, DiskIndexBuilder};
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
@@ -77,7 +77,7 @@ fn hnsw_file_bytes(version: u32, data: &HnswDataMirror) -> Vec<u8> {
 fn hnsw_load_accepts_v1_full_capacity_files() {
     let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
     let p = write_tmp("v1_compat", &bytes);
-    let idx = Index::load(&p).unwrap();
+    let idx = ApproxIndex::load(&p).unwrap();
     assert_eq!(idx.size(), 2);
     assert_eq!(idx.capacity(), 4);
     assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
@@ -95,7 +95,7 @@ fn hnsw_load_rejects_non_finite_stored_vectors() {
     data.vectors[0] = f32::NAN;
     let bytes = hnsw_file_bytes(1, &data);
     let p = write_tmp("non_finite_vector", &bytes);
-    let err = match Index::load(&p) {
+    let err = match ApproxIndex::load(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(error) => error,
     };
@@ -109,7 +109,7 @@ fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
     // exactly `count` entries per array.
     let bytes = hnsw_file_bytes(2, &v1_full_capacity_payload());
     let p = write_tmp("v2_full_arrays", &bytes);
-    let err = match Index::load(&p) {
+    let err = match ApproxIndex::load(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -121,7 +121,7 @@ fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
 #[test]
 fn mmap_open_rejects_non_finite_stored_vectors() {
     let path = std::env::temp_dir().join("vanedb_mmap_non_finite.bin");
-    let mut builder = DiskStoreBuilder::new(2, Metric::L2).unwrap();
+    let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
 
@@ -130,7 +130,7 @@ fn mmap_open_rejects_non_finite_stored_vectors() {
     bytes[vector_offset..vector_offset + 4].copy_from_slice(&f32::NAN.to_le_bytes());
     fs::write(&path, bytes).unwrap();
 
-    let err = match DiskStore::open(&path) {
+    let err = match DiskIndex::open(&path) {
         Ok(_) => panic!("open should have failed"),
         Err(error) => error,
     };
@@ -143,7 +143,7 @@ fn mmap_open_rejects_non_finite_stored_vectors() {
 /// scopes the temp-file path so parallel tests don't collide on the same name.
 fn valid_hnsw_bytes(tag: &str) -> Vec<u8> {
     let path = std::env::temp_dir().join(format!("vanedb_corruption_seed_{tag}.bin"));
-    let idx = Index::builder(4, Metric::L2)
+    let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(8)
         .seed(7)
         .build()
@@ -169,7 +169,7 @@ fn hnsw_load_rejects_invalid_magic() {
     let mut bytes = valid_hnsw_bytes("bad_magic");
     bytes[0..4].copy_from_slice(&0xDEADBEEFu32.to_le_bytes());
     let p = write_tmp("bad_magic", &bytes);
-    let err = match Index::load(&p) {
+    let err = match ApproxIndex::load(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -182,7 +182,7 @@ fn hnsw_load_rejects_unsupported_version() {
     let mut bytes = valid_hnsw_bytes("bad_version");
     bytes[4..8].copy_from_slice(&999u32.to_le_bytes());
     let p = write_tmp("bad_version", &bytes);
-    let err = match Index::load(&p) {
+    let err = match ApproxIndex::load(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -193,7 +193,7 @@ fn hnsw_load_rejects_unsupported_version() {
 #[test]
 fn hnsw_load_rejects_truncated_header() {
     let p = write_tmp("trunc_header", b"HNS"); // 3 bytes — shorter than 8-byte header
-    assert!(Index::load(&p).is_err());
+    assert!(ApproxIndex::load(&p).is_err());
     let _ = fs::remove_file(&p);
 }
 
@@ -204,7 +204,7 @@ fn hnsw_load_rejects_garbage_payload() {
     bytes.extend_from_slice(&HNSW_VERSION.to_le_bytes());
     bytes.extend_from_slice(&[0xFF; 32]);
     let p = write_tmp("garbage_payload", &bytes);
-    assert!(Index::load(&p).is_err());
+    assert!(ApproxIndex::load(&p).is_err());
     let _ = fs::remove_file(&p);
 }
 
@@ -224,10 +224,10 @@ fn hnsw_load_rejects_invalid_metric() {
     // saving/loading with each valid metric must succeed.
     for &metric in &[Metric::L2, Metric::Cosine, Metric::Dot] {
         let path = std::env::temp_dir().join(format!("vanedb_metric_{metric:?}.bin"));
-        let idx = Index::builder(3, metric).capacity(4).build().unwrap();
+        let idx = ApproxIndex::builder(3, metric).capacity(4).build().unwrap();
         idx.add(1, &[1.0, 0.0, 0.0]).unwrap();
         idx.save(&path).unwrap();
-        let loaded = Index::load(&path).unwrap();
+        let loaded = ApproxIndex::load(&path).unwrap();
         assert_eq!(loaded.metric(), metric);
         let _ = fs::remove_file(&path);
     }
@@ -243,7 +243,7 @@ fn hnsw_save_load_preserves_rng_determinism() {
     let path = std::env::temp_dir().join("vanedb_rng_determinism.bin");
 
     // Reference: build, insert 5, then insert 5 more, never saving.
-    let reference = Index::builder(4, Metric::L2)
+    let reference = ApproxIndex::builder(4, Metric::L2)
         .capacity(20)
         .seed(123)
         .build()
@@ -253,7 +253,7 @@ fn hnsw_save_load_preserves_rng_determinism() {
     }
 
     // Round-trip: build, insert 5, save, load, insert 5 more.
-    let saved = Index::builder(4, Metric::L2)
+    let saved = ApproxIndex::builder(4, Metric::L2)
         .capacity(20)
         .seed(123)
         .build()
@@ -263,7 +263,7 @@ fn hnsw_save_load_preserves_rng_determinism() {
     }
     saved.save(&path).unwrap();
 
-    let loaded = Index::load(&path).unwrap();
+    let loaded = ApproxIndex::load(&path).unwrap();
     for i in 5..10u64 {
         loaded.add(i, &[i as f32, 0.0, 0.0, 0.0]).unwrap();
     }
@@ -295,7 +295,7 @@ fn mmap_load_rejects_unsupported_version() {
     data.extend_from_slice(&0u32.to_le_bytes()); // metric
     data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     fs::write(&path, &data).unwrap();
-    assert!(DiskStore::open(&path).is_err());
+    assert!(DiskIndex::open(&path).is_err());
     let _ = fs::remove_file(&path);
 }
 
@@ -311,7 +311,7 @@ fn mmap_load_rejects_zero_dim_with_vectors() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskStore::open(&path).is_err());
+    assert!(DiskIndex::open(&path).is_err());
     let _ = fs::remove_file(&path);
 }
 
@@ -328,7 +328,7 @@ fn mmap_load_rejects_truncated_data() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskStore::open(&path).is_err());
+    assert!(DiskIndex::open(&path).is_err());
     let _ = fs::remove_file(&path);
 }
 
@@ -345,7 +345,7 @@ fn mmap_load_rejects_size_overflow() {
     data.extend_from_slice(&0u32.to_le_bytes());
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskStore::open(&path).is_err());
+    assert!(DiskIndex::open(&path).is_err());
     let _ = fs::remove_file(&path);
 }
 
@@ -362,7 +362,7 @@ fn mmap_load_rejects_invalid_metric() {
     data.extend_from_slice(&99u32.to_le_bytes()); // bogus metric
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
-    assert!(DiskStore::open(&path).is_err());
+    assert!(DiskIndex::open(&path).is_err());
     let _ = fs::remove_file(&path);
 }
 
@@ -370,10 +370,10 @@ fn mmap_load_rejects_invalid_metric() {
 #[test]
 fn mmap_search_rejects_zero_k() {
     let path = std::env::temp_dir().join("vanedb_mmap_zero_k.bin");
-    let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+    let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
     b.add(1, &[1.0, 2.0, 3.0]).unwrap();
     b.save(&path).unwrap();
-    let store = DiskStore::open(&path).unwrap();
+    let store = DiskIndex::open(&path).unwrap();
     assert!(store.search(&[1.0, 2.0, 3.0], 0).is_err());
     let _ = fs::remove_file(&path);
 }
@@ -410,7 +410,7 @@ fn hnsw_load_rejects_an_unallocatable_max_elements() {
     // terabytes. Must be an error, not an abort.
     let bytes = hnsw_file_bytes(2, &v2_huge_max_elements(1 << 40));
     let p = write_tmp("huge_max_elements", &bytes);
-    let err = Index::load(&p).expect_err("must reject, not allocate");
+    let err = ApproxIndex::load(&p).expect_err("must reject, not allocate");
     let msg = err.to_string();
     assert!(
         msg.contains("max_elements") || msg.contains("too large"),
@@ -426,14 +426,17 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     data.m = 1;
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_m", &bytes);
-    assert!(Index::load(&p).is_err(), "m = 1 must be rejected on load");
+    assert!(
+        ApproxIndex::load(&p).is_err(),
+        "m = 1 must be rejected on load"
+    );
 
     let mut data = v2_huge_max_elements(4);
     data.ef_construction = 0;
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_efc", &bytes);
     assert!(
-        Index::load(&p).is_err(),
+        ApproxIndex::load(&p).is_err(),
         "ef_construction = 0 must be rejected on load"
     );
 }

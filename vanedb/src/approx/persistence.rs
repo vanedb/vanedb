@@ -9,7 +9,7 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 
-use super::{Index, Inner, MAX_LEVEL};
+use super::{ApproxIndex, Inner, MAX_LEVEL};
 use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
 
@@ -73,7 +73,7 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
     }
 }
 
-impl Index {
+impl ApproxIndex {
     /// Writes the index to `path`.
     ///
     /// Written beside the destination and renamed in after an fsync, so an
@@ -336,10 +336,10 @@ impl Index {
         // serializes the std::mt19937 engine state directly.
         let mut rng = StdRng::seed_from_u64(data.seed);
         for _ in 0..data.count {
-            let _ = Index::get_level(&mut rng, data.mult);
+            let _ = ApproxIndex::get_level(&mut rng, data.mult);
         }
 
-        Ok(Index {
+        Ok(ApproxIndex {
             dim: data.dim,
             metric,
             dist_fn: distance_fn(metric),

@@ -16,23 +16,23 @@ use crate::validation::validate_finite;
 /// Exact k-nearest-neighbour search over vectors held in memory.
 ///
 /// Every scan touches every vector, so cost is linear in the corpus. Use it
-/// when exactness matters or the corpus is small; reach for [`Index`]
+/// when exactness matters or the corpus is small; reach for [`ApproxIndex`]
 /// when it is not.
 ///
 /// Mutating methods take `&self`: the store is internally synchronised and
 /// can be shared across threads without an outer lock.
 ///
 /// ```
-/// use vanedb::{Metric, Store};
+/// use vanedb::{Metric, FlatIndex};
 ///
-/// let store = Store::new(2, Metric::L2)?;
+/// let store = FlatIndex::new(2, Metric::L2)?;
 /// store.add(7, &[1.0, 0.0])?;
 /// assert_eq!(store.search(&[1.0, 0.0], 1)?[0].id, 7);
 /// # Ok::<(), vanedb::VaneError>(())
 /// ```
 ///
-/// [`Index`]: crate::Index
-pub struct Store {
+/// [`ApproxIndex`]: crate::ApproxIndex
+pub struct FlatIndex {
     dim: usize,
     metric: Metric,
     inner: RwLock<Inner>,
@@ -44,11 +44,11 @@ struct Inner {
     id_to_index: HashMap<u64, usize>,
 }
 
-impl std::fmt::Debug for Store {
+impl std::fmt::Debug for FlatIndex {
     /// Prints identity and size, not contents: the vectors sit behind a lock
     /// and can be gigabytes.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Store")
+        f.debug_struct("FlatIndex")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
             .field("len", &self.len())
@@ -56,7 +56,7 @@ impl std::fmt::Debug for Store {
     }
 }
 
-impl Store {
+impl FlatIndex {
     /// Creates an empty store for vectors of `dim` components.
     ///
     /// Fails with [`VaneError::InvalidParameter`] if `dim` is zero.
@@ -238,12 +238,12 @@ mod tests {
 
     #[test]
     fn new_rejects_zero_dimension() {
-        assert!(Store::new(0, Metric::L2).is_err());
+        assert!(FlatIndex::new(0, Metric::L2).is_err());
     }
 
     #[test]
     fn add_and_get() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         let vec = vec![1.0, 2.0, 3.0];
         store.add(1, &vec).unwrap();
         assert_eq!(store.get(1).unwrap(), vec);
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn add_wrong_dimension() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         let result = store.add(1, &[1.0, 2.0]);
         assert!(matches!(
             result,
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn add_duplicate_id() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         store.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(matches!(
             store.add(1, &[4.0, 5.0, 6.0]),
@@ -274,13 +274,13 @@ mod tests {
 
     #[test]
     fn get_missing_id() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         assert!(matches!(store.get(42), Err(VaneError::NotFound { id: 42 })));
     }
 
     #[test]
     fn remove_vector() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         store.add(1, &[1.0, 2.0, 3.0]).unwrap();
         store.add(2, &[4.0, 5.0, 6.0]).unwrap();
         store.remove(1).unwrap();
@@ -292,7 +292,7 @@ mod tests {
 
     #[test]
     fn remove_missing_id() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         assert!(matches!(
             store.remove(42),
             Err(VaneError::NotFound { id: 42 })
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn len_and_is_empty() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         assert!(store.is_empty());
         assert_eq!(store.len(), 0);
         store.add(1, &[1.0, 2.0, 3.0]).unwrap();
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn search_l2_finds_nearest() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         store.add(1, &[0.0, 0.0]).unwrap();
         store.add(2, &[1.0, 0.0]).unwrap();
         store.add(3, &[10.0, 10.0]).unwrap();
@@ -324,7 +324,7 @@ mod tests {
 
     #[test]
     fn search_cosine_finds_similar() {
-        let store = Store::new(2, Metric::Cosine).unwrap();
+        let store = FlatIndex::new(2, Metric::Cosine).unwrap();
         store.add(1, &[1.0, 0.0]).unwrap();
         store.add(2, &[0.0, 1.0]).unwrap();
         store.add(3, &[-1.0, 0.0]).unwrap();
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn search_k_larger_than_store() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         store.add(1, &[0.0, 0.0]).unwrap();
         let results = store.search(&[1.0, 1.0], 10).unwrap();
         assert_eq!(results.len(), 1);
@@ -343,14 +343,14 @@ mod tests {
 
     #[test]
     fn search_empty_store() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         let results = store.search(&[1.0, 1.0], 5).unwrap();
         assert!(results.is_empty());
     }
 
     #[test]
     fn search_wrong_dimension() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         assert!(matches!(
             store.search(&[1.0, 2.0], 5),
             Err(VaneError::DimensionMismatch {
@@ -362,7 +362,7 @@ mod tests {
 
     #[test]
     fn search_k_zero() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         assert!(matches!(
             store.search(&[1.0, 2.0], 0),
             Err(VaneError::InvalidK)
@@ -374,7 +374,7 @@ mod tests {
         use std::sync::Arc;
         use std::thread;
 
-        let store = Arc::new(Store::new(3, Metric::L2).unwrap());
+        let store = Arc::new(FlatIndex::new(3, Metric::L2).unwrap());
         let mut handles = vec![];
 
         // 10 writer threads
@@ -410,12 +410,12 @@ mod tests {
     #[test]
     fn store_is_send_sync() {
         fn assert_send_sync<T: Send + Sync>() {}
-        assert_send_sync::<Store>();
+        assert_send_sync::<FlatIndex>();
     }
 
     #[test]
     fn add_batch_inserts_all() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         let ids = [1u64, 2, 3];
         let vectors = [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0];
         store.add_batch(&ids, &vectors).unwrap();
@@ -427,14 +427,14 @@ mod tests {
 
     #[test]
     fn add_batch_empty_is_noop() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         store.add_batch(&[], &[]).unwrap();
         assert!(store.is_empty());
     }
 
     #[test]
     fn add_batch_flat_length_mismatch() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         let result = store.add_batch(&[1, 2], &[1.0, 2.0, 3.0, 4.0, 5.0]);
         assert!(matches!(
             result,
@@ -448,7 +448,7 @@ mod tests {
 
     #[test]
     fn add_batch_duplicate_within_batch_is_all_or_nothing() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         let result = store.add_batch(&[1, 2, 1], &[1.0; 6]);
         assert!(matches!(result, Err(VaneError::DuplicateId { id: 1 })));
         assert!(store.is_empty());
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn add_batch_duplicate_with_existing_is_all_or_nothing() {
-        let store = Store::new(2, Metric::L2).unwrap();
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
         store.add(7, &[0.0, 0.0]).unwrap();
         let result = store.add_batch(&[8, 7], &[1.0; 4]);
         assert!(matches!(result, Err(VaneError::DuplicateId { id: 7 })));
@@ -469,7 +469,7 @@ mod tests {
     /// batch-local, or every batched id resolves to the wrong vector.
     #[test]
     fn add_batch_onto_nonempty_store() {
-        let store = Store::new(3, Metric::L2).unwrap();
+        let store = FlatIndex::new(3, Metric::L2).unwrap();
         store.add(1, &[1.0, 1.0, 1.0]).unwrap();
         store.add(2, &[2.0, 2.0, 2.0]).unwrap();
 

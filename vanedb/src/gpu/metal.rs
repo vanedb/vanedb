@@ -1,6 +1,6 @@
 use crate::error::{Result, VaneError};
+use crate::flat::SearchResult;
 use crate::gpu::GpuMetric;
-use crate::store::SearchResult;
 
 use metal::*;
 use objc::rc::autoreleasepool;

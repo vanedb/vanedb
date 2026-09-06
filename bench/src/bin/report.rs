@@ -99,7 +99,7 @@ fn main() -> ExitCode {
         let (cpp, rs) = (cpp / 1000, rs / 1000);
         md.push_str(&format!("| l2_sq | {cpp} | {rs} | {ratio:.2} |\n"));
 
-        // Store search. Setup asserts keep a failed engine from benchmarking
+        // FlatIndex search. Setup asserts keep a failed engine from benchmarking
         // as infinitely fast.
         let sc = ffi::vanedb_cpp_store_new(dim, 0);
         let sr = ffi::vanedb_rs_store_new(dim, 0);

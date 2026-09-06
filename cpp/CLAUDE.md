@@ -32,9 +32,9 @@ embed path is C++-only.
 | Feature | Status |
 |---------|--------|
 | Distance Functions | L2, Cosine, Dot (ARM NEON, x86 AVX2) |
-| Store | In-memory k-NN, thread-safe |
-| Index | Approximate NN with save/load |
-| DiskStore | Memory-mapped zero-copy |
+| FlatIndex | In-memory k-NN, thread-safe |
+| ApproxIndex | Approximate NN with save/load |
+| DiskIndex | Memory-mapped zero-copy |
 | GPU Acceleration | Metal (Apple Silicon). CUDA experimental — unwired, untested |
 | Python Bindings | pybind11 + NumPy |
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
@@ -88,13 +88,13 @@ Run these commands from the repository root.
 // Distance
 float d = vanedb::l2_sq(a, b, dim);
 
-// Store
-vanedb::Store store(768, vanedb::Metric::COSINE);
+// FlatIndex
+vanedb::FlatIndex store(768, vanedb::Metric::COSINE);
 store.add(id, vec);
 auto results = store.search(query, k);
 
-// Index
-vanedb::Index idx(768, vanedb::Metric::COSINE, 100000);
+// ApproxIndex
+vanedb::ApproxIndex idx(768, vanedb::Metric::COSINE, 100000);
 idx.add(id, vec);
 idx.save("index.bin");
 
@@ -108,7 +108,7 @@ auto dists = gpu.search(query, buf, dim, n, vanedb::gpu::MetalMetric::L2);
 
 A working semantic search tool built on VaneDB demonstrating real-world usage:
 ```bash
-python3 search.py index ~/path/to/vault   # Index notes
+python3 search.py index ~/path/to/vault   # ApproxIndex notes
 python3 search.py find "your query"       # Search
 python3 search.py interactive             # REPL mode
 ```
@@ -134,7 +134,7 @@ batch/metadata APIs are owned by the Rust component and tracked in this
 repository's issue tracker.
 
 ## Known Limitations
-- No deletion in Index (rebuild required)
+- No deletion in ApproxIndex (rebuild required)
 - GPU requires dim % 4 == 0
-- Store `get()` pointer invalidated by writes
+- FlatIndex `get()` pointer invalidated by writes
 - Single-file persistence (no sharding)

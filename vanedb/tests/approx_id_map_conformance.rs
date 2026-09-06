@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 
-use vanedb::Index;
+use vanedb::ApproxIndex;
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
@@ -127,7 +127,7 @@ fn loader_enforces_the_shared_id_map_contract() {
 
     for case in &all {
         let path = write_case(&dir, case);
-        let result = Index::load(&path);
+        let result = ApproxIndex::load(&path);
         if case.accept {
             let index =
                 result.unwrap_or_else(|e| panic!("{}: expected load to succeed: {e}", case.name));

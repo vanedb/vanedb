@@ -1,5 +1,5 @@
 // Cross-engine HNSW size cases from conformance/index_derived_sizes.tsv.
-#include "core/index.h"
+#include "core/approx_index.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
@@ -63,8 +63,8 @@ std::string load_error(const Case& test_case) {
 void write_header(const std::filesystem::path& path, const Case& test_case) {
   std::ofstream file(path, std::ios::binary);
   REQUIRE(file.is_open());
-  vanedb::detail::write_bin(file, vanedb::Index::MAGIC);
-  vanedb::detail::write_bin(file, vanedb::Index::VERSION);
+  vanedb::detail::write_bin(file, vanedb::ApproxIndex::MAGIC);
+  vanedb::detail::write_bin(file, vanedb::ApproxIndex::VERSION);
   vanedb::detail::write_bin(file, test_case.dimension);
   vanedb::detail::write_bin(file, uint32_t{0});
   vanedb::detail::write_bin(file, test_case.max_elements);
@@ -89,11 +89,11 @@ TEST_CASE("HNSW construction rejects shared derived-size overflows",
   for (const auto& test_case : fixture_cases) {
     CAPTURE(test_case.name);
     REQUIRE_THROWS_AS(
-        vanedb::Index(test_case.dimension, vanedb::Metric::L2,
+        vanedb::ApproxIndex(test_case.dimension, vanedb::Metric::L2,
                          test_case.max_elements, test_case.M),
         std::invalid_argument);
     REQUIRE_THROWS_WITH(
-        vanedb::Index(test_case.dimension, vanedb::Metric::L2,
+        vanedb::ApproxIndex(test_case.dimension, vanedb::Metric::L2,
                          test_case.max_elements, test_case.M),
         direct_error(test_case));
   }
@@ -105,8 +105,8 @@ TEST_CASE("HNSW load rejects derived-size overflows before allocation",
     CAPTURE(test_case.name);
     const auto path = std::filesystem::path("test_hnsw_" + test_case.name + ".bin");
     write_header(path, test_case);
-    REQUIRE_THROWS_AS(vanedb::Index::load(path.string()), std::runtime_error);
-    REQUIRE_THROWS_WITH(vanedb::Index::load(path.string()), load_error(test_case));
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path.string()), std::runtime_error);
+    REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()), load_error(test_case));
     std::filesystem::remove(path);
   }
 }
@@ -118,8 +118,8 @@ TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
   write_header(path, safe_header);
   append_count(path, std::numeric_limits<size_t>::max());
 
-  REQUIRE_THROWS_AS(vanedb::Index::load(path.string()), std::runtime_error);
-  REQUIRE_THROWS_WITH(vanedb::Index::load(path.string()),
+  REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path.string()), std::runtime_error);
+  REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
                       "Corrupted file: count * dimension overflow");
   std::filesystem::remove(path);
 }

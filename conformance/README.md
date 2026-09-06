@@ -54,7 +54,7 @@ refusal to load.
 
 `index_id_map_consistency.tsv` pins these cases for both engines and is consumed
 by `vanedb/tests/index_id_map_conformance.rs` and
-`cpp/tests/test_index_id_map_conformance.cpp`.
+`cpp/tests/test_approx_id_map_conformance.cpp`.
 
 ## Universal persistence
 

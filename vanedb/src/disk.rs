@@ -9,18 +9,18 @@ use memmap2::Mmap;
 
 use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
-use crate::store::SearchResult;
+use crate::flat::SearchResult;
 use crate::validation::validate_finite;
 
 /// Literal `VNDB` as the first four bytes on disk, matching the contract in
-/// `conformance/README.md` and the C++ engine's `DiskStore::MAGIC`. Built from
+/// `conformance/README.md` and the C++ engine's `DiskIndex::MAGIC`. Built from
 /// the bytes rather than hand-written hex: the previous constant claimed
 /// "VNDB" in a comment and actually wrote `BDNV`.
 const MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const VERSION: u32 = 1;
 const HEADER_SIZE: usize = 32;
 
-/// Write buffer for [`DiskStoreBuilder::save`]. Ids and vectors are
+/// Write buffer for [`DiskIndexBuilder::save`]. Ids and vectors are
 /// encoded element-wise to keep the on-disk layout explicitly little-endian;
 /// unbuffered that cost one `write` syscall per element, so a 10k x 128 store
 /// issued 1.29M of them.
@@ -43,11 +43,11 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
     }
 }
 
-/// Collects vectors and writes them to a file [`DiskStore`] can open.
+/// Collects vectors and writes them to a file [`DiskIndex`] can open.
 ///
 /// Vectors are held in memory until [`save`](Self::save); the memory saving
 /// is on the reading side.
-pub struct DiskStoreBuilder {
+pub struct DiskIndexBuilder {
     dim: usize,
     metric: Metric,
     ids: Vec<u64>,
@@ -55,9 +55,9 @@ pub struct DiskStoreBuilder {
     id_set: HashSet<u64>,
 }
 
-impl std::fmt::Debug for DiskStoreBuilder {
+impl std::fmt::Debug for DiskIndexBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DiskStoreBuilder")
+        f.debug_struct("DiskIndexBuilder")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
             .field("len", &self.ids.len())
@@ -65,7 +65,7 @@ impl std::fmt::Debug for DiskStoreBuilder {
     }
 }
 
-impl DiskStoreBuilder {
+impl DiskIndexBuilder {
     /// Starts a store for vectors of `dim` components.
     pub fn new(dim: usize, metric: Metric) -> Result<Self> {
         if dim == 0 {
@@ -103,7 +103,7 @@ impl DiskStoreBuilder {
 
     /// Component count of every vector this builder accepts.
     ///
-    /// The C++ `DiskStoreBuilder` exposes the same accessor.
+    /// The C++ `DiskIndexBuilder` exposes the same accessor.
     pub fn dimension(&self) -> usize {
         self.dim
     }
@@ -173,8 +173,8 @@ impl DiskStoreBuilder {
 ///
 /// Vectors stay on disk and are paged in by the kernel as the scan touches
 /// them, so a corpus larger than RAM remains searchable. Read-only; build
-/// one with [`DiskStoreBuilder`].
-pub struct DiskStore {
+/// one with [`DiskIndexBuilder`].
+pub struct DiskIndex {
     mmap: Mmap,
     dim: usize,
     num_vectors: usize,
@@ -184,9 +184,9 @@ pub struct DiskStore {
     id_map: HashMap<u64, usize>,
 }
 
-impl std::fmt::Debug for DiskStore {
+impl std::fmt::Debug for DiskIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DiskStore")
+        f.debug_struct("DiskIndex")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
             .field("len", &self.num_vectors)
@@ -194,7 +194,7 @@ impl std::fmt::Debug for DiskStore {
     }
 }
 
-impl DiskStore {
+impl DiskIndex {
     /// Maps the store at `path`.
     ///
     /// Validates the header, checks every stored component is finite, and
@@ -317,11 +317,11 @@ impl DiskStore {
 
         // Monomorphized per-metric scan + top-k selection instead of a full
         // sort through the dist_fn pointer — same treatment as
-        // Store::search (O(n log n) -> O(n + k log k)).
+        // FlatIndex::search (O(n log n) -> O(n + k log k)).
         macro_rules! scan {
             ($dist:path) => {
                 // Bounded top-k over the stream; see store/topk.rs.
-                crate::store::topk::select(
+                crate::flat::topk::select(
                     (0..self.num_vectors)
                         .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i)))),
                     k,
@@ -357,7 +357,7 @@ mod tests {
 
     #[test]
     fn builder_add_and_size() {
-        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.add(2, &[4.0, 5.0, 6.0]).unwrap();
         assert_eq!(b.size(), 2);
@@ -365,26 +365,26 @@ mod tests {
 
     #[test]
     fn builder_rejects_wrong_dim() {
-        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         assert!(b.add(1, &[1.0, 2.0]).is_err());
     }
 
     #[test]
     fn builder_rejects_duplicate() {
-        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         assert!(b.add(1, &[4.0, 5.0, 6.0]).is_err());
     }
 
     #[test]
     fn builder_rejects_zero_dim() {
-        assert!(DiskStoreBuilder::new(0, Metric::L2).is_err());
+        assert!(DiskIndexBuilder::new(0, Metric::L2).is_err());
     }
 
     #[test]
     fn builder_save_creates_file() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_builder.bin");
-        let mut b = DiskStoreBuilder::new(2, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(2, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0]).unwrap();
         b.save(&path).unwrap();
         assert!(path.exists());
@@ -398,13 +398,13 @@ mod tests {
     fn roundtrip_build_open_search() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_roundtrip.bin");
 
-        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(10, &[0.0, 0.0, 0.0]).unwrap();
         b.add(20, &[1.0, 0.0, 0.0]).unwrap();
         b.add(30, &[10.0, 10.0, 10.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = DiskStore::open(&path).unwrap();
+        let store = DiskIndex::open(&path).unwrap();
         assert_eq!(store.size(), 3);
         assert_eq!(store.dimension(), 3);
         assert!(store.contains(10));
@@ -427,7 +427,7 @@ mod tests {
     fn open_rejects_bad_file() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_bad.bin");
         std::fs::write(&path, b"garbage").unwrap();
-        assert!(DiskStore::open(&path).is_err());
+        assert!(DiskIndex::open(&path).is_err());
         let _ = std::fs::remove_file(&path);
     }
 
@@ -442,18 +442,18 @@ mod tests {
         data.extend_from_slice(&(0u32).to_le_bytes());
         data.extend_from_slice(&(0u32).to_le_bytes());
         std::fs::write(&path, &data).unwrap();
-        assert!(DiskStore::open(&path).is_err());
+        assert!(DiskIndex::open(&path).is_err());
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn search_wrong_dimension() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_dim.bin");
-        let mut b = DiskStoreBuilder::new(3, Metric::L2).unwrap();
+        let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = DiskStore::open(&path).unwrap();
+        let store = DiskIndex::open(&path).unwrap();
         assert!(store.search(&[1.0, 2.0], 1).is_err());
         let _ = std::fs::remove_file(&path);
     }

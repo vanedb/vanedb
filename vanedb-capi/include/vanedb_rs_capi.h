@@ -8,8 +8,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/* Opaque handles. Namespaced like the functions: an unprefixed `Index` or
- * `Store` collides with types in the consuming program. */
+/* Opaque handles. Namespaced like the functions: an unprefixed `ApproxIndex` or
+ * `FlatIndex` collides with types in the consuming program. */
 typedef struct vanedb_rs_store vanedb_rs_store;
 typedef struct vanedb_rs_index vanedb_rs_index;
 typedef struct vanedb_rs_disk vanedb_rs_disk;
@@ -31,11 +31,11 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  * matches vanedb_cpp_dot_product. */
 
 
-typedef Store vanedb_rs_store;
+typedef FlatIndex vanedb_rs_store;
 
-typedef Index vanedb_rs_index;
+typedef ApproxIndex vanedb_rs_index;
 
-typedef DiskStore vanedb_rs_disk;
+typedef DiskIndex vanedb_rs_disk;
 
 #ifdef __cplusplus
 extern "C" {

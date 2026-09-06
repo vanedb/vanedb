@@ -2,11 +2,11 @@ use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
+use ::vanedb::approx::ApproxIndex;
 use ::vanedb::distance::Metric;
-use ::vanedb::index::Index;
-use ::vanedb::store::Store;
+use ::vanedb::flat::FlatIndex;
 use ::vanedb::VaneError;
-use ::vanedb::{DiskStore, DiskStoreBuilder};
+use ::vanedb::{DiskIndex, DiskIndexBuilder};
 
 fn to_pyerr(e: VaneError) -> PyErr {
     PyValueError::new_err(e.to_string())
@@ -146,9 +146,9 @@ impl From<PyMetric> for Metric {
 }
 
 /// Brute-force vector store with thread-safe k-NN search.
-#[pyclass(name = "Store")]
+#[pyclass(name = "FlatIndex")]
 struct PyStore {
-    inner: Store,
+    inner: FlatIndex,
 }
 
 #[pymethods]
@@ -156,7 +156,7 @@ impl PyStore {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
     fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
-        let inner = Store::new(dim, metric.into()).map_err(to_pyerr)?;
+        let inner = FlatIndex::new(dim, metric.into()).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -226,9 +226,9 @@ impl PyStore {
 }
 
 /// HNSW approximate nearest-neighbor index.
-#[pyclass(name = "Index")]
+#[pyclass(name = "ApproxIndex")]
 struct PyIndex {
-    inner: Index,
+    inner: ApproxIndex,
 }
 
 #[pymethods]
@@ -243,7 +243,7 @@ impl PyIndex {
         ef_construction: usize,
         seed: u64,
     ) -> PyResult<Self> {
-        let inner = Index::builder(dim, metric.into())
+        let inner = ApproxIndex::builder(dim, metric.into())
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)
@@ -301,7 +301,7 @@ impl PyIndex {
 
     #[staticmethod]
     fn load(path: &str) -> PyResult<Self> {
-        let inner = Index::load(path).map_err(to_pyerr)?;
+        let inner = ApproxIndex::load(path).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -319,7 +319,7 @@ impl PyIndex {
         self.inner.size()
     }
 
-    /// Number of vectors in the graph. See `Store.size`.
+    /// Number of vectors in the graph. See `FlatIndex.size`.
     fn size(&self) -> usize {
         self.inner.size()
     }
@@ -335,11 +335,11 @@ impl PyIndex {
     }
 }
 
-/// Builds a `DiskStore` file. Vectors are held in memory until `save`; the
+/// Builds a `DiskIndex` file. Vectors are held in memory until `save`; the
 /// memory saving is on the reading side.
-#[pyclass(name = "DiskStoreBuilder")]
+#[pyclass(name = "DiskIndexBuilder")]
 struct PyDiskStoreBuilder {
-    inner: DiskStoreBuilder,
+    inner: DiskIndexBuilder,
 }
 
 #[pymethods]
@@ -348,7 +348,7 @@ impl PyDiskStoreBuilder {
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
     fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
-            inner: DiskStoreBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+            inner: DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
         })
     }
 
@@ -378,10 +378,10 @@ impl PyDiskStoreBuilder {
 }
 
 /// Exact search over a memory-mapped file. Read-only; build one with
-/// `DiskStoreBuilder`.
-#[pyclass(name = "DiskStore")]
+/// `DiskIndexBuilder`.
+#[pyclass(name = "DiskIndex")]
 struct PyDiskStore {
-    inner: DiskStore,
+    inner: DiskIndex,
 }
 
 #[pymethods]
@@ -392,7 +392,7 @@ impl PyDiskStore {
     /// corpus rather than a constant-cost mapping.
     #[staticmethod]
     fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
-        let inner = py.detach(|| DiskStore::open(path)).map_err(to_pyerr)?;
+        let inner = py.detach(|| DiskIndex::open(path)).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -447,10 +447,10 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "__all__",
         vec![
             "Metric",
-            "Store",
-            "Index",
-            "DiskStore",
-            "DiskStoreBuilder",
+            "FlatIndex",
+            "ApproxIndex",
+            "DiskIndex",
+            "DiskIndexBuilder",
             "__version__",
         ],
     )?;

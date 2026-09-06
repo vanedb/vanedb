@@ -44,17 +44,17 @@ Header-only C++20 vector database with SIMD acceleration. Runs on Linux, macOS, 
 ## Quick Start
 
 ```cpp
-#include "core/store.h"
+#include "core/flat_index.h"
 
-vanedb::Store store(768, vanedb::Metric::COSINE);
+vanedb::FlatIndex store(768, vanedb::Metric::COSINE);
 store.add(1, embedding);
 auto results = store.search(query, 5);  // top-5 nearest neighbors
 ```
 
 ```cpp
-#include "core/index.h"
+#include "core/approx_index.h"
 
-vanedb::Index index(768, vanedb::Metric::COSINE, 100000);
+vanedb::ApproxIndex index(768, vanedb::Metric::COSINE, 100000);
 index.add(1, embedding);
 auto results = index.search(query, 5);
 index.save("index.bin");
@@ -66,7 +66,7 @@ index.save("index.bin");
 import vanedb_cpp as vanedb
 import numpy as np
 
-index = vanedb.Index(768, vanedb.Metric.COSINE)
+index = vanedb.ApproxIndex(768, vanedb.Metric.COSINE)
 index.add(1, np.random.rand(768).astype(np.float32))
 ids, distances = index.search(query, 10)
 ```

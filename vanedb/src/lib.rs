@@ -2,18 +2,18 @@
 //!
 //! Three ways to hold vectors, all searchable by k nearest neighbours:
 //!
-//! - [`Store`] — exact brute-force scan, held in memory.
-//! - [`Index`] — approximate graph index: sub-linear search, recall traded
+//! - [`FlatIndex`] — exact brute-force scan, held in memory.
+//! - [`ApproxIndex`] — approximate graph index: sub-linear search, recall traded
 //!   against speed through `ef_search`.
-//! - [`DiskStore`] — exact scan over a memory-mapped file, so a corpus
+//! - [`DiskIndex`] — exact scan over a memory-mapped file, so a corpus
 //!   larger than RAM stays searchable (feature `disk`).
 //!
 //! Each takes a [`Metric`] and returns [`SearchResult`]s nearest first.
 //!
 //! ```
-//! use vanedb::{Metric, Index};
+//! use vanedb::{Metric, ApproxIndex};
 //!
-//! let index = Index::builder(3, Metric::Cosine)
+//! let index = ApproxIndex::builder(3, Metric::Cosine)
 //!     .capacity(1_000)
 //!     .build()?;
 //! index.add(1, &[1.0, 0.0, 0.0])?;
@@ -27,26 +27,26 @@
 //! portable scalar path, which is the reference the others must agree with.
 //!
 //! A header-only C++ implementation is maintained alongside this crate. The two
-//! share the `DiskStore` format — either engine reads the other's file, checked
-//! by a cross-load test — and share graph construction. The `Index` format is
+//! share the `DiskIndex` format — either engine reads the other's file, checked
+//! by a cross-load test — and share graph construction. The `ApproxIndex` format is
 //! still engine-specific.
 
 #![warn(missing_docs)]
 
+pub mod approx;
 mod atomic_write;
 #[cfg(feature = "disk")]
 pub mod disk;
 pub mod distance;
 pub mod error;
+pub mod flat;
 #[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
 pub mod gpu;
-pub mod index;
-pub mod store;
 mod validation;
 
+pub use approx::ApproxIndex;
 #[cfg(feature = "disk")]
-pub use disk::{DiskStore, DiskStoreBuilder};
+pub use disk::{DiskIndex, DiskIndexBuilder};
 pub use distance::Metric;
 pub use error::{Result, VaneError};
-pub use index::Index;
-pub use store::{SearchResult, Store};
+pub use flat::{FlatIndex, SearchResult};
