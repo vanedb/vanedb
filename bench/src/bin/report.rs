@@ -113,8 +113,10 @@ fn main() -> ExitCode {
 
         // FlatIndex search. Setup asserts keep a failed engine from benchmarking
         // as infinitely fast.
-        let sc = ffi::vanedb_cpp_store_new(dim, 0);
-        let sr = ffi::vanedb_rs_store_new(dim, 0);
+        // Timing rows only — no ground truth is computed for these, but they
+        // follow METRIC so the whole report describes one metric.
+        let sc = ffi::vanedb_cpp_store_new(dim, METRIC);
+        let sr = ffi::vanedb_rs_store_new(dim, METRIC);
         assert!(!sc.is_null() && !sr.is_null(), "store_new failed");
         for i in 0..n {
             assert_eq!(

@@ -100,8 +100,9 @@ ApproxIndex recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700. ◊◊
 
 **◊◊ ** Measured on uniform-random vectors, which is the hard case for a
 proximity graph: no cluster structure exists for the graph to exploit, so this
-is close to a lower bound rather than a typical figure. Embedding-like data
-recalls substantially higher at the same parameters. The number is comparable
+is close to a lower bound rather than a typical figure; clustered,
+embedding-like data is expected to recall higher at the same parameters,
+though this harness does not currently measure that. The number is comparable
 between the two engines, which is what this table is for; it is not a recall
 figure to quote for the engine.
 
