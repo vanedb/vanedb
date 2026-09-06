@@ -10,7 +10,10 @@ import pathlib
 
 import vanedb
 
-STUB = pathlib.Path(__file__).resolve().parents[1] / "python" / "vanedb" / "__init__.pyi"
+# Resolved through the imported package, not the repo layout: CI copies this
+# suite outside the tree to test the built wheel, and the stub that ships is
+# the one worth checking anyway.
+STUB = pathlib.Path(vanedb.__file__).resolve().parent / "__init__.pyi"
 
 
 def _stub_tree() -> ast.Module:
@@ -40,9 +43,9 @@ def _runtime_members(obj: type) -> set[str]:
     }
 
 
-def test_the_stub_file_ships_in_the_package():
-    assert STUB.is_file(), "no __init__.pyi"
-    assert (STUB.parent / "py.typed").is_file(), "no py.typed marker"
+def test_the_stub_and_marker_ship_in_the_package():
+    assert STUB.is_file(), f"no __init__.pyi in {STUB.parent}"
+    assert (STUB.parent / "py.typed").is_file(), f"no py.typed in {STUB.parent}"
 
 
 def test_the_stub_declares_every_exported_name():
@@ -72,8 +75,3 @@ def test_no_stubbed_member_has_disappeared_from_the_runtime():
         assert runtime is not None, f"stub declares {cls_name}, which does not exist"
         extra = {m for m in stubbed if not hasattr(runtime, m)}
         assert not extra, f"{cls_name} stub declares {sorted(extra)}, which the runtime lacks"
-
-
-def test_the_package_is_marked_typed_at_runtime():
-    package_dir = pathlib.Path(vanedb.__file__).parent
-    assert (package_dir / "py.typed").is_file(), "py.typed missing from the built package"
