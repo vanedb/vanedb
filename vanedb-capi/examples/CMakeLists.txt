@@ -22,3 +22,8 @@ if(WIN32)
 endif()
 enable_testing()
 add_test(NAME c_quickstart COMMAND quickstart)
+
+add_executable(acceptance ../tests/acceptance.c)
+set_target_properties(acceptance PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+target_link_libraries(acceptance PRIVATE vanedb_runtime)
+add_test(NAME c_acceptance COMMAND acceptance "${CMAKE_CURRENT_BINARY_DIR}")

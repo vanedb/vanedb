@@ -133,8 +133,10 @@ return conventions, and metric constants.
 CI runs native Rust tests on Linux x86-64/ARM64, macOS Intel/ARM64, and Windows x86-64,
 and WebAssembly tests in Node.js and headless Chrome. Python release workflows build and test
 Linux x86-64/ARM64 (glibc and musl), macOS Intel/ARM64, and Windows x64 wheels
-for Python 3.11–3.14. Mobile CI currently cross-compiles the Rust core and C ABI for
-iOS ARM64 and Android ARM64/x86-64; mobile runtime behavior still needs verification before claiming 1.0.0 support
+for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
+iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
+simulator and Android x86-64 emulator. Physical-device and Android ARM64 runtime
+verification remain required before claiming 1.0.0 support
 on every platform.
 
 The supplementary C++ engine has different constructor arguments, result shapes,
