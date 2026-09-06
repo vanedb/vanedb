@@ -46,7 +46,7 @@ impl AtomicFile {
 
     /// Publish the finished temporary file at `dest`.
     pub(crate) fn commit(mut self, dest: &Path) -> Result<()> {
-        fs::rename(&self.temp, dest).map_err(|e| VaneError::Io(format!("rename: {e}")))?;
+        fs::rename(&self.temp, dest).map_err(|e| VaneError::from_io("rename", e))?;
         self.committed = true;
         Ok(())
     }

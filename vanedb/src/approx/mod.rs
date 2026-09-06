@@ -796,9 +796,15 @@ impl ApproxIndexBuilder {
     }
 
     /// Allocates the graph and returns the index.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`VaneError::ZeroDimension`] if `dim` is zero, or
+    /// [`VaneError::InvalidParameter`] if a graph parameter is out of range or
+    /// implies an allocation that would overflow.
     pub fn build(self) -> Result<ApproxIndex> {
         if self.dim == 0 {
-            return Err(VaneError::EmptyVector);
+            return Err(VaneError::ZeroDimension);
         }
         if self.capacity == 0 {
             return Err(VaneError::InvalidParameter("capacity must be > 0"));

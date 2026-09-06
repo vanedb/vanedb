@@ -69,7 +69,7 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
         0 => Ok(Metric::L2),
         1 => Ok(Metric::Cosine),
         2 => Ok(Metric::Dot),
-        _ => Err(VaneError::Io("invalid metric in file".to_string())),
+        _ => Err(VaneError::corrupt("invalid metric in file")),
     }
 }
 
@@ -104,23 +104,21 @@ impl ApproxIndex {
         };
 
         let payload = bincode::serde::encode_to_vec(&data, bincode::config::legacy())
-            .map_err(|e| VaneError::Io(format!("serialize: {e}")))?;
+            .map_err(|e| VaneError::from_io("serialize", std::io::Error::other(e)))?;
 
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
-        let mut f =
-            fs::File::create(temp.path()).map_err(|e| VaneError::Io(format!("create: {e}")))?;
+        let mut f = fs::File::create(temp.path()).map_err(|e| VaneError::from_io("create", e))?;
         f.write_all(&MAGIC.to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&VERSION.to_le_bytes())
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         f.write_all(&payload)
-            .map_err(|e| VaneError::Io(format!("write: {e}")))?;
+            .map_err(|e| VaneError::from_io("write", e))?;
         // Durability: fsync data + metadata before rename so a crash mid-write
         // can't leave a half-written file in place. Mirrors fsync_file in
         // vanedb-cpp src/core/detail/file_utils.h.
-        f.sync_all()
-            .map_err(|e| VaneError::Io(format!("sync: {e}")))?;
+        f.sync_all().map_err(|e| VaneError::from_io("sync", e))?;
         drop(f);
 
         temp.commit(path)
@@ -132,24 +130,26 @@ impl ApproxIndex {
     /// invariants are checked on the way in, so a corrupt file is rejected
     /// rather than producing wrong search results.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
-        let bytes = fs::read(path.as_ref()).map_err(|e| VaneError::Io(format!("read: {e}")))?;
+        let bytes = fs::read(path.as_ref()).map_err(|e| VaneError::from_io("read", e))?;
         if bytes.len() < HEADER_LEN {
-            return Err(VaneError::Io("file too small for header".to_string()));
+            return Err(VaneError::corrupt("file too small for header"));
         }
         let magic = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
         if magic != MAGIC {
-            return Err(VaneError::Io("invalid magic".to_string()));
+            return Err(VaneError::corrupt("invalid magic"));
         }
         let version = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
         if version != V1 && version != VERSION {
-            return Err(VaneError::Io(format!("unsupported version: {version}")));
+            return Err(VaneError::corrupt(format!(
+                "unsupported version: {version}"
+            )));
         }
 
         // config::legacy() is bincode 1's wire format (fixint, little-endian),
         // so files written before the bincode 2 migration load unchanged.
         let (data, _): (HnswData, usize) =
             bincode::serde::decode_from_slice(&bytes[HEADER_LEN..], bincode::config::legacy())
-                .map_err(|e| VaneError::Io(format!("deserialize: {e}")))?;
+                .map_err(|e| VaneError::corrupt(format!("deserialize: {e}")))?;
 
         // Validate semantic invariants. bincode catches schema mismatches but
         // never validates values, so a corrupt or hostile file could otherwise
@@ -158,17 +158,17 @@ impl ApproxIndex {
         // to one in the C++ load() path (vanedb-cpp src/core/index.h).
         let metric = u32_to_metric(data.metric)?;
         if data.dim == 0 {
-            return Err(VaneError::Io("invalid dim: 0".to_string()));
+            return Err(VaneError::corrupt("invalid dim: 0"));
         }
         if data.max_elements == 0 {
-            return Err(VaneError::Io("invalid max_elements: 0".to_string()));
+            return Err(VaneError::corrupt("invalid max_elements: 0"));
         }
         // A file declares max_elements; load re-expands every array to it. Cap
         // it so a few hundred bytes cannot request terabytes. vanedb-cpp caps
         // every deserialized array the same way (MAX_VEC_SIZE in
         // src/core/index.h).
         if data.max_elements > MAX_ELEMENTS {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: max_elements {} exceeds the {MAX_ELEMENTS} limit",
                 data.max_elements
             )));
@@ -176,30 +176,28 @@ impl ApproxIndex {
         // C++ validates these on load; Rust checked them only at build time,
         // so a hostile file could set m = 0 and make the level maths degenerate.
         if data.m < 2 {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: m {} is below 2",
                 data.m
             )));
         }
         if data.ef_construction == 0 {
-            return Err(VaneError::Io(
-                "corrupted file: ef_construction is 0".to_string(),
-            ));
+            return Err(VaneError::corrupt("corrupted file: ef_construction is 0"));
         }
         if data.m_max0 != data.m * 2 || data.m_max != data.m {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: m_max {} / m_max0 {} disagree with m {}",
                 data.m_max, data.m_max0, data.m
             )));
         }
         if data.count > data.max_elements {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: count {} exceeds max_elements {}",
                 data.count, data.max_elements
             )));
         }
         if data.max_level > MAX_LEVEL {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: max_level {} exceeds bound {}",
                 data.max_level, MAX_LEVEL
             )));
@@ -207,21 +205,21 @@ impl ApproxIndex {
         match data.entry_point {
             Some(ep) => {
                 if ep >= data.count {
-                    return Err(VaneError::Io(format!(
+                    return Err(VaneError::corrupt(format!(
                         "corrupted file: entry point {ep} >= count {}",
                         data.count
                     )));
                 }
                 if data.max_level < 0 {
-                    return Err(VaneError::Io(
-                        "corrupted file: entry point set but max_level < 0".to_string(),
+                    return Err(VaneError::corrupt(
+                        "corrupted file: entry point set but max_level < 0",
                     ));
                 }
             }
             None => {
                 if data.count > 0 {
-                    return Err(VaneError::Io(
-                        "corrupted file: count > 0 with no entry point".to_string(),
+                    return Err(VaneError::corrupt(
+                        "corrupted file: count > 0 with no entry point",
                     ));
                 }
             }
@@ -230,7 +228,7 @@ impl ApproxIndex {
         // smaller than count. More than count is still corrupt: every entry
         // must name a distinct slot.
         if data.id_map.len() > data.count {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: id_map size {} exceeds count {}",
                 data.id_map.len(),
                 data.count
@@ -248,13 +246,13 @@ impl ApproxIndex {
         // carrying that id, and a slot absent from id_map is simply deleted.
         for (&ext_id, &mapped) in &data.id_map {
             if mapped >= data.count {
-                return Err(VaneError::Io(format!(
+                return Err(VaneError::corrupt(format!(
                     "corrupted file: id_map[{ext_id}] is {mapped}, beyond count {}",
                     data.count
                 )));
             }
             if data.ext_ids[mapped] != ext_id {
-                return Err(VaneError::Io(format!(
+                return Err(VaneError::corrupt(format!(
                     "corrupted file: id_map[{ext_id}] is {mapped}, whose ext_id is {}",
                     data.ext_ids[mapped]
                 )));
@@ -263,8 +261,8 @@ impl ApproxIndex {
         {}
         for &iid in data.id_map.values() {
             if iid >= data.count {
-                return Err(VaneError::Io(
-                    "corrupted file: id_map value out of range".to_string(),
+                return Err(VaneError::corrupt(
+                    "corrupted file: id_map value out of range",
                 ));
             }
         }
@@ -276,22 +274,22 @@ impl ApproxIndex {
             data.count
         };
         if data.neighbors.len() != stored {
-            return Err(VaneError::Io(format!(
+            return Err(VaneError::corrupt(format!(
                 "corrupted file: neighbors length {} != expected {stored}",
                 data.neighbors.len()
             )));
         }
         for nbs in data.neighbors.iter().take(data.count) {
             if nbs.len() > (MAX_LEVEL as usize) + 1 {
-                return Err(VaneError::Io(
-                    "corrupted file: too many neighbor levels".to_string(),
+                return Err(VaneError::corrupt(
+                    "corrupted file: too many neighbor levels",
                 ));
             }
             for layer in nbs {
                 for &n in layer {
                     if n >= data.count {
-                        return Err(VaneError::Io(
-                            "corrupted file: neighbor index out of range".to_string(),
+                        return Err(VaneError::corrupt(
+                            "corrupted file: neighbor index out of range",
                         ));
                     }
                 }
@@ -299,10 +297,10 @@ impl ApproxIndex {
         }
         data.max_elements
             .checked_mul(data.dim)
-            .ok_or_else(|| VaneError::Io("size overflow".to_string()))?;
+            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
         if data.vectors.len() != stored * data.dim {
-            return Err(VaneError::Io(
-                "corrupted file: vectors length != expected * dim".to_string(),
+            return Err(VaneError::corrupt(
+                "corrupted file: vectors length != expected * dim",
             ));
         }
         let live_vectors_len = data.count * data.dim;
@@ -310,13 +308,13 @@ impl ApproxIndex {
             .iter()
             .any(|value| !value.is_finite())
         {
-            return Err(VaneError::Io(
-                "corrupted file: vector values must be finite".to_string(),
+            return Err(VaneError::corrupt(
+                "corrupted file: vector values must be finite",
             ));
         }
         if data.ext_ids.len() != stored || data.levels.len() != stored {
-            return Err(VaneError::Io(
-                "corrupted file: ext_ids/levels length != expected".to_string(),
+            return Err(VaneError::corrupt(
+                "corrupted file: ext_ids/levels length != expected",
             ));
         }
 

@@ -1,5 +1,5 @@
 use pyo3::buffer::PyBuffer;
-use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::exceptions::{PyFileNotFoundError, PyOSError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
 use ::vanedb::approx::ApproxIndex;
@@ -9,7 +9,28 @@ use ::vanedb::VaneError;
 use ::vanedb::{DiskIndex, DiskIndexBuilder};
 
 fn to_pyerr(e: VaneError) -> PyErr {
-    PyValueError::new_err(e.to_string())
+    // A missing file and a corrupt one call for different handling, so they
+    // must not share an exception class. FileNotFoundError is checked first
+    // because it is a subclass of OSError.
+    match &e {
+        VaneError::FileNotFound { .. } => PyFileNotFoundError::new_err(e.to_string()),
+        VaneError::Io { .. } => PyOSError::new_err(e.to_string()),
+        // Corrupt data and every validation failure stay ValueError.
+        _ => PyValueError::new_err(e.to_string()),
+    }
+}
+
+/// Converts a Python int to an id.
+///
+/// PyO3's own `u64` conversion raises `OverflowError` for a negative value,
+/// and `OverflowError` is not a `ValueError` subclass -- so `except ValueError`
+/// silently missed negative ids. Every method taking an id goes through this.
+fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
+    if let Ok(id) = obj.extract::<u64>() {
+        return Ok(id);
+    }
+    let signed: i64 = obj.extract()?;
+    u64::try_from(signed).map_err(|_| PyValueError::new_err(format!("negative id: {signed}")))
 }
 
 /// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
@@ -106,7 +127,20 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
             })
             .collect();
     }
-    obj.extract()
+    match obj.extract::<Vec<u64>>() {
+        Ok(ids) => Ok(ids),
+        Err(_) => {
+            // Retry as signed so a negative id in a plain list reports as
+            // ValueError, matching the buffer path above.
+            let signed: Vec<i64> = obj.extract()?;
+            signed
+                .into_iter()
+                .map(|x| {
+                    u64::try_from(x).map_err(|_| PyValueError::new_err(format!("negative id: {x}")))
+                })
+                .collect()
+        }
+    }
 }
 
 fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
@@ -161,7 +195,11 @@ impl PyStore {
     }
 
     /// Add one vector. Accepts a 1-D float32 buffer (numpy) or any float sequence.
-    fn add(&self, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn add(
+        &self,
+        #[pyo3(from_py_with = one_id)] id: u64,
+        vector: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
         let v = vec_f32(vector)?;
         self.inner.add(id, &v).map_err(to_pyerr)
     }
@@ -194,15 +232,15 @@ impl PyStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, id: u64) -> PyResult<Vec<f32>> {
+    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
         self.inner.get(id).map_err(to_pyerr)
     }
 
-    fn remove(&self, id: u64) -> PyResult<()> {
+    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
         self.inner.remove(id).map_err(to_pyerr)
     }
 
-    fn contains(&self, id: u64) -> bool {
+    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
         self.inner.contains(id)
     }
 
@@ -254,7 +292,12 @@ impl PyIndex {
     }
 
     /// Add one vector. Accepts a 1-D float32 buffer (numpy) or any float sequence.
-    fn add(&self, py: Python<'_>, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn add(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+        vector: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
         let v = vec_f32(vector)?;
         py.detach(|| self.inner.add(id, &v)).map_err(to_pyerr)
     }
@@ -287,11 +330,11 @@ impl PyIndex {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get_vector(&self, id: u64) -> PyResult<Vec<f32>> {
+    fn get_vector(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
         self.inner.get_vector(id).map_err(to_pyerr)
     }
 
-    fn contains(&self, id: u64) -> bool {
+    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
         self.inner.contains(id)
     }
 
@@ -324,7 +367,11 @@ impl PyIndex {
     /// Both halves happen under one write lock, so a concurrent reader never
     /// observes the id missing. The old slot is tombstoned, so a long upsert
     /// loop still needs `compact()`.
-    fn upsert(&self, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn upsert(
+        &self,
+        #[pyo3(from_py_with = one_id)] id: u64,
+        vector: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
         let v = vec_f32(vector)?;
         self.inner.upsert(id, &v).map_err(to_pyerr)
     }
@@ -349,7 +396,7 @@ impl PyIndex {
     /// Tombstoned: the node keeps its graph links, which may be the only
     /// route between live neighbourhoods, and simply stops appearing in
     /// results. The id becomes free for reuse. Space is not reclaimed.
-    fn remove(&self, id: u64) -> PyResult<()> {
+    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
         self.inner.remove(id).map_err(to_pyerr)
     }
 
@@ -386,7 +433,11 @@ impl PyDiskStoreBuilder {
         })
     }
 
-    fn add(&mut self, id: u64, vector: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn add(
+        &mut self,
+        #[pyo3(from_py_with = one_id)] id: u64,
+        vector: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
         let v = vec_f32(vector)?;
         self.inner.add(id, &v).map_err(to_pyerr)
     }
@@ -441,11 +492,11 @@ impl PyDiskStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, id: u64) -> PyResult<Vec<f32>> {
+    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
         self.inner.get(id).map(<[f32]>::to_vec).map_err(to_pyerr)
     }
 
-    fn contains(&self, id: u64) -> bool {
+    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
         self.inner.contains(id)
     }
 
