@@ -321,20 +321,16 @@ fn mmap_load_rejects_unsupported_version() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_load_rejects_zero_dim_with_vectors() {
-    let path = std::env::temp_dir().join("vanedb_mmap_zero_dim.bin");
-    let mut data = Vec::new();
-    data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
-    data.extend_from_slice(&1u32.to_le_bytes());
-    data.extend_from_slice(&0u64.to_le_bytes()); // dim = 0 (corrupted)
-    data.extend_from_slice(&5u64.to_le_bytes()); // but claims 5 vectors
-    data.extend_from_slice(&0u32.to_le_bytes());
-    data.extend_from_slice(&0u32.to_le_bytes());
-    fs::write(&path, &data).unwrap();
-    assert!(matches!(
-        DiskIndex::open(&path),
-        Err(VaneError::Corrupt { .. })
-    ));
-    let _ = fs::remove_file(&path);
+    // Self-consistent at dim = 0: 2 ids and no vector bytes is exactly the
+    // declared length, so the truncation check passes and only the explicit
+    // zero-dim guard can reject this.
+    let bytes = disk_file_bytes(DISK_MAGIC, 1, 0, &[1, 2], &[]);
+    let p = write_tmp("mmap_zero_dim", &bytes);
+    assert!(
+        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        "dim = 0 with vectors present must be rejected"
+    );
+    let _ = fs::remove_file(&p);
 }
 
 #[cfg(feature = "disk")]
@@ -574,20 +570,68 @@ fn hnsw_load_rejects_inconsistent_graph_structure() {
     }
 }
 
+/// A complete, self-consistent `VNDB` file. Every derived length agrees, so
+/// only the deliberately-planted defect can make a loader reject it — a
+/// short file is caught by the truncation check first, which is how a header
+/// guard can look tested when it never runs.
+#[cfg(feature = "disk")]
+fn disk_file_bytes(magic: u32, version: u32, dim: usize, ids: &[u64], vectors: &[f32]) -> Vec<u8> {
+    let mut data = Vec::new();
+    data.extend_from_slice(&magic.to_le_bytes());
+    data.extend_from_slice(&version.to_le_bytes());
+    data.extend_from_slice(&(dim as u64).to_le_bytes());
+    data.extend_from_slice(&(ids.len() as u64).to_le_bytes());
+    data.extend_from_slice(&0u32.to_le_bytes()); // metric: L2
+    data.extend_from_slice(&0u32.to_le_bytes()); // reserved
+    for id in ids {
+        data.extend_from_slice(&id.to_le_bytes());
+    }
+    for v in vectors {
+        data.extend_from_slice(&v.to_le_bytes());
+    }
+    data
+}
+
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_load_rejects_duplicate_ids() {
-    let p = std::env::temp_dir().join(format!("vanedb_duplicate_ids_{}.vndb", std::process::id()));
-    let mut builder = DiskIndexBuilder::new(1, Metric::L2).unwrap();
-    builder.add(10, &[0.0]).unwrap();
-    builder.add(20, &[10.0]).unwrap();
-    builder.save(&p).unwrap();
-    let mut bytes = fs::read(&p).unwrap();
-    bytes[40..48].copy_from_slice(&10u64.to_le_bytes());
-    fs::write(&p, bytes).unwrap();
-    assert!(matches!(
-        DiskIndex::open(&p),
-        Err(VaneError::Corrupt { .. })
-    ));
-    fs::remove_file(p).unwrap();
+    // Both builders reject duplicates on write, so no vanedb writer produces
+    // this — but VNDB is the shared cross-engine format, so the loader is
+    // what has to distrust it. Last-write-wins silently made `size()`
+    // overcount, `get` return the wrong row, and `search` emit one id twice.
+    let bytes = disk_file_bytes(
+        DISK_MAGIC,
+        1,
+        2,
+        &[7, 7, 9],
+        &[1.0, 0.0, 0.0, 1.0, 5.0, 4.0],
+    );
+    let p = write_tmp("mmap_duplicate_ids", &bytes);
+    assert!(
+        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        "a VNDB file with duplicate ids must be rejected"
+    );
+    let _ = fs::remove_file(&p);
+}
+
+#[cfg(feature = "disk")]
+#[test]
+fn mmap_load_rejects_invalid_magic() {
+    // The only previous "bad file" test wrote 7 bytes, which the length floor
+    // rejects before the magic is ever compared. Disabling the magic check
+    // left the whole suite green.
+    let bytes = disk_file_bytes(
+        u32::from_le_bytes(*b"BDNV"),
+        1,
+        2,
+        &[1, 2],
+        &[1.0, 0.0, 0.0, 1.0],
+    );
+    let p = write_tmp("mmap_bad_magic", &bytes);
+    let err = match DiskIndex::open(&p) {
+        Ok(_) => panic!("a file with the wrong magic must not open"),
+        Err(e) => e,
+    };
+    assert!(format!("{err}").contains("magic"), "got: {err}");
+    let _ = fs::remove_file(&p);
 }

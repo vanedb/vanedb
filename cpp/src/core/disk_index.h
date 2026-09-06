@@ -124,6 +124,7 @@ public:
           throw std::runtime_error("File corrupted: duplicate vector id");
       }
     } catch (...) { cleanup(); throw; }
+
   }
 
   ~DiskIndex() { cleanup(); }

@@ -259,7 +259,10 @@ impl DiskIndex {
             }
         }
 
-        // Build ID → index map
+        // Build ID → index map. Duplicates would silently overwrite, leaving
+        // `size()` disagreeing with the map, `get` returning a different row
+        // than the id names, and `search` emitting one id twice. The HNSW
+        // loader enforces the same bijection (approx/persistence.rs).
         let mut id_map = HashMap::with_capacity(num_vectors);
         for i in 0..num_vectors {
             let off = ids_offset + i * 8;
