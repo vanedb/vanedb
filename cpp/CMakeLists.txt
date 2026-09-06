@@ -168,6 +168,12 @@ target_compile_options(test_approx_id_map_conformance PRIVATE
 )
 target_link_options(test_approx_id_map_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 
+add_executable(test_vndb_format_conformance tests/test_vndb_format_conformance.cpp)
+target_link_libraries(test_vndb_format_conformance PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_vndb_format_conformance PRIVATE
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance")
+target_compile_options(test_vndb_format_conformance PRIVATE ${COVERAGE_COMPILE_FLAGS})
+target_link_options(test_vndb_format_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_cosine_conformance tests/test_cosine_conformance.cpp)
 target_link_libraries(test_cosine_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_cosine_conformance PRIVATE
@@ -237,6 +243,7 @@ catch_discover_tests(test_cosine_conformance)
 catch_discover_tests(test_approx_id_map_conformance)
 catch_discover_tests(test_non_finite_conformance)
 catch_discover_tests(test_approx_derived_size_conformance)
+catch_discover_tests(test_vndb_format_conformance)
 endif() # VANEDB_BUILD_TESTS
 
 # Examples
