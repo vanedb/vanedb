@@ -205,4 +205,33 @@ mod bench_targets {
             );
         }
     }
+
+    /// Every search benchmark must sweep a query set rather than repeat one
+    /// query. The two engines build different graphs from the same seed, so a
+    /// single query measured graph luck: 41% spread across 16 queries, wide
+    /// enough to contain every index_search ratio published from a one-query
+    /// timing (#111).
+    #[test]
+    fn search_benchmarks_sweep_a_query_set() {
+        for (name, src) in [
+            ("benches/index.rs", include_str!("../benches/index.rs")),
+            ("benches/disk.rs", include_str!("../benches/disk.rs")),
+            ("benches/store.rs", include_str!("../benches/store.rs")),
+        ] {
+            assert!(
+                src.contains("for qi in 0..QUERY_SET"),
+                "{name} does not sweep QUERY_SET; a single query measures graph luck"
+            );
+            assert!(
+                !src.contains("black_box(q.as_ptr())"),
+                "{name} still times a single fixed query"
+            );
+        }
+        // The snapshot binary sweeps the configured query count instead.
+        let report = include_str!("bin/report.rs");
+        assert!(
+            report.matches("for qi in 0..queries").count() >= 4,
+            "report.rs must sweep the query set in both search comparisons"
+        );
+    }
 }

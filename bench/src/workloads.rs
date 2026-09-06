@@ -8,6 +8,15 @@ pub struct Workload {
     pub queries: Vec<f32>, // row-major, n_queries * dim
 }
 
+/// Queries swept per timed search iteration.
+///
+/// Timing a single query measured graph luck rather than engine speed: the
+/// two engines build different graphs from the same seed (`StdRng` vs
+/// `std::mt19937`), so per-query work varies by which node the query lands
+/// near. Measured spread across 16 queries was 41% — wide enough to contain
+/// every index_search ratio ever published from a one-query timing (#111).
+pub const QUERY_SET: usize = 32;
+
 fn splitmix64(state: &mut u64) -> u64 {
     *state = state.wrapping_add(0x9E3779B97F4A7C15);
     let mut z = *state;
