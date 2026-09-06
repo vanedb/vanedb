@@ -110,11 +110,16 @@ engines build different graphs from the same seed (`StdRng` versus
 queries the mean is 0.97 with a 41% spread — Rust is ahead on average. Fixing
 the bench to sweep a query set is vanedb#111.
 
-**¶ Not a speed comparison.** The engines call different durability
-primitives: Rust `sync_all()` (`F_FULLFSYNC` on macOS, a media barrier,
-8.1 ms for this payload) versus C++ `fsync(2)` (write cache only, 0.95 ms).
-Nearly the whole gap is that difference, so C++ is less durable here rather
-than faster (vanedb#110).
+**¶ Measured against mismatched durability; awaiting a re-run.** When this
+snapshot was taken the engines called different primitives: Rust `sync_all()`
+(`F_FULLFSYNC` on macOS, a media barrier) versus C++ `fsync(2)` (write cache
+only). Nearly the whole gap was that difference, so C++ was less durable here
+rather than faster. Both engines now issue `F_FULLFSYNC` on Darwin
+(vanedb#110), so this row is replaced by the next snapshot taken on dedicated
+hardware.
+
+Any save-path comparison requires both engines to use the same durability
+primitive; otherwise the faster row is only the weaker guarantee.
 
 Rust leads the largest scan after moving both brute-force paths to a bounded
 top-k heap (vanedb#32). The remaining honest gaps are on write paths and are
