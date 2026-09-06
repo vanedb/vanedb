@@ -14,6 +14,38 @@
 namespace py = pybind11;
 using namespace vanedb;
 
+namespace {
+
+using FloatArray = py::array_t<float, py::array::c_style | py::array::forcecast>;
+
+/// Validates a 1-D float array's shape and copies it into owned storage.
+///
+/// The copy is the point. `py::array_t<..., c_style | forcecast>` does not
+/// copy an input that is already float32 and C-contiguous, so `buf.ptr`
+/// aliases the caller's numpy array. Reading through that pointer after
+/// `gil_scoped_release` lets another Python thread mutate the data part-way
+/// through a scan or graph walk -- and because the finite check runs inside
+/// the core, after the release, a value can pass validation and then become
+/// NaN before it is stored, defeating the invariant the non-finite
+/// conformance suite exists to protect (vanedb#95).
+///
+/// PyO3 copies into owned `Vec`s before `py.detach` at every site; this keeps
+/// the two Python packages on one memory-safety discipline.
+std::vector<float> owned_vector(const FloatArray& array, size_t expected_dim,
+                                const char* ndim_message, const char* dim_message) {
+  py::buffer_info buf = array.request();
+  if (buf.ndim != 1) {
+    throw std::runtime_error(ndim_message);
+  }
+  if (static_cast<size_t>(buf.size) != expected_dim) {
+    throw std::runtime_error(dim_message);
+  }
+  const float* first = static_cast<const float*>(buf.ptr);
+  return std::vector<float>(first, first + buf.size);
+}
+
+}  // namespace
+
 PYBIND11_MODULE(vanedb_cpp, m) {
     m.doc() = "VaneDB - Embeddable vector database for edge AI";
 
@@ -44,16 +76,11 @@ PYBIND11_MODULE(vanedb_cpp, m) {
              py::arg("ef_construction") = 200,
              py::arg("random_seed") = 42)
         .def("add", [](ApproxIndex& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
-                py::buffer_info buf = vector_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Vector dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(vector_array, self.dimension(), "Vector must be a 1-dimensional array", "Vector dimension mismatch");
                 // Release GIL during potentially long C++ operation
                 py::gil_scoped_release release;
-                self.add(id, static_cast<const float*>(buf.ptr));
+                self.add(id, owned.data());
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the index")
@@ -74,19 +101,14 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             py::arg("id"),
             "Retrieves the vector associated with the given ID as a numpy array")
         .def("search", [](const ApproxIndex& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
-                py::buffer_info buf = query_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Query vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Query dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(query_array, self.dimension(), "Query vector must be a 1-dimensional array", "Query dimension mismatch");
 
                 std::vector<HNSWSearchResult> results;
                 {
                     // Release GIL during search
                     py::gil_scoped_release release;
-                    results = self.search(static_cast<const float*>(buf.ptr), k);
+                    results = self.search(owned.data(), k);
                 }
 
                 // Create numpy arrays for IDs and distances (requires GIL)
@@ -130,15 +152,10 @@ PYBIND11_MODULE(vanedb_cpp, m) {
              py::arg("metric") = Metric::L2,
              "Creates a new in-memory vector store")
         .def("add", [](FlatIndex& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
-                py::buffer_info buf = vector_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Vector dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(vector_array, self.dimension(), "Vector must be a 1-dimensional array", "Vector dimension mismatch");
                 py::gil_scoped_release release;
-                self.add(id, static_cast<const float*>(buf.ptr));
+                self.add(id, owned.data());
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the store")
@@ -163,18 +180,13 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             py::arg("id"),
             "Gets a vector by ID, returns None if not found")
         .def("search", [](const FlatIndex& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
-                py::buffer_info buf = query_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Query vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Query dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(query_array, self.dimension(), "Query vector must be a 1-dimensional array", "Query dimension mismatch");
 
                 std::vector<SearchResult> results;
                 {
                     py::gil_scoped_release release;
-                    results = self.search(static_cast<const float*>(buf.ptr), k);
+                    results = self.search(owned.data(), k);
                 }
 
                 py::array_t<uint64_t> ids(static_cast<py::ssize_t>(results.size()));
@@ -193,15 +205,10 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             "Searches for k nearest neighbors. Returns (ids, distances).")
         .def("remove", &FlatIndex::remove, py::arg("id"), "Removes a vector by ID")
         .def("update", [](FlatIndex& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
-                py::buffer_info buf = vector_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Vector dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(vector_array, self.dimension(), "Vector must be a 1-dimensional array", "Vector dimension mismatch");
                 py::gil_scoped_release release;
-                return self.update(id, static_cast<const float*>(buf.ptr));
+                return self.update(id, owned.data());
             },
             py::arg("id"), py::arg("vector"),
             "Updates an existing vector")
@@ -218,14 +225,9 @@ PYBIND11_MODULE(vanedb_cpp, m) {
              py::arg("metric") = Metric::L2,
              "Creates a new builder for memory-mapped vector store")
         .def("add", [](DiskIndexBuilder& self, uint64_t id, py::array_t<float, py::array::c_style | py::array::forcecast> vector_array) {
-                py::buffer_info buf = vector_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Vector dimension mismatch");
-                }
-                self.add(id, static_cast<const float*>(buf.ptr));
+                const std::vector<float> owned =
+                    owned_vector(vector_array, self.dimension(), "Vector must be a 1-dimensional array", "Vector dimension mismatch");
+                self.add(id, owned.data());
             },
             py::arg("id"), py::arg("vector"),
             "Adds a vector to the builder")
@@ -265,18 +267,13 @@ PYBIND11_MODULE(vanedb_cpp, m) {
             "Gets a read-only zero-copy vector from the mapped file, or None if not found. "
             "The array keeps the mapping alive; use .copy() for an editable array.")
         .def("search", [](const DiskIndex& self, py::array_t<float, py::array::c_style | py::array::forcecast> query_array, size_t k) {
-                py::buffer_info buf = query_array.request();
-                if (buf.ndim != 1) {
-                    throw std::runtime_error("Query vector must be a 1-dimensional array");
-                }
-                if (static_cast<size_t>(buf.size) != self.dimension()) {
-                    throw std::runtime_error("Query dimension mismatch");
-                }
+                const std::vector<float> owned =
+                    owned_vector(query_array, self.dimension(), "Query vector must be a 1-dimensional array", "Query dimension mismatch");
 
                 std::vector<SearchResult> results;
                 {
                     py::gil_scoped_release release;
-                    results = self.search(static_cast<const float*>(buf.ptr), k);
+                    results = self.search(owned.data(), k);
                 }
 
                 py::array_t<uint64_t> ids(static_cast<py::ssize_t>(results.size()));
