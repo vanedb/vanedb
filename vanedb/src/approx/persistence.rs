@@ -193,7 +193,13 @@ impl ApproxIndex {
         if data.ef_construction == 0 {
             return Err(VaneError::corrupt("corrupted file: ef_construction is 0"));
         }
-        if data.m_max0 != data.m * 2 || data.m_max != data.m {
+        let m_max0_expected = data.m.checked_mul(2).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: m {} overflows when doubled",
+                data.m
+            ))
+        })?;
+        if data.m_max0 != m_max0_expected || data.m_max != data.m {
             return Err(VaneError::corrupt(format!(
                 "corrupted file: m_max {} / m_max0 {} disagree with m {}",
                 data.m_max, data.m_max0, data.m
@@ -313,15 +319,33 @@ impl ApproxIndex {
                 }
             }
         }
-        data.max_elements
-            .checked_mul(data.dim)
-            .ok_or_else(|| VaneError::corrupt("size overflow"))?;
-        if data.vectors.len() != stored * data.dim {
+        data.max_elements.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: max_elements {} * dim {} overflows",
+                data.max_elements, data.dim
+            ))
+        })?;
+        // `stored` is max_elements for v1 but `count` for v2, and v2 does not
+        // bound count by max_elements — so this product is over two values the
+        // file controls. At 8 * 2^61 it wraps to exactly 0, and an empty
+        // vector array then satisfies the length check below.
+        let stored_len = stored.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: stored {} * dim {} overflows",
+                stored, data.dim
+            ))
+        })?;
+        if data.vectors.len() != stored_len {
             return Err(VaneError::corrupt(
                 "corrupted file: vectors length != expected * dim",
             ));
         }
-        let live_vectors_len = data.count * data.dim;
+        let live_vectors_len = data.count.checked_mul(data.dim).ok_or_else(|| {
+            VaneError::corrupt(format!(
+                "corrupted file: count {} * dim {} overflows",
+                data.count, data.dim
+            ))
+        })?;
         if data.vectors[..live_vectors_len]
             .iter()
             .any(|value| !value.is_finite())
