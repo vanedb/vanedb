@@ -223,3 +223,49 @@ fn upsert_inserts_when_the_id_is_new() {
     assert_eq!(idx.len(), 11);
     assert_eq!(idx.search(&[999.0, 0.0], 1).unwrap()[0].id, 999);
 }
+
+/// A sparse survivor set must still return `k` results.
+///
+/// `results` holds only live nodes while `candidates` holds tombstones too, so
+/// when most of the graph is deleted the result set fills slowly. If the
+/// traversal stops as soon as the nearest candidate is farther than the
+/// farthest *live* result, it abandons the very path the tombstones exist to
+/// preserve — and search returns a fraction of what it should, silently.
+#[test]
+fn a_mostly_tombstoned_index_still_returns_k_results() {
+    const N: u64 = 3000;
+    const KEEP_EVERY: u64 = 400;
+
+    let idx = ApproxIndex::builder(1, Metric::L2)
+        .capacity(N as usize)
+        .m(8)
+        .ef_construction(100)
+        .seed(1)
+        .build()
+        .unwrap();
+    for i in 0..N {
+        idx.add(i, &[i as f32]).unwrap();
+    }
+    for i in (0..N).filter(|i| i % KEEP_EVERY != 0) {
+        idx.remove(i).unwrap();
+    }
+
+    let survivors = (0..N).filter(|i| i % KEEP_EVERY == 0).count();
+    assert_eq!(idx.len(), survivors);
+    idx.set_ef_search(200);
+
+    // Every one of these has at least `k` live vectors to find, and ef_search
+    // is far larger than the number of survivors.
+    for query in [0.0f32, 800.0, 1400.0, 2000.0] {
+        let hits = idx.search(&[query], 5).unwrap();
+        assert_eq!(
+            hits.len(),
+            5,
+            "query {query} returned {} of 5 with {survivors} live vectors and ef_search=200",
+            hits.len()
+        );
+        for hit in &hits {
+            assert_eq!(hit.id % KEEP_EVERY, 0, "returned tombstoned id {}", hit.id);
+        }
+    }
+}

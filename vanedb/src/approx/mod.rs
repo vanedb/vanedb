@@ -666,10 +666,26 @@ impl ApproxIndex {
             vb.marks[entry] = epoch;
 
             while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
-                // Stop if closest candidate is farther than farthest result
-                if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
-                    if c_dist > f_dist {
-                        break;
+                // Stop only once the result set is FULL and the closest
+                // remaining candidate is farther than the farthest result.
+                //
+                // The `results.len() >= ef` conjunct is load-bearing when
+                // tombstones are present: `results` holds live nodes only,
+                // while `candidates` still holds deleted ones, so a popped
+                // tombstone can be farther than the farthest live result while
+                // the result set is nowhere near full. Breaking there abandons
+                // exactly the traversal tombstones are kept for, and search
+                // silently returns a fraction of `k`.
+                //
+                // On the build path `deleted` is empty, so every candidate is
+                // also a result; an unfull `results` therefore holds every
+                // visited node and `c_dist > f_dist` cannot hold. Construction
+                // is unchanged.
+                if results.len() >= ef {
+                    if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                        if c_dist > f_dist {
+                            break;
+                        }
                     }
                 }
 
