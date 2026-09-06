@@ -227,7 +227,7 @@ fn main() -> ExitCode {
         ffi::vanedb_cpp_index_free(hc);
         ffi::vanedb_rs_index_free(hr);
         md.push_str(&format!(
-            "\nIndex recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
+            "\nApproxIndex recall@{k}: C++ {rec_c:.3}, Rust {rec_r:.3}\n"
         ));
 
         assert!(
