@@ -7,6 +7,11 @@ after_includes = "\n/* Opaque handles. Namespaced like the functions: an unprefi
 [export]
 prefix = ""
 include = []
+# The handle types are already declared as opaque structs in after_includes.
+# Without this, cbindgen also emits `typedef FlatIndex vanedb_rs_store;` from
+# the Rust aliases -- naming a type C has never heard of, so the generated
+# header did not compile with a C compiler at all.
+exclude = ["vanedb_rs_store", "vanedb_rs_index", "vanedb_rs_disk"]
 
 [parse]
 parse_deps = false
