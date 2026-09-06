@@ -98,13 +98,24 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
 
 ## Cross-engine duties
 
-- Algorithm, distance, and persistence changes must assess both engines in the
-  same PR. Put shared regression vectors and cross-load fixtures in
-  `conformance/`. Feature-level API additions may remain Rust-only when the
-  C++ maintenance posture deliberately excludes them.
+**The C++ engine is frozen.** Rust is the engine that ships; `cpp/` is
+reference code and the other arm of the benchmark comparison. Do not port
+features to it. Change it only to fix a defect in the engine itself, or to
+keep a comparison honest.
+
+- Keep it building and passing its own tests, and keep the shared `DiskStore`
+  format loadable both ways (`bench/tests/cross_engine_format.rs`).
+- Do not port feature-level API additions. `add_batch`, growable capacity and
+  delete are Rust-only by decision, not by omission.
+- Where a Rust change makes a benchmark row measure something different from
+  the C++ row, annotate the row rather than porting to match. Two rows in the
+  snapshot are annotated for exactly this reason.
 - After perf-relevant merges, rerun `bench/` on dedicated hardware. One commit
   identifies both engines, so never reintroduce external revision pins or a
   vendored engine submodule.
+
+The comparison is a dated experiment, not a standing obligation. It has
+already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 
 ## Performance work
 

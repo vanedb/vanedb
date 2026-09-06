@@ -71,34 +71,54 @@ end-to-end smoke check and asserts recall, never a timing.
 `coverage::SCOPE` holds this table as data and a test fails if a bench stops
 implementing a row, so a scope claim cannot drift from the code (#63).
 
-## Headline snapshot (Apple M4 Pro, 2026-09, monorepo 80066a2)
+## Headline snapshot (Apple M4 Pro, 2026-09, monorepo af05db0)
 
-Criterion medians of three passes. Inter-pass spread 0.2–10.4%, median 2.2%;
-treat smaller differences as noise.
+Criterion medians of three passes, both engines interleaved in one process.
+Inter-pass spread 0.1–8.3%, median 1.5%.
+
+**Read the ratios, not the absolute times.** Absolute figures move with machine
+state between sessions — this run measured `l2_sq` at 128d roughly 2.7x faster
+than the previous snapshot, on unchanged code. The rs/cpp ratio is measured
+within a single interleaved run and is the comparable number.
 
 | Op (dim=128, n=10k unless noted) | C++ | Rust | rs/cpp |
 |---|---:|---:|---:|
-| l2_sq (128d) | 16.7 ns | 16.6 ns | 1.00 |
-| l2_sq (768d) | 51.8 ns | 48.4 ns | 0.93 |
-| cosine (128d) | 26.8 ns | 27.2 ns | 1.02 |
-| cosine (768d) | 96.4 ns | 86.7 ns | 0.90 |
-| dot (128d) | 16.1 ns | 16.3 ns | 1.01 |
-| dot (768d) | 53.7 ns | 46.4 ns | 0.86 |
-| store_add (n=10k) | 745 µs | 1.21 ms | 1.63 |
-| store_search (k=10, n=1k) | 8.12 µs | 8.73 µs | 1.08 |
-| store_search (k=10, n=10k) | 78.9 µs | 93.1 µs | 1.18 |
-| index_build (M=16, efC=200) | 938 ms | 1.01 s | 1.08 |
-| index_search (ef=50) | 18.8 µs | 21.3 µs | 1.13 |
-| disk_build | 4.98 ms | 12.0 ms | 2.40 |
-| disk_open | 507 µs | 576 µs | 1.14 |
-| disk_search (k=10) | 78.6 µs | 95.7 µs | 1.22 |
+| l2_sq (128d) | 6.1 ns | 7.2 ns | 1.18 † |
+| l2_sq (768d) | 37.3 ns | 37.2 ns | 1.00 |
+| cosine (768d) | 71.0 ns | 73.5 ns | 1.04 |
+| dot (768d) | 33.8 ns | 33.9 ns | 1.00 |
+| store_add (n=10k) | 742 µs | 1.17 ms | 1.58 ‡ |
+| store_search (k=10, n=1k) | 8.1 µs | 8.3 µs | 1.02 |
+| store_search (k=10, n=10k) | 78.8 µs | 77.2 µs | **0.98** |
+| index_build (M=16, efC=200) | 947 ms | 1.03 s | 1.08 |
+| index_search (ef=50) | 19.1 µs | 23.1 µs | 1.21 ◊ |
+| disk_build | 5.06 ms | 11.05 ms | 2.18 ¶ |
+| disk_open | 503 µs | 565 µs | 1.12 ‡ |
+| disk_search (k=10) | 78.4 µs | 79.0 µs | 1.01 |
 
 Index recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
 
-Rust leads the distance kernels at 768 dimensions and is at parity at 128. It
-trails on every scan (1.08–1.22, vanedb#32) and, now that the write paths are
-measured, on `store_add` at 1.63 and `disk_build` at 2.40 — different work
-from the scan gap, tracked separately.
+**† ** At 6–7 ns the difference is around one nanosecond, near this harness's
+resolution. Treat 128-dimension kernel ratios as noise.
+
+**‡ ** Rust's internal id maps use the default SipHash hasher where C++ uses
+identity, worth about 40 ns per add (vanedb#109).
+
+**◊ Do not trust this row.** The bench times a *single* query, and the two
+engines build different graphs from the same seed (`StdRng` versus
+`std::mt19937`), so per-query work differs by graph luck. Measured over 16
+queries the mean is 0.97 with a 41% spread — Rust is ahead on average. Fixing
+the bench to sweep a query set is vanedb#111.
+
+**¶ Not a speed comparison.** The engines call different durability
+primitives: Rust `sync_all()` (`F_FULLFSYNC` on macOS, a media barrier,
+8.1 ms for this payload) versus C++ `fsync(2)` (write cache only, 0.95 ms).
+Nearly the whole gap is that difference, so C++ is less durable here rather
+than faster (vanedb#110).
+
+Rust leads the largest scan after moving both brute-force paths to a bounded
+top-k heap (vanedb#32). The remaining honest gaps are on write paths and are
+diagnosed rather than mysterious.
 
 ## Measurement policy
 
