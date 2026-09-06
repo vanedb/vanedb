@@ -22,14 +22,14 @@ pub struct CudaBuffer {
 impl CudaCompute {
     /// Initialize CUDA compute. Returns error if no CUDA device is available.
     pub fn new() -> Result<Self> {
-        Err(VaneError::Io(
-            "CUDA support requires NVIDIA GPU and CUDA toolkit".to_string(),
+        Err(VaneError::backend(
+            "CUDA support requires NVIDIA GPU and CUDA toolkit",
         ))
     }
 
     /// Upload vectors to GPU memory.
     pub fn upload(&self, _vectors: &[f32], _n: usize, _dim: usize) -> Result<CudaBuffer> {
-        Err(VaneError::Io("CUDA not available".to_string()))
+        Err(VaneError::backend("CUDA not available"))
     }
 
     /// Compute distances from query to all vectors.
@@ -39,7 +39,7 @@ impl CudaCompute {
         _buffer: &CudaBuffer,
         _metric: GpuMetric,
     ) -> Result<Vec<f32>> {
-        Err(VaneError::Io("CUDA not available".to_string()))
+        Err(VaneError::backend("CUDA not available"))
     }
 
     /// Search for k nearest neighbors using GPU.
@@ -51,6 +51,6 @@ impl CudaCompute {
         _k: usize,
         _metric: GpuMetric,
     ) -> Result<Vec<SearchResult>> {
-        Err(VaneError::Io("CUDA not available".to_string()))
+        Err(VaneError::backend("CUDA not available"))
     }
 }

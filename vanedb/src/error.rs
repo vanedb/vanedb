@@ -1,7 +1,25 @@
 //! The error type returned by every fallible operation.
 
+use std::io;
+
 /// Everything that can go wrong in this crate.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// # Matching
+///
+/// This enum is `#[non_exhaustive]`, so a `match` over it needs a `_` arm.
+/// That is deliberate: distinguishing a corrupt file from a missing one was
+/// itself a late addition, and the next variant should not need a major
+/// release either.
+///
+/// # Comparing
+///
+/// `VaneError` is deliberately not `PartialEq`. It used to be, which made
+/// `err == VaneError::InvalidParameter("M must be >= 2")` compile and pass —
+/// turning every diagnostic string into public API that could never be
+/// reworded. Match on the variant instead. It is also not `Clone`, because
+/// [`io::Error`] is not.
+#[derive(Debug)]
+#[non_exhaustive]
 pub enum VaneError {
     /// A vector's length did not match the dimension the store was created with.
     DimensionMismatch {
@@ -10,9 +28,14 @@ pub enum VaneError {
         /// The length actually supplied.
         got: usize,
     },
-    /// A zero-length vector was supplied.
-    EmptyVector,
+    /// A dimension of zero was requested when creating a store or index.
+    ///
+    /// This is a constructor error. A zero-length vector passed to `add`
+    /// reports [`VaneError::DimensionMismatch`] with `got: 0` instead.
+    ZeroDimension,
     /// No vector is stored under this id.
+    ///
+    /// This is a lookup miss, unrelated to [`VaneError::FileNotFound`].
     NotFound {
         /// The id that was looked up.
         id: u64,
@@ -32,8 +55,74 @@ pub enum VaneError {
     /// A parameter was outside its valid range, or an allocation it implies
     /// would overflow.
     InvalidParameter(&'static str),
-    /// A filesystem or serialisation failure, with the underlying message.
-    Io(String),
+    /// The file does not exist.
+    ///
+    /// Separate from every other I/O failure because "load it, or build it if
+    /// it isn't there" is the most common thing an application does with a
+    /// persisted index, and it should not require inspecting a message.
+    FileNotFound {
+        /// The operation that failed, such as `"open"`.
+        context: &'static str,
+        /// The underlying failure, whose [`io::Error::kind`] is
+        /// [`io::ErrorKind::NotFound`].
+        source: io::Error,
+    },
+    /// The file was readable but does not hold a valid vanedb structure.
+    ///
+    /// Retrying will not help; the file has to be rebuilt.
+    Corrupt {
+        /// What was wrong with it, for diagnostics only. Not stable API.
+        detail: String,
+    },
+    /// A compute backend (Metal, CUDA) could not be initialised or used.
+    ///
+    /// Callers that can run on the CPU should fall back rather than retry.
+    Backend {
+        /// What failed, for diagnostics only. Not stable API.
+        detail: String,
+    },
+    /// Any other filesystem or serialisation failure — a full disk, a
+    /// permission problem, a failing device. Retrying may help.
+    Io {
+        /// The operation that failed, such as `"write"` or `"sync"`.
+        context: &'static str,
+        /// The underlying failure.
+        source: io::Error,
+    },
+}
+
+impl VaneError {
+    /// Classifies an [`io::Error`], tagging it with the operation that failed.
+    ///
+    /// A missing file becomes [`VaneError::FileNotFound`]; everything else
+    /// becomes [`VaneError::Io`].
+    pub fn from_io(context: &'static str, source: io::Error) -> Self {
+        if source.kind() == io::ErrorKind::NotFound {
+            Self::FileNotFound { context, source }
+        } else {
+            Self::Io { context, source }
+        }
+    }
+
+    /// Reports a file whose contents are not a valid vanedb structure.
+    pub fn corrupt(detail: impl Into<String>) -> Self {
+        Self::Corrupt {
+            detail: detail.into(),
+        }
+    }
+
+    /// Reports a compute backend that could not be initialised or used.
+    pub fn backend(detail: impl Into<String>) -> Self {
+        Self::Backend {
+            detail: detail.into(),
+        }
+    }
+}
+
+impl From<io::Error> for VaneError {
+    fn from(source: io::Error) -> Self {
+        Self::from_io("io", source)
+    }
 }
 
 impl std::fmt::Display for VaneError {
@@ -42,7 +131,7 @@ impl std::fmt::Display for VaneError {
             Self::DimensionMismatch { expected, got } => {
                 write!(f, "dimension mismatch: expected {expected}, got {got}")
             }
-            Self::EmptyVector => write!(f, "empty vector"),
+            Self::ZeroDimension => write!(f, "dimension must be > 0"),
             Self::NotFound { id } => write!(f, "vector not found: {id}"),
             Self::DuplicateId { id } => write!(f, "duplicate id: {id}"),
             Self::InvalidK => write!(f, "k must be > 0"),
@@ -50,12 +139,23 @@ impl std::fmt::Display for VaneError {
                 write!(f, "{input} must contain only finite values")
             }
             Self::InvalidParameter(msg) => write!(f, "invalid parameter: {msg}"),
-            Self::Io(msg) => write!(f, "I/O error: {msg}"),
+            Self::FileNotFound { context, source } | Self::Io { context, source } => {
+                write!(f, "{context}: {source}")
+            }
+            Self::Corrupt { detail } => write!(f, "corrupt file: {detail}"),
+            Self::Backend { detail } => write!(f, "compute backend unavailable: {detail}"),
         }
     }
 }
 
-impl std::error::Error for VaneError {}
+impl std::error::Error for VaneError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::FileNotFound { source, .. } | Self::Io { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 /// `Result` with this crate's error type.
 pub type Result<T> = std::result::Result<T, VaneError>;
@@ -63,6 +163,7 @@ pub type Result<T> = std::result::Result<T, VaneError>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error as _;
 
     #[test]
     fn error_display_dimension_mismatch() {
@@ -86,9 +187,6 @@ mod tests {
     }
 
     #[test]
-    fn error_display_index_full() {}
-
-    #[test]
     fn error_display_invalid_parameter() {
         let err = VaneError::InvalidParameter("M must be >= 2");
         assert_eq!(err.to_string(), "invalid parameter: M must be >= 2");
@@ -98,5 +196,30 @@ mod tests {
     fn error_display_non_finite_value() {
         let err = VaneError::NonFiniteValue { input: "query" };
         assert_eq!(err.to_string(), "query must contain only finite values");
+    }
+
+    #[test]
+    fn io_display_keeps_the_operation_that_failed() {
+        let err = VaneError::from_io("write", io::Error::from(io::ErrorKind::StorageFull));
+        assert!(err.to_string().starts_with("write: "), "{err}");
+    }
+
+    #[test]
+    fn from_io_classifies_by_kind() {
+        assert!(matches!(
+            VaneError::from_io("open", io::Error::from(io::ErrorKind::NotFound)),
+            VaneError::FileNotFound { .. }
+        ));
+        assert!(matches!(
+            VaneError::from_io("open", io::Error::from(io::ErrorKind::PermissionDenied)),
+            VaneError::Io { .. }
+        ));
+    }
+
+    #[test]
+    fn corrupt_carries_its_detail_and_no_source() {
+        let err = VaneError::corrupt("invalid magic");
+        assert_eq!(err.to_string(), "corrupt file: invalid magic");
+        assert!(err.source().is_none());
     }
 }
