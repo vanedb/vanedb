@@ -20,6 +20,10 @@ fn workload() -> (Vec<u64>, Vec<f32>) {
     (ids, vectors)
 }
 
+/// Every metric the header can encode. Only L2 was ever cross-loaded, so a
+/// divergence in the cosine or dot encoding would not have been noticed.
+const METRICS: [(u32, &str); 3] = [(0, "l2"), (1, "cosine"), (2, "dot")];
+
 fn query() -> Vec<f32> {
     (0..DIM).map(|d| (d * 3 % 23) as f32).collect()
 }
@@ -33,15 +37,29 @@ fn agree(a_ids: &[u64], a_d: &[f32], b_ids: &[u64], b_d: &[f32], what: &str) {
 
 #[test]
 fn cpp_reads_a_file_written_by_rust() {
+    for (metric, name) in METRICS {
+        cpp_reads_rust_with_metric(metric, name);
+    }
+}
+
+fn cpp_reads_rust_with_metric(metric: u32, name: &str) {
     let (ids, vectors) = workload();
     let q = query();
-    let path = CString::new("cross_rs_to_cpp.vndb").unwrap();
+    let file = format!("cross_rs_to_cpp_{name}.vndb");
+    let path = CString::new(file.clone()).unwrap();
     let (mut rs_ids, mut rs_d) = ([0u64; K], [0f32; K]);
     let (mut cpp_ids, mut cpp_d) = ([0u64; K], [0f32; K]);
 
     unsafe {
         assert_eq!(
-            ffi::vanedb_rs_disk_build(path.as_ptr(), DIM, 0, ids.as_ptr(), vectors.as_ptr(), N),
+            ffi::vanedb_rs_disk_build(
+                path.as_ptr(),
+                DIM,
+                metric,
+                ids.as_ptr(),
+                vectors.as_ptr(),
+                N
+            ),
             0,
             "rust build failed"
         );
@@ -54,7 +72,7 @@ fn cpp_reads_a_file_written_by_rust() {
         let cpp = ffi::vanedb_cpp_disk_open(path.as_ptr());
         assert!(
             !cpp.is_null(),
-            "C++ rejected a file written by Rust — the formats have diverged"
+            "C++ rejected a {name} file written by Rust — the formats have diverged"
         );
         let n_cpp = ffi::vanedb_cpp_disk_search(
             cpp,
@@ -66,22 +84,42 @@ fn cpp_reads_a_file_written_by_rust() {
         ffi::vanedb_cpp_disk_free(cpp);
 
         assert_eq!(n_rs, n_cpp, "result counts differ");
-        agree(&rs_ids, &rs_d, &cpp_ids, &cpp_d, "rust -> cpp");
+        agree(
+            &rs_ids,
+            &rs_d,
+            &cpp_ids,
+            &cpp_d,
+            &format!("rust -> cpp ({name})"),
+        );
     }
-    let _ = std::fs::remove_file("cross_rs_to_cpp.vndb");
+    let _ = std::fs::remove_file(&file);
 }
 
 #[test]
 fn rust_reads_a_file_written_by_cpp() {
+    for (metric, name) in METRICS {
+        rust_reads_cpp_with_metric(metric, name);
+    }
+}
+
+fn rust_reads_cpp_with_metric(metric: u32, name: &str) {
     let (ids, vectors) = workload();
     let q = query();
-    let path = CString::new("cross_cpp_to_rs.vndb").unwrap();
+    let file = format!("cross_cpp_to_rs_{name}.vndb");
+    let path = CString::new(file.clone()).unwrap();
     let (mut rs_ids, mut rs_d) = ([0u64; K], [0f32; K]);
     let (mut cpp_ids, mut cpp_d) = ([0u64; K], [0f32; K]);
 
     unsafe {
         assert_eq!(
-            ffi::vanedb_cpp_disk_build(path.as_ptr(), DIM, 0, ids.as_ptr(), vectors.as_ptr(), N),
+            ffi::vanedb_cpp_disk_build(
+                path.as_ptr(),
+                DIM,
+                metric,
+                ids.as_ptr(),
+                vectors.as_ptr(),
+                N
+            ),
             0,
             "cpp build failed"
         );
@@ -108,5 +146,5 @@ fn rust_reads_a_file_written_by_cpp() {
         assert_eq!(n_cpp, n_rs, "result counts differ");
         agree(&cpp_ids, &cpp_d, &rs_ids, &rs_d, "cpp -> rust");
     }
-    let _ = std::fs::remove_file("cross_cpp_to_rs.vndb");
+    let _ = std::fs::remove_file(&file);
 }
