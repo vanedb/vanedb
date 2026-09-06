@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -193,7 +193,11 @@ impl ApproxIndex {
         if data.ef_construction == 0 {
             return Err(VaneError::corrupt("corrupted file: ef_construction is 0"));
         }
-        if data.m_max0 != data.m * 2 || data.m_max != data.m {
+        let m_max0 = data
+            .m
+            .checked_mul(2)
+            .ok_or_else(|| VaneError::corrupt("M * 2 overflows usize"))?;
+        if data.m_max0 != m_max0 || data.m_max != data.m {
             return Err(VaneError::corrupt(format!(
                 "corrupted file: m_max {} / m_max0 {} disagree with m {}",
                 data.m_max, data.m_max0, data.m
@@ -297,18 +301,46 @@ impl ApproxIndex {
                 data.neighbors.len()
             )));
         }
-        for nbs in data.neighbors.iter().take(data.count) {
-            if nbs.len() > (MAX_LEVEL as usize) + 1 {
+        let observed_max = data
+            .levels
+            .iter()
+            .take(data.count)
+            .copied()
+            .max()
+            .unwrap_or(-1);
+        if data.max_level != observed_max
+            || data
+                .entry_point
+                .is_some_and(|ep| data.levels[ep] != data.max_level)
+        {
+            return Err(VaneError::corrupt(
+                "entry point/max_level disagrees with node levels",
+            ));
+        }
+        for (iid, nbs) in data.neighbors.iter().take(data.count).enumerate() {
+            let level = data.levels[iid];
+            if !(0..=MAX_LEVEL).contains(&level) || nbs.len() != level as usize + 1 {
                 return Err(VaneError::corrupt(
-                    "corrupted file: too many neighbor levels",
+                    "neighbor layers disagree with node level",
                 ));
             }
-            for layer in nbs {
+            for (layer_index, layer) in nbs.iter().enumerate() {
+                let cap = if layer_index == 0 {
+                    data.m_max0
+                } else {
+                    data.m_max
+                };
+                if layer.len() > cap {
+                    return Err(VaneError::corrupt("neighbor degree exceeds layer limit"));
+                }
+                let mut seen = HashSet::with_capacity(layer.len());
                 for &n in layer {
-                    if n >= data.count {
-                        return Err(VaneError::corrupt(
-                            "corrupted file: neighbor index out of range",
-                        ));
+                    if n >= data.count
+                        || n == iid
+                        || !seen.insert(n)
+                        || data.levels[n] < layer_index as i32
+                    {
+                        return Err(VaneError::corrupt("invalid or duplicate neighbor in layer"));
                     }
                 }
             }
@@ -316,12 +348,18 @@ impl ApproxIndex {
         data.max_elements
             .checked_mul(data.dim)
             .ok_or_else(|| VaneError::corrupt("size overflow"))?;
-        if data.vectors.len() != stored * data.dim {
+        let stored_vectors_len = stored
+            .checked_mul(data.dim)
+            .ok_or_else(|| VaneError::corrupt("stored count * dim overflows usize"))?;
+        if data.vectors.len() != stored_vectors_len {
             return Err(VaneError::corrupt(
                 "corrupted file: vectors length != expected * dim",
             ));
         }
-        let live_vectors_len = data.count * data.dim;
+        let live_vectors_len = data
+            .count
+            .checked_mul(data.dim)
+            .ok_or_else(|| VaneError::corrupt("count * dim overflows usize"))?;
         if data.vectors[..live_vectors_len]
             .iter()
             .any(|value| !value.is_finite())

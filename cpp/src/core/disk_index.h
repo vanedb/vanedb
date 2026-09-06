@@ -119,7 +119,10 @@ public:
     dist_ = DistanceComputer(metric_, dim_);
     try {
       id_map_.reserve(num_vectors_);
-      for (size_t i = 0; i < num_vectors_; ++i) id_map_[ids_ptr_[i]] = i;
+      for (size_t i = 0; i < num_vectors_; ++i) {
+        if (!id_map_.emplace(ids_ptr_[i], i).second)
+          throw std::runtime_error("File corrupted: duplicate vector id");
+      }
     } catch (...) { cleanup(); throw; }
   }
 

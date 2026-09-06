@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 namespace vanedb {
 
@@ -355,6 +356,14 @@ public:
     }
     if (idx->ext_ids_.size() != stored || idx->levels_.size() != stored)
       throw std::runtime_error("Corrupted file: ext_ids/levels length mismatch");
+    const int observed_max = cnt == 0 ? -1 :
+        *std::max_element(idx->levels_.begin(), idx->levels_.begin() + cnt);
+    if (max_level_val != observed_max || (cnt > 0 && idx->levels_[ep_val] != max_level_val))
+      throw std::runtime_error("Corrupted file: entry point/max_level disagrees with node levels");
+    for (size_t i = 0; i < cnt; ++i) {
+      if (idx->levels_[i] < 0 || idx->levels_[i] > MAX_LEVEL)
+        throw std::runtime_error("Corrupted file: invalid node level");
+    }
     // Re-expand to the pre-allocated capacity layout the index expects
     // (no-ops for v1/v2).
     idx->vectors_.resize(sizes.vector_count);
@@ -394,12 +403,19 @@ public:
       size_t lsz;
       detail::read_bin(f, lsz);
       if (lsz > static_cast<size_t>(MAX_LEVEL) + 1) throw std::runtime_error("Corrupted file: too many levels");
+      if (i < cnt && lsz != static_cast<size_t>(idx->levels_[i]) + 1)
+        throw std::runtime_error("Corrupted file: neighbor layers disagree with node level");
       idx->neighbors_[i].resize(lsz);
       for (size_t l = 0; l < lsz; ++l) {
         detail::read_vec(f, idx->neighbors_[i][l]);
-        // Validate neighbor indices are within bounds
-        for (size_t nid : idx->neighbors_[i][l]) {
-          if (nid >= cnt) throw std::runtime_error("Corrupted file: invalid neighbor index");
+        const auto& layer = idx->neighbors_[i][l];
+        if (layer.size() > (l == 0 ? sizes.m_max0 : M))
+          throw std::runtime_error("Corrupted file: neighbor degree exceeds layer limit");
+        std::unordered_set<size_t> seen;
+        for (size_t nid : layer) {
+          if (nid >= cnt || nid == i || !seen.insert(nid).second ||
+              idx->levels_[nid] < static_cast<int>(l))
+            throw std::runtime_error("Corrupted file: invalid or duplicate neighbor in layer");
         }
       }
     }

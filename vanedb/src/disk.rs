@@ -265,7 +265,9 @@ impl DiskIndex {
         for i in 0..num_vectors {
             let off = ids_offset + i * 8;
             let id = u64::from_le_bytes(mmap[off..off + 8].try_into().unwrap());
-            id_map.insert(id, i);
+            if id_map.insert(id, i).is_some() {
+                return Err(VaneError::corrupt("duplicate vector id"));
+            }
         }
 
         Ok(Self {

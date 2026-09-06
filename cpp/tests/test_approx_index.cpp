@@ -858,7 +858,7 @@ namespace {
 // 2-of-4-slots index. `full_arrays` selects the legacy v1/v2 layout (arrays
 // span the whole capacity) vs the v3 compact layout (count-sized).
 void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arrays,
-                        float first_value = 1.0f) {
+                        float first_value = 1.0f, const std::string& corruption = "") {
   using vanedb::detail::write_bin;
   using vanedb::detail::write_vec;
   const size_t stored = full_arrays ? 4 : 2;
@@ -874,7 +874,7 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   write_bin(f, double{1.0});  // mult
   write_bin(f, size_t{2});    // count
   write_bin(f, size_t{0});    // entry point
-  write_bin(f, int{0});       // max_level
+  write_bin(f, int{corruption == "max_level" || corruption == "neighbor_layer" ? 1 : 0});
   std::vector<float> vectors = {first_value, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   vectors.resize(stored * 2);
   write_vec(f, vectors);
@@ -882,6 +882,8 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   ext_ids.resize(stored);
   write_vec(f, ext_ids);
   std::vector<int> levels(stored, 0);
+  if (corruption == "negative_level") levels[0] = -1;
+  if (corruption == "neighbor_layer") levels[0] = 1;
   write_vec(f, levels);
   write_bin(f, size_t{2});  // id_map size
   write_bin(f, uint64_t{10});
@@ -889,8 +891,15 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   write_bin(f, uint64_t{20});
   write_bin(f, size_t{1});
   write_bin(f, stored);  // neighbors size
-  write_bin(f, size_t{1});  // node 0: one level
-  write_vec(f, std::vector<size_t>{1});
+  const size_t layer_count = corruption == "missing_layer" ? 0 :
+      (corruption == "extra_layer" || corruption == "neighbor_layer" ? 2 : 1);
+  write_bin(f, layer_count);
+  std::vector<size_t> first_neighbors{1};
+  if (corruption == "self_link") first_neighbors.push_back(0);
+  if (corruption == "duplicate_link") first_neighbors.push_back(1);
+  if (corruption == "degree") first_neighbors.assign(5, 1);
+  if (layer_count) write_vec(f, first_neighbors);
+  if (layer_count == 2) write_vec(f, std::vector<size_t>{1});
   write_bin(f, size_t{1});  // node 1: one level
   write_vec(f, std::vector<size_t>{0});
   for (size_t i = 2; i < stored; ++i) write_bin(f, size_t{0});  // unused slots
@@ -959,4 +968,15 @@ TEST_CASE("ApproxIndex - empty index save/load roundtrip", "[index][persistence]
   const auto results = loaded->search(v, 1);
   REQUIRE(results.size() == 1);
   REQUIRE(results[0].id == 1);
+}
+
+TEST_CASE("ApproxIndex - load rejects inconsistent graph structure", "[index][persistence]") {
+  for (const std::string corruption : {"negative_level", "missing_layer", "extra_layer", "max_level",
+                                       "self_link", "duplicate_link", "degree", "neighbor_layer"}) {
+    INFO(corruption);
+    const std::string filename = "test_hnsw_graph_" + corruption + ".bin";
+    write_hnsw_fixture(filename, 1, true, 1.0f, corruption);
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(filename), std::runtime_error);
+    std::filesystem::remove(filename);
+  }
 }

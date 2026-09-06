@@ -474,3 +474,88 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
         "ef_construction = 0 must be rejected on load"
     );
 }
+
+#[test]
+fn hnsw_load_rejects_overflowing_derived_sizes() {
+    let mut data = v2_huge_max_elements(1);
+    data.m = usize::MAX;
+    data.m_max = data.m;
+    data.m_max0 = data.m.wrapping_mul(2);
+    let p = write_tmp("overflow_m", &hnsw_file_bytes(2, &data));
+    assert!(matches!(
+        ApproxIndex::load(&p),
+        Err(VaneError::Corrupt { .. })
+    ));
+    fs::remove_file(p).unwrap();
+
+    // v2 count may exceed the capacity hint. Validate count * dim itself,
+    // rather than relying on the unrelated capacity * dim check.
+    let mut data = v2_huge_max_elements(1);
+    data.dim = usize::MAX / 4;
+    data.count = 5;
+    data.ext_ids = (0..5).collect();
+    data.levels = vec![0; 5];
+    data.neighbors = vec![vec![vec![]]; 5];
+    data.id_map.clear();
+    let p = write_tmp("overflow_count_dim", &hnsw_file_bytes(2, &data));
+    assert!(matches!(
+        ApproxIndex::load(&p),
+        Err(VaneError::Corrupt { .. })
+    ));
+    fs::remove_file(p).unwrap();
+}
+
+#[test]
+fn hnsw_load_rejects_inconsistent_graph_structure() {
+    for case in [
+        "negative_level",
+        "missing_layer",
+        "extra_layer",
+        "max_level",
+        "self_link",
+        "duplicate_link",
+        "degree",
+        "neighbor_layer",
+    ] {
+        let mut data = v1_full_capacity_payload();
+        match case {
+            "negative_level" => data.levels[0] = -1,
+            "missing_layer" => data.neighbors[0].clear(),
+            "extra_layer" => data.neighbors[0].push(vec![]),
+            "max_level" => data.max_level = 1,
+            "self_link" => data.neighbors[0][0].push(0),
+            "duplicate_link" => data.neighbors[0][0].push(1),
+            "degree" => data.neighbors[0][0] = vec![1; 5],
+            "neighbor_layer" => {
+                data.levels[0] = 1;
+                data.max_level = 1;
+                data.neighbors[0].push(vec![1]);
+            }
+            _ => unreachable!(),
+        }
+        let p = write_tmp(case, &hnsw_file_bytes(1, &data));
+        assert!(
+            matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+            "accepted {case}"
+        );
+        fs::remove_file(p).unwrap();
+    }
+}
+
+#[cfg(feature = "disk")]
+#[test]
+fn mmap_load_rejects_duplicate_ids() {
+    let p = std::env::temp_dir().join(format!("vanedb_duplicate_ids_{}.vndb", std::process::id()));
+    let mut builder = DiskIndexBuilder::new(1, Metric::L2).unwrap();
+    builder.add(10, &[0.0]).unwrap();
+    builder.add(20, &[10.0]).unwrap();
+    builder.save(&p).unwrap();
+    let mut bytes = fs::read(&p).unwrap();
+    bytes[40..48].copy_from_slice(&10u64.to_le_bytes());
+    fs::write(&p, bytes).unwrap();
+    assert!(matches!(
+        DiskIndex::open(&p),
+        Err(VaneError::Corrupt { .. })
+    ));
+    fs::remove_file(p).unwrap();
+}

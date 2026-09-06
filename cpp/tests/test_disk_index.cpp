@@ -481,3 +481,20 @@ TEST_CASE("DiskIndex - dot product metric", "[disk]") {
 
   std::filesystem::remove(filename);
 }
+
+TEST_CASE("DiskIndex - rejects duplicate persisted IDs", "[disk][persistence]") {
+  const std::string filename = "test_disk_duplicate_ids.vndb";
+  vanedb::DiskIndexBuilder builder(1);
+  const float a[] = {0.0f}, b[] = {10.0f};
+  builder.add(10, a);
+  builder.add(20, b);
+  builder.save(filename);
+  {
+    std::fstream file(filename, std::ios::binary | std::ios::in | std::ios::out);
+    const uint64_t duplicate = 10;
+    file.seekp(40);
+    file.write(reinterpret_cast<const char*>(&duplicate), sizeof(duplicate));
+  }
+  REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
+  std::filesystem::remove(filename);
+}
