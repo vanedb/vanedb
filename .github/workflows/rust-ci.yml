@@ -105,6 +105,12 @@ jobs:
         with:
           toolchain: stable
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
+      - name: Build and run the C consumer example
+        run: |
+          cargo build -p vanedb-capi --release --locked
+          cmake -S vanedb-capi/examples -B target/c-example -DCMAKE_BUILD_TYPE=Release
+          cmake --build target/c-example --config Release
+          ctest --test-dir target/c-example --build-config Release --output-on-failure
 
   test-wasm:
     name: Test (WASM)
@@ -127,6 +133,7 @@ jobs:
         run: |
           wasm-pack build vanedb-wasm --target nodejs --release --locked
           node vanedb-wasm/tests/node.cjs ./vanedb-wasm/pkg
+          node vanedb-wasm/examples/quickstart.cjs
 
   build-ios:
     name: Build (iOS arm64)

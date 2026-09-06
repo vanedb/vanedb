@@ -84,11 +84,11 @@ mod tests {
     fn each_metric_ranks_by_its_own_distance() {
         // Same corpus, three metrics, three different answers: proof that the
         // metric argument is load-bearing rather than decorative.
-        let vectors = [1.0, 0.0, 0.9, 0.9, 8.0, 0.0];
+        let vectors = [0.9, 0.1, 2.0, 0.0, 8.0, 1.0];
         let ids = [0u64, 1, 2];
         let q = [1.0, 0.0];
         assert_eq!(brute_force_topk(&vectors, &ids, 2, &q, 1, 0), vec![0]);
-        assert_eq!(brute_force_topk(&vectors, &ids, 2, &q, 1, 1), vec![0]);
+        assert_eq!(brute_force_topk(&vectors, &ids, 2, &q, 1, 1), vec![1]);
         // Dot rewards magnitude, so the far-but-long vector wins.
         assert_eq!(brute_force_topk(&vectors, &ids, 2, &q, 1, 2), vec![2]);
     }

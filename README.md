@@ -120,11 +120,13 @@ JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `wasm-pack build vanedb-wasm --target web --release --locked` after installing
 `wasm-pack` and the `wasm32-unknown-unknown` Rust target. The generated `pkg/`
 directory includes JavaScript, TypeScript declarations, and the wasm module.
-Initialize that module before constructing an index. For example, the approximate
+The [JavaScript guide](vanedb-wasm/README.md) includes runnable Node and browser
+examples. Initialize that module before constructing an index. For example, the approximate
 constructor takes `(3, "cosine", 100, 16, 200)`.
 
 Build the native C library with `cargo build -p vanedb-capi --release --locked`.
-The library is written to `target/release`; use the generated
+See the [C guide](vanedb-capi/README.md) for a complete example that links and
+runs against the shared library. The library is written to `target/release`; use the generated
 [C header](vanedb-capi/include/vanedb_rs_capi.h) for ownership, buffer sizes,
 return conventions, and metric constants.
 

@@ -2,6 +2,10 @@
 name = "vanedb-wasm"
 version = "0.1.0-rc.1"
 edition = "2021"
+description = "Embeddable vector search for JavaScript and WebAssembly"
+license = "MIT"
+repository = "https://github.com/vanedb/vanedb"
+readme = "README.md"
 publish = false
 
 [lib]

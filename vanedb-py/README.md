@@ -4,8 +4,8 @@ VaneDB is an embeddable vector database backed by Rust. Store vectors and search
 for their nearest neighbors inside your Python process, without a database
 server. Supply your own embeddings; VaneDB does not generate them.
 
-The `vanedb` package is the canonical Python implementation. The supplementary
-C++ package is named `vanedb-cpp` and imports as `vanedb_cpp`.
+The `vanedb` package is the shipping Python implementation. C++ bindings are
+kept in the repository for reference and local testing, and are not published.
 
 ## Installation
 
