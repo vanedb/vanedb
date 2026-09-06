@@ -1,12 +1,27 @@
 # VaneDB for JavaScript
 
 Search vectors inside Node.js or a browser using the Rust engine compiled to
-WebAssembly. Bring your own embeddings. This source package provides exact
+WebAssembly. Bring your own embeddings. This package provides exact
 `FlatIndex` and approximate `ApproxIndex` search; it has no disk mapping,
 persistence, upsert or compaction API.
 
-Requires Rust, the `wasm32-unknown-unknown` target, and `wasm-pack`. Node.js is
-needed for the Node example. Run from the repository root:
+CI produces separate Node.js and browser npm tarballs in the
+`vanedb-wasm-packages` artifact of a successful
+[CI run](https://github.com/vanedb/vanedb/actions/workflows/ci.yml). These are
+development artifacts until a release is tagged. For Node.js, install the
+tarball from its `nodejs/` directory:
+
+```sh
+npm install /path/to/nodejs/vanedb-wasm-<version>.tgz
+```
+
+Then use `const { ApproxIndex } = require('vanedb-wasm')` in your application.
+For a browser, extract the tarball from `web/` and serve its `package/`
+directory over HTTP. The browser example below works with the import changed
+to `./package/vanedb_wasm.js`.
+
+To build from source, install Rust, the `wasm32-unknown-unknown` target, and
+`wasm-pack`. Node.js is needed for the Node example. Run from the repository root:
 
 ```sh
 rustup target add wasm32-unknown-unknown
@@ -51,4 +66,5 @@ Search returns a `SearchResults` object whose `ids` and `distances` arrays
 have matching positions. Copy any data you need and call `free()` on the
 result and index when finished to release WebAssembly memory.
 
-See the [repository guide](..) for platform verification and release status.
+See the [repository guide](https://github.com/vanedb/vanedb#bindings-and-platforms)
+for platform verification and release status.

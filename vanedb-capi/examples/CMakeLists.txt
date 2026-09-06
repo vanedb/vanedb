@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
 project(vanedb_c_example LANGUAGES C)
 
-set(VANEDB_LIBRARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release"
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
+    set(default_library_dir "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
+else()
+    set(default_library_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release")
+endif()
+set(VANEDB_LIBRARY_DIR "${default_library_dir}"
     CACHE PATH "Directory containing the built Rust C ABI library")
 add_library(vanedb_runtime SHARED IMPORTED)
 set_target_properties(vanedb_runtime PROPERTIES

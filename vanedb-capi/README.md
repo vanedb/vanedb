@@ -1,9 +1,24 @@
 # VaneDB from C
 
-Embed the Rust engine in a C or C++ application. Requires a Rust toolchain,
-C compiler and CMake 3.20 or newer to build from this repository.
+Embed the Rust engine in a C or C++ application. You need a C compiler and
+CMake 3.20 or newer for the example, plus Rust when building from source.
 
-From the repository root:
+CI produces platform archives named `vanedb-capi-<version>-<platform>.zip`,
+with a SHA-256 checksum. Choose the archive matching your OS and architecture
+from a successful [CI run](https://github.com/vanedb/vanedb/actions/workflows/ci.yml).
+These are development artifacts until a release is tagged. Extract the archive,
+then run these commands inside its top-level directory:
+
+```sh
+cmake -S examples -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+ctest --test-dir build --build-config Release --output-on-failure
+```
+
+The archive includes `include/`, `lib/`, complete examples and the license.
+CI tests a consumer against each extracted archive before uploading it.
+
+To build from source, run from the repository root:
 
 ```sh
 cargo build -p vanedb-capi --release --locked
@@ -36,4 +51,5 @@ pointer validity, ownership and buffer requirements for every function.
 
 The graph search's `ef_search` argument applies only to that call, so concurrent
 queries can choose different recall/speed settings. See the
-[repository guide](..) for persistence limitations and platform verification.
+[repository guide](https://github.com/vanedb/vanedb#persistence) for persistence
+limitations and platform verification.
