@@ -35,9 +35,11 @@ def main():
                                       ".filter({ hasText: /^PASS:/ }).waitFor({ timeout: 30000 }); }"],
                                cwd=temporary, check=True, timeout=60)
             finally:
-                subprocess.run(cli + ["close"], cwd=temporary, check=False, timeout=60)
-                server.shutdown()
-                worker.join()
+                try:
+                    subprocess.run(cli + ["close"], cwd=temporary, check=False, timeout=60)
+                finally:
+                    server.shutdown()
+                    worker.join()
     print(f"Packaged browser acceptance passed: {args.browser}")
 
 

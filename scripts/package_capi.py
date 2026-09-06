@@ -37,6 +37,12 @@ def main():
         (package / "lib").mkdir(parents=True)
         for library in LIBRARIES[sys.platform]:
             shutil.copy2(args.library_dir / library, package / "lib" / library)
+        if sys.platform == "darwin":
+            library = package / "lib/libvanedb_capi.dylib"
+            # Rust's default install name points into the build checkout.
+            # A distributed consumer must load this archive's copy instead.
+            subprocess.run(["install_name_tool", "-id", "@rpath/libvanedb_capi.dylib", str(library)], check=True)
+            subprocess.run(["codesign", "--force", "--sign", "-", str(library)], check=True)
         for relative in ["README.md", "include/vanedb_rs_capi.h", "examples/CMakeLists.txt",
                          "examples/quickstart.c", "tests/acceptance.c"]:
             destination = package / relative
@@ -59,6 +65,10 @@ def main():
             ["ctest", "--test-dir", str(build), "--build-config", "Release", "--output-on-failure"],
         ]:
             subprocess.run(command, cwd=directory, check=True)
+        if sys.platform == "darwin":
+            links = subprocess.check_output(["otool", "-L", str(build / "acceptance")], text=True)
+            if "@rpath/libvanedb_capi.dylib" not in links or str(ROOT) in links:
+                raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
     with archive.open("rb") as packaged:
         digest = hashlib.file_digest(packaged, "sha256").hexdigest()
     archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n")

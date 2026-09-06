@@ -29,7 +29,7 @@ wasm-pack build vanedb-wasm --target nodejs --release --locked
 node vanedb-wasm/examples/quickstart.cjs
 ```
 
-The [complete Node example](examples/quickstart.cjs) inserts two vectors and
+The [complete Node example](https://github.com/vanedb/vanedb/blob/main/vanedb-wasm/examples/quickstart.cjs) inserts two vectors and
 checks the nearest ID and distance. Generated JavaScript, TypeScript types and
 the wasm module are in `vanedb-wasm/pkg`.
 
