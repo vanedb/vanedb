@@ -1,8 +1,7 @@
 """The stub must match the runtime module.
 
-A stub that has drifted is worse than no stub: the editor confidently
-autocompletes a method that no longer exists. The READMEs drifted this way
-before a guard was added, so this one is checked in CI (#105).
+A stub that disagrees with the runtime is worse than no stub: the editor
+confidently autocompletes a method that does not exist.
 """
 
 import ast

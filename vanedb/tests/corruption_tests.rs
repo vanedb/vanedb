@@ -12,9 +12,9 @@ use vanedb::{ApproxIndex, Metric, VaneError};
 use vanedb::{DiskIndex, DiskIndexBuilder};
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
-/// Must match `disk::MAGIC`. Written as bytes, not as a hex literal: the
-/// hand-written 0x564E4442 was byte-reversed (`BDNV`), so every DiskIndex
-/// header test below rejected on magic and never reached the guard it names.
+/// Must match `disk::MAGIC`. Written as bytes rather than a hex literal so it
+/// cannot be transcribed byte-reversed — a wrong magic makes every header test
+/// below reject on magic without reaching the guard it names.
 const DISK_MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const HNSW_VERSION: u32 = 2;
 

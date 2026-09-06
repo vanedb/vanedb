@@ -7,17 +7,15 @@ use std::io;
 /// # Matching
 ///
 /// This enum is `#[non_exhaustive]`, so a `match` over it needs a `_` arm.
-/// That is deliberate: distinguishing a corrupt file from a missing one was
-/// itself a late addition, and the next variant should not need a major
-/// release either.
+/// That is deliberate: a new variant should not need a major release.
 ///
 /// # Comparing
 ///
-/// `VaneError` is deliberately not `PartialEq`. It used to be, which made
-/// `err == VaneError::InvalidParameter("M must be >= 2")` compile and pass —
-/// turning every diagnostic string into public API that could never be
-/// reworded. Match on the variant instead. It is also not `Clone`, because
-/// [`io::Error`] is not.
+/// `VaneError` is deliberately not `PartialEq`: comparing errors would make
+/// `err == VaneError::InvalidParameter("M must be >= 2")` compile, turning
+/// every diagnostic string into public API that could not be reworded. Match
+/// on the variant instead. It is also not `Clone`, because [`io::Error`] is
+/// not.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum VaneError {
@@ -31,9 +29,9 @@ pub enum VaneError {
     /// A batch's id count and vector data do not describe the same number of
     /// rows.
     ///
-    /// Separate from [`VaneError::DimensionMismatch`], which was previously
-    /// reused here with *total float counts* in its fields — so a batch error
-    /// on a 4-dimensional index read "dimension mismatch: expected 8, got 4".
+    /// Separate from [`VaneError::DimensionMismatch`], which reports a single
+    /// vector's length against the index dimension. This one counts rows, so
+    /// the message names ids and floats rather than dimensions.
     BatchLengthMismatch {
         /// How many ids were supplied.
         ids: usize,

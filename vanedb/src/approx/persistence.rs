@@ -337,8 +337,7 @@ impl ApproxIndex {
         // failure, and this is the path that reads untrusted files. The cap
         // above bounds the request; this turns a genuine OOM into an error
         // rather than killing the host application (#89).
-        // Storage grows on demand, so only the live vectors are rebuilt --
-        // the old format re-expanded to max_elements here.
+        // Storage grows on demand, so only the live vectors are rebuilt.
         let vectors = ChunkedVectors::from_flat(data.dim, &data.vectors[..live_vectors_len]);
         let mut ext_ids = data.ext_ids;
         ext_ids.truncate(data.count);

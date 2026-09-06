@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Assert the release validator's wheel tripwires match the build matrices.
 
-The tripwires exist to catch matrix drift and have themselves drifted twice --
-once claiming 24 wheels while asserting 16, and once asserting 32 when the
-matrices produce 28. Deriving the expected total from the workflow removes the
-chance to get it wrong by hand.
+The tripwires exist to catch matrix drift, so they are derived from the
+workflow rather than maintained by hand.
 
 A build job produces (matrix combinations) x (interpreters in its maturin args)
 wheels: the Linux legs pass four `-i python3.N` flags each, while macOS and

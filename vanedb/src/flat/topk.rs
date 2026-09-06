@@ -1,14 +1,11 @@
 //! Bounded top-k selection for brute-force scans.
 //!
-//! The scan used to materialise one `SearchResult` per stored vector and then
-//! `select_nth_unstable` over the whole array. That is quickselect: about `2n`
-//! comparisons plus roughly `n` swaps of 16-byte structs, over a buffer that
-//! outgrows L1 as the corpus grows — which is why the gap against
-//! `std::partial_sort` widened with `n`.
-//!
-//! Keeping a `k`-element max-heap instead never allocates the `n`-element
-//! buffer at all: `k` is tiny and stays in L1, and most candidates are
-//! rejected by one comparison against the current worst.
+//! A `k`-element max-heap, not a full sort and not quickselect over the whole
+//! candidate array. Quickselect costs about `2n` comparisons plus roughly `n`
+//! swaps of 16-byte structs through a buffer that outgrows L1 as the corpus
+//! grows; the heap never allocates that buffer at all. `k` is tiny and stays
+//! in L1, and most candidates are rejected by one comparison against the
+//! current worst.
 
 use std::collections::BinaryHeap;
 
@@ -26,8 +23,8 @@ where
     if k == 0 {
         return Vec::new();
     }
-    // Deliberately not `with_capacity(k)`: k comes from the caller, so
-    // reserving it aborts the process on `search(q, usize::MAX)`. The heap is
+    // Deliberately not `with_capacity(k)`: k comes from the caller, and
+    // reserving it up front aborts on `search(q, usize::MAX)`. The heap is
     // bounded by k as it fills, so growth is amortised and the bound holds.
     let mut heap: BinaryHeap<SearchResult> = BinaryHeap::new();
     for candidate in candidates {

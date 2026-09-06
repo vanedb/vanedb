@@ -64,8 +64,8 @@ fn parse_metric(metric: &str) -> Result<Metric, JsError> {
 
 #[wasm_bindgen]
 pub fn version() -> String {
-    // From Cargo.toml, never a literal: a hardcoded string drifts
-    // silently, and the test that pinned it drifted with it.
+    // From Cargo.toml, never a literal: a hardcoded string drifts silently,
+    // and so does a test that pins the same literal.
     env!("CARGO_PKG_VERSION").to_string()
 }
 
