@@ -291,13 +291,49 @@ mod spec_geometry {
         assert_eq!(inner.entry_point, Some(0), "entry slot, offset 72");
         assert_eq!(inner.max_level, 1, "max level, offset 80");
 
-        // slot -> (external id, level, deleted, vector, neighbours per layer)
-        let expected: [(u64, i32, bool, [f32; 2], &[&[usize]]); 3] = [
-            (101, 1, false, [1.0, 0.0], &[&[1, 2], &[2]]),
-            (202, 0, false, [0.0, 1.0], &[&[0, 2]]),
-            (u64::MAX, 1, false, [0.8, 0.2], &[&[0, 1], &[0]]),
+        /// One slot as the field table describes it: external id, level,
+        /// deleted flag, vector, and neighbours per layer.
+        struct Slot {
+            id: u64,
+            level: i32,
+            deleted: bool,
+            vector: [f32; 2],
+            neighbours: &'static [&'static [usize]],
+        }
+        let expected = [
+            Slot {
+                id: 101,
+                level: 1,
+                deleted: false,
+                vector: [1.0, 0.0],
+                neighbours: &[&[1, 2], &[2]],
+            },
+            Slot {
+                id: 202,
+                level: 0,
+                deleted: false,
+                vector: [0.0, 1.0],
+                neighbours: &[&[0, 2]],
+            },
+            Slot {
+                id: u64::MAX,
+                level: 1,
+                deleted: false,
+                vector: [0.8, 0.2],
+                neighbours: &[&[0, 1], &[0]],
+            },
         ];
-        for (slot, (id, level, deleted, vector, neighbours)) in expected.iter().enumerate() {
+        for (
+            slot,
+            Slot {
+                id,
+                level,
+                deleted,
+                vector,
+                neighbours,
+            },
+        ) in expected.iter().enumerate()
+        {
             assert_eq!(inner.ext_ids[slot], *id, "slot {slot} id");
             assert_eq!(inner.levels[slot], *level, "slot {slot} level");
             assert_eq!(inner.deleted[slot], *deleted, "slot {slot} deleted flag");
