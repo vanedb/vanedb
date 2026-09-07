@@ -236,7 +236,7 @@ public:
   void reserve(size_t cap) { ids_.reserve(cap); vectors_.reserve(cap * dim_); }
 
   void save(const std::string& filename) const {
-    std::string tmp = filename + ".tmp";
+    std::string tmp = detail::temp_path_for(filename);
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
     uint32_t magic = DiskIndex::MAGIC, ver = DiskIndex::VERSION;

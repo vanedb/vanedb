@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <random>
+#include <thread>
 #include <vector>
 
 using Catch::Approx;
@@ -523,4 +524,58 @@ TEST_CASE("DiskIndex - dot product metric", "[disk]") {
   }  // Scope ensures store is destroyed and file unmapped before removal (Windows file locking)
 
   std::filesystem::remove(filename);
+}
+
+TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][concurrency]") {
+  // Both save paths wrote to `filename + ".tmp"`. That is unique per
+  // destination, so it never had the extension-replacing collision Rust fixed
+  // in vanedb#38 — but two threads saving the *same* path shared one temp
+  // file, interleaved their writes, and whichever renamed last published the
+  // result. detail::temp_path_for adds the pid and a counter.
+  const std::string path = "test_disk_concurrent_save.bin";
+  std::filesystem::remove(path);
+
+  constexpr size_t kDim = 8, kVectors = 256, kThreads = 8;
+  vanedb::DiskIndexBuilder builder(kDim);
+  for (size_t i = 0; i < kVectors; ++i) {
+    std::vector<float> v(kDim, static_cast<float>(i));
+    builder.add(i, v.data());
+  }
+
+  std::vector<std::thread> writers;
+  writers.reserve(kThreads);
+  for (size_t t = 0; t < kThreads; ++t) {
+    writers.emplace_back([&builder, &path] { builder.save(path); });
+  }
+  for (auto& w : writers) w.join();
+
+  // Whichever writer won the rename, the published file must be a complete,
+  // loadable index — not a blend of several concurrent writes.
+  vanedb::DiskIndex index(path);
+  REQUIRE(index.size() == kVectors);
+  REQUIRE(index.dimension() == kDim);
+  for (size_t i = 0; i < kVectors; ++i) {
+    REQUIRE(index.contains(i));
+  }
+
+  // No temp files may survive a clean run.
+  size_t leftovers = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(".")) {
+    const std::string name = entry.path().filename().string();
+    if (name.rfind("test_disk_concurrent_save.bin.", 0) == 0) ++leftovers;
+  }
+  REQUIRE(leftovers == 0);
+
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("detail::temp_path_for is unique per writer", "[disk][concurrency]") {
+  const std::string dest = "some/dir/index.bin";
+  REQUIRE(vanedb::detail::temp_path_for(dest) != vanedb::detail::temp_path_for(dest));
+  // Distinct destinations must still not collide, which `filename + ".tmp"`
+  // already guaranteed and the fix must not regress.
+  REQUIRE(vanedb::detail::temp_path_for("index.bin") !=
+          vanedb::detail::temp_path_for("index.idx"));
+  // Stays beside the destination so the rename is same-filesystem.
+  REQUIRE(vanedb::detail::temp_path_for(dest).rfind("some/dir/", 0) == 0);
 }

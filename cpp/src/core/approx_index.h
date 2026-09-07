@@ -255,7 +255,7 @@ public:
 
   void save(const std::string& filename) const {
     std::shared_lock glock(global_mtx_);
-    std::string tmp = filename + ".tmp";
+    std::string tmp = detail::temp_path_for(filename);
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
     try {
