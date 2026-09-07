@@ -96,7 +96,15 @@ within a single interleaved run and is the comparable number.
 | disk_open | 503 µs | 565 µs | 1.12 ‡ |
 | disk_search (k=10) | 78.4 µs | 79.0 µs | 1.01 |
 
-ApproxIndex recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700.
+ApproxIndex recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700. ◊◊
+
+**◊◊ ** Measured on uniform-random vectors, which is the hard case for a
+proximity graph: no cluster structure exists for the graph to exploit, so this
+is close to a lower bound rather than a typical figure; clustered,
+embedding-like data is expected to recall higher at the same parameters,
+though this harness does not currently measure that. The number is comparable
+between the two engines, which is what this table is for; it is not a recall
+figure to quote for the engine.
 
 **† ** At 6–7 ns the difference is around one nanosecond, near this harness's
 resolution. Treat 128-dimension kernel ratios as noise.
