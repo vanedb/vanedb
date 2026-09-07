@@ -334,3 +334,104 @@ fn two_live_slots_with_the_same_id_are_rejected() {
         "two live slots sharing an id must be rejected, got: {err}"
     );
 }
+
+/// A foreign continuation stream is valid only for the graph it was captured
+/// from. `graph_format::write` drops it when the slot count has moved on, and
+/// `RngState`'s own doc says the bytes are preserved "until an insertion or
+/// rebuild replaces it".
+///
+/// Nothing held that. Relaxing the writer's staleness filter from
+/// `rng.count == inner.count` to `<=` let a libstdc++ stream captured at three
+/// slots be written back as authoritative for four: the header advertised
+/// continuation encoding 2 with a 6714-byte payload, describing a generator
+/// that had never produced the fourth vector's level. A second engine
+/// resuming from that file would diverge from the one that wrote it.
+#[test]
+fn inserting_into_a_foreign_graph_drops_its_continuation_stream() {
+    let dir = std::env::temp_dir().join(format!("vanedb-m9-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("resaved.vndb");
+
+    let index = ApproxIndex::load(fixture("l2_rng2.vndb")).unwrap();
+    index.add(7, &[0.3, 0.4]).unwrap();
+    index.save(&path).unwrap();
+
+    let bytes = std::fs::read(&path).unwrap();
+    let encoding = u32::from_le_bytes(bytes[84..88].try_into().unwrap());
+    let rng_len = u64::from_le_bytes(bytes[88..96].try_into().unwrap());
+    assert_eq!(
+        encoding, 1,
+        "continuation encoding, offset 84: an insertion replaces the foreign \
+         generator, so the file must claim the Rust seed-based stream"
+    );
+    assert_eq!(
+        rng_len, 0,
+        "continuation length, offset 88: the stale foreign stream must not be \
+         carried into a graph it does not describe"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Encoding 1 stores only the seed, so a reader must replay the level sequence
+/// to the point the writer reached — `load` advances the generator once per
+/// stored slot. Without that, a resumed index draws the levels the *first*
+/// insertions drew, and every node added after a load lands on the wrong layer.
+///
+/// The damage is invisible to any single-file check: the file is well-formed,
+/// loads, and searches. It shows only by comparing an index built straight
+/// through against the same input split by a save/load, which must agree.
+#[test]
+fn a_graph_resumed_from_disk_continues_the_level_sequence() {
+    fn vector(i: usize) -> Vec<f32> {
+        vec![(i % 17) as f32 * 0.1, (i % 23) as f32 * 0.1]
+    }
+    fn build() -> ApproxIndex {
+        ApproxIndex::builder(2, Metric::L2)
+            .m(4)
+            .ef_construction(32)
+            .seed(9)
+            .build()
+            .unwrap()
+    }
+
+    let dir = std::env::temp_dir().join(format!("vanedb-m10-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let straight_path = dir.join("straight.vndb");
+    let resumed_path = dir.join("resumed.vndb");
+    let halfway = dir.join("halfway.vndb");
+
+    let straight = build();
+    for i in 0..60 {
+        straight.add(i as u64, &vector(i)).unwrap();
+    }
+    straight.save(&straight_path).unwrap();
+
+    let first_half = build();
+    for i in 0..30 {
+        first_half.add(i as u64, &vector(i)).unwrap();
+    }
+    first_half.save(&halfway).unwrap();
+    let resumed = ApproxIndex::load(&halfway).unwrap();
+    for i in 30..60 {
+        resumed.add(i as u64, &vector(i)).unwrap();
+    }
+    resumed.save(&resumed_path).unwrap();
+
+    let straight_bytes = std::fs::read(&straight_path).unwrap();
+    let resumed_bytes = std::fs::read(&resumed_path).unwrap();
+    assert_eq!(
+        straight_bytes.len(),
+        resumed_bytes.len(),
+        "a resumed graph must have the same shape as one built straight \
+         through; a different size means the level sequence restarted"
+    );
+    let divergence = straight_bytes
+        .iter()
+        .zip(&resumed_bytes)
+        .position(|(a, b)| a != b);
+    assert_eq!(
+        divergence, None,
+        "resuming from disk must continue the level sequence, not replay it"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
