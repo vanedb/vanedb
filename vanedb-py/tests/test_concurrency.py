@@ -104,6 +104,50 @@ def _index_churn(_directory):
     assert index.size() == 0
 
 
+def _index_readers(_directory):
+    index = vanedb.ApproxIndex(8, vanedb.Metric.L2, capacity=400)
+    for i in range(400):
+        index.add(i, _vec(i))
+    for i in range(1, 400, 2):
+        index.remove(i)
+
+    def read():
+        for _ in range(200):
+            assert len(index) == index.size() == 200
+            assert index.contains(0) and not index.contains(1)
+            assert index.get_vector(0) == _vec(0)
+            assert 0 <= index.tombstones() <= 200
+            assert index.capacity == 400
+
+    _parallel(index.compact, read)
+    assert index.tombstones() == 0
+    for i in range(0, 400, 2):
+        assert index.get_vector(i) == _vec(i)
+
+
+def _flat_readers(_directory):
+    store = vanedb.FlatIndex(8, vanedb.Metric.L2)
+    for i in range(100):
+        store.add(i, _vec(i))
+
+    def write():
+        for i in range(100, 300):
+            store.add(i, _vec(i))
+            store.remove(i)
+
+    def read():
+        for _ in range(200):
+            assert 100 <= len(store) <= 101
+            assert 100 <= store.size() <= 101
+            assert store.contains(0)
+            assert store.get(0) == _vec(0)
+
+    _parallel(write, read)
+    assert len(store) == 100
+    for i in range(100):
+        assert store.get(i) == _vec(i)
+
+
 def _check_scenario(name, directory):
     completed = subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), name, str(directory)],
@@ -124,7 +168,19 @@ def test_upsert_and_remove_are_shareable(tmp_path):
     _check_scenario("churn", tmp_path)
 
 
+def test_index_accessors_remain_usable_during_compaction(tmp_path):
+    _check_scenario("index-readers", tmp_path)
+
+
+def test_flat_accessors_remain_usable_during_mutation(tmp_path):
+    _check_scenario("flat-readers", tmp_path)
+
+
 if __name__ == "__main__":
-    {"builder": _disk_builder, "snapshots": _index_snapshots, "churn": _index_churn}[
-        sys.argv[1]
-    ](Path(sys.argv[2]))
+    {
+        "builder": _disk_builder,
+        "snapshots": _index_snapshots,
+        "churn": _index_churn,
+        "index-readers": _index_readers,
+        "flat-readers": _flat_readers,
+    }[sys.argv[1]](Path(sys.argv[2]))

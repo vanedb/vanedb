@@ -46,6 +46,7 @@ against. This section records what the first release will contain.
 - Python methods that block — `save`, `load`, `upsert`, `remove`, and the
   `DiskIndexBuilder` methods — release the GIL. `DiskIndexBuilder` takes
   `&self` like every other class and can be shared between threads.
+  Accessors that wait on index locks also release the GIL while waiting.
 - `Metric::Dot` documents that it is not scale-invariant and not a metric, so
   a vector need not be its own nearest neighbour.
 - The published recall figure is annotated as measured on uniform-random
