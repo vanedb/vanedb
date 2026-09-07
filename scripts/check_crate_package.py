@@ -35,9 +35,12 @@ def main() -> None:
                               for member in source.getmembers() if member.isfile())
             source.extractall(directory, filter="data")
         unpacked = Path(directory) / name
+        # Test binaries embed CARGO_MANIFEST_DIR. Reusing a target directory
+        # across temporary extractions can retain paths to a deleted package.
         subprocess.run(
             ["cargo", "test", "--locked", "--features", "disk"],
-            cwd=unpacked, env=dict(os.environ, CARGO_TARGET_DIR=str(target)), check=True,
+            cwd=unpacked, env=dict(os.environ, CARGO_TARGET_DIR=str(unpacked / "target")),
+            check=True,
         )
     artifacts = target / "crate-artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)

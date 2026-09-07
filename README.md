@@ -141,9 +141,10 @@ Python release workflows build and test
 Linux x86-64/ARM64 (glibc and musl), macOS Intel/ARM64, and Windows x64 wheels
 for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
 iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
-simulator and Android x86-64 emulator. Physical-device and Android ARM64 runtime
-verification remain required before claiming 1.0.0 support
-on every platform.
+simulator and Android x86-64 emulator. The CI-built Android ARM64 library also
+passes acceptance locally on an Android 15 emulator with 16 KiB pages; see the
+[release evidence](docs/release/1.0.0-readiness.md). Physical-device verification
+remains required before claiming 1.0.0 support on every platform.
 
 The supplementary C++ engine has different constructor arguments, result shapes,
 and feature coverage. Moving between Python engines requires adapting the API,

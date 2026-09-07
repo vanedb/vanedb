@@ -65,8 +65,9 @@ cd vanedb-wasm && wasm-pack test --node --locked
 
 Feature caveats: `gpu-metal` builds/tests only on macOS; `gpu-cuda` needs a CUDA
 toolchain. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
-acceptance on an iOS ARM64 simulator and Android x86-64 emulator. This does not
-prove physical-device or Android ARM64 runtime behavior. Node wasm tests likewise
+acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built
+Android ARM64 bundle also passes locally on an Android 15 emulator with 16 KiB
+pages; see the release evidence. Physical-device checks remain open. Node wasm tests likewise
 do not prove browser integration; CI also runs headless Chrome. Match each
 platform claim to the actual build and runtime evidence; use the relevant host
 and toolchain for checks that cannot run locally.
