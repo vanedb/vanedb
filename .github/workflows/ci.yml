@@ -35,6 +35,7 @@ jobs:
               - 'README.md'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'deny.toml'
               - 'vanedb/**'
               - 'vanedb-capi/**'
               - 'vanedb-py/**'
