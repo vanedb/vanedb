@@ -113,7 +113,6 @@ impl DiskIndexBuilder {
     }
 
     /// Number of vectors collected so far.
-    /// Number of vectors in the mapped file.
     pub fn size(&self) -> usize {
         self.ids.len()
     }

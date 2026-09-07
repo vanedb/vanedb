@@ -9,6 +9,14 @@ repository = "https://github.com/vanedb/vanedb"
 keywords = ["vector", "database", "embeddings", "hnsw", "similarity-search"]
 categories = ["database", "science"]
 
+# DiskIndex is behind a non-default feature, so the published docs would omit
+# it unless docs.rs is told to build with it.
+[package.metadata.docs.rs]
+features = ["disk"]
+# Renders the "requires feature" badge, so the docs do not offer a type that
+# a default `cargo add vanedb` does not provide.
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 default = []
 disk = ["dep:memmap2"]

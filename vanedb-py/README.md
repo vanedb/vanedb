@@ -1,8 +1,8 @@
 # VaneDB for Python
 
-VaneDB is an embeddable vector database backed by Rust. FlatIndex vectors and search
-for their nearest neighbors inside your Python process, without a database
-server. Supply your own embeddings; VaneDB does not generate them.
+VaneDB is an embeddable vector database backed by Rust. Store vectors and
+search for their nearest neighbors inside your Python process, without a
+database server. Supply your own embeddings; VaneDB does not generate them.
 
 The `vanedb` package is the canonical Python implementation. The supplementary
 C++ package is named `vanedb-cpp` and imports as `vanedb_cpp`.
@@ -59,8 +59,10 @@ For each metric, smaller distances rank first. Vectors must match the store or
 index dimension and contain finite values; IDs must be unique unsigned 64-bit
 integers.
 
-Persistence formats are currently pre-release and engine-specific. Do not use
-the Rust package to load C++ files, or vice versa; a shared format is planned.
+`DiskIndex` files use `VNDB` v1, a specified, versioned format that the Rust
+and C++ engines both read. `ApproxIndex.save` is engine-specific and not yet a
+stable public format — treat a saved graph as a way to avoid rebuilding, not
+as a system of record.
 
 ## Project
 
