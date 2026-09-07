@@ -259,8 +259,10 @@ impl DiskIndex {
         let metric = u32_to_metric(metric_raw)?;
         // Offsets 28..32 are reserved and specified as zero. Rejecting a
         // nonzero value is what keeps them claimable: a reader that ignores
-        // them can never be given a meaning later, because every binary
-        // already in the field would silently misread a file that used one.
+        // them can never be given a meaning later, because it would silently
+        // misread any file that used one. The frozen C++ reader still skips
+        // these bytes, so this reclaims the escape hatch for the Rust engine
+        // only — enough to matter, since that is the engine that ships.
         if u32::from_le_bytes(mmap[28..32].try_into().unwrap()) != 0 {
             return Err(VaneError::corrupt("reserved header bytes are not zero"));
         }

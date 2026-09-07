@@ -4,7 +4,12 @@
 /// `..` rest pattern. Fields a search may later want to report — a rerank
 /// score, a shard, a metadata handle — can then be added without a major
 /// version.
-#[derive(Debug, Clone, Copy)]
+///
+/// Deliberately not `Copy`. It would fit in a register today, but `Copy`
+/// constrains every future field to be `Copy` too, and dropping it later is
+/// itself breaking — which would give back exactly what `#[non_exhaustive]`
+/// is here to preserve.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct SearchResult {
     /// The ID of the matched vector.

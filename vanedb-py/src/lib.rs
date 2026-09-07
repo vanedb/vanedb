@@ -54,8 +54,13 @@ fn one_usize(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
         return Ok(n);
     }
     match obj.extract::<i64>() {
+        // On a 32-bit target a positive value can fit i64 and not usize, so
+        // the sign decides the message rather than the conversion failing.
+        Ok(signed) if signed < 0 => Err(PyValueError::new_err(format!(
+            "must not be negative: {signed}"
+        ))),
         Ok(signed) => usize::try_from(signed)
-            .map_err(|_| PyValueError::new_err(format!("must not be negative: {signed}"))),
+            .map_err(|_| PyValueError::new_err("value out of range for a size")),
         Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => {
             Err(PyValueError::new_err("value out of range for a size"))
         }
@@ -307,7 +312,7 @@ impl PyIndex {
         #[pyo3(from_py_with = one_usize)] capacity: usize,
         #[pyo3(from_py_with = one_usize)] m: usize,
         #[pyo3(from_py_with = one_usize)] ef_construction: usize,
-        seed: u64,
+        #[pyo3(from_py_with = one_id)] seed: u64,
     ) -> PyResult<Self> {
         let inner = ApproxIndex::builder(dim, metric.into())
             .capacity(capacity)

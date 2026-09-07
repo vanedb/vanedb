@@ -599,3 +599,25 @@ fn mmap_load_rejects_invalid_magic() {
     assert!(format!("{err}").contains("magic"), "got: {err}");
     let _ = fs::remove_file(&p);
 }
+
+#[cfg(feature = "disk")]
+#[test]
+fn mmap_load_rejects_nonzero_reserved_header_bytes() {
+    // The format specifies offsets 28..32 as zero. A loader that ignores them
+    // can never be given a meaning for them later, because every binary
+    // already in the field would silently misread a file that used one.
+    for byte in 0..4usize {
+        let mut bytes = disk_file_bytes(DISK_MAGIC, 1, 2, &[1, 2], &[1.0, 0.0, 0.0, 1.0]);
+        bytes[28 + byte] = 1;
+        let p = write_tmp(&format!("mmap_reserved_{byte}"), &bytes);
+        let err = match DiskIndex::open(&p) {
+            Ok(_) => panic!(
+                "a nonzero reserved byte at offset {} must be rejected",
+                28 + byte
+            ),
+            Err(e) => e,
+        };
+        assert!(format!("{err}").contains("reserved"), "got: {err}");
+        let _ = fs::remove_file(&p);
+    }
+}

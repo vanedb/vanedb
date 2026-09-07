@@ -186,7 +186,6 @@ impl FlatIndex {
         self.inner.read().ids.len()
     }
 
-    /// Whether the store holds no vectors.
     /// Number of vectors stored.
     ///
     /// The same count as [`len`](Self::len). Both spellings exist so a program
