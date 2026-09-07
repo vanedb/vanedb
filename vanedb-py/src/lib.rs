@@ -43,6 +43,31 @@ fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
     }
 }
 
+/// Converts a Python int to a count, dimension or other size.
+///
+/// Same reason as [`one_id`]: PyO3 raises `OverflowError` for a negative
+/// value, which is not a `ValueError` subclass, so a caller following the
+/// documented error model with `except ValueError` would miss it. That was
+/// fixed for ids and not for every other integer parameter.
+fn one_usize(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
+    if let Ok(n) = obj.extract::<usize>() {
+        return Ok(n);
+    }
+    match obj.extract::<i64>() {
+        // On a 32-bit target a positive value can fit i64 and not usize, so
+        // the sign decides the message rather than the conversion failing.
+        Ok(signed) if signed < 0 => Err(PyValueError::new_err(format!(
+            "must not be negative: {signed}"
+        ))),
+        Ok(signed) => usize::try_from(signed)
+            .map_err(|_| PyValueError::new_err("value out of range for a size")),
+        Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => {
+            Err(PyValueError::new_err("value out of range for a size"))
+        }
+        Err(e) => Err(e),
+    }
+}
+
 /// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
 /// (numpy array, array.array, memoryview) copied wholesale; fallback: generic
 /// sequence extraction (lists), matching the pre-buffer behavior. Rank is
@@ -197,7 +222,7 @@ struct PyStore {
 impl PyStore {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
-    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+    fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         let inner = FlatIndex::new(dim, metric.into()).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
@@ -234,7 +259,7 @@ impl PyStore {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -283,12 +308,12 @@ impl PyIndex {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
     fn new(
-        dim: usize,
+        #[pyo3(from_py_with = one_usize)] dim: usize,
         metric: PyMetric,
-        capacity: usize,
-        m: usize,
-        ef_construction: usize,
-        seed: u64,
+        #[pyo3(from_py_with = one_usize)] capacity: usize,
+        #[pyo3(from_py_with = one_usize)] m: usize,
+        #[pyo3(from_py_with = one_usize)] ef_construction: usize,
+        #[pyo3(from_py_with = one_id)] seed: u64,
     ) -> PyResult<Self> {
         let inner = ApproxIndex::builder(dim, metric.into())
             .capacity(capacity)
@@ -332,7 +357,7 @@ impl PyIndex {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -367,7 +392,7 @@ impl PyIndex {
     }
 
     #[setter]
-    fn set_ef_search(&self, ef: usize) {
+    fn set_ef_search(&self, #[pyo3(from_py_with = one_usize)] ef: usize) {
         self.inner.set_ef_search(ef);
     }
 
@@ -451,7 +476,7 @@ struct PyDiskStoreBuilder {
 impl PyDiskStoreBuilder {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
-    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+    fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
             inner: parking_lot::RwLock::new(
                 DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
@@ -513,7 +538,7 @@ impl PyDiskStore {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -521,7 +546,7 @@ impl PyDiskStore {
     }
 
     fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map(<[f32]>::to_vec).map_err(to_pyerr)
+        self.inner.get(id).map(|v| v.into_owned()).map_err(to_pyerr)
     }
 
     fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {

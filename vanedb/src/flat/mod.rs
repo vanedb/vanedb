@@ -186,6 +186,15 @@ impl FlatIndex {
         self.inner.read().ids.len()
     }
 
+    /// Number of vectors stored.
+    ///
+    /// The same count as [`len`](Self::len). Both spellings exist so a program
+    /// is not tied to one engine: `size` is what the C ABI, the wasm bindings
+    /// and vanedb-cpp expose (#85).
+    pub fn size(&self) -> usize {
+        self.len()
+    }
+
     /// Whether the store holds no vectors.
     pub fn is_empty(&self) -> bool {
         self.len() == 0

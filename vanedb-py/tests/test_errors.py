@@ -102,3 +102,39 @@ def test_an_out_of_range_id_in_a_list_batch_is_a_valueerror():
     index = vanedb.ApproxIndex(dim=2)
     with pytest.raises(ValueError):
         index.add_batch([1, 2**64], [[1.0, 0.0], [0.0, 1.0]])
+
+
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: vanedb.FlatIndex(-1, vanedb.Metric.L2),
+        lambda: vanedb.ApproxIndex(-1, vanedb.Metric.L2),
+        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, capacity=-1),
+        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, m=-1),
+        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, ef_construction=-1),
+        lambda: vanedb.DiskIndexBuilder(-1, vanedb.Metric.L2),
+    ],
+    ids=["flat_dim", "approx_dim", "capacity", "m", "ef_construction", "disk_dim"],
+)
+def test_a_negative_size_is_a_valueerror_not_an_overflowerror(call):
+    """The error model documents ValueError; OverflowError is not a subclass.
+
+    This was fixed for ids and left unfixed for every other integer parameter,
+    so `except ValueError` missed dim, capacity, m, ef_construction and k.
+    """
+    with pytest.raises(ValueError):
+        call()
+
+
+def test_a_negative_k_or_ef_search_is_a_valueerror():
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    index.add(1, [1.0, 0.0])
+    with pytest.raises(ValueError):
+        index.search([1.0, 0.0], -1)
+    with pytest.raises(ValueError):
+        index.ef_search = -1
+
+    store = vanedb.FlatIndex(2, vanedb.Metric.L2)
+    store.add(1, [1.0, 0.0])
+    with pytest.raises(ValueError):
+        store.search([1.0, 0.0], -1)
