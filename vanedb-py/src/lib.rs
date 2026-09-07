@@ -230,11 +230,12 @@ impl PyStore {
     /// Add one vector. Accepts a 1-D float32 buffer (numpy) or any float sequence.
     fn add(
         &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.add(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.add(id, &v)).map_err(to_pyerr)
     }
 
     /// Bulk insert. `ids`: 1-D uint64/int64 buffer or int sequence; `vectors`:
@@ -265,20 +266,20 @@ impl PyStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map_err(to_pyerr)
+    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        py.detach(|| self.inner.get(id)).map_err(to_pyerr)
     }
 
-    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
-        self.inner.remove(id).map_err(to_pyerr)
+    fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.len()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.len())
     }
 
     /// Number of vectors stored.
@@ -286,8 +287,8 @@ impl PyStore {
     /// `len(store)` is the Pythonic spelling; `size()` is what vanedb_cpp and
     /// the wasm bindings expose. Both work here so neither spelling ties a
     /// program to one engine (#85).
-    fn size(&self) -> usize {
-        self.inner.len()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.len())
     }
 
     #[getter]
@@ -363,21 +364,25 @@ impl PyIndex {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get_vector(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get_vector(id).map_err(to_pyerr)
+    fn get_vector(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Vec<f32>> {
+        py.detach(|| self.inner.get_vector(id)).map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
-    fn save(&self, path: &str) -> PyResult<()> {
-        self.inner.save(path).map_err(to_pyerr)
+    fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
     }
 
     #[staticmethod]
-    fn load(path: &str) -> PyResult<Self> {
-        let inner = ApproxIndex::load(path).map_err(to_pyerr)?;
+    fn load(py: Python<'_>, path: &str) -> PyResult<Self> {
+        let inner = py.detach(|| ApproxIndex::load(path)).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -391,8 +396,8 @@ impl PyIndex {
         self.inner.set_ef_search(ef);
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.size()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.size())
     }
 
     /// Inserts `vector` under `id`, replacing any existing entry.
@@ -402,18 +407,19 @@ impl PyIndex {
     /// loop still needs `compact()`.
     fn upsert(
         &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.upsert(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.upsert(id, &v)).map_err(to_pyerr)
     }
 
     /// Number of tombstoned slots: removed vectors whose space is not yet
     /// reclaimed. Re-adding a removed id allocates a fresh slot, so an upsert
     /// loop grows this even at constant length.
-    fn tombstones(&self) -> usize {
-        self.inner.tombstones()
+    fn tombstones(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.tombstones())
     }
 
     /// Rebuilds the graph without tombstoned slots, reclaiming their space.
@@ -429,13 +435,13 @@ impl PyIndex {
     /// Tombstoned: the node keeps its graph links, which may be the only
     /// route between live neighbourhoods, and simply stops appearing in
     /// results. The id becomes free for reuse. Space is not reclaimed.
-    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
-        self.inner.remove(id).map_err(to_pyerr)
+    fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
     /// Number of vectors in the graph. See `FlatIndex.size`.
-    fn size(&self) -> usize {
-        self.inner.size()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.size())
     }
 
     #[getter]
@@ -444,8 +450,8 @@ impl PyIndex {
     }
 
     #[getter]
-    fn capacity(&self) -> usize {
-        self.inner.capacity()
+    fn capacity(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.capacity())
     }
 }
 
@@ -453,7 +459,17 @@ impl PyIndex {
 /// memory saving is on the reading side.
 #[pyclass(name = "DiskIndexBuilder")]
 struct PyDiskStoreBuilder {
-    inner: DiskIndexBuilder,
+    // The core builder takes `&mut self`, which PyO3 turns into a runtime
+    // borrow. That was safe only because the GIL serialised every call —
+    // releasing it around `add` below is exactly what would let two borrows
+    // overlap and raise `RuntimeError: Already borrowed`. The lock is what
+    // makes the GIL release safe, and it also makes this the last of the five
+    // classes to take `&self`, matching how the index types synchronise.
+    //
+    // An RwLock rather than a Mutex because only `add` needs `&mut` in the
+    // core; `save`, `size` and `dimension` take `&self` there, so they have no
+    // reason to exclude each other.
+    inner: parking_lot::RwLock<DiskIndexBuilder>,
 }
 
 #[pymethods]
@@ -462,36 +478,40 @@ impl PyDiskStoreBuilder {
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
     fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
-            inner: DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+            inner: parking_lot::RwLock::new(
+                DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+            ),
         })
     }
 
     fn add(
-        &mut self,
+        &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.add(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.write().add(id, &v))
+            .map_err(to_pyerr)
     }
 
     /// Writes the store to `path`, atomically: built beside the destination
     /// and renamed in after an fsync.
     fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
-        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
+        py.detach(|| self.inner.read().save(path)).map_err(to_pyerr)
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.size()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.read().size())
     }
 
-    fn size(&self) -> usize {
-        self.inner.size()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.read().size())
     }
 
     #[getter]
-    fn dimension(&self) -> usize {
-        self.inner.dimension()
+    fn dimension(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.read().dimension())
     }
 }
 
