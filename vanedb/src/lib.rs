@@ -47,6 +47,7 @@ pub mod distance;
 pub mod error;
 pub mod flat;
 #[cfg(feature = "gpu-metal")]
+#[cfg_attr(docsrs, doc(cfg(feature = "gpu-metal")))]
 pub mod gpu;
 mod validation;
 

@@ -30,6 +30,20 @@ jobs:
           cargo build -p vanedb-capi --locked
           git diff --exit-code -- vanedb-capi/include
 
+  check-macos:
+    name: Check & Lint (macOS, gpu-metal)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          components: clippy
+      # gpu-metal only compiles on Apple platforms, so the Linux lint job
+      # cannot see this surface at all. Without a leg here, MetalCompute is
+      # public API that never passes clippy or the crate's own missing_docs.
+      - run: cargo clippy -p vanedb --all-targets --features disk,gpu-metal --locked -- -D warnings
+
   msrv:
     name: MSRV (1.85)
     runs-on: ${{ matrix.os }}

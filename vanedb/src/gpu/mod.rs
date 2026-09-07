@@ -1,4 +1,7 @@
 //! Optional GPU distance computation; enabled with `gpu-metal` on macOS.
+//!
+//! This is a standalone scan API. Upload vectors and call it explicitly;
+//! enabling the feature does not move index operations to the GPU.
 
 #[cfg(feature = "gpu-metal")]
 /// Apple Metal distance kernels and device buffers.
@@ -9,8 +12,9 @@ pub use self::metal::MetalCompute;
 
 use crate::distance::Metric;
 
-/// GPU distance metric (maps from Metric).
+/// GPU distance metric (maps from [`Metric`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum GpuMetric {
     /// Squared Euclidean distance.
     L2,
