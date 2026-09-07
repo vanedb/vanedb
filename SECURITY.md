@@ -32,8 +32,10 @@ The loaders parse untrusted input, so that is where the interesting surface is.
 **In scope**
 
 - Memory safety, including anything reachable from safe Rust
-- Malicious or corrupt index files — `VNDB` (`DiskIndex`) and `HNSW`
-  (`ApproxIndex`) — that read out of bounds, over-allocate, or load as valid
+- Malicious or corrupt index files that read out of bounds, over-allocate, or
+  load as valid. Three formats parse untrusted input: `VNDB` v1 (`DiskIndex`),
+  `VNDB` v2 (`ApproxIndex`), and legacy `HNSW` v1/v2, which `ApproxIndex` still
+  reads
 - Integer overflow in size or offset arithmetic on file-controlled values
 - Input validation bypasses in any binding: Rust, Python, C ABI or wasm
 - Thread-safety bugs causing corruption or wrong results
@@ -64,7 +66,9 @@ The loaders parse untrusted input, so that is where the interesting surface is.
   arithmetic before allocating or indexing. Neither accepts a file whose ids
   are not unique: `DiskIndex` checks directly, and `ApproxIndex` enforces a
   bijection between its id map and its stored ids, which forces the same thing.
-  `vanedb/tests/corruption_tests.rs` pins these with crafted files.
+  `vanedb/tests/corruption_tests.rs` pins the legacy and disk paths with
+  crafted files, and `vanedb/tests/vndb_graph_format.rs` pins the `VNDB` v2
+  graph reader against fixtures generated from its field table.
 - The C ABI routes every entry point through `catch_unwind`, so a panic returns
   an error rather than unwinding into a foreign frame.
 - SIMD kernels are checked against the scalar reference at every length from 0

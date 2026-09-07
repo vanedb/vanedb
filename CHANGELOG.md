@@ -51,6 +51,11 @@ against. This section records what the first release will contain.
 
 ### Added
 
+- `metric()` on every binding — Python, the C ABI and wasm. A loaded index
+  reads its metric from the file, and without this a caller who did not build
+  it could not check that their query convention matched. `Metric::Dot` now
+  has binding-level test coverage, which it had nowhere before.
+- `ApproxIndex::m`, `ef_construction` and `seed` getters, for the same reason.
 - `DiskIndex` and `DiskIndexBuilder` appear in the published documentation,
   with the feature badge that says they need `disk`.
 - Declared MSRV of 1.85, checked in CI on that exact toolchain.
@@ -63,9 +68,21 @@ against. This section records what the first release will contain.
 
 ### Changed
 
-- The persistence promise is scoped to what is true: `DiskIndex` writes `VNDB`
-  v1, a specified, versioned, cross-engine format; `ApproxIndex::save` is
-  engine-specific and not yet a public format.
+- Both persistence formats are specified. `DiskIndex` writes `VNDB` v1 and
+  `ApproxIndex::save` writes `VNDB` v2, each with a field table under
+  `conformance/` and fixtures generated from that table rather than from the
+  engine. Legacy `HNSW` graph files still load, pinned by committed bytes.
+  The disk format is cross-engine; the graph format is read by this engine
+  only, since the C++ engine has no VNDB v2 reader.
+- `ApproxIndex::save` output is byte-reproducible: the same content written
+  twice produces the same file. The previous format serialised a `HashMap` in
+  iteration order, so it did not.
+- `gpu-cuda` is removed. It was a stub whose every method returned an error,
+  shipped as a published feature. Removing a Cargo feature is breaking and
+  adding one is not, so it goes before the first release; a real CUDA backend
+  can land as a minor version once CI has hardware to validate it.
+- `vanedb-cpp` is no longer published (#100). The C++ engine stays in the
+  repository as reference code and as the benchmark's control.
 - `Metric::Dot` documents that it is not scale-invariant and not a metric, so
   a vector need not be its own nearest neighbour.
 - The published recall figure is annotated as measured on uniform-random
