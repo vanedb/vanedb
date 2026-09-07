@@ -7,9 +7,15 @@
 //! with itself no matter what it does, which is the loop these fixtures exist
 //! to break.
 //!
-//! Each fixture runs in both directions, matching `vndb_format.rs` for the
-//! disk format: the engine must read it, and re-writing what it read must
-//! reproduce the bytes.
+//! Each fixture runs in both directions: the engine must read it, and
+//! re-writing what it read must reproduce the bytes.
+//!
+//! Note what the second direction does *not* prove. It is a round trip
+//! through the reader, so a transposition applied to both writer and reader
+//! reproduces the bytes exactly. That is why the contents are asserted against
+//! the field table here, and the graph geometry — entry slot, levels,
+//! neighbour lists — in `approx::graph_format::spec_geometry`, which can see
+//! fields the public API cannot.
 
 use std::path::PathBuf;
 
@@ -46,6 +52,27 @@ const FIXTURES: [&str; 13] = [
     "deleted_id_reuse.vndb",
 ];
 
+/// Every header value in `l2_rng1.vndb`, read from
+/// `conformance/graph/README.md`'s field table rather than from the engine.
+///
+/// This is the assertion the round-trip below cannot make. `load` then `save`
+/// compares the reader against the writer, so transposing two header fields in
+/// both directions reproduces the bytes exactly and passes — the very
+/// misreading an independently generated fixture exists to catch. Only
+/// comparing to the table catches it.
+#[test]
+fn the_header_matches_the_field_table() {
+    let index = ApproxIndex::load(fixture("l2_rng1.vndb")).unwrap();
+    assert_eq!(index.dimension(), 2, "dim, offset 16");
+    assert_eq!(index.len(), 3, "count, offset 24");
+    assert_eq!(index.capacity(), 4, "capacity hint, offset 32");
+    assert_eq!(index.m(), 5, "M, offset 40");
+    assert_eq!(index.ef_construction(), 16, "ef_construction, offset 48");
+    assert_eq!(index.get_ef_search(), 32, "ef_search, offset 56");
+    assert_eq!(index.seed(), 42, "seed, offset 64");
+    assert_eq!(index.metric(), Metric::L2, "metric, offset 12");
+}
+
 #[test]
 fn every_fixture_loads() {
     for name in FIXTURES {
@@ -64,6 +91,38 @@ fn every_fixture_loads() {
         };
         assert_eq!(index.metric(), expected, "{name}");
     }
+}
+
+#[test]
+fn the_fixture_contents_match_the_field_table() {
+    // The header test pins the parameters; this pins the data. Reversing the
+    // vector component order in writer and reader together round-trips byte
+    // for byte and returns the wrong neighbour — the round-trip test cannot
+    // see it, and neither can anything that only checks dim and metric.
+    let index = ApproxIndex::load(fixture("l2_rng1.vndb")).unwrap();
+    for (id, vector) in [
+        (101u64, [1.0f32, 0.0]),
+        (202, [0.0, 1.0]),
+        (u64::MAX, [0.8, 0.2]),
+    ] {
+        assert!(index.contains(id), "id {id} from the table is missing");
+        assert_eq!(
+            index.get(id).unwrap(),
+            vector.to_vec(),
+            "vector for id {id}"
+        );
+    }
+
+    // And the query the geometry decides: (1,0) is id 101 exactly.
+    let hits = index.search(&[1.0, 0.0], 1).unwrap();
+    assert_eq!(
+        hits[0].id, 101,
+        "nearest to (1,0) is the vector stored as (1,0)"
+    );
+    assert!(
+        hits[0].distance.abs() < 1e-6,
+        "exact match should be distance 0"
+    );
 }
 
 #[test]
@@ -173,7 +232,7 @@ fn an_unsupported_kind_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[8..12].copy_from_slice(&9u32.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("kind"), "got: {err}");
 }
 
 #[test]
@@ -182,7 +241,7 @@ fn an_invalid_metric_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[12..16].copy_from_slice(&99u32.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("metric"), "got: {err}");
 }
 
 #[test]
@@ -211,22 +270,43 @@ fn a_truncated_file_is_rejected_at_every_length() {
 }
 
 #[test]
-fn an_absurd_dimension_is_rejected_before_allocating() {
-    // Offset 16 is dim. A few hundred bytes must not request terabytes.
+fn an_absurd_dimension_is_rejected() {
+    // Offset 16 is dim. A few hundred bytes must not describe terabytes.
+    // Named for what it asserts: that the file is refused. It does not
+    // observe whether an allocation was attempted first.
     let err = corrupt("l2_rng1.vndb", |b| {
         b[16..24].copy_from_slice(&(1u64 << 62).to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("dimension"), "got: {err}");
 }
 
 #[test]
 fn a_count_larger_than_the_file_is_rejected() {
-    // Offset 24 is the stored slot count. It must be cross-checked against
-    // the bytes actually present, not trusted.
+    // Offset 24 is the stored slot count, cross-checked against the bytes
+    // actually present. A count of u64::MAX would trip the MAX_ELEMENTS cap
+    // first and never reach that check, so this uses a value that is small
+    // enough to be plausible and still larger than the file can hold.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[24..32].copy_from_slice(&1000u64.to_le_bytes())
+    });
+    // Positively, so a reworded or wrong message fails rather than passing
+    // for lack of two words.
+    let text = format!("{err}");
+    assert!(
+        text.contains("dimensions or parameters"),
+        "should fail the file-size cross-check, not the element cap: {text}"
+    );
+}
+
+#[test]
+fn a_count_beyond_the_element_cap_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[24..32].copy_from_slice(&u64::MAX.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(
+        format!("{err}").contains("dimensions or parameters"),
+        "got: {err}"
+    );
 }
 
 #[test]
@@ -251,7 +331,108 @@ fn two_live_slots_with_the_same_id_are_rejected() {
         b[SLOT1_DELETED..SLOT1_DELETED + 4].copy_from_slice(&0u32.to_le_bytes())
     });
     assert!(
-        format!("{err}").contains("duplicate"),
+        format!("{err}").contains("duplicate live"),
         "two live slots sharing an id must be rejected, got: {err}"
     );
+}
+
+/// A foreign continuation stream is valid only for the graph it was captured
+/// from. `graph_format::write` drops it when the slot count has moved on, and
+/// `RngState`'s own doc says the bytes are preserved "until an insertion or
+/// rebuild replaces it".
+///
+/// Nothing held that. Relaxing the writer's staleness filter from
+/// `rng.count == inner.count` to `<=` let a libstdc++ stream captured at three
+/// slots be written back as authoritative for four: the header advertised
+/// continuation encoding 2 with a 6714-byte payload, describing a generator
+/// that had never produced the fourth vector's level. A second engine
+/// resuming from that file would diverge from the one that wrote it.
+#[test]
+fn inserting_into_a_foreign_graph_drops_its_continuation_stream() {
+    let dir = std::env::temp_dir().join(format!("vanedb-m9-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("resaved.vndb");
+
+    let index = ApproxIndex::load(fixture("l2_rng2.vndb")).unwrap();
+    index.add(7, &[0.3, 0.4]).unwrap();
+    index.save(&path).unwrap();
+
+    let bytes = std::fs::read(&path).unwrap();
+    let encoding = u32::from_le_bytes(bytes[84..88].try_into().unwrap());
+    let rng_len = u64::from_le_bytes(bytes[88..96].try_into().unwrap());
+    assert_eq!(
+        encoding, 1,
+        "continuation encoding, offset 84: an insertion replaces the foreign \
+         generator, so the file must claim the Rust seed-based stream"
+    );
+    assert_eq!(
+        rng_len, 0,
+        "continuation length, offset 88: the stale foreign stream must not be \
+         carried into a graph it does not describe"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Encoding 1 stores only the seed, so a reader must replay the level sequence
+/// to the point the writer reached — `load` advances the generator once per
+/// stored slot. Without that, a resumed index draws the levels the *first*
+/// insertions drew, and every node added after a load lands on the wrong layer.
+///
+/// The damage is invisible to any single-file check: the file is well-formed,
+/// loads, and searches. It shows only by comparing an index built straight
+/// through against the same input split by a save/load, which must agree.
+#[test]
+fn a_graph_resumed_from_disk_continues_the_level_sequence() {
+    fn vector(i: usize) -> Vec<f32> {
+        vec![(i % 17) as f32 * 0.1, (i % 23) as f32 * 0.1]
+    }
+    fn build() -> ApproxIndex {
+        ApproxIndex::builder(2, Metric::L2)
+            .m(4)
+            .ef_construction(32)
+            .seed(9)
+            .build()
+            .unwrap()
+    }
+
+    let dir = std::env::temp_dir().join(format!("vanedb-m10-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let straight_path = dir.join("straight.vndb");
+    let resumed_path = dir.join("resumed.vndb");
+    let halfway = dir.join("halfway.vndb");
+
+    let straight = build();
+    for i in 0..60 {
+        straight.add(i as u64, &vector(i)).unwrap();
+    }
+    straight.save(&straight_path).unwrap();
+
+    let first_half = build();
+    for i in 0..30 {
+        first_half.add(i as u64, &vector(i)).unwrap();
+    }
+    first_half.save(&halfway).unwrap();
+    let resumed = ApproxIndex::load(&halfway).unwrap();
+    for i in 30..60 {
+        resumed.add(i as u64, &vector(i)).unwrap();
+    }
+    resumed.save(&resumed_path).unwrap();
+
+    let straight_bytes = std::fs::read(&straight_path).unwrap();
+    let resumed_bytes = std::fs::read(&resumed_path).unwrap();
+    assert_eq!(
+        straight_bytes.len(),
+        resumed_bytes.len(),
+        "a resumed graph must have the same shape as one built straight \
+         through; a different size means the level sequence restarted"
+    );
+    let divergence = straight_bytes
+        .iter()
+        .zip(&resumed_bytes)
+        .position(|(a, b)| a != b);
+    assert_eq!(
+        divergence, None,
+        "resuming from disk must continue the level sequence, not replay it"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

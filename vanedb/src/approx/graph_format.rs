@@ -262,3 +262,124 @@ pub(super) fn read(bytes: &[u8]) -> Result<(HnswData, RngState)> {
         },
     ))
 }
+
+#[cfg(test)]
+mod spec_geometry {
+    use super::*;
+    use crate::distance::Metric;
+    use std::path::Path;
+
+    /// Every field of `l2_rng1.vndb` that the public API cannot reach, read
+    /// from the canonical fixture table in `conformance/graph/README.md`.
+    ///
+    /// The integration test pins the header and the observable contents. It
+    /// cannot see the entry slot, the per-node levels or the neighbour lists,
+    /// and those are exactly where a reader/writer-symmetric transposition
+    /// hides: re-encoding the entry slot, or reversing the neighbour order,
+    /// round-trips byte for byte and changes which vector a query returns.
+    /// This is the same treatment `persistence::legacy_fixtures` gives the
+    /// legacy files.
+    /// The continuation encoding at offset 84 selects how a foreign RNG
+    /// stream is parsed. Remapping 2 and 3 to each other in both directions
+    /// round-trips byte for byte and no other test can see it, because
+    /// nothing in this engine consumes a foreign stream yet. Naming the
+    /// expected encoding per fixture is what makes the field observable.
+    #[test]
+    fn each_fixture_carries_the_continuation_encoding_its_name_declares() {
+        for (name, want) in [
+            ("l2_rng1.vndb", 1u32),
+            ("l2_rng2.vndb", 2),
+            ("l2_rng3.vndb", 3),
+            ("cosine_rng2.vndb", 2),
+            ("cosine_rng3.vndb", 3),
+            ("dot_rng2.vndb", 2),
+            ("dot_rng3.vndb", 3),
+        ] {
+            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/vndb_graph")
+                .join(name);
+            let index = ApproxIndex::load(&path).unwrap();
+            let got = index
+                .inner
+                .read()
+                .persisted_rng
+                .as_ref()
+                .map(|rng| rng.kind);
+            assert_eq!(got, Some(want), "{name}: continuation encoding, offset 84");
+        }
+    }
+
+    #[test]
+    fn the_spec_fixture_decodes_to_the_documented_graph() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vndb_graph/l2_rng1.vndb");
+        let index = ApproxIndex::load(&path).unwrap();
+        let inner = index.inner.read();
+
+        assert_eq!(index.metric(), Metric::L2);
+        assert_eq!(inner.count, 3, "stored slot count");
+        assert_eq!(inner.entry_point, Some(0), "entry slot, offset 72");
+        assert_eq!(inner.max_level, 1, "max level, offset 80");
+
+        /// One slot as the field table describes it: external id, level,
+        /// deleted flag, vector, and neighbours per layer.
+        struct Slot {
+            id: u64,
+            level: i32,
+            deleted: bool,
+            vector: [f32; 2],
+            neighbours: &'static [&'static [usize]],
+        }
+        let expected = [
+            Slot {
+                id: 101,
+                level: 1,
+                deleted: false,
+                vector: [1.0, 0.0],
+                neighbours: &[&[1, 2], &[2]],
+            },
+            Slot {
+                id: 202,
+                level: 0,
+                deleted: false,
+                vector: [0.0, 1.0],
+                neighbours: &[&[0, 2]],
+            },
+            Slot {
+                id: u64::MAX,
+                level: 1,
+                deleted: false,
+                vector: [0.8, 0.2],
+                neighbours: &[&[0, 1], &[0]],
+            },
+        ];
+        for (
+            slot,
+            Slot {
+                id,
+                level,
+                deleted,
+                vector,
+                neighbours,
+            },
+        ) in expected.iter().enumerate()
+        {
+            assert_eq!(inner.ext_ids[slot], *id, "slot {slot} id");
+            assert_eq!(inner.levels[slot], *level, "slot {slot} level");
+            assert_eq!(inner.deleted[slot], *deleted, "slot {slot} deleted flag");
+            assert_eq!(inner.vectors.get(slot), &vector[..], "slot {slot} vector");
+            assert_eq!(
+                inner.neighbors[slot].len(),
+                neighbours.len(),
+                "slot {slot} layer count"
+            );
+            for (layer, expected_layer) in neighbours.iter().enumerate() {
+                assert_eq!(
+                    inner.neighbors[slot][layer].as_slice(),
+                    *expected_layer,
+                    "slot {slot} layer {layer} neighbours"
+                );
+            }
+        }
+    }
+}

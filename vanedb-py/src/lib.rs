@@ -125,8 +125,11 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
     let count = rows.len();
     let capacity = count
         .checked_mul(dim)
+        .filter(|n| *n <= isize::MAX as usize / std::mem::size_of::<f32>())
         .ok_or_else(|| PyValueError::new_err("batch is too large"))?;
-    let mut flat = Vec::with_capacity(capacity);
+    let mut flat = Vec::new();
+    flat.try_reserve_exact(capacity)
+        .map_err(|_| PyValueError::new_err("not enough memory for this batch"))?;
     flat.extend(rows.into_iter().flatten());
     Ok((count, flat))
 }

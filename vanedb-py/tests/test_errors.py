@@ -191,14 +191,21 @@ def test_seed_accepts_unsigned_boundaries(seed):
 
 
 def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
-    """`rows * dim` overflowed into a capacity panic, escaping the error model.
-
-    `FlatIndex::new` accepted a dimension `ApproxIndexBuilder::build` rejects,
-    so the failure surfaced later as a PanicException rather than a ValueError.
-    """
+    """A dimension no constructor should accept."""
     with pytest.raises(ValueError):
         vanedb.FlatIndex(2**62, vanedb.Metric.L2)
     with pytest.raises(ValueError):
         vanedb.ApproxIndex(2**62, vanedb.Metric.L2)
     with pytest.raises(ValueError):
         vanedb.DiskIndexBuilder(2**62, vanedb.Metric.L2)
+
+
+def test_a_batch_with_huge_dimension_validates_rows_before_allocation():
+    """Invalid row widths must fail before reserving rows * dimension floats."""
+    dim = sys.maxsize // 2
+    for index in (
+        vanedb.FlatIndex(dim, vanedb.Metric.L2),
+        vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=1),
+    ):
+        with pytest.raises(ValueError, match="dimension mismatch"):
+            index.add_batch([0, 1], [[1.0], [1.0]])
