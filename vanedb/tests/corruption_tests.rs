@@ -296,7 +296,7 @@ fn mmap_load_rejects_nonzero_reserved_header_bytes() {
         std::process::id()
     ));
     let mut bytes = disk_file_bytes(DISK_MAGIC, 1, 2, &[7], &[1.0, 2.0]);
-    for reserved in [0_u32, 1, 0x8000_0000, 0] {
+    for reserved in [0_u32, 1, 0x100, 0x1_0000, 0x8000_0000, 0] {
         bytes[28..32].copy_from_slice(&reserved.to_le_bytes());
         fs::write(&path, &bytes).unwrap();
         // SAFETY: this test file is unchanged until this iteration's map drops.

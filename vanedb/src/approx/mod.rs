@@ -189,8 +189,9 @@ impl std::fmt::Debug for ApproxIndex {
 
 /// Per-query options for [`ApproxIndex::search_with`].
 ///
-/// `#[non_exhaustive]`: build with [`SearchParams::new`] and the setters, so
-/// an option added later is not a breaking change.
+/// Build with [`SearchParams::new`] and the setters. The fields are private,
+/// so an option added later is not a breaking change; `#[non_exhaustive]`
+/// records that intent for readers.
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct SearchParams {
