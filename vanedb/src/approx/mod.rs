@@ -276,16 +276,16 @@ impl ApproxIndex {
         self.m
     }
 
-    /// Beam width used while building. Higher means a better graph, built
-    /// more slowly.
+    /// Beam width used while building. Larger values explore more candidates
+    /// and increase construction work; measure recall for your data.
     pub fn ef_construction(&self) -> usize {
         self.ef_construction
     }
 
     /// The seed the level distribution was drawn from.
     ///
-    /// Preserved across save and load, so a reloaded index continues building
-    /// the same graph it would have built had it never been written out.
+    /// Preserved across save and load. This does not promise identical future
+    /// graph topology across engines or dependency versions.
     pub fn seed(&self) -> u64 {
         self.seed
     }
