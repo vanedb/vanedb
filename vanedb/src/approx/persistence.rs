@@ -78,7 +78,8 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
 impl ApproxIndex {
     /// Writes a shared VNDB v2 graph to `path`, preserving stored slots and links.
     ///
-    /// Rust and C++ readers support this format. Older readers do not. To
+    /// The Rust reader supports this format; the C++ engine reads only its
+    /// own legacy graph files. Older readers do not accept it either. To
     /// migrate a legacy Rust graph, load it and save to a new path.
     ///
     /// Written beside the destination and renamed in after an fsync, so an

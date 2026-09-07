@@ -114,7 +114,11 @@ wrong meaning — while the fixture fails at offset 24.
 Regenerate the fixtures only when this table changes, and treat any change to
 them as a format version change.
 
-The remaining format work is the `ApproxIndex` graph payload, which is still
-engine-specific (`HNSW` magic, bincode). Its field table and fixtures will land
-with that implementation rather than being guessed during the repository
-migration.
+The `ApproxIndex` graph payload is specified in
+[`graph/README.md`](graph/README.md) as `VNDB` v2, with fixtures generated from
+that table by `graph/generate.py` and checked in both directions by
+`vanedb/tests/vndb_graph_format.rs`. Legacy `HNSW` files remain loadable.
+
+The remaining work is the C++ side: that engine reads `VNDB` v1 disk files but
+not v2 graph files, so the graph format is specified and anchored but not yet
+cross-engine.

@@ -26,11 +26,14 @@
 //! Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 //! portable scalar path, which is the reference the others must agree with.
 //!
-//! Both formats are little-endian. `DiskIndex` writes `VNDB` v1, a specified,
-//! versioned format anchored to shared fixtures; either engine reads the
-//! other's file, checked by a cross-load test. [`ApproxIndex::save`] is
-//! engine-specific and not yet a stable public format — treat a saved graph as
-//! a way to avoid rebuilding, not as a system of record.
+//! Both formats are little-endian and both are specified. `DiskIndex` writes
+//! `VNDB` v1 and [`ApproxIndex::save`] writes `VNDB` v2; each has a field
+//! table and fixtures generated from that table rather than from the engine,
+//! under `conformance/`. Legacy `HNSW` graph files still load.
+//!
+//! The disk format is cross-engine — either engine reads the other's file,
+//! checked by a cross-load test. The graph format is read by the Rust engine
+//! only; the C++ engine reads its own legacy graph files.
 //!
 //! A header-only C++ implementation is maintained alongside this crate; the two
 //! share graph construction as well as the `DiskIndex` format.

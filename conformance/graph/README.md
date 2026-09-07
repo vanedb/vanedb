@@ -8,8 +8,12 @@ kind and continuation identifiers must never be reinterpreted; incompatible
 encodings require new identifiers while retaining readers for existing files.
 This does not promise that older readers accept future formats.
 
-Both engines reproduce the shared fixtures. Cross-engine tests preserve
-engine-written graphs through load/save and verify further insertions.
+The Rust engine reproduces these fixtures, in both directions: it reads each
+one and re-writing what it read reproduces the bytes
+(`vanedb/tests/vndb_graph_format.rs`). The C++ engine does **not** read this
+format yet — it reads its own legacy graph files — so the cross-engine half of
+this contract is unimplemented. `VNDB` v1 disk files are cross-engine today;
+graph files are not.
 VNDB v1 remains the disk format unchanged. VNDB v2 identifies graph files, with
 kind 1 identifying HNSW. Readers reject other versions and kinds.
 

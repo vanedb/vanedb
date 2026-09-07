@@ -9,9 +9,10 @@ This is the **C++ header-only** implementation in the `cpp/` directory. The
 Rust implementation lives at the repository root and is the primary entry
 point for Rust (`cargo add vanedb`), Python (`pip install vanedb`), and WASM
 consumers.
-This implementation also provides supplementary Python bindings as
-`pip install vanedb-cpp` / `import vanedb_cpp`; it does not own the canonical
-`vanedb` PyPI name.
+This implementation is not published. It once had supplementary Python
+bindings; #100 decided to ship one Python package, so the workflow is gone and
+the name is not registered. The engine stays as reference code and as the
+benchmark's control.
 
 **Why this engine still exists:** it is the other arm of the cross-engine
 benchmark, and a header you can drop into a CMake/Bazel project with no Rust

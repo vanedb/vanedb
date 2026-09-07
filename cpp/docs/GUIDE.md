@@ -123,7 +123,6 @@ The Rust-backed `vanedb` distribution is the canonical Python package. To use
 these supplementary C++ bindings instead:
 
 ```bash
-python -m pip install vanedb-cpp
 ```
 
 From source:
