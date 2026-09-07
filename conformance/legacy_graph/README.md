@@ -29,10 +29,10 @@ single-layer case.
   Tests select the runtime's layout. The legacy RNG stream is therefore not
   a universal wire format.
 
-Tests check IDs, vectors, metrics, graph preservation, and subsequent insertion.
-The C++ roundtrip compares graph and RNG bytes, excluding unordered map order
-and the derived multiplier. Rust checks the decoded topology directly, including
-tombstones, then verifies that a mutated graph survives save/load.
+Rust checks IDs, vectors, metrics, graph preservation and subsequent insertion:
+it decodes the topology directly, including tombstones, then verifies that a
+mutated graph survives save/load. These fixtures are Rust-only. The C++ engine
+has its own legacy graph format (`QVRD`) and no fixture here targets it.
 
 Verify the committed files from the repository root:
 
