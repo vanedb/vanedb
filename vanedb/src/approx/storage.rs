@@ -89,6 +89,7 @@ impl ChunkedVectors {
     }
 
     /// Copies every stored vector into one flat row-major buffer, for saving.
+    #[cfg(test)]
     pub(crate) fn to_flat(&self, count: usize) -> Vec<f32> {
         let mut out = Vec::with_capacity(count * self.dim);
         for iid in 0..count {
@@ -97,8 +98,7 @@ impl ChunkedVectors {
         out
     }
 
-    /// Rebuilds storage from one flat row-major buffer, as written by
-    /// [`to_flat`](Self::to_flat).
+    /// Rebuilds storage from one flat row-major vector buffer.
     pub(crate) fn from_flat(dim: usize, flat: &[f32]) -> Self {
         let mut s = Self::with_capacity(dim, flat.len() / dim);
         for vector in flat.chunks_exact(dim) {
