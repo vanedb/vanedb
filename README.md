@@ -183,8 +183,16 @@ compatibility promise until the release gates pass.
 Rust is the shipping engine. C++ source tests and shared disk-format fixtures
 keep the reference implementation useful for the benchmark comparison.
 
-Release tags are `vanedb-vX.Y.Z` for Python and `vanedb-crate-vX.Y.Z`
-for the Rust crate. The C++ reference is not published to PyPI.
+Release tags are scoped to each distribution:
+
+| Tag | Publishes |
+|---|---|
+| `vanedb-crate-vX.Y.Z` | the `vanedb` crate to crates.io |
+| `vanedb-vX.Y.Z` | the `vanedb` wheels to PyPI |
+
+Separate tags allow each distribution to be verified and published independently.
+The C++ reference is not published to PyPI. See the [changelog](CHANGELOG.md)
+and [security policy](SECURITY.md) for release changes and vulnerability reports.
 
 ## Roadmap
 

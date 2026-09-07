@@ -1,8 +1,6 @@
 name: Publish vanedb crate
 
-# The crate releases on its own tag rather than sharing `vanedb-v*` with the
-# wheels: the name has to be claimed on crates.io before any wheel exists, and
-# a failed crate publish should not strand a half-released set of wheels.
+# Separate crate and Python tags allow independent verification and publication.
 on:
   push:
     tags: ['vanedb-crate-v*']
