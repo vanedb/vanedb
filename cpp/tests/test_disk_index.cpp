@@ -1,6 +1,7 @@
 #include "core/disk_index.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <random>
 #include <thread>
@@ -530,35 +531,72 @@ TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][
   // Both save paths wrote to `filename + ".tmp"`. That is unique per
   // destination, so it never had the extension-replacing collision Rust fixed
   // in vanedb#38 — but two threads saving the *same* path shared one temp
-  // file, interleaved their writes, and whichever renamed last published the
-  // result. detail::temp_path_for adds the pid and a counter.
+  // file and interleaved their writes into it.
+  //
+  // Each writer saves a *differently sized* index, and every candidate is
+  // written once, alone, beforehand. The published file must then be
+  // byte-identical to exactly one candidate. Sharing a temp file blends
+  // several writers' bytes into the file that gets renamed, so it matches
+  // none — which a same-content workload cannot show, because there every
+  // interleaving still produces the right bytes.
   const std::string path = "test_disk_concurrent_save.bin";
+  constexpr size_t kDim = 8, kThreads = 8;
   std::filesystem::remove(path);
 
-  constexpr size_t kDim = 8, kVectors = 256, kThreads = 8;
-  vanedb::DiskIndexBuilder builder(kDim);
-  for (size_t i = 0; i < kVectors; ++i) {
-    std::vector<float> v(kDim, static_cast<float>(i));
-    builder.add(i, v.data());
+  auto fill = [](vanedb::DiskIndexBuilder& b, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+      std::vector<float> v(kDim, static_cast<float>(i));
+      b.add(i, v.data());
+    }
+  };
+  auto read_all = [](const std::string& p) {
+    std::ifstream f(p, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+  };
+
+  // One candidate per writer, each a different size, each written alone.
+  std::vector<std::string> candidates;
+  for (size_t t = 0; t < kThreads; ++t) {
+    vanedb::DiskIndexBuilder b(kDim);
+    fill(b, 64 * (t + 1));
+    const std::string only = "test_disk_candidate_" + std::to_string(t) + ".bin";
+    b.save(only);
+    candidates.push_back(read_all(only));
+    std::filesystem::remove(only);
   }
 
   std::vector<std::thread> writers;
+  std::vector<bool> ok(kThreads, false);
   writers.reserve(kThreads);
   for (size_t t = 0; t < kThreads; ++t) {
-    writers.emplace_back([&builder, &path] { builder.save(path); });
+    writers.emplace_back([&, t] {
+      vanedb::DiskIndexBuilder b(kDim);
+      fill(b, 64 * (t + 1));
+      try {
+        b.save(path);
+        ok[t] = true;
+      } catch (const std::exception&) {
+        // Windows can refuse a rename whose destination another writer is
+        // replacing at that instant. Losing that race is acceptable;
+        // publishing a blend of two writers is not.
+      }
+    });
   }
   for (auto& w : writers) w.join();
+  REQUIRE(std::count(ok.begin(), ok.end(), true) >= 1);
 
-  // Whichever writer won the rename, the published file must be a complete,
-  // loadable index — not a blend of several concurrent writes.
-  vanedb::DiskIndex index(path);
-  REQUIRE(index.size() == kVectors);
-  REQUIRE(index.dimension() == kDim);
-  for (size_t i = 0; i < kVectors; ++i) {
-    REQUIRE(index.contains(i));
+  const std::string published = read_all(path);
+  REQUIRE_FALSE(published.empty());
+  REQUIRE(std::find(candidates.begin(), candidates.end(), published) != candidates.end());
+
+  // Scoped: Windows refuses to delete a mapped file.
+  {
+    vanedb::DiskIndex index(path);
+    REQUIRE(index.size() % 64 == 0);
+    REQUIRE(index.dimension() == kDim);
   }
 
-  // No temp files may survive a clean run.
+  // No temp file may survive a clean run.
   size_t leftovers = 0;
   for (const auto& entry : std::filesystem::directory_iterator(".")) {
     const std::string name = entry.path().filename().string();
@@ -601,11 +639,15 @@ TEST_CASE("DiskIndex - saving twice to one path replaces it", "[disk]") {
   REQUIRE_NOTHROW(second.save(path));
 
   // The second save must have replaced the first, not merged with it.
-  vanedb::DiskIndex index(path);
-  REQUIRE(index.size() == 2);
-  REQUIRE(index.contains(7));
-  REQUIRE(index.contains(9));
-  REQUIRE_FALSE(index.contains(1));
+  // Scoped: Windows refuses to delete a file while it is mapped, so the
+  // DiskIndex has to be destroyed before the cleanup below.
+  {
+    vanedb::DiskIndex index(path);
+    REQUIRE(index.size() == 2);
+    REQUIRE(index.contains(7));
+    REQUIRE(index.contains(9));
+    REQUIRE_FALSE(index.contains(1));
+  }
 
   std::filesystem::remove(path);
 }
