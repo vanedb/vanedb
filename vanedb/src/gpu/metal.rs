@@ -180,6 +180,12 @@ impl MetalCompute {
             GpuMetric::Cosine => &self.cos_pipeline,
         };
 
+        if buffer.n == 0 {
+            // `upload(&[], 0, dim)` is valid, and dispatching a zero-sized
+            // grid is not: Metal's validation layer rejects it.
+            return Ok(Vec::new());
+        }
+
         let n = buffer.n;
         let dim = buffer.dim;
         // Sized from `n`, which came from the caller via `upload`. Checked here
@@ -244,11 +250,9 @@ impl MetalCompute {
         // query length is already validated in `distances`; this is the same
         // check for the other caller-supplied slice.
         if ids.len() != buffer.n {
-            return Err(VaneError::BatchLengthMismatch {
-                ids: ids.len(),
-                vectors: buffer.n,
-                dim: buffer.dim,
-            });
+            return Err(VaneError::InvalidParameter(
+                "ids length must match the uploaded vector count",
+            ));
         }
         let dists = self.distances(query, buffer, metric)?;
         let mut results: Vec<SearchResult> = ids
