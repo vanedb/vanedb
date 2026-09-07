@@ -3,6 +3,9 @@
 //!
 //! Every function here requires AVX2 and FMA; callers reach them through
 //! [`distance_fn`](super::distance_fn), which checks at runtime.
+//!
+//! Each compares `a.len().min(b.len())` elements, matching
+//! [`scalar`](super::scalar); the lengths themselves need not agree.
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -26,8 +29,7 @@ unsafe fn hsum_avx2(v: __m256) -> f32 {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
     // Four independent accumulators hide the FMA latency; a single-acc
     // loop is latency-bound. Mirrors vanedb-cpp src/core/distance.h.
@@ -75,8 +77,7 @@ pub unsafe fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
     // Two-way unroll on top of the three naturally independent chains.
     let mut vdot0 = _mm256_setzero_ps();
@@ -144,8 +145,7 @@ pub unsafe fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2,fma")]
 pub unsafe fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
     // Same latency-hiding unroll as l2_squared.
     let mut acc0 = _mm256_setzero_ps();
