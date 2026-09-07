@@ -443,3 +443,51 @@ fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
         }
     }
 }
+
+#[test]
+fn every_metric_round_trips_and_is_reportable() {
+    // Dot had no coverage through this ABI at all, and no handle could report
+    // the metric it was built with — so a caller opening a file someone else
+    // wrote had no way to confirm their query convention matched.
+    unsafe {
+        for metric in [0u32, 1, 2] {
+            let s = vanedb_capi::vanedb_rs_store_new(2, metric);
+            assert!(!s.is_null());
+            assert_eq!(vanedb_capi::vanedb_rs_store_metric(s), metric);
+            vanedb_capi::vanedb_rs_store_free(s);
+
+            let h = vanedb_capi::vanedb_rs_index_new(2, metric, 16, 4, 40, 7);
+            assert!(!h.is_null());
+            assert_eq!(vanedb_capi::vanedb_rs_index_metric(h), metric);
+            vanedb_capi::vanedb_rs_index_free(h);
+        }
+        // Null handles report 0, which is L2's value: documented, and the
+        // reason a caller must check the handle first.
+        assert_eq!(vanedb_capi::vanedb_rs_store_metric(std::ptr::null()), 0);
+    }
+}
+
+#[test]
+fn dot_ranks_by_largest_inner_product_through_the_abi() {
+    unsafe {
+        let s = vanedb_capi::vanedb_rs_store_new(2, 2); // dot
+        assert!(!s.is_null());
+        for (id, v) in [(1u64, [1.0f32, 0.0]), (2, [4.0, 0.0]), (3, [0.0, 1.0])] {
+            assert_eq!(vanedb_capi::vanedb_rs_store_add(s, id, v.as_ptr()), 0);
+        }
+        let q = [1.0f32, 0.0];
+        let mut ids = [0u64; 3];
+        let mut ds = [0f32; 3];
+        let n = vanedb_capi::vanedb_rs_store_search(
+            s,
+            q.as_ptr(),
+            3,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 3);
+        assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
+        assert_eq!(ids[2], 3);
+        vanedb_capi::vanedb_rs_store_free(s);
+    }
+}

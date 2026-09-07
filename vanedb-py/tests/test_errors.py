@@ -188,3 +188,17 @@ def test_seed_accepts_unsigned_boundaries(seed):
     index = vanedb.ApproxIndex(2, seed=seed, capacity=1)
     index.add(1, [1.0, 0.0])
     assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
+
+
+def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
+    """`rows * dim` overflowed into a capacity panic, escaping the error model.
+
+    `FlatIndex::new` accepted a dimension `ApproxIndexBuilder::build` rejects,
+    so the failure surfaced later as a PanicException rather than a ValueError.
+    """
+    with pytest.raises(ValueError):
+        vanedb.FlatIndex(2**62, vanedb.Metric.L2)
+    with pytest.raises(ValueError):
+        vanedb.ApproxIndex(2**62, vanedb.Metric.L2)
+    with pytest.raises(ValueError):
+        vanedb.DiskIndexBuilder(2**62, vanedb.Metric.L2)

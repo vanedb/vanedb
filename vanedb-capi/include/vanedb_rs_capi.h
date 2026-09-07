@@ -216,6 +216,38 @@ uintptr_t vanedb_rs_store_len(const vanedb_rs_store *s);
 uintptr_t vanedb_rs_store_dimension(const vanedb_rs_store *s);
 
 /**
+ * Metric the store was built with: 0 = L2, 1 = cosine, 2 = dot.
+ *
+ * Returns 0 for a null handle, which is indistinguishable from L2 — check the
+ * handle before trusting it, as with every other accessor here.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new`, or null.
+ */
+uint32_t vanedb_rs_store_metric(const vanedb_rs_store *s);
+
+/**
+ * Metric the index was built with: 0 = L2, 1 = cosine, 2 = dot.
+ *
+ * A loaded index reads this from the file, so it is the only way a caller can
+ * confirm their query convention matches what was stored. Returns 0 for null.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uint32_t vanedb_rs_index_metric(const vanedb_rs_index *h);
+
+/**
+ * Metric the mapped file was written with: 0 = L2, 1 = cosine, 2 = dot.
+ *
+ * Returns 0 for null.
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+ */
+uint32_t vanedb_rs_disk_metric(const vanedb_rs_disk *d);
+
+/**
  * Whether `id` is present. False if `s` is null.
  *
  * # Safety

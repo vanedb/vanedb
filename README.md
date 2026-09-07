@@ -98,6 +98,11 @@ first. The native `ApproxIndex` supports `save`/`load`. `DiskIndex` is written
 by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
 and is rebuilt on each run.
 
+Inspect an index's metric with `metric()` in Rust or WebAssembly, the `metric`
+property in Python, or the corresponding `vanedb_rs_*_metric` C accessor.
+This is useful after loading a file: queries must use its stored distance
+convention. Rust `ApproxIndex::get` and `get_vector` return the same stored vector.
+
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
 hint rather than a ceiling. Vector storage grows on demand.
 

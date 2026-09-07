@@ -106,7 +106,7 @@ and toolchain for checks that cannot run locally.
   `Ord` tie-breaks on id, which makes full sorts slow — but `select_nth_unstable`
   over the whole candidate array is also wrong, because it swaps ~n 16-byte
   structs through a buffer that outgrows L1. Scans stream into a k-element heap
-  (`store/topk.rs`, used by `store/mod.rs` and `disk.rs`); the graph search sorts
+  (`flat/topk.rs`, used by `flat/mod.rs` and `disk.rs`); the graph search sorts
   its ef-bounded candidate set. Keep the bound.
 - **SIMD kernels** use multi-accumulator unrolling (4 accumulators for l2/dot,
   2-way for cosine) because single-accumulator FMA loops are latency-bound.

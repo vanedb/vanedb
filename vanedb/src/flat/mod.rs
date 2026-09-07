@@ -66,6 +66,14 @@ impl FlatIndex {
         if dim == 0 {
             return Err(VaneError::ZeroDimension);
         }
+        // Same bound ApproxIndexBuilder::build applies. Without it a dim near
+        // usize::MAX is accepted here and overflows later, where the failure
+        // surfaces as a capacity panic rather than an error.
+        if dim.checked_mul(std::mem::size_of::<f32>()).is_none() {
+            return Err(VaneError::InvalidParameter(
+                "dim * size_of::<f32>() overflows usize",
+            ));
+        }
         Ok(Self {
             dim,
             metric,

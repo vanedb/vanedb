@@ -192,6 +192,19 @@ enum PyMetric {
     Dot = 2,
 }
 
+impl From<Metric> for PyMetric {
+    fn from(m: Metric) -> Self {
+        match m {
+            Metric::Cosine => PyMetric::Cosine,
+            Metric::Dot => PyMetric::Dot,
+            // `Metric` is #[non_exhaustive]; a metric this binding does not
+            // know cannot be constructed through it, so L2 is unreachable-but-
+            // total rather than a silent substitution.
+            _ => PyMetric::L2,
+        }
+    }
+}
+
 impl From<PyMetric> for Metric {
     fn from(m: PyMetric) -> Self {
         match m {
@@ -279,6 +292,14 @@ impl PyStore {
     /// program to one engine (#85).
     fn size(&self, py: Python<'_>) -> usize {
         py.detach(|| self.inner.len())
+    }
+
+    /// The metric this index was built with.
+    ///
+    /// Use this to confirm the distance convention expected by queries.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
     }
 
     #[getter]
@@ -434,6 +455,16 @@ impl PyIndex {
         py.detach(|| self.inner.size())
     }
 
+    /// The metric this index was built with.
+    ///
+    /// Worth having on a loaded index: `ApproxIndex.load` reads the metric out
+    /// of the file, and without this the caller cannot check that their query
+    /// convention matches.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
+    }
+
     #[getter]
     fn dimension(&self) -> usize {
         self.inner.dimension()
@@ -545,12 +576,15 @@ impl PyDiskStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map(|v| v.into_owned()).map_err(to_pyerr)
+    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        // Reads through the mapping, which can take a major page fault on a
+        // cold file — the same reason `search` detaches.
+        py.detach(|| self.inner.get(id).map(|v| v.into_owned()))
+            .map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
     fn __len__(&self) -> usize {
@@ -559,6 +593,16 @@ impl PyDiskStore {
 
     fn size(&self) -> usize {
         self.inner.size()
+    }
+
+    /// The metric this index was built with.
+    ///
+    /// Worth having on a loaded index: `open` reads the metric out of the
+    /// file, and without this the caller cannot check that their query
+    /// convention matches.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
     }
 
     #[getter]

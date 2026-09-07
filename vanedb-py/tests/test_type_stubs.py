@@ -5,6 +5,7 @@ confidently autocompletes a method that does not exist.
 """
 
 import ast
+import inspect
 import pathlib
 
 import vanedb
@@ -74,3 +75,23 @@ def test_no_stubbed_member_has_disappeared_from_the_runtime():
         assert runtime is not None, f"stub declares {cls_name}, which does not exist"
         extra = {m for m in stubbed if not hasattr(runtime, m)}
         assert not extra, f"{cls_name} stub declares {sorted(extra)}, which the runtime lacks"
+
+
+def test_stub_properties_match_runtime_descriptors():
+    for cls in _stub_tree().body:
+        if not isinstance(cls, ast.ClassDef):
+            continue
+        runtime = getattr(vanedb, cls.name)
+        for member in cls.body:
+            if not isinstance(member, ast.FunctionDef):
+                continue
+            if any(isinstance(d, ast.Attribute) and d.attr == "setter"
+                   for d in member.decorator_list):
+                continue
+            properties = sum(isinstance(d, ast.Name) and d.id == "property"
+                             for d in member.decorator_list)
+            descriptor = inspect.isdatadescriptor(getattr(runtime, member.name))
+            assert properties == int(descriptor), (
+                f"{cls.name}.{member.name}: stub has {properties} property decorators; "
+                f"runtime data descriptor={descriptor}"
+            )

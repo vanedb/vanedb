@@ -29,6 +29,25 @@ against. This section records what the first release will contain.
 - GitHub Actions are pinned to commits; Rust CI checks dependency advisories,
   licences, bans and sources with `cargo-deny`.
 
+### Changed — public API, before anything is published
+
+- `SearchResult` is `#[non_exhaustive]`, so a field can be added later without
+  a major version. `PartialEq`/`Ord` stay defined over `(id, distance)`.
+- `DiskIndex::get` returns `Cow<'_, [f32]>` rather than `&[f32]`, so a store
+  that encodes vectors as anything but native `f32` is still possible. It
+  borrows today.
+- `ApproxIndex::search_with(query, k, &SearchParams)` takes per-query options.
+  `SearchParams` carries an unused lifetime deliberately: one cannot be added
+  later, and without it a borrowed filter would be impossible forever.
+- The C ABI rejects an unrecognised metric instead of using L2, and its
+  `ef_search` argument is per-call — it previously mutated the shared index and
+  was written into saved files.
+- Python raises `ValueError`, not `OverflowError`, for every negative size, and
+  releases the GIL in every method that reaches the index lock.
+- `FlatIndex::size`, `DiskIndex::len`/`is_empty`, `DiskIndexBuilder::len`/
+  `is_empty` and `ApproxIndex::get` added, so the count and read spellings
+  match across index types.
+
 ### Added
 
 - `DiskIndex` and `DiskIndexBuilder` appear in the published documentation,
@@ -38,13 +57,17 @@ against. This section records what the first release will contain.
   `build.rs` fails loudly instead of leaving a stale header in place.
 - Rust `SearchParams` selects a graph query's beam width without changing
   defaults used by other callers.
+- A committed `HNSW` v1 file, loaded as bytes, so a change to the encoder
+  cannot silently stop older files from loading.
+- `DiskIndex::open` documents that the mapped file must not change while open,
+  on the Rust, C and Python surfaces.
 
 ### Changed
 
 - `DiskIndex` uses VNDB v1. New `ApproxIndex::save` files use the shared VNDB v2
-  graph format; legacy HNSW files remain readable. The graph format is a release
-  candidate without a public 1.0.0 compatibility promise yet. Keep originals
-  and source vectors while verifying migration.
+  graph format; legacy HNSW files remain readable. Valid VNDB v1/v2 files written by
+  1.0.0 remain readable by the Rust engine throughout 1.x, within documented
+  resource limits. Keep originals and source vectors while verifying migration.
 - Python methods that block — `save`, `load`, `upsert`, `remove`, and the
   `DiskIndexBuilder` methods — release the GIL. `DiskIndexBuilder` takes
   `&self` like every other class and can be shared between threads.

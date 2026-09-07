@@ -19,6 +19,14 @@ vanedb-py/python/vanedb/*.dylib
 # their mmap stores on a real filesystem (see bench/benches/mmap.rs).
 *.mmap
 *.bin
+# Test fixtures are the exception: a committed byte file is the whole point of
+# a format-compatibility test, and `*.bin` above silently ate the first one.
+!vanedb/tests/fixtures/*.bin
+!conformance/**/*.bin
 
-# Stray files from shell redirects; never intentional.
+# Swept in by `git add -A` and never intentional: stray shell redirects,
+# and per-developer editor configuration.
 /0
+.zed/
+.idea/
+*.code-workspace

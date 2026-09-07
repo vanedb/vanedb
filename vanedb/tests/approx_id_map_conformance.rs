@@ -14,7 +14,7 @@ const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
 const DIM: usize = 2;
 
-/// Field-order mirror of the private `HnswData` in `src/hnsw/persistence.rs`.
+/// Field-order mirror of the private `HnswData` in `src/approx/persistence.rs`.
 /// bincode encodes by field order, so this serializes identically.
 #[derive(serde::Serialize)]
 struct HnswDataMirror {

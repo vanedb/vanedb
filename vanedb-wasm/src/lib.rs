@@ -68,6 +68,18 @@ fn count(value: f64, name: &str) -> Result<usize, JsError> {
     Ok(value as usize)
 }
 
+/// The spelling `parse_metric` accepts, so a reported metric can be fed
+/// straight back into a constructor.
+fn metric_name(m: Metric) -> &'static str {
+    match m {
+        Metric::Cosine => "cosine",
+        Metric::Dot => "dot",
+        // Metric is #[non_exhaustive]; a variant this binding cannot parse
+        // cannot reach an index built through it.
+        _ => "l2",
+    }
+}
+
 fn parse_metric(metric: &str) -> Result<Metric, JsError> {
     match metric {
         "l2" | "L2" => Ok(Metric::L2),
@@ -139,6 +151,12 @@ impl WasmStore {
         self.inner.len()
     }
 
+    /// The metric this index was built with, in the spelling the constructor
+    /// accepts.
+    pub fn metric(&self) -> String {
+        metric_name(self.inner.metric()).to_string()
+    }
+
     pub fn dimension(&self) -> usize {
         self.inner.dimension()
     }
@@ -206,6 +224,12 @@ impl WasmIndex {
 
     pub fn size(&self) -> usize {
         self.inner.size()
+    }
+
+    /// The metric this index was built with, in the spelling the constructor
+    /// accepts.
+    pub fn metric(&self) -> String {
+        metric_name(self.inner.metric()).to_string()
     }
 
     pub fn dimension(&self) -> usize {

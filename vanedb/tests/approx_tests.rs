@@ -435,3 +435,49 @@ fn builder_rejects_unallocatable_capacity() {
         "expected InvalidParameter, got {err:?}"
     );
 }
+
+#[test]
+fn per_query_ef_search_actually_takes_effect() {
+    // Nothing else pins this: the C ABI test proves `search_with` does not
+    // mutate the index, which a version ignoring `params` entirely would also
+    // satisfy. This pins that the value is used.
+    use vanedb::SearchParams;
+    // Distinct vectors: a modular pattern repeats and ties every distance,
+    // which makes any beam width return the same answer.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 40) as f32 / 16_777_216.0
+    };
+    let index = ApproxIndex::builder(32, Metric::L2)
+        .capacity(3000)
+        .seed(7)
+        .build()
+        .unwrap();
+    for i in 0..3000u64 {
+        let v: Vec<f32> = (0..32).map(|_| next()).collect();
+        index.add(i, &v).unwrap();
+    }
+    let query: Vec<f32> = (0..32).map(|_| next()).collect();
+
+    index.set_ef_search(1);
+    let narrow = index.search(&query, 10).unwrap();
+    let wide = index
+        .search_with(&query, 10, &SearchParams::new().ef_search(600))
+        .unwrap();
+    assert_eq!(
+        index.get_ef_search(),
+        1,
+        "search_with must not mutate the index"
+    );
+    assert_ne!(
+        narrow, wide,
+        "a 600-wide beam returned exactly the 1-wide result; the parameter is being ignored"
+    );
+
+    // And it matches setting the same width index-wide.
+    index.set_ef_search(600);
+    assert_eq!(index.search(&query, 10).unwrap(), wide);
+}

@@ -662,3 +662,20 @@ fn mmap_load_rejects_invalid_magic() {
     assert!(format!("{err}").contains("magic"), "got: {err}");
     let _ = fs::remove_file(&p);
 }
+
+#[test]
+fn hnsw_load_accepts_the_checked_in_v1_fixture() {
+    // Loads bytes committed to the repository, not bytes this test just
+    // encoded. The mirror-based test above re-serializes with today's bincode,
+    // so mirror and encoder change together and it stays green even if a real
+    // file from an earlier release has stopped loading. This one cannot: the
+    // bytes are frozen.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hnsw_v1.bin");
+    let idx = ApproxIndex::load(&path).expect("the committed v1 fixture must load");
+    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.capacity(), 4);
+    assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
+    assert_eq!(idx.get_vector(20).unwrap(), vec![0.0, 1.0]);
+    let hits = idx.search(&[1.0, 0.1], 1).unwrap();
+    assert_eq!(hits[0].id, 10);
+}
