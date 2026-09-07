@@ -72,9 +72,10 @@ fn main() -> ExitCode {
         env!("VANEDB_MONOREPO_REV"),
     ));
     md.push_str(&format!(
-        "Workload: dim={dim}, n={n}, k={k}, L2. Latencies are medians of 501 \
-         interleaved paired samples (one query) after a joint warmup; recall is \
-         averaged over {queries} queries. Both engines' data stays resident \
+        "Workload: uniform-random vectors, dim={dim}, n={n}, k={k}, L2. Latencies \
+         are medians of 501 interleaved paired samples after a joint warmup. \
+         Search samples sweep {queries} queries and report time per query; recall is \
+         averaged over those queries. Both engines' data stays resident \
          in one process (interleaved construction).\n\n"
     ));
     // Regenerating this file must not lose the caveats: anything a reader
@@ -86,7 +87,12 @@ fn main() -> ExitCode {
          batches of 1000 calls, which inlines differently from criterion's \
          per-call harness.\n\n"
     ));
-    md.push_str("| Op | C++ (ns) | Rust (ns) | ratio (rs/cpp) |\n|---|---:|---:|---:|\n");
+    md.push_str(
+        "Synthetic recall does not predict recall for an embedding corpus. \
+        Measure against exact search on your own vectors and queries before choosing \
+        graph parameters.\n\n",
+    );
+    md.push_str("| Op | C++ (ns/call) | Rust (ns/call) | ratio (rs/cpp) |\n|---|---:|---:|---:|\n");
 
     unsafe {
         // Distance — timed in batches of 1000: a single ~10 ns call is below
@@ -109,7 +115,11 @@ fn main() -> ExitCode {
         // Ratio from the raw batch totals — dividing to per-call ns first
         // truncates ~13.9 vs ~15.0 into 13 vs 15 and distorts the ratio.
         let ratio = rs as f64 / cpp as f64;
-        md.push_str(&format!("| l2_sq | {cpp} | {rs} | {ratio:.2} |\n"));
+        md.push_str(&format!(
+            "| l2_sq | {:.1} | {:.1} | {ratio:.2} |\n",
+            cpp as f64 / 1000.0,
+            rs as f64 / 1000.0,
+        ));
 
         // FlatIndex search. Setup asserts keep a failed engine from benchmarking
         // as infinitely fast.
