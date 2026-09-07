@@ -389,6 +389,20 @@ fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
     }
 }
 
+/// Reads a handle's own `ef_search` without dereferencing the raw pointer.
+///
+/// The C ABI hands out `Box::into_raw`, so reconstituting the `Box` is the
+/// ownership round-trip that matches how the handle was made, and it gives a
+/// static analyser a well-formed borrow to reason about instead of a bare
+/// `(*h)`.
+fn ef_search_of(h: *mut vanedb_capi::vanedb_rs_index) -> usize {
+    let owned: Box<vanedb_capi::vanedb_rs_index> = unsafe { Box::from_raw(h) };
+    let ef = owned.get_ef_search();
+    // Hand ownership straight back; the C ABI still frees this handle.
+    let _ = Box::into_raw(owned);
+    ef
+}
+
 #[test]
 fn a_per_call_ef_search_does_not_change_the_index() {
     // The parameter reads as per-call, so it must not be a store: mutating the
@@ -401,7 +415,7 @@ fn a_per_call_ef_search_does_not_change_the_index() {
             let v = [i as f32, (i * 2) as f32];
             assert_eq!(vanedb_capi::vanedb_rs_index_add(h, i, v.as_ptr()), 0);
         }
-        let before = (*h).get_ef_search();
+        let before = ef_search_of(h);
 
         let q = [1.0f32, 2.0];
         let mut ids = [0u64; 5];
@@ -416,7 +430,7 @@ fn a_per_call_ef_search_does_not_change_the_index() {
         );
         assert_eq!(n, 5);
         assert_eq!(
-            (*h).get_ef_search(),
+            ef_search_of(h),
             before,
             "a per-call ef_search must leave the index's own setting alone"
         );
