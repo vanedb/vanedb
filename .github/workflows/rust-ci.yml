@@ -38,8 +38,16 @@ jobs:
       - run: cargo check -p vanedb-py --locked
 
   wheel-py:
-    name: Python wheel (build, install, test)
+    name: Python wheel (maturin ${{ matrix.maturin-label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - maturin-label: latest
+            maturin-version: ''
+          - maturin-label: minimum
+            maturin-version: v1.9.3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -55,6 +63,7 @@ jobs:
       - name: Build the wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
+          maturin-version: ${{ matrix.maturin-version }}
           target: x86_64
           manylinux: '2_17'
           args: >-
@@ -86,7 +95,7 @@ jobs:
         include:
           - platform: Linux x86_64
             artifact: linux-x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             features: disk
           - platform: Linux ARM64
             artifact: linux-aarch64
@@ -96,10 +105,12 @@ jobs:
             artifact: macos-aarch64
             runner: macos-latest
             features: disk,gpu-metal
+            deployment: '11.0'
           - platform: macOS x86_64
             artifact: macos-x86_64
             runner: macos-15-intel
             features: disk
+            deployment: '10.12'
           - platform: Windows x86_64
             artifact: windows-x86_64
             runner: windows-latest
@@ -111,6 +122,8 @@ jobs:
           toolchain: stable
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
       - name: Build and run C consumer acceptance
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
         run: |
           cargo build -p vanedb-capi --release --locked
           cmake -S vanedb-capi/examples -B target/c-example -DCMAKE_BUILD_TYPE=Release

@@ -12,13 +12,16 @@ development artifacts until a release is tagged. For Node.js, install the
 tarball from its `nodejs/` directory:
 
 ```sh
-npm install /path/to/nodejs/vanedb-wasm-<version>.tgz
+npm install /path/to/nodejs/vanedb-wasm-<version>-nodejs.tgz
 ```
 
 Then use `const { ApproxIndex } = require('vanedb-wasm')` in your application.
-For a browser, extract the tarball from `web/` and serve its `package/`
+For a browser, extract `web/vanedb-wasm-<version>-web.tgz` and serve its `package/`
 directory over HTTP. The browser example below works with the import changed
 to `./package/vanedb_wasm.js`.
+
+Each tarball has a `.tgz.sha256` checksum sidecar. The target suffix distinguishes
+the downloadable assets; both retain the JavaScript package name `vanedb-wasm`.
 
 To build from source, install Rust, the `wasm32-unknown-unknown` target, and
 `wasm-pack`. Node.js is needed for the Node example. Run from the repository root:

@@ -46,8 +46,11 @@ allocation, then validate the complete graph before exposing an index. Dimension
 and capacity must be nonzero; capacity is capped at 100 million slots. Sizes
 must fit the reader's address space and available memory. Readers allocate
 storage for saved slots. C++ treats capacity as a hard insertion limit; Rust
-can grow beyond the original hint. Writers
-preserve slot order, adjacency order, IDs, tombstones, and vector bits. They do
+can grow beyond the original hint up to the same 100-million stored-slot limit.
+Rust rejects additions and whole batches that exceed this limit before changing
+the graph. An upsert consumes one new slot, even when replacing an existing ID;
+a rejected upsert preserves that entry. Compact tombstones to reclaim room.
+Writers preserve slot order, adjacency order, IDs, tombstones, and vector bits. They do
 not rebuild or compact the graph as a side effect of saving.
 
 ## Continuation encodings
@@ -62,6 +65,14 @@ independently building the same input does today.
   in 0–624, separated by ASCII whitespace.
 - 3: C++ libc++/MSVC MT19937 stream: 624 decimal u32 state words separated by
   ASCII whitespace.
+
+Rust `StdRng` does not promise the same output across dependency releases or
+platforms. Encoding 1 preserves the graph and supports seed-based continuation;
+it is not a promise that future dependency versions reproduce subsequent
+insertions byte for byte. Review any RNG dependency or level-generation change
+against the fixed fixtures and save/load continuation tests. If a future version
+requires a distinct, reproducible generator contract, assign a new continuation
+encoding and retain the reader for existing files; do not silently redefine it.
 
 Words contain decimal digits only. C++ seeds its fallback MT19937 from the
 low 32 bits of the header seed, while preserving the full seed in the file.

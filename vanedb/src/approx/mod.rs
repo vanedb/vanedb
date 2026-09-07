@@ -28,6 +28,18 @@ const RESERVE_CAP: usize = 1 << 20;
 /// a bug in the caller, not a plan.
 pub(super) const MAX_ELEMENTS: usize = 100_000_000;
 
+fn check_slot_growth(stored: usize, additional: usize) -> Result<()> {
+    if stored
+        .checked_add(additional)
+        .is_none_or(|total| total > MAX_ELEMENTS)
+    {
+        return Err(VaneError::InvalidParameter(
+            "stored slots exceed the 100 million persistence limit; compact deleted slots first",
+        ));
+    }
+    Ok(())
+}
+
 mod graph_format;
 mod persistence;
 mod storage;
@@ -210,7 +222,8 @@ impl ApproxIndex {
     ///
     /// A hint, not a limit: storage grows as vectors arrive, so adding beyond
     /// this succeeds. It exists so a known-size bulk load can avoid growth
-    /// pauses.
+    /// pauses. The persistence format limits the graph to 100 million stored
+    /// slots, including tombstones; compact deleted slots to reclaim room.
     pub fn capacity(&self) -> usize {
         self.max_elements
     }
@@ -239,7 +252,8 @@ impl ApproxIndex {
     /// The old slot is tombstoned rather than overwritten: its graph links
     /// were built for the old vector's position and would be wrong for the
     /// new one. That leaves a slot behind, so a long upsert loop still needs
-    /// [`compact`](Self::compact).
+    /// [`compact`](Self::compact). At the 100 million stored-slot limit, this
+    /// returns an error and leaves the existing entry unchanged.
     pub fn upsert(&self, id: u64, vector: &[f32]) -> Result<()> {
         if vector.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
@@ -250,6 +264,7 @@ impl ApproxIndex {
         validate_finite(vector, "vector")?;
 
         let mut inner = self.inner.write();
+        check_slot_growth(inner.count, 1)?;
         if let Some(iid) = inner.id_map.remove(&id) {
             inner.deleted[iid] = true;
             inner.live -= 1;
@@ -351,6 +366,9 @@ impl ApproxIndex {
     }
 
     /// Insert a vector into the HNSW graph.
+    ///
+    /// Returns an error at 100 million stored slots, including tombstones.
+    /// Call [`compact`](Self::compact) to reclaim deleted slots.
     pub fn add(&self, id: u64, vector: &[f32]) -> Result<()> {
         if vector.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
@@ -366,15 +384,16 @@ impl ApproxIndex {
             return Err(VaneError::DuplicateId { id });
         }
 
+        check_slot_growth(inner.count, 1)?;
         self.insert_into(&mut inner, id, vector);
         Ok(())
     }
 
     /// Insert many vectors under a single lock acquisition. `vectors` is the
     /// row-major concatenation of `ids.len()` vectors of `dimension()` floats.
-    /// All-or-nothing: the batch shape and every id are validated before any
-    /// insert, so an error leaves the index unchanged. Levels are drawn from the RNG
-    /// in batch order, so the resulting graph is identical to serial `add`.
+    /// All-or-nothing: the batch shape, stored-slot limit and every id are
+    /// validated before any insert, so an error leaves the index unchanged.
+    /// Levels are drawn in batch order, producing the same graph as serial `add`.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
         // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
         // wrapped zero would match an empty slice, accepting a batch that
@@ -403,6 +422,7 @@ impl ApproxIndex {
             }
         }
 
+        check_slot_growth(inner.count, ids.len())?;
         for (&id, chunk) in ids.iter().zip(vectors.chunks_exact(self.dim)) {
             self.insert_into(&mut inner, id, chunk);
         }
@@ -411,13 +431,13 @@ impl ApproxIndex {
 
     /// Graph insertion body shared by `add` and `add_batch`. Caller must hold
     /// the write lock and have already validated dimension and id
-    /// uniqueness — from here on insertion cannot fail.
+    /// uniqueness and stored-slot limit — from here on insertion cannot fail.
     fn insert_into(&self, inner: &mut Inner, id: u64, vector: &[f32]) {
         let iid = inner.count;
         inner.count += 1;
 
         // Storage grows here rather than being pre-sized to capacity, so an
-        // empty index costs nothing and there is no ceiling to hit (#90).
+        // empty index costs nothing and the reservation hint is not a ceiling.
         inner.vectors.push(vector);
         inner.deleted.push(false);
         inner.live += 1;
@@ -1031,6 +1051,61 @@ mod tests {
         // The graph must still be usable well past the hint.
         let hits = idx.search(&[49.0, 49.0], 1).unwrap();
         assert_eq!(hits[0].id, 49);
+    }
+
+    // Exercise the real public mutation paths at the format boundary without
+    // allocating 100 million nodes. Restore the simulated count before checking
+    // the graph, so any partial mutation remains observable.
+    fn rejects_growth_unchanged(count: usize, operation: impl FnOnce(&ApproxIndex) -> Result<()>) {
+        let index = ApproxIndex::builder(1, Metric::L2)
+            .capacity(1)
+            .build()
+            .unwrap();
+        index.add(7, &[1.0]).unwrap();
+        let snapshot = || {
+            let inner = index.inner.read();
+            let mut bytes = Vec::new();
+            graph_format::write(&mut bytes, &index, &inner).unwrap();
+            bytes
+        };
+        let before = snapshot();
+        index.inner.write().count = count;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(&index)));
+        let after_count = index.inner.read().count;
+        index.inner.write().count = 1;
+        assert!(matches!(
+            result.expect("growth must return an error, not panic"),
+            Err(VaneError::InvalidParameter(_))
+        ));
+        assert_eq!(after_count, count);
+        assert_eq!(snapshot(), before, "failed growth changed the graph");
+        assert_eq!(index.get_vector(7).unwrap(), [1.0]);
+    }
+
+    #[test]
+    fn stored_slot_limit_accepts_the_boundary_and_rejects_overflow() {
+        assert!(check_slot_growth(MAX_ELEMENTS - 1, 1).is_ok());
+        assert!(check_slot_growth(MAX_ELEMENTS, 0).is_ok());
+        assert!(check_slot_growth(MAX_ELEMENTS, 1).is_err());
+        assert!(check_slot_growth(usize::MAX, 1).is_err());
+    }
+
+    #[test]
+    fn add_rejects_the_persistence_slot_limit_without_mutation() {
+        rejects_growth_unchanged(MAX_ELEMENTS, |index| index.add(8, &[2.0]));
+    }
+
+    #[test]
+    fn batch_rejects_the_persistence_slot_limit_atomically() {
+        rejects_growth_unchanged(MAX_ELEMENTS - 1, |index| {
+            index.add_batch(&[8, 9], &[2.0, 3.0])
+        });
+    }
+
+    #[test]
+    fn upsert_rejects_the_persistence_slot_limit_without_deleting_the_old_id() {
+        rejects_growth_unchanged(MAX_ELEMENTS, |index| index.upsert(7, &[2.0]));
+        rejects_growth_unchanged(MAX_ELEMENTS, |index| index.upsert(8, &[2.0]));
     }
 
     #[test]

@@ -10,8 +10,25 @@ const result = document.querySelector('#result');
 function check(condition, message) {
     if (!condition) throw new Error(message);
 }
+function rejectsNumber(operation) {
+    try { operation(); }
+    catch (error) {
+        check(/must be an integer between/.test(error.message), 'wrong numeric error');
+        return;
+    }
+    throw new Error('invalid number was accepted');
+}
+const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
 try {
     await init();
+    for (const value of invalidNumbers) {
+        rejectsNumber(() => new FlatIndex(value, 'l2'));
+        for (const position of [0, 2, 3, 4]) {
+            const args = [3, 'l2', 2, 4, 16];
+            args[position] = value;
+            rejectsNumber(() => new ApproxIndex(...args));
+        }
+    }
     for (const metric of ['l2', 'cosine', 'dot']) {
         for (const create of [
             () => new FlatIndex(3, metric),
@@ -22,6 +39,14 @@ try {
                 const id = 2n ** 64n - 1n;
                 index.add_batch(new BigUint64Array([id, 1n]),
                     new Float32Array([1, 0, 0, 0, 1, 0]));
+                for (const value of invalidNumbers) {
+                    rejectsNumber(() => index.search(new Float32Array([1, 0, 0]), value));
+                    if (index instanceof ApproxIndex) {
+                        index.ef_search = 16;
+                        rejectsNumber(() => { index.ef_search = value; });
+                        check(index.ef_search === 16, 'invalid setting changed ef_search');
+                    }
+                }
                 const hits = index.search(new Float32Array([1, 0, 0]), 2);
                 try {
                     check(hits.ids.length === 2 && hits.ids[0] === id, 'wrong nearest ID');

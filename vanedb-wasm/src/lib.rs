@@ -57,6 +57,17 @@ fn one_id(id: BigInt) -> Result<u64, JsError> {
     u64::try_from(id).map_err(|_| JsError::new("id must be between 0 and 2**64 - 1"))
 }
 
+// Preserve the number until validation: Wasm's i32 boundary would silently
+// truncate fractions and wrap negative or oversized JavaScript numbers.
+fn count(value: f64, name: &str) -> Result<usize, JsError> {
+    if !value.is_finite() || value.fract() != 0.0 || !(0.0..=u32::MAX as f64).contains(&value) {
+        return Err(JsError::new(&format!(
+            "{name} must be an integer between 0 and 4294967295"
+        )));
+    }
+    Ok(value as usize)
+}
+
 fn parse_metric(metric: &str) -> Result<Metric, JsError> {
     match metric {
         "l2" | "L2" => Ok(Metric::L2),
@@ -84,9 +95,9 @@ pub struct WasmStore {
 #[wasm_bindgen(js_class = FlatIndex)]
 impl WasmStore {
     #[wasm_bindgen(constructor)]
-    pub fn new(dim: usize, metric: &str) -> Result<WasmStore, JsError> {
+    pub fn new(dim: f64, metric: &str) -> Result<WasmStore, JsError> {
         let m = parse_metric(metric)?;
-        let inner = FlatIndex::new(dim, m).map_err(to_jserr)?;
+        let inner = FlatIndex::new(count(dim, "dimension")?, m).map_err(to_jserr)?;
         Ok(Self { inner })
     }
 
@@ -107,8 +118,8 @@ impl WasmStore {
     /// parallel by index. Ids are never narrowed to `f32`: values at or above
     /// 2^24 are not exactly representable, so distinct records collided and
     /// callers could act on the wrong record (#39).
-    pub fn search(&self, query: &[f32], k: usize) -> Result<WasmSearchResults, JsError> {
-        let results = self.inner.search(query, k).map_err(to_jserr)?;
+    pub fn search(&self, query: &[f32], k: f64) -> Result<WasmSearchResults, JsError> {
+        let results = self.inner.search(query, count(k, "k")?).map_err(to_jserr)?;
         Ok(WasmSearchResults::from(results))
     }
 
@@ -150,17 +161,17 @@ impl WasmIndex {
 
     #[wasm_bindgen(constructor)]
     pub fn new(
-        dim: usize,
+        dim: f64,
         metric: &str,
-        capacity: usize,
-        m: usize,
-        ef_construction: usize,
+        capacity: f64,
+        m: f64,
+        ef_construction: f64,
     ) -> Result<WasmIndex, JsError> {
         let met = parse_metric(metric)?;
-        let inner = ApproxIndex::builder(dim, met)
-            .capacity(capacity)
-            .m(m)
-            .ef_construction(ef_construction)
+        let inner = ApproxIndex::builder(count(dim, "dimension")?, met)
+            .capacity(count(capacity, "capacity")?)
+            .m(count(m, "m")?)
+            .ef_construction(count(ef_construction, "ef_construction")?)
             .seed(42)
             .build()
             .map_err(to_jserr)?;
@@ -184,8 +195,8 @@ impl WasmIndex {
     /// parallel by index. Ids are never narrowed to `f32`: values at or above
     /// 2^24 are not exactly representable, so distinct records collided and
     /// callers could act on the wrong record (#39).
-    pub fn search(&self, query: &[f32], k: usize) -> Result<WasmSearchResults, JsError> {
-        let results = self.inner.search(query, k).map_err(to_jserr)?;
+    pub fn search(&self, query: &[f32], k: f64) -> Result<WasmSearchResults, JsError> {
+        let results = self.inner.search(query, count(k, "k")?).map_err(to_jserr)?;
         Ok(WasmSearchResults::from(results))
     }
 
@@ -207,7 +218,8 @@ impl WasmIndex {
     }
 
     #[wasm_bindgen(setter)]
-    pub fn set_ef_search(&self, ef: usize) {
-        self.inner.set_ef_search(ef);
+    pub fn set_ef_search(&self, ef: f64) -> Result<(), JsError> {
+        self.inner.set_ef_search(count(ef, "ef_search")?);
+        Ok(())
     }
 }

@@ -2,6 +2,7 @@
 """Pack generated WASM distributions and test the installed Node artifact."""
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -26,7 +27,9 @@ def main():
             ["npm", "pack", "--json", "--ignore-scripts", "--pack-destination", str(output)],
             cwd=args.package, env=env, check=True, text=True, capture_output=True,
         )
-        archive = output / json.loads(packed.stdout)[0]["filename"]
+        packed_name = json.loads(packed.stdout)[0]["filename"]
+        archive = output / f"{Path(packed_name).stem}-{args.target}.tgz"
+        (output / packed_name).replace(archive)
         with tarfile.open(archive) as package:
             required = {f"package/{name}" for name in [
                 "package.json", "README.md", "LICENSE", "vanedb_wasm.js",
@@ -44,6 +47,9 @@ def main():
             installed = Path(temporary) / "node_modules/vanedb-wasm"
             subprocess.run(["node", str(ROOT / "vanedb-wasm/tests/node.cjs"), str(installed)],
                            cwd=temporary, check=True)
+        with archive.open("rb") as packaged:
+            digest = hashlib.file_digest(packaged, "sha256").hexdigest()
+        archive.with_suffix(".tgz.sha256").write_text(f"{digest}  {archive.name}\n")
         print(f"Verified {args.target} package: {archive}")
 
 

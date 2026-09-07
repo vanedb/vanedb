@@ -3,6 +3,11 @@
 
 import argparse
 import hashlib
+import json
+import os
+import platform
+import re
+import struct
 from pathlib import Path
 import shutil
 import subprocess
@@ -17,6 +22,80 @@ LIBRARIES = {
     "darwin": ["libvanedb_capi.dylib"],
     "win32": ["vanedb_capi.dll", "vanedb_capi.dll.lib"],
 }
+
+
+def version_tuple(value):
+    return tuple(int(part) for part in value.split("."))
+
+
+def inspect_elf(library, architecture, objdump="objdump"):
+    header = library.read_bytes()[:20]
+    expected = 62 if architecture == "x86_64" else 183
+    if header[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", header, 18)[0] != expected:
+        raise ValueError("ELF architecture does not match archive name")
+    details = subprocess.check_output([objdump, "-p", str(library)], text=True)
+    versions = set(re.findall(r"\bGLIBC_([0-9.]+)\b", details))
+    if not versions or "GLIBC_PRIVATE" in details:
+        raise ValueError("Expected public glibc symbol requirements")
+    minimum = max(versions, key=version_tuple)
+    if version_tuple(minimum) > (2, 34):
+        raise ValueError(f"glibc requirement increased beyond 2.34: {minimum}")
+    dependencies = re.findall(r"^\s*NEEDED\s+(\S+)", details, re.MULTILINE)
+    if not dependencies or any("/" in name for name in dependencies):
+        raise ValueError("Missing or nonportable ELF dependencies")
+    return {"minimum_glibc": minimum, "dependencies": dependencies}
+
+
+def inspect_macho(library, architecture):
+    header = subprocess.check_output(["otool", "-hv", str(library)], text=True)
+    if not re.search(r"\b" + ("X86_64" if architecture == "x86_64" else "ARM64") + r"\b", header):
+        raise ValueError("Mach-O architecture does not match archive name")
+    details = subprocess.check_output(["otool", "-l", str(library)], text=True)
+    versions = re.findall(r"cmd LC_(?:BUILD_VERSION|VERSION_MIN_MACOSX)\n(?:(?!\nLoad command).)*?\n\s+(?:minos|version) ([0-9.]+)", details, re.DOTALL)
+    expected = "10.12" if architecture == "x86_64" else "11.0"
+    if len(versions) != 1 or version_tuple(versions[0]) != version_tuple(expected):
+        raise ValueError(f"Expected macOS deployment target {expected}, got {versions}")
+    links = subprocess.check_output(["otool", "-L", str(library)], text=True)
+    dependencies = [line.strip().split(" (", 1)[0] for line in links.splitlines()[2:]]
+    if not dependencies or any(not name.startswith(("/usr/lib/", "/System/Library/")) for name in dependencies):
+        raise ValueError("Unexpected non-system macOS library dependency")
+    return {"minimum_macos_load_command": versions[0], "dependencies": dependencies}
+
+
+def inspect_pe(library):
+    dumpbin = shutil.which("dumpbin")
+    if not dumpbin:
+        vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
+        matches = subprocess.check_output([
+            str(vswhere), "-latest", "-products", "*", "-find",
+            r"VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe",
+        ], text=True).splitlines()
+        if not matches:
+            raise ValueError("MSVC dumpbin was not found; install the C++ build tools")
+        dumpbin = matches[0]
+    header = subprocess.check_output([dumpbin, "/headers", str(library)], text=True)
+    if not re.search(r"\b8664 machine", header):
+        raise ValueError("Expected x86-64 PE library")
+    subsystem = re.search(r"([0-9.]+) subsystem version", header)
+    imports = subprocess.check_output([dumpbin, "/dependents", str(library)], text=True)
+    dependencies = re.findall(r"^\s+(\S+\.dll)\s*$", imports, re.MULTILINE | re.IGNORECASE)
+    if not subsystem or not dependencies or any("/" in name or "\\" in name for name in dependencies):
+        raise ValueError("Missing or nonportable Windows DLL metadata")
+    return {"pe_subsystem_version": subsystem[1], "dependencies": sorted(set(dependencies)),
+            "minimum_windows": None}
+
+
+def compatibility(library, target):
+    family, architecture = target.split("-", 1)
+    if family == "linux":
+        requirements = inspect_elf(library, architecture)
+    elif family == "macos":
+        requirements = inspect_macho(library, architecture)
+    else:
+        requirements = inspect_pe(library)
+    return {"platform": target, "requirements": requirements,
+            "tested_host": platform.platform(),
+            "runtime_scope": "Consumer acceptance runs on the recorded host only. Binary load requirements are not oldest-OS runtime verification."}
 
 
 def main():
@@ -49,6 +128,8 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / "vanedb-capi" / relative, destination)
         shutil.copy2(ROOT / "LICENSE", package / "LICENSE")
+        requirements = compatibility(package / "lib" / LIBRARIES[sys.platform][0], args.platform)
+        (package / "compatibility.json").write_text(json.dumps(requirements, indent=2) + "\n")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
             for source in sorted(package.rglob("*")):
                 if source.is_file():

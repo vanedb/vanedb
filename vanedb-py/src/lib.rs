@@ -103,7 +103,6 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
             "vectors must be a 2-D float32 buffer (e.g. numpy array) or a sequence of float sequences",
         )
     })?;
-    let mut flat = Vec::with_capacity(rows.len() * dim);
     for row in &rows {
         if row.len() != dim {
             return Err(PyValueError::new_err(format!(
@@ -111,9 +110,14 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
                 row.len()
             )));
         }
-        flat.extend_from_slice(row);
     }
-    Ok((rows.len(), flat))
+    let count = rows.len();
+    let capacity = count
+        .checked_mul(dim)
+        .ok_or_else(|| PyValueError::new_err("batch is too large"))?;
+    let mut flat = Vec::with_capacity(capacity);
+    flat.extend(rows.into_iter().flatten());
+    Ok((count, flat))
 }
 
 /// Extract ids. Fast paths: 1-D uint64 or int64 buffers (int64 is numpy's

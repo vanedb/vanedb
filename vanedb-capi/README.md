@@ -6,7 +6,24 @@ CMake 3.20 or newer for the example, plus Rust when building from source.
 CI produces platform archives named `vanedb-capi-<version>-<platform>.zip`,
 with a SHA-256 checksum. Choose the archive matching your OS and architecture
 from a successful [CI run](https://github.com/vanedb/vanedb/actions/workflows/ci.yml).
-These are development artifacts until a release is tagged. Extract the archive,
+These are development artifacts until a release is tagged. Check the archive's
+`compatibility.json` for binary requirements, imported libraries and the OS used
+for consumer acceptance:
+
+| Archive | Binary requirements |
+|---|---|
+| Linux x86-64 / ARM64 | glibc, not musl; current libraries require glibc 2.34 and system libraries listed in the metadata |
+| macOS Intel | Declared deployment target 10.12; system dependencies listed in the metadata |
+| macOS ARM64 | Declared deployment target 11.0; system dependencies listed in the metadata |
+| Windows x64 | Imported DLLs listed in the metadata, including VCRUNTIME140 and Universal CRT; a minimum Windows release has not been verified |
+
+CI rejects an increased glibc requirement or a changed macOS deployment target.
+These are inspected binary requirements, not proof of runtime support on the
+oldest OS. Consumer acceptance runs on the recorded CI host. In particular, the
+Windows PE subsystem version does not establish the application's minimum OS.
+Build from source and verify on your deployment if it differs from those hosts.
+
+Extract the archive,
 then run these commands inside its top-level directory:
 
 ```sh

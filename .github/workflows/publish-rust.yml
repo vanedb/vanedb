@@ -296,6 +296,8 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
+          # Exercise the minimum backend declared in pyproject.toml.
+          maturin-version: v1.9.3
           command: sdist
           args: --out dist --manifest-path vanedb-py/Cargo.toml
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -321,8 +323,8 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
-          python -m pip install pytest numpy
-          python -m pip install --no-deps --force-reinstall dist/*.tar.gz
+          python -m pip install pytest numpy maturin==1.9.3
+          python -m pip install --no-build-isolation --no-deps --force-reinstall dist/*.tar.gz
           python -m pip check
           python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v

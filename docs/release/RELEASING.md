@@ -37,8 +37,8 @@ The registry owner must verify this configuration; the GitHub environment's
 existence does not prove the registry trusts it.
 
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
-The [Rust project's bootstrap guidance](https://blog.rust-lang.org/2025/07/11/crates-io-development-update-2025-07/)
-requires an initial manual publication before configuring trusted publishing.
+The [crates.io prerequisites](https://crates.io/docs/trusted-publishing)
+require an initial manual publication before configuring trusted publishing.
 Confirm the current registry setup with the owner before the first release.
 If bootstrap publication is needed, use the approved version and commit with a
 scoped token through Cargo's credential mechanism; never put credentials in
@@ -58,8 +58,10 @@ workflows reject release commits that are not on main.
   do not also trigger this tag's upload of the same version; use the crate-tag
   workflow for later versions after configuring its publisher.
 - C library archives and the separate Node/browser npm tarballs come from the
-  approved commit's CI artifacts. Attach those verified files and checksums to
-  the release. There is no automatic npm-registry or C++ package publication.
+  approved commit's CI artifacts. Attach the C archives with their runtime
+  compatibility metadata, and `vanedb-wasm-1.0.0-nodejs.tgz` and
+  `vanedb-wasm-1.0.0-web.tgz`, each with its matching checksum. There is no
+  automatic npm-registry or C++ package publication.
 
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
