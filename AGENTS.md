@@ -59,8 +59,10 @@ rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
 cd vanedb-wasm && wasm-pack test --node
 ```
 
-Feature caveats: `gpu-metal` builds/tests only on macOS; `gpu-cuda` needs a CUDA
-toolchain. iOS/Android are build-only CI targets (cross-compile; can't run
+Feature caveats: `gpu-metal` builds and tests only on macOS. There is no CUDA
+backend: a stub shipped as a published feature was removed before the first
+release, because removing a feature is breaking and adding one back is not.
+Reintroduce it when CI has NVIDIA hardware to validate against. iOS/Android are build-only CI targets (cross-compile; can't run
 tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them.
 
 ## Invariants — do not break
