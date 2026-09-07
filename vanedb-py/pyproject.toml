@@ -1,5 +1,6 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0"]
+# license-files in list form is a TOML parse error before maturin 1.9.
+requires = ["maturin>=1.9,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -9,6 +10,9 @@ description = "Embeddable vector database for edge AI"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
+# MIT requires the notice to travel with copies, so the text has to be in
+# the wheel itself; a link in the description does not satisfy it.
+license-files = ["LICENSE"]
 keywords = ["vector", "database", "embedding", "embeddings", "hnsw",
             "similarity-search", "machine-learning"]
 classifiers = [
