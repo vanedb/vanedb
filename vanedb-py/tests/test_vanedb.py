@@ -268,10 +268,10 @@ def test_upsert_and_compaction():
     for i in range(200):
         idx.upsert(1, [float(i), 0.0])
     assert len(idx) == 1
-    assert idx.tombstones() == 200
+    assert idx.tombstones == 200
 
     idx.compact()
-    assert idx.tombstones() == 0
+    assert idx.tombstones == 0
     assert len(idx) == 1
     assert idx.search([199.0, 0.0], 1)[0][0] == 1
 

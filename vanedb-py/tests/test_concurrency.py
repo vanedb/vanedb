@@ -116,11 +116,11 @@ def _index_readers(_directory):
             assert len(index) == index.size() == 200
             assert index.contains(0) and not index.contains(1)
             assert index.get_vector(0) == _vec(0)
-            assert 0 <= index.tombstones() <= 200
+            assert 0 <= index.tombstones <= 200
             assert index.capacity == 400
 
     _parallel(index.compact, read)
-    assert index.tombstones() == 0
+    assert index.tombstones == 0
     for i in range(0, 400, 2):
         assert index.get_vector(i) == _vec(i)
 

@@ -432,6 +432,7 @@ impl PyIndex {
     /// Number of tombstoned slots: removed vectors whose space is not yet
     /// reclaimed. Re-adding a removed id allocates a fresh slot, so an upsert
     /// loop grows this even at constant length.
+    #[getter]
     fn tombstones(&self, py: Python<'_>) -> usize {
         py.detach(|| self.inner.tombstones())
     }

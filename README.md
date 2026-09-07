@@ -112,7 +112,7 @@ route between live neighbourhoods, and simply stops appearing in results.
 the id missing.
 
 Neither reclaims space — a replaced or removed slot stays allocated, so a
-long-running upsert loop grows the index even at constant length. `tombstones()`
+long-running upsert loop grows the index even at constant length. `tombstones`
 reports how many are outstanding and `compact()` rebuilds without them. Compaction
 is a full rebuild and holds the write lock throughout, so call it deliberately
 rather than on every write. `save` writes tombstoned slots too, so compact first
