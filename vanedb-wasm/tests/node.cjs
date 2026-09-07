@@ -21,9 +21,15 @@ assert.throws(() => new ApproxIndex(1, 'l2', 0, 2, 10), /capacity/);
 assert.throws(() => new ApproxIndex(1, 'l2', 10, 0, 10), /M/);
 const zeroConstruction = new ApproxIndex(1, 'l2', 10, 2, 0);
 zeroConstruction.free();
-const maxDimension = new FlatIndex(2 ** 32 - 1, 'l2');
-assert.equal(maxDimension.dimension(), 2 ** 32 - 1);
+// The JavaScript integer boundary is wider than the core's byte-size bound:
+// a vector's f32 components must also fit in wasm32's address-size arithmetic.
+const largestDimension = 2 ** 30 - 1;
+const maxDimension = new FlatIndex(largestDimension, 'l2');
+assert.equal(maxDimension.dimension(), largestDimension);
 maxDimension.free();
+for (const dim of [2 ** 30, 2 ** 32 - 1]) {
+    assert.throws(() => new FlatIndex(dim, 'l2'), /overflows usize/);
+}
 
 for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2', 10, 2, 10)]) {
     const index = create();
