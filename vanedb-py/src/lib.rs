@@ -248,8 +248,8 @@ impl PyStore {
         self.inner.get(id).map_err(to_pyerr)
     }
 
-    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
-        self.inner.remove(id).map_err(to_pyerr)
+    fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
     fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
@@ -350,13 +350,13 @@ impl PyIndex {
         self.inner.contains(id)
     }
 
-    fn save(&self, path: &str) -> PyResult<()> {
-        self.inner.save(path).map_err(to_pyerr)
+    fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
+        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
     }
 
     #[staticmethod]
-    fn load(path: &str) -> PyResult<Self> {
-        let inner = ApproxIndex::load(path).map_err(to_pyerr)?;
+    fn load(py: Python<'_>, path: &str) -> PyResult<Self> {
+        let inner = py.detach(|| ApproxIndex::load(path)).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -381,11 +381,12 @@ impl PyIndex {
     /// loop still needs `compact()`.
     fn upsert(
         &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.upsert(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.upsert(id, &v)).map_err(to_pyerr)
     }
 
     /// Number of tombstoned slots: removed vectors whose space is not yet
@@ -408,8 +409,8 @@ impl PyIndex {
     /// Tombstoned: the node keeps its graph links, which may be the only
     /// route between live neighbourhoods, and simply stops appearing in
     /// results. The id becomes free for reuse. Space is not reclaimed.
-    fn remove(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
-        self.inner.remove(id).map_err(to_pyerr)
+    fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
     /// Number of vectors in the graph. See `FlatIndex.size`.
@@ -432,7 +433,13 @@ impl PyIndex {
 /// memory saving is on the reading side.
 #[pyclass(name = "DiskIndexBuilder")]
 struct PyDiskStoreBuilder {
-    inner: DiskIndexBuilder,
+    // The core builder takes `&mut self`, which PyO3 turns into a runtime
+    // borrow. That was safe only because the GIL serialised every call —
+    // releasing it around `add` below is exactly what would let two borrows
+    // overlap and raise `RuntimeError: Already borrowed`. The lock is what
+    // makes the GIL release safe, and it also makes this the last of the five
+    // classes to take `&self`, matching how the index types synchronise.
+    inner: parking_lot::Mutex<DiskIndexBuilder>,
 }
 
 #[pymethods]
@@ -441,36 +448,40 @@ impl PyDiskStoreBuilder {
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
     fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
-            inner: DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+            inner: parking_lot::Mutex::new(
+                DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
+            ),
         })
     }
 
     fn add(
-        &mut self,
+        &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.add(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.lock().add(id, &v))
+            .map_err(to_pyerr)
     }
 
     /// Writes the store to `path`, atomically: built beside the destination
     /// and renamed in after an fsync.
     fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
-        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
+        py.detach(|| self.inner.lock().save(path)).map_err(to_pyerr)
     }
 
     fn __len__(&self) -> usize {
-        self.inner.size()
+        self.inner.lock().size()
     }
 
     fn size(&self) -> usize {
-        self.inner.size()
+        self.inner.lock().size()
     }
 
     #[getter]
     fn dimension(&self) -> usize {
-        self.inner.dimension()
+        self.inner.lock().dimension()
     }
 }
 
