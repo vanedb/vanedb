@@ -78,6 +78,16 @@ fn declared_versions() -> Vec<(&'static str, String)> {
         .to_string();
     sites.push(("cpp/src/core/version.h VERSION_STRING", string));
 
+    // Doxygen renders this on the generated C++ docs. A free-form string, so
+    // it can spell a prerelease and must match in full; it read "0.1.0"
+    // throughout the 0.1.0-rc.1 period without anything noticing.
+    let doxygen = read("cpp/Doxyfile")
+        .lines()
+        .find_map(|l| l.split_once("PROJECT_NUMBER")?.1.split('"').nth(1))
+        .expect("cpp/Doxyfile declares PROJECT_NUMBER")
+        .to_string();
+    sites.push(("cpp/Doxyfile PROJECT_NUMBER", doxygen));
+
     sites
 }
 
