@@ -545,12 +545,15 @@ impl PyDiskStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map(|v| v.into_owned()).map_err(to_pyerr)
+    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        // Reads through the mapping, which can take a major page fault on a
+        // cold file — the same reason `search` detaches.
+        py.detach(|| self.inner.get(id).map(|v| v.into_owned()))
+            .map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
     fn __len__(&self) -> usize {

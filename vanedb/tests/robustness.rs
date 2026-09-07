@@ -57,9 +57,12 @@ fn an_absurd_dimension_is_an_error_not_a_panic() {
 #[test]
 fn a_batch_whose_length_overflows_is_rejected() {
     // A wrapped ids.len() * dim would match the empty slice and insert
-    // nothing.
-    let store = FlatIndex::new(1usize << 63, Metric::L2).unwrap();
-    let result = store.add_batch(&[1, 2], &[]);
+    // nothing. The dimension has to be one the constructor accepts — it now
+    // rejects anything that cannot be sized in bytes — so the overflow has to
+    // come from the id count instead.
+    let dim = usize::MAX / std::mem::size_of::<f32>();
+    let store = FlatIndex::new(dim, Metric::L2).unwrap();
+    let result = store.add_batch(&[1, 2, 3, 4, 5], &[]);
     assert!(
         matches!(result, Err(VaneError::InvalidParameter(_))),
         "expected an overflow error, got {result:?}"

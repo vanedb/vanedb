@@ -138,3 +138,17 @@ def test_a_negative_k_or_ef_search_is_a_valueerror():
     store.add(1, [1.0, 0.0])
     with pytest.raises(ValueError):
         store.search([1.0, 0.0], -1)
+
+
+def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
+    """`rows * dim` overflowed into a capacity panic, escaping the error model.
+
+    `FlatIndex::new` accepted a dimension `ApproxIndexBuilder::build` rejects,
+    so the failure surfaced later as a PanicException rather than a ValueError.
+    """
+    with pytest.raises(ValueError):
+        vanedb.FlatIndex(2**62, vanedb.Metric.L2)
+    with pytest.raises(ValueError):
+        vanedb.ApproxIndex(2**62, vanedb.Metric.L2)
+    with pytest.raises(ValueError):
+        vanedb.DiskIndexBuilder(2**62, vanedb.Metric.L2)

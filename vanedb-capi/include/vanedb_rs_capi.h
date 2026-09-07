@@ -175,6 +175,13 @@ int32_t vanedb_rs_disk_build(const char *path,
  * # Safety
  * `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
  * that must be freed with `vanedb_rs_disk_free`.
+ *
+ * The file is mapped, not read, and must not be modified or truncated by any
+ * process while the handle lives. Truncating it makes a later read raise
+ * SIGBUS, which kills the process: the panic guard on every entry point here
+ * catches unwinding, not signals. Rebuilding with `vanedb_rs_disk_build` is
+ * safe, since it renames a new file into place and leaves this handle on the
+ * old one.
  */
 vanedb_rs_disk *vanedb_rs_disk_open(const char *path);
 

@@ -19,7 +19,7 @@ const DISK_MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const HNSW_VERSION: u32 = 2;
 
 /// Field-order mirror of the private `HnswData` struct in
-/// `src/hnsw/persistence.rs` (bincode encodes by field order, so this
+/// `src/approx/persistence.rs` (bincode encodes by field order, so this
 /// serializes identically). Used to hand-craft v1/v2 payloads.
 #[derive(serde::Serialize)]
 struct HnswDataMirror {
@@ -620,4 +620,32 @@ fn mmap_load_rejects_nonzero_reserved_header_bytes() {
         assert!(format!("{err}").contains("reserved"), "got: {err}");
         let _ = fs::remove_file(&p);
     }
+}
+
+/// Writes `vanedb/tests/fixtures/hnsw_v1.bin` from the mirror. Ignored by
+/// default: run it only to mint a fixture for a new format version.
+#[test]
+#[ignore]
+fn mint_the_v1_golden_fixture() {
+    let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(dir.join("hnsw_v1.bin"), &bytes).unwrap();
+}
+
+#[test]
+fn hnsw_load_accepts_the_checked_in_v1_fixture() {
+    // Loads bytes committed to the repository, not bytes this test just
+    // encoded. The mirror-based test above re-serializes with today's bincode,
+    // so mirror and encoder change together and it stays green even if a real
+    // file from an earlier release has stopped loading. This one cannot: the
+    // bytes are frozen.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hnsw_v1.bin");
+    let idx = ApproxIndex::load(&path).expect("the committed v1 fixture must load");
+    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.capacity(), 4);
+    assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
+    assert_eq!(idx.get_vector(20).unwrap(), vec![0.0, 1.0]);
+    let hits = idx.search(&[1.0, 0.1], 1).unwrap();
+    assert_eq!(hits[0].id, 10);
 }

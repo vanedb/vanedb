@@ -185,13 +185,20 @@ impl std::fmt::Debug for ApproxIndex {
 /// Build with [`SearchParams::new`] and the setters. The fields are private,
 /// so an option added later is not a breaking change; `#[non_exhaustive]`
 /// records that intent for readers.
+///
+/// Carries a lifetime it does not yet use. Rust has no default lifetime
+/// parameters, so `SearchParams<'a>` cannot be introduced later without
+/// breaking every mention of the type — which would permanently rule out the
+/// first option callers are likely to want, a filter borrowing a bitmap or a
+/// set rather than owning one behind an `Arc`.
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct SearchParams {
+pub struct SearchParams<'a> {
     ef_search: Option<usize>,
+    _borrowed: std::marker::PhantomData<&'a ()>,
 }
 
-impl SearchParams {
+impl SearchParams<'_> {
     /// Options that follow the index's own settings.
     pub fn new() -> Self {
         Self::default()
@@ -364,6 +371,13 @@ impl ApproxIndex {
     }
 
     /// Returns a copy of the vector stored under `id`.
+    pub fn get(&self, id: u64) -> Result<Vec<f32>> {
+        self.get_vector(id)
+    }
+
+    /// The vector stored under `id`. Same as [`get`](Self::get), which is the
+    /// spelling `FlatIndex` and `DiskIndex` use; both exist so a program is
+    /// not tied to one index type (#85).
     pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
         let inner = self.inner.read();
         let &iid = inner.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
@@ -591,7 +605,7 @@ impl ApproxIndex {
         &self,
         query: &[f32],
         k: usize,
-        params: &SearchParams,
+        params: &SearchParams<'_>,
     ) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {

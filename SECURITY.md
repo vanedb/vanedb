@@ -39,6 +39,14 @@ The loaders parse untrusted input, so that is where the interesting surface is.
 - Thread-safety bugs causing corruption or wrong results
 - Anything that panics across the C ABI boundary rather than returning an error
 
+**Known and documented, so not a report**
+
+- Modifying or truncating a `DiskIndex` file while it is open. The file is
+  mapped, so this raises SIGBUS and kills the process, from any binding. It is
+  documented on `DiskIndex::open` and on the C and Python equivalents.
+  Rebuilding through `DiskIndexBuilder::save` is safe — it renames a new file
+  into place and leaves open readers on the old one.
+
 **Out of scope**
 
 - Denial of service through a legitimately large allocation request

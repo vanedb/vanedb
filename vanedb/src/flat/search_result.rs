@@ -5,6 +5,11 @@
 /// score, a shard, a metadata handle — can then be added without a major
 /// version.
 ///
+/// `PartialEq`, `Eq` and `Ord` are defined over `(id, distance)` and always
+/// will be. A field added later is deliberately not part of them: including it
+/// would silently change how existing programs sort and deduplicate results,
+/// which `#[non_exhaustive]` cannot protect against because it still compiles.
+///
 /// Deliberately not `Copy`. It would fit in a register today, but `Copy`
 /// constrains every future field to be `Copy` too, and dropping it later is
 /// itself breaking — which would give back exactly what `#[non_exhaustive]`
