@@ -65,12 +65,15 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
 
 ## Invariants — do not break
 
-- **Persistence contract**: the current Rust and C++ formats are pre-release,
-  engine-specific formats. Replace them only in the dedicated universal-format
-  work, not as part of unrelated refactors. The first public format will be
-  `VNDB` v1: literal `VNDB` magic, fixed-width little-endian fields, and
-  shared fixtures that each engine can write and the other can faithfully load.
-  Until that work lands, keep the existing corruption checks passing.
+- **Persistence contract**: there are two formats at different maturities, and
+  the difference is the point. `DiskIndex` writes `VNDB` v1 — literal `VNDB`
+  magic, fixed-width little-endian fields, anchored to shared fixtures in
+  `conformance/vndb/` that are generated from the spec table rather than from
+  either engine, and each engine reads the other's file. That one is public.
+  The `ApproxIndex` graph payload is still `HNSW` magic over bincode:
+  pre-release, engine-specific, and not a promise. Replace it only in the
+  dedicated universal-format work, not as part of unrelated refactors, and
+  keep the existing corruption checks passing until then.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep
