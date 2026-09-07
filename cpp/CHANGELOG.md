@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (GitHub redirects the old URL).
 
 ### Added
-- Supplementary Python distribution: `pip install vanedb-cpp`, imported as
+- Supplementary Python distribution (since retired, #100): `vanedb-cpp`, imported as
   `vanedb_cpp`. The Rust bindings remain the canonical `vanedb` distribution.
 - Comprehensive corruption detection tests for file format validation
   - Invalid magic number, version, metric detection

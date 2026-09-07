@@ -21,7 +21,7 @@ def test_version():
 # --- FlatIndex ---
 
 def test_batch_validates_width_before_reserving_storage():
-    store = vanedb.FlatIndex(sys.maxsize)
+    store = vanedb.FlatIndex(sys.maxsize // 2)
     with pytest.raises(ValueError, match="dimension mismatch"):
         store.add_batch([1], [[]])
     assert len(store) == 0

@@ -11,7 +11,7 @@ all-features = true
 version = 2
 yanked = "deny"
 ignore = [
-    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained. It carries the ApproxIndex persistence format and is deliberately pinned to 2.x with config::legacy() (see AGENTS.md); the 3.x major is intentionally uncompilable and Dependabot ignores it. Not a vulnerability. The exit is the VNDB graph payload, which removes bincode from the runtime dependency set entirely." },
+    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained. Not a vulnerability. It no longer carries the current graph format — VNDB v2 is hand-rolled — but it is still required to read legacy HNSW v1/v2 files, so this ignore is permanent for as long as that compatibility is offered, not transitional. Removing it means hand-rolling the legacy reader too, or dropping legacy load in a major release." },
   { id = "RUSTSEC-2024-0436", reason = "paste unmaintained, via metal, reachable only through the optional gpu-metal feature and never in a default build. No safe upgrade exists. Not a vulnerability. Revisit if gpu-metal moves toward being a shipped default." },
 ]
 

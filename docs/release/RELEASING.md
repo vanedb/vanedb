@@ -41,8 +41,8 @@ with environment `pypi` (or `testpypi` for an explicitly requested rehearsal).
 PyPI supports a [pending publisher for a new project](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
 On September 7, 2026, the owner reported that PyPI was already configured with
 this release effort. Verify that existing setup instead of creating a duplicate;
-it has not yet been rechecked in this session because the Mac is locked and
-browser access is unavailable. The GitHub environment's existence alone does
+the in-app browser currently requires the owner to sign in. Safari automation
+is unavailable until Computer Use permissions are granted. The GitHub environment's existence alone does
 not prove that PyPI trusts it.
 
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
