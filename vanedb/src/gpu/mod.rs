@@ -1,11 +1,9 @@
-//! GPU backends. Metal is the supported path; CUDA is an unimplemented stub.
+//! GPU backends. Metal is the only one; a CUDA path can be added when there
+//! is hardware in CI to validate it, which is additive rather than breaking.
 //!
 //! These are a standalone parallel-scan API: no index uses them internally.
 //! The caller supplies a flat corpus, uploads it, and searches the handle.
 
-/// CUDA kernels. Unimplemented — every method returns an error.
-#[cfg(feature = "gpu-cuda")]
-pub mod cuda;
 /// Metal kernels, on Apple platforms.
 #[cfg(feature = "gpu-metal")]
 pub mod metal;

@@ -109,14 +109,16 @@ metric (`"l2"` or `"L2"`, `"cosine"` or `"Cosine"`, `"dot"` or `"Dot"` — not
 | [`vanedb-py/`](vanedb-py) | PyO3 bindings for `pip install vanedb` |
 | [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
 | [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
-| [`cpp/`](cpp) | Supplementary header-only C++ engine and `vanedb-cpp` Python package |
+| [`cpp/`](cpp) | Header-only C++ engine: reference code and the benchmark's other arm. Not published |
 | [`bench/`](bench) | Reproducible cross-engine benchmark harness |
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
 The Rust and C++ engines may make different internal trade-offs, but distance
 semantics, persistence, structural safety, and search-quality expectations are
-tested as one product. The canonical Python package is `vanedb`;
-`vanedb-cpp` / `import vanedb_cpp` is supplementary.
+tested as one product. The Python package is `vanedb`, built from the Rust
+engine. The C++ engine is not published: it stays in the repository as
+reference code and as the control the benchmark measures against, which is
+where #32, #77, #109 and #110 came from.
 
 Release tags are product-scoped, and the crate has its own:
 
@@ -124,7 +126,6 @@ Release tags are product-scoped, and the crate has its own:
 |---|---|
 | `vanedb-crate-vX.Y.Z` | the `vanedb` crate to crates.io |
 | `vanedb-vX.Y.Z` | the `vanedb` wheels to PyPI |
-| `vanedb-cpp-vX.Y.Z` | the supplementary C++ distribution |
 
 The crate releases on its own tag rather than sharing one with the wheels: the
 name has to exist on crates.io before any wheel does, and a failed crate
