@@ -47,6 +47,55 @@ Older readers cannot open VNDB v2. Keep originals and source vectors while
 verifying migration: this is a release candidate, without a public 1.0.0 format
 compatibility promise yet. `DiskIndex` continues to accept VNDB v1 only.
 
+## Optional Metal compute on macOS
+
+Metal compute requires macOS 10.14 or newer and a usable Metal device. Enable
+`gpu-metal` explicitly in your application's dependency:
+
+```toml
+vanedb = { path = "/path/to/vanedb/vanedb", features = ["gpu-metal"] }
+```
+
+This exposes `MetalCompute` for manually uploaded vectors and distance scans.
+Enabling the feature does not move `FlatIndex`, `ApproxIndex` or `DiskIndex`
+operations to the GPU. Call the Metal API directly:
+
+```rust
+use vanedb::gpu::{GpuMetric, MetalCompute};
+
+fn main() -> vanedb::Result<()> {
+    let gpu = MetalCompute::new()?;
+    let ids = [101, 202];
+    let vectors = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+    let buffer = gpu.upload(&vectors, ids.len(), 4)?;
+    let hits = gpu.search(&[1.0, 0.0, 0.0, 0.0], &ids, &buffer, 1, GpuMetric::Cosine)?;
+    assert_eq!(hits[0].id, 101);
+    Ok(())
+}
+```
+
+Upload row-major `n * dim` finite floats. Dimension must be nonzero and divisible
+by four because the kernels use `float4`; ordinary Rust slices need no special
+caller-provided pointer alignment. Queries must have that dimension and finite
+values, IDs must match the uploaded row count, and `k` must be positive. Sizes
+must fit the Metal device's buffer and shader-addressing limits. An empty upload
+at a valid dimension returns empty results for a valid query.
+
+Reuse the uploaded buffer for subsequent queries on the same Metal device.
+`distances` returns one value per uploaded row; `search` returns up to `k`
+nearest results. `GpuMetric::L2`, `Cosine` and `Dot` use the same distance
+definitions described above.
+
+When uploaded vectors or a query contain very small nonzero components,
+`distances` and `search` automatically use CPU distance kernels to preserve
+contributions that Metal may round to zero. This numerical fallback still
+requires successful Metal initialization and upload.
+
+Initialization, validation and GPU execution errors return `VaneError`; the
+example propagates them. Backend failures do not trigger automatic fallback.
+Your application decides whether to report an error or use a CPU index with
+the original vectors.
+
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,
 platform verification scope, persistence details, and source builds. The
 supplementary C++ implementation is frozen reference code.

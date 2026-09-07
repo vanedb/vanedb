@@ -1,9 +1,12 @@
 use crate::error::{Result, VaneError};
-use crate::flat::SearchResult;
+use crate::flat::{topk, SearchResult};
 use crate::gpu::GpuMetric;
+use crate::validation::validate_finite;
 
+use metal::foreign_types::{ForeignType, ForeignTypeRef};
 use metal::*;
 use objc::rc::autoreleasepool;
+use objc::{msg_send, sel, sel_impl};
 
 /// MSL (Metal Shading Language) compute kernels for distance computation.
 /// All kernels work on float4 vectors (dim must be divisible by 4).
@@ -71,6 +74,7 @@ pub struct GpuBuffer {
     buffer: Buffer,
     n: usize,
     dim: usize,
+    scalar_fallback: bool,
 }
 
 impl GpuBuffer {
@@ -93,14 +97,30 @@ pub struct MetalCompute {
     cos_pipeline: ComputePipelineState,
 }
 
+#[allow(unexpected_cfgs)] // objc 0.2 macros probe the legacy cargo-clippy cfg.
 impl MetalCompute {
-    /// Initialize Metal compute. Returns error if no Metal device is available.
+    /// Initialize Metal compute on macOS 10.14 or newer.
+    /// Returns an error if the device or required resources are unavailable.
     pub fn new() -> Result<Self> {
         let device = Device::system_default()
             .ok_or_else(|| VaneError::backend("no Metal device available"))?;
-        let queue = device.new_command_queue();
+        let has_buffer_limit: objc::runtime::BOOL =
+            unsafe { msg_send![&*device, respondsToSelector:sel!(maxBufferLength)] };
+        if has_buffer_limit == objc::runtime::NO {
+            return Err(VaneError::backend("Metal requires macOS 10.14 or newer"));
+        }
+        // These Metal selectors may return nil; metal-rs's convenience APIs
+        // construct non-null wrappers without checking. Own only non-null results.
+        let queue: *mut MTLCommandQueue = unsafe { msg_send![&*device, newCommandQueue] };
+        if queue.is_null() {
+            return Err(VaneError::backend("Metal command queue allocation failed"));
+        }
+        let queue = unsafe { CommandQueue::from_ptr(queue) };
 
         let options = CompileOptions::new();
+        // Preserve the finite/overflow checks in cosine; fast math assumes
+        // infinities cannot occur even when finite inputs overflow a norm.
+        options.set_fast_math_enabled(false);
         let library = device
             .new_library_with_source(MSL_SOURCE, &options)
             .map_err(|e| VaneError::backend(format!("MSL compile error: {e}")))?;
@@ -134,27 +154,84 @@ impl MetalCompute {
         })
     }
 
-    /// Upload vectors to GPU memory. Vectors is a flat array of n * dim floats.
-    /// Dimension must be divisible by 4.
+    fn new_buffer(&self, bytes: usize) -> Result<Buffer> {
+        // Keep an empty upload representable, but never dispatch it.
+        let bytes = bytes.max(std::mem::size_of::<f32>());
+        if bytes as u64 > self.device.max_buffer_length() {
+            return Err(VaneError::InvalidParameter(
+                "buffer exceeds the Metal device limit",
+            ));
+        }
+        // newBuffer returns an owned (+1) nullable Objective-C object.
+        let raw: *mut MTLBuffer = unsafe {
+            msg_send![&*self.device, newBufferWithLength:bytes as NSUInteger
+                options:MTLResourceOptions::StorageModeShared]
+        };
+        if raw.is_null() {
+            return Err(VaneError::backend("Metal buffer allocation failed"));
+        }
+        let buffer = unsafe { Buffer::from_ptr(raw) };
+        if buffer.contents().is_null() || buffer.length() < bytes as u64 {
+            return Err(VaneError::backend("Metal shared buffer is not accessible"));
+        }
+        Ok(buffer)
+    }
+
+    fn copy_buffer(&self, values: &[f32]) -> Result<Buffer> {
+        let buffer = self.new_buffer(std::mem::size_of_val(values))?;
+        // Shared Metal storage is aligned and was allocated for this slice;
+        // the new allocation cannot overlap the caller's source.
+        unsafe {
+            std::ptr::copy_nonoverlapping(values.as_ptr(), buffer.contents().cast(), values.len());
+        }
+        Ok(buffer)
+    }
+
+    /// Upload `n` finite vectors from a flat array of exactly `n * dim` floats.
+    /// Dimension must be nonzero and divisible by 4; sizes must fit the device
+    /// and the kernels' 32-bit addressing. Empty uploads are supported.
     pub fn upload(&self, vectors: &[f32], n: usize, dim: usize) -> Result<GpuBuffer> {
+        if dim == 0 {
+            return Err(VaneError::ZeroDimension);
+        }
         if dim % 4 != 0 {
             return Err(VaneError::InvalidParameter("GPU requires dim % 4 == 0"));
         }
-        if vectors.len() != n * dim {
+        let expected = n
+            .checked_mul(dim)
+            .ok_or(VaneError::InvalidParameter("GPU n * dim overflows usize"))?;
+        expected
+            .checked_mul(std::mem::size_of::<f32>())
+            .ok_or(VaneError::InvalidParameter(
+                "GPU buffer byte size overflows usize",
+            ))?;
+        if n > u32::MAX as usize || dim / 4 > u32::MAX as usize || expected / 4 > u32::MAX as usize
+        {
+            return Err(VaneError::InvalidParameter(
+                "GPU shape exceeds 32-bit shader addressing",
+            ));
+        }
+        if vectors.len() != expected {
             return Err(VaneError::DimensionMismatch {
-                expected: n * dim,
+                expected,
                 got: vectors.len(),
             });
         }
-        let buffer = self.device.new_buffer_with_data(
-            vectors.as_ptr() as *const _,
-            std::mem::size_of_val(vectors) as NSUInteger,
-            MTLResourceOptions::StorageModeShared,
-        );
-        Ok(GpuBuffer { buffer, n, dim })
+        validate_finite(vectors, "vector batch")?;
+        let scalar_fallback = needs_scalar(vectors);
+        let buffer = self.copy_buffer(vectors)?;
+        Ok(GpuBuffer {
+            buffer,
+            n,
+            dim,
+            scalar_fallback,
+        })
     }
 
-    /// Compute distances from query to all vectors in the buffer.
+    /// Compute distances from a finite query to every uploaded vector.
+    /// The buffer must belong to the same Metal device. Empty buffers return
+    /// an empty result. Tiny nonzero components use CPU distance kernels,
+    /// preserving contributions that Metal hardware would flush to zero.
     pub fn distances(
         &self,
         query: &[f32],
@@ -168,6 +245,35 @@ impl MetalCompute {
             });
         }
 
+        validate_finite(query, "query")?;
+        if buffer.buffer.device().registry_id() != self.device.registry_id() {
+            return Err(VaneError::InvalidParameter(
+                "buffer belongs to another Metal device",
+            ));
+        }
+        if buffer.n == 0 {
+            return Ok(Vec::new());
+        }
+        if buffer.scalar_fallback || needs_scalar(query) {
+            // Upload validated the product and copied these immutable values
+            // into shared storage. The owning buffer lives through this scan.
+            let values = unsafe {
+                std::slice::from_raw_parts(
+                    buffer.buffer.contents().cast::<f32>(),
+                    buffer.n * buffer.dim,
+                )
+            };
+            let distance: crate::distance::DistanceFn = match metric {
+                GpuMetric::L2 => crate::distance::l2_squared,
+                GpuMetric::Cosine => crate::distance::cosine_distance,
+                GpuMetric::Dot => crate::distance::dot_distance,
+            };
+            return Ok(values
+                .chunks_exact(buffer.dim)
+                .map(|vector| distance(query, vector))
+                .collect());
+        }
+
         let pipeline = match metric {
             GpuMetric::L2 => &self.l2_pipeline,
             GpuMetric::Dot => &self.dot_pipeline,
@@ -177,30 +283,36 @@ impl MetalCompute {
         let n = buffer.n;
         let dim = buffer.dim;
 
-        let result = autoreleasepool(|| {
-            let query_buf = self.device.new_buffer_with_data(
-                query.as_ptr() as *const _,
-                (dim * std::mem::size_of::<f32>()) as NSUInteger,
-                MTLResourceOptions::StorageModeShared,
-            );
-            let result_buf = self.device.new_buffer(
-                (n * std::mem::size_of::<f32>()) as u64,
-                MTLResourceOptions::StorageModeShared,
-            );
+        autoreleasepool(|| {
+            let query_buf = self.copy_buffer(query)?;
+            // n * 4 cannot overflow: upload validated n * dim * 4, and dim >= 4.
+            let result_buf = self.new_buffer(n * std::mem::size_of::<f32>())?;
             let d4: u32 = (dim / 4) as u32;
-            let dim_buf = self.device.new_buffer_with_data(
-                &d4 as *const u32 as *const _,
-                std::mem::size_of::<u32>() as NSUInteger,
-                MTLResourceOptions::StorageModeShared,
-            );
 
-            let command_buffer = self.queue.new_command_buffer();
-            let encoder = command_buffer.new_compute_command_encoder();
+            // Both selectors return autoreleased, nullable objects. Check before
+            // borrowing; the enclosing pool outlives encoding and completion.
+            let raw: *mut MTLCommandBuffer = unsafe { msg_send![&*self.queue, commandBuffer] };
+            if raw.is_null() {
+                return Err(VaneError::backend("Metal command buffer allocation failed"));
+            }
+            let command_buffer = unsafe { CommandBufferRef::from_ptr(raw) };
+            let raw: *mut MTLComputeCommandEncoder =
+                unsafe { msg_send![command_buffer, computeCommandEncoder] };
+            if raw.is_null() {
+                return Err(VaneError::backend(
+                    "Metal compute encoder allocation failed",
+                ));
+            }
+            let encoder = unsafe { ComputeCommandEncoderRef::from_ptr(raw) };
             encoder.set_compute_pipeline_state(pipeline);
             encoder.set_buffer(0, Some(&query_buf), 0);
             encoder.set_buffer(1, Some(&buffer.buffer), 0);
             encoder.set_buffer(2, Some(&result_buf), 0);
-            encoder.set_buffer(3, Some(&dim_buf), 0);
+            encoder.set_bytes(
+                3,
+                std::mem::size_of_val(&d4) as NSUInteger,
+                (&d4 as *const u32).cast(),
+            );
 
             let grid = MTLSize::new(n as u64, 1, 1);
             let max_threads = pipeline.max_total_threads_per_threadgroup();
@@ -210,14 +322,20 @@ impl MetalCompute {
             command_buffer.commit();
             command_buffer.wait_until_completed();
 
+            if command_buffer.status() != MTLCommandBufferStatus::Completed {
+                return Err(VaneError::backend(format!(
+                    "Metal command failed: {:?}",
+                    command_buffer.status()
+                )));
+            }
             let ptr = result_buf.contents() as *const f32;
-            unsafe { std::slice::from_raw_parts(ptr, n) }.to_vec()
-        });
-
-        Ok(result)
+            // Allocation and accessibility were checked above. Completion means
+            // every result has been written and is visible in shared storage.
+            Ok(unsafe { std::slice::from_raw_parts(ptr, n) }.to_vec())
+        })
     }
 
-    /// Search for k nearest neighbors using GPU distance computation.
+    /// Search for `k` nearest neighbors, with exactly one ID per uploaded row.
     pub fn search(
         &self,
         query: &[f32],
@@ -229,16 +347,29 @@ impl MetalCompute {
         if k == 0 {
             return Err(VaneError::InvalidK);
         }
+        if ids.len() != buffer.n {
+            return Err(VaneError::InvalidParameter(
+                "ids length must match uploaded vector count",
+            ));
+        }
         let dists = self.distances(query, buffer, metric)?;
-        let mut results: Vec<SearchResult> = ids
-            .iter()
-            .zip(dists.iter())
-            .map(|(&id, &d)| SearchResult::new(id, d))
-            .collect();
-        results.sort();
-        results.truncate(k);
-        Ok(results)
+        Ok(topk::select(
+            ids.iter()
+                .zip(dists)
+                .map(|(&id, distance)| SearchResult::new(id, distance)),
+            k,
+        ))
     }
+}
+
+fn needs_scalar(values: &[f32]) -> bool {
+    // Below 2^-40, adjacent f32 values can have a difference whose square is
+    // subnormal, even when the components' own squares are normal. This also
+    // covers subnormal dot/norm terms before Metal flushes them to zero.
+    let threshold = f32::MIN_POSITIVE.sqrt() / f32::EPSILON;
+    values
+        .iter()
+        .any(|value| *value != 0.0 && value.abs() < threshold)
 }
 
 #[cfg(test)]
@@ -342,5 +473,168 @@ mod tests {
         let gpu = MetalCompute::new().unwrap();
         let vectors = vec![0.0f32; 300]; // 100 vectors of dim 3
         assert!(gpu.upload(&vectors, 100, 3).is_err());
+    }
+
+    #[test]
+    fn metal_upload_rejects_size_overflow() {
+        let gpu = MetalCompute::new().unwrap();
+        assert!(matches!(
+            gpu.upload(&[], usize::MAX, 4),
+            Err(VaneError::InvalidParameter(_))
+        ));
+    }
+
+    #[test]
+    fn metal_rejects_non_finite_inputs() {
+        let gpu = MetalCompute::new().unwrap();
+        let buffer = gpu.upload(&[0.0; 4], 1, 4).unwrap();
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(matches!(
+                gpu.upload(&[value; 4], 1, 4),
+                Err(VaneError::NonFiniteValue { .. })
+            ));
+            assert!(matches!(
+                gpu.distances(&[value; 4], &buffer, GpuMetric::L2),
+                Err(VaneError::NonFiniteValue { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn metal_search_rejects_mismatched_ids() {
+        let gpu = MetalCompute::new().unwrap();
+        let buffer = gpu.upload(&[0.0; 8], 2, 4).unwrap();
+        for ids in [&[1][..], &[1, 2, 3][..]] {
+            assert!(gpu
+                .search(&[0.0; 4], ids, &buffer, 2, GpuMetric::L2)
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn metal_cosine_preserves_degenerate_scale_semantics() {
+        let gpu = MetalCompute::new().unwrap();
+        for value in [0.0, 1e-20, 1e-19, 1e-10, 1.0, 1e10, 1e20] {
+            let vector = [value; 4];
+            let buffer = gpu.upload(&vector, 1, 4).unwrap();
+            let actual = gpu.distances(&vector, &buffer, GpuMetric::Cosine).unwrap()[0];
+            let expected = distance::scalar::cosine_distance(&vector, &vector);
+            assert!(
+                actual.is_finite() && (actual - expected).abs() < 1e-5,
+                "scale {value}: Metal {actual}, CPU {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn metal_empty_upload_is_searchable_and_still_validates_queries() {
+        let gpu = MetalCompute::new().unwrap();
+        assert!(matches!(
+            gpu.upload(&[], 0, 0),
+            Err(VaneError::ZeroDimension)
+        ));
+        let buffer = gpu.upload(&[], 0, 4).unwrap();
+        assert_eq!((buffer.n(), buffer.dim()), (0, 4));
+        for metric in [GpuMetric::L2, GpuMetric::Cosine, GpuMetric::Dot] {
+            assert!(gpu
+                .distances(&[0.0; 4], &buffer, metric)
+                .unwrap()
+                .is_empty());
+            assert!(gpu
+                .search(&[0.0; 4], &[], &buffer, usize::MAX, metric)
+                .unwrap()
+                .is_empty());
+        }
+        assert!(gpu.distances(&[], &buffer, GpuMetric::L2).is_err());
+        assert!(gpu
+            .distances(&[f32::NAN; 4], &buffer, GpuMetric::L2)
+            .is_err());
+        assert!(matches!(
+            gpu.search(&[0.0; 4], &[], &buffer, 0, GpuMetric::L2),
+            Err(VaneError::InvalidK)
+        ));
+    }
+
+    #[test]
+    fn metal_rejects_device_and_shader_size_limits_without_allocating() {
+        let gpu = MetalCompute::new().unwrap();
+        assert!(gpu
+            .new_buffer(gpu.device.max_buffer_length() as usize + 1)
+            .is_err());
+        assert!(gpu.upload(&[], 1, usize::MAX - 3).is_err());
+        assert!(gpu.upload(&[], u32::MAX as usize + 1, 4).is_err());
+        assert!(gpu.upload(&[], 0, (u32::MAX as usize + 1) * 4).is_err());
+    }
+
+    #[test]
+    fn metal_tiny_inputs_keep_cpu_rankings_for_every_metric() {
+        let gpu = MetalCompute::new().unwrap();
+        for dim in [4, 256] {
+            let mut vectors = vec![1e-20; dim];
+            vectors.resize(dim * 2, 0.0);
+            let query = vec![1e-20; dim];
+            let buffer = gpu.upload(&vectors, 2, dim).unwrap();
+            for metric in [GpuMetric::L2, GpuMetric::Cosine, GpuMetric::Dot] {
+                let hits = gpu.search(&query, &[99, 1], &buffer, 2, metric).unwrap();
+                assert_eq!(hits[0].id, 99, "{metric:?} dim {dim}: {hits:?}");
+                assert!(hits[0].distance < hits[1].distance);
+            }
+        }
+    }
+
+    #[test]
+    fn metal_l2_preserves_subnormal_squared_differences() {
+        let gpu = MetalCompute::new().unwrap();
+        let value = 1e-15_f32;
+        let next = f32::from_bits(value.to_bits() + 1);
+        let vectors = [value, value, value, value, next, next, next, next];
+        let buffer = gpu.upload(&vectors, 2, 4).unwrap();
+        let hits = gpu
+            .search(&[value; 4], &[99, 1], &buffer, 2, GpuMetric::L2)
+            .unwrap();
+        assert_eq!(hits[0].id, 99, "{hits:?}");
+        assert_eq!(hits[0].distance, 0.0);
+        assert_eq!(
+            hits[1].distance,
+            distance::l2_squared(&[value; 4], &[next; 4])
+        );
+        assert!(hits[1].distance > 0.0);
+    }
+
+    #[test]
+    fn metal_topk_keeps_ties_and_finite_first_order() {
+        let gpu = MetalCompute::new().unwrap();
+        let buffer = gpu.upload(&[0.0; 16], 4, 4).unwrap();
+        for k in [1, 2, usize::MAX] {
+            let hits = gpu
+                .search(&[0.0; 4], &[4, 1, 3, 2], &buffer, k, GpuMetric::L2)
+                .unwrap();
+            assert_eq!(
+                hits.iter().map(|hit| hit.id).collect::<Vec<_>>(),
+                (1..=k.min(4) as u64).collect::<Vec<_>>()
+            );
+        }
+        let buffer = gpu
+            .upload(&[1e20, 1e20, 1e20, 1e20, 0.0, 0.0, 0.0, 0.0], 2, 4)
+            .unwrap();
+        let hits = gpu
+            .search(&[1e20; 4], &[1, 2], &buffer, 2, GpuMetric::Dot)
+            .unwrap();
+        assert_eq!(hits[0].id, 2);
+        assert!(hits[0].distance.is_finite());
+        assert_eq!(hits[1].distance, f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn metal_buffer_can_be_shared_by_compute_instances_on_the_same_device() {
+        let first = MetalCompute::new().unwrap();
+        let second = MetalCompute::new().unwrap();
+        assert_eq!(first.device.registry_id(), second.device.registry_id());
+        let buffer = first.upload(&[1.0; 4], 1, 4).unwrap();
+        drop(first);
+        assert_eq!(
+            second.distances(&[1.0; 4], &buffer, GpuMetric::L2).unwrap(),
+            [0.0]
+        );
     }
 }
