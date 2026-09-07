@@ -4,7 +4,6 @@ VaneDB is an embeddable vector database backed by Rust. Store vectors and
 search for their nearest neighbors inside your Python process, without a
 database server. Supply your own embeddings; VaneDB does not generate them.
 
-The `vanedb` package is the canonical Python implementation. The supplementary
 
 ## Installation
 
@@ -37,7 +36,8 @@ store = FlatIndex(3, Metric.COSINE)
 store.add_batch(ids, vectors)
 assert store.search(query, 1) == [(101, 0.0)]
 
-# Approximate search, with a fixed maximum capacity.
+# Approximate search. capacity reserves room up front; it is a hint,
+# not a ceiling, and adding beyond it succeeds.
 index = ApproxIndex(3, Metric.COSINE, capacity=100, seed=42)
 index.add_batch(ids, vectors)
 index.ef_search = 100
