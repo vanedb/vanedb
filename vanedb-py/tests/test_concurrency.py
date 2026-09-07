@@ -8,6 +8,8 @@ overlap. The third guards methods that already behaved correctly.
 import threading
 import time
 
+import numpy as np
+
 import vanedb
 
 
@@ -47,9 +49,17 @@ def test_disk_builder_is_usable_from_two_threads(tmp_path):
 
 def test_index_save_does_not_block_other_threads(tmp_path):
     """`save` serialises the whole graph; holding the GIL would freeze the process."""
-    index = vanedb.ApproxIndex(_dim(), vanedb.Metric.COSINE, capacity=4000)
-    for i in range(4000):
-        index.add(i, _vec(i))
+    # Large enough that one save takes far longer than the watcher's 1ms
+    # cadence below. At a few thousand small vectors a save lands within a
+    # tick or two of that floor, and no measurement can separate "the
+    # interpreter was held" from "the watcher simply had not woken yet".
+    n, dim = 20_000, 64
+    index = vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=n)
+    rng = np.random.default_rng(0)
+    index.add_batch(
+        np.arange(n, dtype=np.uint64),
+        rng.random((n, dim), dtype=np.float32),
+    )
 
     ticks = []
     stop = threading.Event()
@@ -61,27 +71,25 @@ def test_index_save_does_not_block_other_threads(tmp_path):
 
     watcher = threading.Thread(target=tick)
     watcher.start()
-    saves = 10
     try:
-        t0 = time.perf_counter()
-        for n in range(saves):
-            index.save(str(tmp_path / f"s{n}.hnsw"))
-        elapsed = time.perf_counter() - t0
+        started = time.perf_counter()
+        index.save(str(tmp_path / "s.hnsw"))
+        finished = time.perf_counter()
     finally:
         stop.set()
         watcher.join()
 
-    # The longest the watcher went unscheduled, against how long one save
-    # takes. A save that holds the GIL produces a gap the length of a whole
-    # save; one that releases it keeps the watcher near its 1ms cadence. The
-    # comparison is to this run's own timings, so there is no constant tuned
-    # to how fast this machine happens to be.
-    during = [b - a for a, b in zip(ticks, ticks[1:])]
-    assert during, "watcher never ran"
-    per_save = elapsed / saves
-    assert max(during) < per_save / 2, (
-        f"watcher stalled {max(during) * 1000:.1f}ms; one save takes "
-        f"{per_save * 1000:.1f}ms, so the interpreter was held for its duration"
+    # Only ticks strictly inside the save window count, so a tick that landed
+    # just before the call cannot be mistaken for one during it.
+    inside = [t for t in ticks if started < t < finished]
+    elapsed = finished - started
+    gaps = [b - a for a, b in zip([started] + inside, inside + [finished])]
+
+    # Compared against this run's own save duration, not a constant: a save
+    # that holds the GIL leaves one gap spanning the whole window.
+    assert max(gaps) < elapsed / 2, (
+        f"watcher stalled {max(gaps) * 1000:.1f}ms of a {elapsed * 1000:.1f}ms "
+        f"save, so the interpreter was held for its duration"
     )
 
 
