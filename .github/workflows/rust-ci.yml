@@ -192,6 +192,79 @@ jobs:
           path: target/c-artifacts/*
           if-no-files-found: error
 
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      # Installed from crates.io rather than via a new pinned Action: every
+      # `uses:` here is SHA-pinned, and adding a dependency means vouching for
+      # a SHA. This costs a couple of minutes and adds no new trusted party.
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Measure the engine that ships
+        run: |
+          # vanedb-wasm is excluded, not forgotten: its tests are
+          # #[wasm_bindgen_test] and only execute under `wasm-pack test`,
+          # which the Test (WASM) job runs. Including it here reports 0% for
+          # code that is tested, which is a worse signal than omitting it.
+          cargo llvm-cov --workspace --exclude vanedb-py --exclude vanedb-wasm \
+            --features disk --locked --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        if: >-
+          github.actor != 'dependabot[bot]' &&
+          (github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository)
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          files: lcov.info
+          flags: rust
+          fail_ci_if_error: true
+
+  sanitize:
+    name: AddressSanitizer (unsafe paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Nightly is required for -Zsanitizer and -Zbuild-std. The C++ engine has
+      # run ASan and UBSan since early on; the Rust engine had no dynamic UB
+      # checking at all, while carrying hand-written NEON and AVX2 kernels and
+      # an `extern "C"` surface that takes raw pointers from callers.
+      #
+      # This is not theoretical. vanedb#df63f31 was a heap overread in the NEON
+      # and AVX2 kernels, reachable from safe code, guarded only by a
+      # `debug_assert_eq!` that release builds compile out. It was found by a
+      # human reading the code, because no test passed unequal-length slices.
+      # Reverting that fix makes this job report
+      # "heap-buffer-overflow ... READ of size 16".
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # nightly
+        with:
+          toolchain: nightly
+          components: rust-src
+      - name: Distance kernels and index paths under ASan
+        env:
+          RUSTFLAGS: -Zsanitizer=address
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+        run: |
+          cargo test -Zbuild-std --target x86_64-unknown-linux-gnu \
+            -p vanedb --features disk --locked
+      # The C ABI is where raw pointers cross the boundary: 39 `unsafe extern
+      # "C"` functions taking caller-owned buffers. Neither engine's sanitizer
+      # job covered it before.
+      - name: C ABI under ASan
+        env:
+          RUSTFLAGS: -Zsanitizer=address
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+        run: |
+          cargo test -Zbuild-std --target x86_64-unknown-linux-gnu \
+            -p vanedb-capi --locked
+
   test-wasm:
     name: Test (WASM)
     runs-on: ubuntu-latest
