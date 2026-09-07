@@ -48,9 +48,10 @@ not prove that PyPI trusts it.
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
 The [crates.io prerequisites](https://crates.io/docs/trusted-publishing)
 require an initial manual publication before configuring trusted publishing.
-The owner reported on September 7 that a crates.io account still needs to be
-created. Complete account creation and confirm its ownership before arranging
-the initial publication and trusted publisher.
+On September 7, inspection confirmed the owner signed in as `tsvet01`, with
+no email address configured. Add an owner-approved email and complete its
+verification before arranging initial publication and the trusted publisher.
+Do not create a duplicate account or assume sign-in alone enables publishing.
 If bootstrap publication is needed, use the approved version and commit with a
 scoped token through Cargo's credential mechanism; never put credentials in
 release notes, shell history or logs. Configure the trusted publisher afterward.
