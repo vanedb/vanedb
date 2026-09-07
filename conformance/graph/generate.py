@@ -26,7 +26,7 @@ def encode(metric, kind=1, deleted=False, empty=False, dead_slots=()):
     graph = [[[1, 2], [2]], [[0, 2]], [[0, 1], [0]]]
     state = rng_state(kind)
     data = bytearray(struct.pack("<4sIIIQQQQQQQQiIQ", b"VNDB", 2, 1, metric,
-        2, 0 if empty else 3, 4, 2, 16, 16, 42, (1 << 64) - 1 if empty else 0,
+        2, 0 if empty else 3, 4, 5, 16, 32, 42, (1 << 64) - 1 if empty else 0,
         -1 if empty else 1, kind, len(state)))
     assert len(data) == 96
     if not empty:

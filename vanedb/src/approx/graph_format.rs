@@ -270,7 +270,7 @@ mod spec_geometry {
     use std::path::Path;
 
     /// Every field of `l2_rng1.vndb` that the public API cannot reach, read
-    /// from the field table in `conformance/graph/README.md`.
+    /// from the canonical fixture table in `conformance/graph/README.md`.
     ///
     /// The integration test pins the header and the observable contents. It
     /// cannot see the entry slot, the per-node levels or the neighbour lists,
@@ -279,6 +279,36 @@ mod spec_geometry {
     /// round-trips byte for byte and changes which vector a query returns.
     /// This is the same treatment `persistence::legacy_fixtures` gives the
     /// legacy files.
+    /// The continuation encoding at offset 84 selects how a foreign RNG
+    /// stream is parsed. Remapping 2 and 3 to each other in both directions
+    /// round-trips byte for byte and no other test can see it, because
+    /// nothing in this engine consumes a foreign stream yet. Naming the
+    /// expected encoding per fixture is what makes the field observable.
+    #[test]
+    fn each_fixture_carries_the_continuation_encoding_its_name_declares() {
+        for (name, want) in [
+            ("l2_rng1.vndb", 1u32),
+            ("l2_rng2.vndb", 2),
+            ("l2_rng3.vndb", 3),
+            ("cosine_rng2.vndb", 2),
+            ("cosine_rng3.vndb", 3),
+            ("dot_rng2.vndb", 2),
+            ("dot_rng3.vndb", 3),
+        ] {
+            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/vndb_graph")
+                .join(name);
+            let index = ApproxIndex::load(&path).unwrap();
+            let got = index
+                .inner
+                .read()
+                .persisted_rng
+                .as_ref()
+                .map(|rng| rng.kind);
+            assert_eq!(got, Some(want), "{name}: continuation encoding, offset 84");
+        }
+    }
+
     #[test]
     fn the_spec_fixture_decodes_to_the_documented_graph() {
         let path =

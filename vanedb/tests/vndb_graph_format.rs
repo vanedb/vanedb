@@ -65,9 +65,9 @@ fn the_header_matches_the_field_table() {
     assert_eq!(index.dimension(), 2, "dim, offset 16");
     assert_eq!(index.len(), 3, "count, offset 24");
     assert_eq!(index.capacity(), 4, "capacity hint, offset 32");
-    assert_eq!(index.m(), 2, "M, offset 40");
+    assert_eq!(index.m(), 5, "M, offset 40");
     assert_eq!(index.ef_construction(), 16, "ef_construction, offset 48");
-    assert_eq!(index.get_ef_search(), 16, "ef_search, offset 56");
+    assert_eq!(index.get_ef_search(), 32, "ef_search, offset 56");
     assert_eq!(index.seed(), 42, "seed, offset 64");
     assert_eq!(index.metric(), Metric::L2, "metric, offset 12");
 }
