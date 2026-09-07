@@ -267,6 +267,29 @@ impl ApproxIndex {
         self.dim
     }
 
+    /// Links a new node receives per layer. The layer-0 cap is `2 * m`.
+    ///
+    /// Reported for the same reason as [`metric`](Self::metric): a loaded
+    /// index read this from the file, and a caller that did not build it has
+    /// no other way to know what graph they are searching.
+    pub fn m(&self) -> usize {
+        self.m
+    }
+
+    /// Beam width used while building. Higher means a better graph, built
+    /// more slowly.
+    pub fn ef_construction(&self) -> usize {
+        self.ef_construction
+    }
+
+    /// The seed the level distribution was drawn from.
+    ///
+    /// Preserved across save and load, so a reloaded index continues building
+    /// the same graph it would have built had it never been written out.
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
     /// The metric this index ranks by.
     pub fn metric(&self) -> Metric {
         self.metric

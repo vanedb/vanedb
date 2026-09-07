@@ -25,13 +25,14 @@ let hits = index.search(&query, 10)?;
 Distance kernels dispatch to NEON or AVX2 at runtime and fall back to a
 portable scalar path.
 
-Both formats are little-endian. `DiskIndex` writes `VNDB` v1, a specified,
-versioned format anchored to shared fixtures; either engine reads the other's
-file. `ApproxIndex::save` is engine-specific and not yet a stable public
-format — treat a saved graph as a way to avoid rebuilding, not as a system of
-record, until the `VNDB` graph payload lands. Its loader accepts the current
-version and the one before it; `DiskIndex` accepts `VNDB` v1 only, since there
-is no earlier version to accept.
+Both formats are little-endian and both are specified, with field tables and
+fixtures generated from those tables rather than from the engine, under
+`conformance/`. `DiskIndex` writes `VNDB` v1 and `ApproxIndex::save` writes
+`VNDB` v2. Legacy `HNSW` graph files still load.
+
+The disk format is cross-engine — either engine reads the other's file. The
+graph format is read by this engine only; the C++ engine reads its own legacy
+graph files.
 
 A header-only C++ implementation is maintained alongside this crate, with a
 cross-engine benchmark harness, in the
