@@ -7,9 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 1.0.0, breaking changes may land in a minor release.
 
-## [0.1.0] - 2026-09-07
+## [0.1.0] - Unreleased
 
-The first release. There is no earlier version to diff against, so this
+The planned first release. There is no earlier version to diff against, so this
 section records what it contains rather than what changed.
 
 ### Security
@@ -65,9 +65,10 @@ section records what it contains rather than what changed.
 ### Changed
 
 - `DiskIndex` uses VNDB v1. New `ApproxIndex::save` files use the shared VNDB v2
-  graph format; legacy HNSW files remain readable. Valid VNDB v1/v2 files written by
-  1.0.0 remain readable by the Rust engine throughout 1.x, within documented
-  resource limits. Keep originals and source vectors while verifying migration.
+  graph format; legacy HNSW files remain readable. The 0.x format can evolve in
+  minor releases; existing identifiers are not reinterpreted and readers for
+  existing files are retained. Rust and C++ preserve shared graph files across
+  load/save. Keep originals and source vectors while verifying migration.
 - Python methods that block — `save`, `load`, `upsert`, `remove`, and the
   `DiskIndexBuilder` methods — release the GIL. `DiskIndexBuilder` takes
   `&self` like every other class and can be shared between threads.
@@ -96,6 +97,6 @@ section records what it contains rather than what changed.
 
 ### Roadmap
 
-- NVIDIA CUDA support is required after 1.0.0. The unimplemented Rust CUDA
+- NVIDIA CUDA support is required after the initial release. The unimplemented Rust CUDA
   feature was removed; implementation and hardware acceptance requirements
   are recorded in the [roadmap](docs/ROADMAP.md).

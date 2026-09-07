@@ -44,8 +44,10 @@ preserving vectors, graph links, IDs and deleted slots across both engines.
 Further insertions can produce different graphs across engines. The Rust loader
 also reads legacy Rust v1/v2 graphs; load and save to a new path to migrate.
 Older readers cannot open VNDB v2. Keep originals and source vectors while
-verifying migration. The Rust engine in VaneDB 1.x will continue to read valid VNDB v1 disk and
-VNDB v2 graph files written by 1.0.0, within documented resource limits.
+verifying migration. During 0.x, APIs and persistence formats may change in a minor release.
+Existing format identifiers will not be reinterpreted; new encodings require
+new identifiers and readers for existing files are retained. Older readers
+need not accept future formats.
 Future insertions need not reproduce identical topology. `DiskIndex` continues
 to accept VNDB v1 only.
 

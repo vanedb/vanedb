@@ -57,6 +57,12 @@ TEST_CASE("ApproxIndex - fixed legacy files preserve graph state", "[index][pers
     auto expected = bytes(std::filesystem::path(VANEDB_GRAPH_DIR) /
         (metric + "_rng" + std::to_string(vanedb::detail::graph::NATIVE_RNG) + ".vndb"));
     std::filesystem::remove(saved);
+    // Legacy fixtures retain M=2 and ef_search=16. The canonical VNDB fixture
+    // uses distinct header values (M=5, ef_search=32) to detect transposition.
+    // Adjust only those two expected fields; all legacy configuration and
+    // graph/RNG bytes must still survive migration exactly.
+    expected[40] = 2;
+    expected[56] = 16;
     // Exact bytes cover topology, configuration, vectors, identity and RNG.
     REQUIRE(actual == expected);
     const float added[] = {0.25f, 0.75f};

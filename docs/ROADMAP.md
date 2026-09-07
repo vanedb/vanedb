@@ -1,15 +1,15 @@
 # VaneDB roadmap
 
-The 1.0.0 scope is the Rust engine and its Python, C and WebAssembly bindings,
+The 0.1.0 scope is the Rust engine and its Python, C and WebAssembly bindings,
 with CPU search and the existing macOS Metal feature. CUDA is a required,
-high-priority follow-up after 1.0.0, as agreed on September 7, 2026. It has no
+high-priority follow-up after the initial release, as agreed on September 7, 2026. It has no
 assigned release version or delivery date. The C++ engine remains frozen
 reference code.
 
-## CUDA on NVIDIA GPUs — required after 1.0.0
+## CUDA on NVIDIA GPUs — required after the initial release
 
 Enable applications with NVIDIA hardware to accelerate vector workloads through
-the Rust engine. CUDA is not supported in 1.0.0; the unimplemented Rust stub is
+the Rust engine. CUDA is not supported in 0.1.0; the unimplemented Rust stub is
 excluded from that release. A feature flag or kernel source alone does not
 establish support.
 

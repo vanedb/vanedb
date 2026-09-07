@@ -287,7 +287,9 @@ fn a_count_larger_than_the_file_is_rejected() {
     // first and never reach that check, so this uses a value that is small
     // enough to be plausible and still larger than the file can hold.
     let err = corrupt("l2_rng1.vndb", |b| {
-        b[24..32].copy_from_slice(&1000u64.to_le_bytes())
+        b[24..32].copy_from_slice(&1000u64.to_le_bytes());
+        // Keep count within capacity so the file-size check is reached.
+        b[32..40].copy_from_slice(&1000u64.to_le_bytes());
     });
     // Positively, so a reworded or wrong message fails rather than passing
     // for lack of two words.

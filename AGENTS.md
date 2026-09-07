@@ -64,13 +64,13 @@ cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
 Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is excluded from
-1.0.0 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
+0.1.0 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
 Do not reintroduce an unimplemented CUDA feature or claim support without the
 roadmap's NVIDIA hardware, correctness, lifecycle and performance evidence. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
 acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built
 Android ARM64 bundle also passes locally on an Android 15 emulator with 16 KiB
 pages; see the release evidence. The September 7 decision accepts simulators
-and emulators for 1.0.0 verification. Physical-device checks remain a follow-up, and
+and emulators for initial-release verification. Physical-device checks remain a follow-up, and
 no physical-device success may be claimed without a recorded run. Node wasm tests likewise
 do not prove browser integration; CI also runs headless Chrome. Match each
 platform claim to the actual build and runtime evidence; use the relevant host
@@ -83,9 +83,8 @@ and toolchain for checks that cannot run locally.
   `vanedb/tests/fixtures/conformance/vndb/` that each engine reads and reproduces. Preserve that
   contract. Approximate graphs now use the shared VNDB v2 format in
   `conformance/graph/`; keep its golden files, cross-load preservation and legacy
-  reader checks passing. The contract preserves reads of valid VNDB v1/v2 files
-  written by VaneDB 1.0.0 throughout the Rust engine in VaneDB 1.x, within
-  documented resource limits. Never reinterpret
+  reader checks passing. During 0.x, APIs and persistence formats may change
+  in a minor release; this is not a 1.x stability commitment. Never reinterpret
   existing format/kind/continuation identifiers; retain old readers when adding
   a new encoding. Future insertion topology is not guaranteed. Keep all corruption checks.
 - **Legacy Rust persistence remains stable during the VNDB transition**:

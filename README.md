@@ -61,7 +61,7 @@ print(hits)
 ```
 
 See the [Python guide](vanedb-py/README.md) for exact search and saving an index.
-These instructions use the checkout; they do not assume a published 1.0.0 package.
+These instructions use the checkout; they do not assume a published 0.1.0 package.
 
 Vector arguments accept any buffer-protocol object (numpy `float32` arrays,
 `array.array`, memoryviews) as well as plain Python lists. `add_batch` is
@@ -154,7 +154,7 @@ for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
 iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
 simulator and Android x86-64 emulator. The CI-built Android ARM64 library also
 passes acceptance locally on an Android 15 emulator with 16 KiB pages; see the
-[release evidence](docs/release/1.0.0-readiness.md). The accepted 1.0.0 mobile
+[release evidence](docs/release/0.1.0-readiness.md). The accepted 0.1.0 mobile
 verification scope is simulator/emulator based. Physical-device acceptance
 remains a follow-up; these results do not establish behavior on an iPhone or
 Android device.
@@ -187,9 +187,10 @@ Further insertions can produce different graphs across engines. Rust still reads
 legacy Rust v1/v2 files; C++ still reads legacy C++ v1/v2/v3 files. To migrate,
 load a legacy file in its original engine and save to a new path; older readers
 cannot open VNDB v2. Keep the original file and source vectors while verifying
-the migration. The persistence contract keeps valid VNDB v1 disk and VNDB v2
-graph files written by VaneDB 1.0.0 readable by the Rust engine in VaneDB 1.x,
-within documented resource limits.
+the migration. During 0.x, APIs and persistence formats may change in a minor release.
+Existing format identifiers will not be reinterpreted; new encodings require
+new identifiers and readers for existing files are retained. Older readers
+need not accept future formats.
 This does not guarantee identical future graph topology after insertions.
 
 ## Repository layout
@@ -220,7 +221,7 @@ and [security policy](SECURITY.md) for release changes and vulnerability reports
 
 ## Roadmap
 
-CUDA support for NVIDIA GPUs is a required, high-priority follow-up after 1.0.0.
+CUDA support for NVIDIA GPUs is a required, high-priority follow-up after the initial release.
 It is excluded from this release. The [roadmap](docs/ROADMAP.md) records the
 implementation, hardware verification and performance requirements, plus mobile
 physical-device follow-up. No delivery version or date has been assigned.

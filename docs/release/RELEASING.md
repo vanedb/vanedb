@@ -1,8 +1,8 @@
 # Preparing and publishing VaneDB
 
-The [readiness record](1.0.0-readiness.md) is the release checklist. A version
+The [readiness record](0.1.0-readiness.md) is the release checklist. A version
 bump prepares artifacts; it does not satisfy the remaining requirements or
-authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
+authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
 
 ## Verify the candidate
 
@@ -10,11 +10,12 @@ authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
    release PR, resolve the remaining findings, and identify the approved commit.
 2. Confirm the core, Python, C ABI and WebAssembly Cargo package versions and
    `vanedb-py/pyproject.toml` agree. Both Cargo lockfiles must resolve that version.
-   The frozen C++ reference and benchmark harness have independent versions.
+   The C++ manifest, header and CMake version must match the core, as checked by
+   `bench/tests/release_identity.rs`; the benchmark package version is independent.
 3. Require the complete platform CI matrix and installed/extracted artifact
    checks for that candidate. Complete the accepted simulator/emulator mobile,
    Metal, performance, persistence-contract and role-review requirements in the
-   readiness record. CUDA is a required post-1.0.0 roadmap item; physical-device
+   readiness record. CUDA is required after the initial release; physical-device
    checks are a follow-up. Neither may be advertised as verified in this release.
    Check that Rust unsafe disk-open call sites establish file immutability from
    before opening through the mapping's lifetime, and that Python/C guidance
@@ -39,11 +40,12 @@ authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
 The Python publisher is repository `vanedb/vanedb`, workflow `publish-rust.yml`,
 with environment `pypi` (or `testpypi` for an explicitly requested rehearsal).
 PyPI supports a [pending publisher for a new project](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
-On September 7, 2026, the owner reported that PyPI was already configured with
-this release effort. Verify that existing setup instead of creating a duplicate;
-the in-app browser currently requires the owner to sign in. Safari automation
-is unavailable until Computer Use permissions are granted. The GitHub environment's existence alone does
-not prove that PyPI trusts it.
+On September 7, 2026, signed-in inspection confirmed an existing pending
+publisher for project `vanedb`, repository `vanedb/vanedb` and workflow
+`publish-rust.yml`. It currently permits any GitHub environment. Restrict it
+to `pypi` and verify the saved configuration before publication; do not create
+a duplicate publisher. The GitHub environment's existence alone does not prove
+that PyPI trusts it.
 
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
 The [crates.io prerequisites](https://crates.io/docs/trusted-publishing)
@@ -62,17 +64,17 @@ Publication requires explicit maintainer authorization after verification.
 Merge the approved candidate through the protected-main PR process. Both tag
 workflows reject release commits that are not on main.
 
-- Python uses tag `vanedb-v1.0.0`; its workflow builds and validates the wheels
+- Python uses tag `vanedb-v0.1.0`; its workflow builds and validates the wheels
   and source distribution before the protected `pypi` publication job.
 - If the crate's trusted publisher is already configured, use tag
-  `vanedb-crate-v1.0.0`. The crate workflow validates the package before the
-  protected `crates-io` job. If 1.0.0 is the manual bootstrap publication,
+  `vanedb-crate-v0.1.0`. The crate workflow validates the package before the
+  protected `crates-io` job. If 0.1.0 is the manual bootstrap publication,
   do not also trigger this tag's upload of the same version; use the crate-tag
   workflow for later versions after configuring its publisher.
 - C library archives and the separate Node/browser npm tarballs come from the
   approved commit's CI artifacts. Attach the C archives with their runtime
-  compatibility metadata, and `vanedb-wasm-1.0.0-nodejs.tgz` and
-  `vanedb-wasm-1.0.0-web.tgz`, each with its matching checksum. There is no
+  compatibility metadata, and `vanedb-wasm-0.1.0-nodejs.tgz` and
+  `vanedb-wasm-0.1.0-web.tgz`, each with its matching checksum. There is no
   automatic npm-registry or C++ package publication.
 
 After publication, verify registry version metadata and install the published
