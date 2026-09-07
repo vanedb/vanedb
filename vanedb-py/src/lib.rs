@@ -128,22 +128,21 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
             "vectors must be a 2-D float32 buffer (e.g. numpy array) or a sequence of float sequences",
         )
     })?;
-    // `rows.len() * dim` on caller values. The constructor bounds `dim * 4`,
-    // which still leaves a dim large enough to wrap this product — and
-    // `with_capacity` panics rather than returning, so the failure escapes the
-    // documented ValueError model as a PanicException.
-    // `rows.len() * dim` floats, which `Vec<f32>` allocates as four times
-    // that many bytes. Both products must be valid: 2 * (2^62 - 1) fits in a
-    // usize and still asks for more than isize::MAX bytes, which
-    // `with_capacity` answers with a panic rather than an error — escaping the
-    // documented ValueError model as a PanicException.
+    // `rows.len() * dim` floats, allocated as four times that many bytes.
+    // 2 * (2^62 - 1) is a valid usize that still exceeds isize::MAX bytes, and
+    // `with_capacity` answers that with a panic rather than an error — which
+    // escapes the documented ValueError model as a PanicException.
     let capacity = rows
         .len()
         .checked_mul(dim)
-        .and_then(|n| n.checked_mul(std::mem::size_of::<f32>()).map(|_| n))
         .filter(|n| *n <= isize::MAX as usize / std::mem::size_of::<f32>())
         .ok_or_else(|| PyValueError::new_err("rows * dim is too large to allocate"))?;
-    let mut flat = Vec::with_capacity(capacity);
+    // Fallibly, because a request that is merely enormous rather than invalid
+    // reaches `handle_alloc_error`, which aborts the process — worse than the
+    // panic above, since an abort takes the interpreter with it.
+    let mut flat: Vec<f32> = Vec::new();
+    flat.try_reserve_exact(capacity)
+        .map_err(|_| PyValueError::new_err("not enough memory for this batch"))?;
     for row in &rows {
         if row.len() != dim {
             return Err(PyValueError::new_err(format!(

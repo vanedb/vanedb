@@ -92,8 +92,7 @@ requires a distinct, reproducible generator contract, assign a new continuation
 encoding and retain the reader for existing files; do not silently redefine it.
 
 Words contain decimal digits only. A C++ writer would seed its fallback
-MT19937 from the
-low 32 bits of the header seed, while preserving the full seed in the file.
+MT19937 from the low 32 bits of the header seed, while preserving the full seed in the file.
 
 A reader restores its native continuation when supported. Otherwise it seeds
 its own level generator from the stored seed and advances it for the stored

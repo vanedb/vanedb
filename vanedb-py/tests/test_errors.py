@@ -165,7 +165,9 @@ def test_a_batch_whose_rows_times_dim_overflows_is_a_valueerror():
         vanedb.FlatIndex(dim, vanedb.Metric.L2),
         vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=1),
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="too large to allocate"):
             # A list of lists: the buffer fast paths take their length from
-            # the shape and never perform this multiply.
+            # the shape and never perform this multiply. The match anchors on
+            # the guard's own message, because the previous version of this
+            # test passed on a different ValueError entirely.
             index.add_batch([0, 1], [[1.0], [1.0]])
