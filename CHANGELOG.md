@@ -30,6 +30,25 @@ against. This section records what the first release will contain.
 - Every GitHub Action is pinned to a commit; `cargo-deny` gates advisories,
   licences, bans and sources on each change.
 
+### Changed — public API, before anything is published
+
+- `SearchResult` is `#[non_exhaustive]`, so a field can be added later without
+  a major version. `PartialEq`/`Ord` stay defined over `(id, distance)`.
+- `DiskIndex::get` returns `Cow<'_, [f32]>` rather than `&[f32]`, so a store
+  that encodes vectors as anything but native `f32` is still possible. It
+  borrows today.
+- `ApproxIndex::search_with(query, k, &SearchParams)` takes per-query options.
+  `SearchParams` carries an unused lifetime deliberately: one cannot be added
+  later, and without it a borrowed filter would be impossible forever.
+- The C ABI rejects an unrecognised metric instead of using L2, and its
+  `ef_search` argument is per-call — it previously mutated the shared index and
+  was written into saved files.
+- Python raises `ValueError`, not `OverflowError`, for every negative size, and
+  releases the GIL in every method that reaches the index lock.
+- `FlatIndex::size`, `DiskIndex::len`/`is_empty`, `DiskIndexBuilder::len`/
+  `is_empty` and `ApproxIndex::get` added, so the count and read spellings
+  match across index types.
+
 ### Added
 
 - `DiskIndex` and `DiskIndexBuilder` appear in the published documentation,
@@ -37,6 +56,10 @@ against. This section records what the first release will contain.
 - Declared MSRV of 1.85, checked in CI on that exact toolchain.
 - The generated C header is rebuilt in CI and must match what is committed;
   `build.rs` fails loudly instead of leaving a stale header in place.
+- A committed `HNSW` v1 file, loaded as bytes, so a change to the encoder
+  cannot silently stop older files from loading.
+- `DiskIndex::open` documents that the mapped file must not change while open,
+  on the Rust, C and Python surfaces.
 
 ### Changed
 

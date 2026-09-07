@@ -21,6 +21,16 @@ pub type vanedb_rs_index = ApproxIndex;
 #[allow(non_camel_case_types)]
 pub type vanedb_rs_disk = DiskIndex;
 
+fn from_metric(m: Metric) -> u32 {
+    match m {
+        Metric::Cosine => 1,
+        Metric::Dot => 2,
+        // Metric is #[non_exhaustive]; a variant this ABI does not define
+        // cannot reach a handle built through it.
+        _ => 0,
+    }
+}
+
 /// `None` for a value this ABI does not define.
 ///
 /// Mapping an unknown value to L2 would defeat `Metric`'s `#[non_exhaustive]`
@@ -458,6 +468,13 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
 /// # Safety
 /// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
 /// that must be freed with `vanedb_rs_disk_free`.
+///
+/// The file is mapped, not read, and must not be modified or truncated by any
+/// process while the handle lives. Truncating it makes a later read raise
+/// SIGBUS, which kills the process: the panic guard on every entry point here
+/// catches unwinding, not signals. Rebuilding with `vanedb_rs_disk_build` is
+/// safe, since it renames a new file into place and leaves this handle on the
+/// old one.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb_rs_disk {
     guard(std::ptr::null_mut(), || {
@@ -545,6 +562,59 @@ pub unsafe extern "C" fn vanedb_rs_store_len(s: *const vanedb_rs_store) -> usize
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_dimension(s: *const vanedb_rs_store) -> usize {
     guard(0, || if s.is_null() { 0 } else { (*s).dimension() })
+}
+
+/// Metric the store was built with: 0 = L2, 1 = cosine, 2 = dot.
+///
+/// Returns 0 for a null handle, which is indistinguishable from L2 — check the
+/// handle before trusting it, as with every other accessor here.
+///
+/// # Safety
+/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_metric(s: *const vanedb_rs_store) -> u32 {
+    guard(0, || {
+        if s.is_null() {
+            0
+        } else {
+            from_metric((*s).metric())
+        }
+    })
+}
+
+/// Metric the index was built with: 0 = L2, 1 = cosine, 2 = dot.
+///
+/// A loaded index reads this from the file, so it is the only way a caller can
+/// confirm their query convention matches what was stored. Returns 0 for null.
+///
+/// # Safety
+/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_metric(h: *const vanedb_rs_index) -> u32 {
+    guard(0, || {
+        if h.is_null() {
+            0
+        } else {
+            from_metric((*h).metric())
+        }
+    })
+}
+
+/// Metric the mapped file was written with: 0 = L2, 1 = cosine, 2 = dot.
+///
+/// Returns 0 for null.
+///
+/// # Safety
+/// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_disk_metric(d: *const vanedb_rs_disk) -> u32 {
+    guard(0, || {
+        if d.is_null() {
+            0
+        } else {
+            from_metric((*d).metric())
+        }
+    })
 }
 
 /// Whether `id` is present. False if `s` is null.

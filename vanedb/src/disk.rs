@@ -76,6 +76,14 @@ impl DiskIndexBuilder {
         if dim == 0 {
             return Err(VaneError::ZeroDimension);
         }
+        // Matches FlatIndex::new and ApproxIndexBuilder::build: a dimension
+        // that cannot be sized in bytes is rejected here rather than
+        // overflowing later, where it surfaces as a panic.
+        if dim.checked_mul(std::mem::size_of::<f32>()).is_none() {
+            return Err(VaneError::InvalidParameter(
+                "dim * size_of::<f32>() overflows usize",
+            ));
+        }
         Ok(Self {
             dim,
             metric,
@@ -388,7 +396,7 @@ impl DiskIndex {
         // FlatIndex::search (O(n log n) -> O(n + k log k)).
         macro_rules! scan {
             ($dist:path) => {
-                // Bounded top-k over the stream; see store/topk.rs.
+                // Bounded top-k over the stream; see flat/topk.rs.
                 crate::flat::topk::select(
                     (0..self.num_vectors)
                         .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i)))),
