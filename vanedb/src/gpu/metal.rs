@@ -74,9 +74,11 @@ pub struct GpuBuffer {
 }
 
 impl GpuBuffer {
+    /// Number of vectors uploaded.
     pub fn n(&self) -> usize {
         self.n
     }
+    /// Components per vector.
     pub fn dim(&self) -> usize {
         self.dim
     }
@@ -135,12 +137,18 @@ impl MetalCompute {
     /// Upload vectors to GPU memory. Vectors is a flat array of n * dim floats.
     /// Dimension must be divisible by 4.
     pub fn upload(&self, vectors: &[f32], n: usize, dim: usize) -> Result<GpuBuffer> {
-        if !dim.is_multiple_of(4) {
+        if dim % 4 != 0 {
             return Err(VaneError::InvalidParameter("GPU requires dim % 4 == 0"));
         }
-        if vectors.len() != n * dim {
+        // Both operands come from the caller, so the product can wrap: at
+        // n = 2^62, dim = 4 it reaches zero, matches an empty slice, and
+        // yields a buffer claiming 2^62 vectors over a zero-byte allocation.
+        let expected = n
+            .checked_mul(dim)
+            .ok_or(VaneError::InvalidParameter("n * dim overflows"))?;
+        if vectors.len() != expected {
             return Err(VaneError::DimensionMismatch {
-                expected: n * dim,
+                expected,
                 got: vectors.len(),
             });
         }
@@ -174,6 +182,11 @@ impl MetalCompute {
 
         let n = buffer.n;
         let dim = buffer.dim;
+        // Sized from `n`, which came from the caller via `upload`. Checked here
+        // rather than in the pool below, where `?` has no Result to return to.
+        let result_bytes = n
+            .checked_mul(std::mem::size_of::<f32>())
+            .ok_or(VaneError::InvalidParameter("result buffer size overflows"))?;
 
         let result = autoreleasepool(|| {
             let query_buf = self.device.new_buffer_with_data(
@@ -181,10 +194,9 @@ impl MetalCompute {
                 (dim * std::mem::size_of::<f32>()) as NSUInteger,
                 MTLResourceOptions::StorageModeShared,
             );
-            let result_buf = self.device.new_buffer(
-                (n * std::mem::size_of::<f32>()) as u64,
-                MTLResourceOptions::StorageModeShared,
-            );
+            let result_buf = self
+                .device
+                .new_buffer(result_bytes as u64, MTLResourceOptions::StorageModeShared);
             let d4: u32 = (dim / 4) as u32;
             let dim_buf = self.device.new_buffer_with_data(
                 &d4 as *const u32 as *const _,
@@ -226,6 +238,17 @@ impl MetalCompute {
     ) -> Result<Vec<SearchResult>> {
         if k == 0 {
             return Err(VaneError::InvalidK);
+        }
+        // `zip` below stops at the shorter, so a short `ids` would rank only a
+        // prefix of the corpus and return wrong neighbours with no error. The
+        // query length is already validated in `distances`; this is the same
+        // check for the other caller-supplied slice.
+        if ids.len() != buffer.n {
+            return Err(VaneError::BatchLengthMismatch {
+                ids: ids.len(),
+                vectors: buffer.n,
+                dim: buffer.dim,
+            });
         }
         let dists = self.distances(query, buffer, metric)?;
         let mut results: Vec<SearchResult> = ids

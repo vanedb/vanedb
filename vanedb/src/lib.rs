@@ -46,7 +46,9 @@ pub mod disk;
 pub mod distance;
 pub mod error;
 pub mod flat;
+/// GPU backends, behind `gpu-metal` or `gpu-cuda`.
 #[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))))]
 pub mod gpu;
 mod validation;
 
