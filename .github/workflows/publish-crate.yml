@@ -100,7 +100,7 @@ jobs:
       # Bootstrap note: crates.io cannot pre-register a trusted publisher the
       # way PyPI's pending publishers can. RFC 3691: "A Trusted Publisher
       # Configuration can only be created after an initial manual publishing
-      # of a crate." So version 0.1.0 must be published once by hand with a
+      # of a crate." So the first approved version must be published with a
       # scoped API token, the publisher configured on the crate's settings
       # page, and every release after that runs through here.
       - name: Exchange the OIDC token for a crates.io token
