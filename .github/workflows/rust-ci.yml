@@ -46,16 +46,25 @@ jobs:
 
   msrv:
     name: MSRV (1.85)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      # The version declared in every Cargo.toml. Bound by bincode 2.x, the
-      # newest runtime dependency. `check`, not `test`: criterion is a
-      # dev-dependency and needs a newer toolchain than consumers do.
+      # Check the declared compiler floor, including Python, wasm32 and Metal.
+      # Tests use newer dev-dependencies and run on stable in the jobs below.
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.85.0
-      - run: cargo check --workspace --exclude vanedb-py --features disk --locked
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+      - run: cargo check --workspace --features disk --locked
+      - run: cargo check -p vanedb-wasm --target wasm32-unknown-unknown --locked
+      - if: runner.os == 'macOS'
+        run: cargo check -p vanedb --features disk,gpu-metal --locked
 
   deny:
     name: Advisories & licenses
@@ -83,8 +92,16 @@ jobs:
       - run: cargo check -p vanedb-py --locked
 
   wheel-py:
-    name: Python wheel (build, install, test)
+    name: Python wheel (maturin ${{ matrix.maturin-label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - maturin-label: latest
+            maturin-version: ''
+          - maturin-label: minimum
+            maturin-version: v1.9.3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -93,17 +110,16 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.11'
-      # Built the way the release workflow builds it — same action, same
-      # manylinux target and flags — so this gate exercises the artifact that
-      # ships rather than a differently configured one. Until now the Python
-      # bindings had no behavioural coverage before a release.
+      # Use the release action and explicit manylinux target. Older maturin
+      # cannot combine this target with the redundant `--compatibility pypi`.
       - name: Build the wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
+          maturin-version: ${{ matrix.maturin-version }}
           target: x86_64
           manylinux: '2_17'
           args: >-
-            --release --locked --compatibility pypi --out dist
+            --release --locked --out dist
             --manifest-path vanedb-py/Cargo.toml -i python3.11
       - name: Install from the wheel alone
         run: |
@@ -122,35 +138,59 @@ jobs:
           cd "$RUNNER_TEMP"
           python -m pytest wheel-tests -v
 
-  test-linux:
-    name: Test (Linux x86_64)
-    runs-on: ubuntu-latest
+  test-native:
+    name: Test (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x86_64
+            artifact: linux-x86_64
+            runner: ubuntu-24.04
+            features: disk
+          - platform: Linux ARM64
+            artifact: linux-aarch64
+            runner: ubuntu-24.04-arm
+            features: disk
+          - platform: macOS ARM64
+            artifact: macos-aarch64
+            runner: macos-latest
+            features: disk,gpu-metal
+            deployment: '11.0'
+          - platform: macOS x86_64
+            artifact: macos-x86_64
+            runner: macos-15-intel
+            features: disk
+            deployment: '10.12'
+          - platform: Windows x86_64
+            artifact: windows-x86_64
+            runner: windows-latest
+            features: disk
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
-
-  test-macos:
-    name: Test (macOS ARM)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
+      - name: Build and run C consumer acceptance
+        env:
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
+        run: |
+          cargo build -p vanedb-capi --release --locked
+          cmake -S vanedb-capi/examples -B target/c-example -DCMAKE_BUILD_TYPE=Release
+          cmake --build target/c-example --config Release
+          ctest --test-dir target/c-example --build-config Release --output-on-failure
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
-          toolchain: stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk,gpu-metal --locked
-
-  test-windows:
-    name: Test (Windows x86_64)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+          python-version: '3.14'
+      - name: Package C libraries and test an extracted consumer
+        run: python scripts/package_capi.py --platform ${{ matrix.artifact }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          toolchain: stable
-      - run: cargo test --workspace --exclude vanedb-py --features disk --locked
+          name: vanedb-capi-${{ matrix.artifact }}
+          path: target/c-artifacts/*
+          if-no-files-found: error
 
   test-wasm:
     name: Test (WASM)
@@ -165,23 +205,52 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Test WASM
         run: cd vanedb-wasm && wasm-pack test --node --locked
+      - name: Test WASM in Chrome
+        env:
+          WASM_BINDGEN_USE_BROWSER: '1'
+        run: cd vanedb-wasm && wasm-pack test --headless --chrome --locked
+      - name: Test generated JavaScript conversions
+        run: |
+          wasm-pack build vanedb-wasm --target nodejs --release --locked
+          node vanedb-wasm/tests/node.cjs ./vanedb-wasm/pkg
+          node vanedb-wasm/examples/quickstart.cjs
+      - name: Pack JavaScript distributions and test the installed Node artifact
+        run: |
+          python3 scripts/package_wasm.py nodejs vanedb-wasm/pkg
+          wasm-pack build vanedb-wasm --target web --release --out-dir ../target/wasm-web --locked
+          python3 scripts/package_wasm.py web target/wasm-web
+      - name: Test the browser artifact in Chrome, Firefox and WebKit
+        run: |
+          npx --yes --package @playwright/cli@0.1.19 playwright-cli install-browser firefox --with-deps
+          npx --yes --package @playwright/cli@0.1.19 playwright-cli install-browser webkit --with-deps
+          for browser in chrome firefox webkit; do
+            python3 scripts/test_web_package.py target/wasm-artifacts/web/*.tgz "$browser"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-wasm-packages
+          path: target/wasm-artifacts/
+          if-no-files-found: error
 
   build-ios:
-    name: Build (iOS arm64)
+    name: Test (iOS arm64 simulator and device build)
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
-          targets: aarch64-apple-ios
-      # Cross-compile only: there is no iOS test runner, mirroring the
-      # build-only verification the C++ repo uses for mobile.
-      - run: cargo build -p vanedb --target aarch64-apple-ios --features disk --release --locked
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
+      - run: cargo build -p vanedb -p vanedb-capi --target aarch64-apple-ios --features disk --release --locked
+      - run: cargo build -p vanedb-capi --target aarch64-apple-ios-sim --release --locked
+      - name: Run C ABI acceptance in an iOS simulator
+        run: python3 scripts/test_ios.py
 
   build-android:
-    name: Build (Android arm64-v8a, x86_64)
+    name: Test (Android x86_64 emulator and arm64 build)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -189,10 +258,52 @@ jobs:
           toolchain: stable
           targets: aarch64-linux-android, x86_64-linux-android
       - name: Set up Android NDK
+        id: ndk
         uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
         with:
           ndk-version: r26b
       - name: Install cargo-ndk
         run: cargo install cargo-ndk --version 4.1.2 --locked
-      - name: Cross-compile core for Android
-        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb --features disk --release --locked
+      - name: Cross-compile core and C ABI for Android
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: cargo ndk -t arm64-v8a -t x86_64 build -p vanedb -p vanedb-capi --features disk --release --locked
+      - name: Check the ELF alignment guard on a 4 KiB test library
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        run: |
+          printf '%s\n' 'int probe(void) { return 0; }' > target/android-alignment-probe.c
+          "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" \
+            -shared -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096 \
+            target/android-alignment-probe.c -o target/android-unaligned.so
+          if python3 scripts/check_android_elf.py target/android-unaligned.so; then
+            echo 'alignment guard accepted a 4 KiB ELF library'
+            exit 1
+          fi
+      - name: Build ARM64 runtime acceptance bundle
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          VANEDB_ANDROID_ABI: arm64-v8a
+        run: |
+          bash scripts/test_android.sh --build-only
+          git rev-parse HEAD > target/android-arm64-v8a-runtime/source-revision.txt
+          cp LICENSE target/android-arm64-v8a-runtime/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-android-arm64-runtime
+          path: target/android-arm64-v8a-runtime/*
+          if-no-files-found: error
+      - name: Enable emulator hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run C ABI acceptance in an Android emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+        with:
+          api-level: 29
+          arch: x86_64
+          disable-animations: true
+          script: bash scripts/test_android.sh

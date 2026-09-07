@@ -142,6 +142,9 @@ target_link_options(test_flat_index PRIVATE ${COVERAGE_LINK_FLAGS})
 
 add_executable(test_index tests/test_approx_index.cpp)
 target_link_libraries(test_index PRIVATE vanedb Catch2::Catch2WithMain)
+target_compile_definitions(test_index PRIVATE
+  VANEDB_LEGACY_GRAPH_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/legacy_graph"
+  VANEDB_GRAPH_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/vndb_graph")
 target_compile_options(test_index PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
   $<$<AND:$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<BOOL:${VANEDB_X86_64}>>:-mavx2 -mfma>
@@ -160,7 +163,7 @@ target_link_options(test_distance_strategy PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_approx_id_map_conformance tests/test_approx_id_map_conformance.cpp)
 target_link_libraries(test_approx_id_map_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_approx_id_map_conformance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance"
 )
 target_compile_options(test_approx_id_map_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
@@ -171,13 +174,13 @@ target_link_options(test_approx_id_map_conformance PRIVATE ${COVERAGE_LINK_FLAGS
 add_executable(test_vndb_format_conformance tests/test_vndb_format_conformance.cpp)
 target_link_libraries(test_vndb_format_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_vndb_format_conformance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance")
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance")
 target_compile_options(test_vndb_format_conformance PRIVATE ${COVERAGE_COMPILE_FLAGS})
 target_link_options(test_vndb_format_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_cosine_conformance tests/test_cosine_conformance.cpp)
 target_link_libraries(test_cosine_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_cosine_conformance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance"
 )
 target_compile_options(test_cosine_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4 /arch:AVX2>
@@ -197,7 +200,7 @@ target_link_options(test_disk_index PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_non_finite_conformance tests/test_non_finite_conformance.cpp)
 target_link_libraries(test_non_finite_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_non_finite_conformance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance"
 )
 target_compile_options(test_non_finite_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
@@ -208,7 +211,7 @@ target_link_options(test_non_finite_conformance PRIVATE ${COVERAGE_LINK_FLAGS})
 add_executable(test_approx_derived_size_conformance tests/test_approx_derived_size_conformance.cpp)
 target_link_libraries(test_approx_derived_size_conformance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_approx_derived_size_conformance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance"
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance"
 )
 target_compile_options(test_approx_derived_size_conformance PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:/W4>
@@ -229,7 +232,7 @@ add_executable(test_runtime_distance
   tests/test_non_finite_conformance.cpp)
 target_link_libraries(test_runtime_distance PRIVATE vanedb Catch2::Catch2WithMain)
 target_compile_definitions(test_runtime_distance PRIVATE
-  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../conformance")
+  VANEDB_CONFORMANCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../vanedb/tests/fixtures/conformance")
 target_compile_options(test_runtime_distance PRIVATE ${COVERAGE_COMPILE_FLAGS})
 vanedb_use_runtime_dispatch(test_runtime_distance)
 catch_discover_tests(test_runtime_distance TEST_PREFIX "runtime/")

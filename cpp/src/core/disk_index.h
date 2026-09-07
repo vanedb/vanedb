@@ -85,6 +85,8 @@ public:
     uint32_t met; std::memcpy(&met, p, 4);
     if (met > 2) { cleanup(); throw std::runtime_error("Invalid metric"); }
     metric_ = static_cast<Metric>(met);
+    uint32_t reserved; std::memcpy(&reserved, p + 4, 4);
+    if (reserved != 0) { cleanup(); throw std::runtime_error("Reserved header bytes are not zero"); }
 
     // Check for overflow in size calculations step by step
     if (num_vectors_ > SIZE_MAX / sizeof(uint64_t)) {
@@ -119,16 +121,12 @@ public:
     dist_ = DistanceComputer(metric_, dim_);
     try {
       id_map_.reserve(num_vectors_);
-      for (size_t i = 0; i < num_vectors_; ++i) id_map_[ids_ptr_[i]] = i;
+      for (size_t i = 0; i < num_vectors_; ++i) {
+        if (!id_map_.emplace(ids_ptr_[i], i).second)
+          throw std::runtime_error("File corrupted: duplicate vector id");
+      }
     } catch (...) { cleanup(); throw; }
-    // Duplicates would overwrite silently: size() would disagree with the
-    // map, get() would return a row the id does not name, and search() would
-    // emit one id twice. VNDB is the shared format, so both loaders enforce
-    // this (vanedb src/disk.rs).
-    if (id_map_.size() != num_vectors_) {
-      cleanup();
-      throw std::runtime_error("Duplicate ids");
-    }
+
   }
 
   ~DiskIndex() { cleanup(); }

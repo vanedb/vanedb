@@ -1,4 +1,4 @@
-// Cross-engine cosine cases from conformance/cosine_scale_invariance.tsv.
+// Cross-engine cosine cases from vanedb/tests/fixtures/conformance/cosine_scale_invariance.tsv.
 //
 // The zero-vector guard compared `na * nb` against a fixed epsilon. That
 // product grows with the fourth power of magnitude, so ordinary small vectors

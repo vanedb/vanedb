@@ -9,7 +9,7 @@ benchmark harness, and the shared conformance contract.
 | Crate | What it is | Notes |
 |---|---|---|
 | `vanedb` | Core: `FlatIndex`, `ApproxIndex`, `DiskIndex` (feature `disk`), SIMD distance kernels (NEON/AVX2/scalar) | |
-| `vanedb-py` | PyO3 bindings | **Excluded from workspace CI** — needs libpython; build with maturin |
+| `vanedb-py` | PyO3 bindings | Excluded from workspace Cargo tests; CI builds, installs, and tests a wheel |
 | `vanedb-wasm` | wasm-bindgen bindings | needs `wasm32-unknown-unknown` target |
 | `vanedb-capi` | C ABI (`vanedb_rs_*` symbols, metric as u32: 0=L2, 1=Cosine, 2=Dot) | header regenerated with cbindgen |
 | `cpp` | Header-only C++ engine, C ABI, and supplementary `vanedb-cpp` Python package | CMake project; Python imports as `vanedb_cpp` |
@@ -18,13 +18,13 @@ benchmark harness, and the shared conformance contract.
 
 ## Build & test
 
-These are exactly what CI runs — use the same invocations:
+Use these local checks; the workflows add platform and installed-artifact checks:
 
 ```bash
 actionlint
 cargo fmt --all -- --check
-cargo clippy --workspace --exclude vanedb-py --all-targets --features disk -- -D warnings
-cargo test --workspace --exclude vanedb-py --features disk
+cargo clippy --workspace --exclude vanedb-py --all-targets --features disk --locked -- -D warnings
+cargo test --workspace --exclude vanedb-py --features disk --locked
 cargo fmt --manifest-path bench/Cargo.toml --all -- --check
 cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
 cargo test --manifest-path bench/Cargo.toml --locked
@@ -34,12 +34,16 @@ ctest --test-dir cpp/build --output-on-failure
 ```
 
 Never run plain `cargo test --workspace`: `vanedb-py` fails to link outside a
-maturin/Python environment. To work on the Python bindings (not covered by CI —
-verify locally):
+maturin/Python environment. To work on the Python bindings locally (CI also tests the installed wheel):
 
 ```bash
-python -m venv .venv && . .venv/bin/activate && pip install maturin pytest
-cd vanedb-py && maturin develop --release && pytest tests
+python -m venv .venv
+# macOS/Linux: source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install maturin pytest numpy packaging
+cd vanedb-py
+maturin develop --release --locked
+python -m pytest tests
 ```
 
 Verify a locally built C++ wheel carries the deployment floor rather than the
@@ -56,29 +60,33 @@ wasm tests:
 
 ```bash
 rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
-cd vanedb-wasm && wasm-pack test --node
+cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
-Feature caveats: `gpu-metal` builds and tests only on macOS. There is no CUDA
-backend: a stub shipped as a published feature was removed before the first
-release, because removing a feature is breaking and adding one back is not.
-Reintroduce it when CI has NVIDIA hardware to validate against. iOS/Android are build-only CI targets (cross-compile; can't run
-tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them.
+Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is excluded from
+0.1.0 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
+Do not reintroduce an unimplemented CUDA feature or claim support without the
+roadmap's NVIDIA hardware, correctness, lifecycle and performance evidence. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
+acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built
+Android ARM64 bundle also passes locally on an Android 15 emulator with 16 KiB
+pages; see the release evidence. The September 7 decision accepts simulators
+and emulators for initial-release verification. Physical-device checks remain a follow-up, and
+no physical-device success may be claimed without a recorded run. Node wasm tests likewise
+do not prove browser integration; CI also runs headless Chrome. Match each
+platform claim to the actual build and runtime evidence; use the relevant host
+and toolchain for checks that cannot run locally.
 
 ## Invariants — do not break
 
-- **Persistence contract**: there are two formats at different maturities, and
-  the difference is the point. `DiskIndex` writes `VNDB` v1 — literal `VNDB`
-  magic, fixed-width little-endian fields, anchored to shared fixtures in
-  `conformance/vndb/` that are generated from the spec table rather than from
-  either engine, and each engine reads the other's file. That one is public.
-  `ApproxIndex::save` writes `VNDB` v2 kind 1, specified in
-  `conformance/graph/README.md` and anchored the same way. Legacy `HNSW` v1
-  and v2 files still load, pinned by committed bytes in
-  `vanedb/tests/fixtures/legacy_graph/` rather than by re-encoding a mirror
-  struct — mirror and encoder would otherwise change together and hide a real
-  break. The cross-engine half is not done: the C++ engine reads `VNDB` v1
-  disk files but not v2 graph files.
+- **Persistence contract**: `DiskIndex` already uses shared `VNDB` v1:
+  literal `VNDB` magic, fixed-width little-endian fields, and fixtures in
+  `vanedb/tests/fixtures/conformance/vndb/` that each engine reads and reproduces. Preserve that
+  contract. Approximate graphs now use the shared VNDB v2 format in
+  `conformance/graph/`; keep its golden files, cross-load preservation and legacy
+  reader checks passing. During 0.x, APIs and persistence formats may change
+  in a minor release; this is not a 1.x stability commitment. Never reinterpret
+  existing format/kind/continuation identifiers; retain old readers when adding
+  a new encoding. Future insertion topology is not guaranteed. Keep all corruption checks.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep
@@ -87,9 +95,8 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   These are transition safeguards, not a public-version promise.
 - **HNSW cross-engine parity is semantic, not byte-for-byte adjacency**:
   independently built graphs may differ. Each graph must satisfy structural
-  invariants and recall expectations. Only the Rust engine reads `VNDB` v2, so
-  the graph half of that is a property to preserve if a second reader is ever
-  written, not one tested today.
+  invariants and recall expectations, and either engine must preserve the graph
+  it loads from the other engine's `VNDB` file.
 - **HNSW construction choices are performance-sensitive**: new nodes receive
   `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
   reverse lists use distance sort+truncate rather than the diversity heuristic.
@@ -112,8 +119,10 @@ reference code and the other arm of the benchmark comparison. Do not port
 features to it. Change it only to fix a defect in the engine itself, or to
 keep a comparison honest.
 
-- Keep it building and passing its own tests, and keep the shared `DiskIndex`
-  format loadable both ways (`bench/tests/cross_engine_format.rs`).
+- Keep it building and passing its own tests, and preserve both shared VNDB
+  formats (`bench/tests/cross_engine_format.rs` and `cross_engine_graph.rs`).
+  Loaded Rust graph tombstones remain traversable but absent from results;
+  this file compatibility does not add a C++ public delete API.
 - Do not port feature-level API additions. `add_batch`, growable capacity and
   delete are Rust-only by decision, not by omission.
 - Where a Rust change makes a benchmark row measure something different from

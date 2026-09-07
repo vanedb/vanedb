@@ -7,12 +7,8 @@ kind and continuation identifiers must never be reinterpreted; incompatible
 encodings require new identifiers while retaining readers for existing files.
 This does not promise that older readers accept future formats.
 
-The Rust engine reproduces these fixtures, in both directions: it reads each
-one and re-writing what it read reproduces the bytes
-(`vanedb/tests/vndb_graph_format.rs`). The C++ engine does **not** read this
-format yet — it reads its own legacy graph files — so the cross-engine half of
-this contract is unimplemented. `VNDB` v1 disk files are cross-engine today;
-graph files are not.
+Both engines reproduce the shared fixtures. Cross-engine tests preserve
+engine-written graphs through load/save and verify further insertions.
 VNDB v1 remains the disk format unchanged. VNDB v2 identifies graph files, with
 kind 1 identifying HNSW. Readers reject other versions and kinds.
 
@@ -94,8 +90,7 @@ Readers check sizes against the available bytes and platform limits before
 allocation, then validate the complete graph before exposing an index. Dimension
 and capacity must be nonzero; capacity is capped at 100 million slots. Sizes
 must fit the reader's address space and available memory. Readers allocate
-storage for saved slots. The Rust engine treats capacity as a hint; a C++
-reader, if one is written, would treat it as a hard insertion limit, and Rust
+storage for saved slots. C++ treats capacity as a hard insertion limit; Rust
 can grow beyond the original hint up to the same 100-million stored-slot limit.
 Rust rejects additions and whole batches that exceed this limit before changing
 the graph. An upsert consumes one new slot, even when replacing an existing ID;
@@ -105,10 +100,9 @@ not rebuild or compact the graph as a side effect of saving.
 
 ## Continuation encodings
 
-The contract is designed to be portable, but portability is unverified: no
-second engine reads this format yet. The encodings exist so that when one does,
-its RNG state survives a round trip. Subsequent mutations may produce different
-topology when moving between engines or RNG implementations, just as
+Both engines read and preserve this format, including foreign continuation
+state. Subsequent mutations may produce different topology when moving
+between engines or RNG implementations, just as
 independently building the same input does today.
 
 - 1: Rust `rand` 0.10 `StdRng` seeded from the header, advanced by one level draw
@@ -120,9 +114,8 @@ independently building the same input does today.
 
 The Rust engine reads, validates and preserves all three encodings — the
 fixtures cover 1, 2 and 3, and each round-trips byte for byte. Encodings 2 and
-3 exist so a C++ writer's RNG state survives a round trip through the Rust
-engine unchanged; no such writer exists in this repository yet, so nothing
-here emits them outside the fixtures.
+3 preserve the C++ writer's RNG state through the Rust engine unchanged.
+The C++ reader and cross-engine tests exercise both directions.
 
 Rust `StdRng` does not promise the same output across dependency releases or
 platforms. Encoding 1 preserves the graph and supports seed-based continuation;
@@ -132,8 +125,8 @@ against the fixed fixtures and save/load continuation tests. If a future version
 requires a distinct, reproducible generator contract, assign a new continuation
 encoding and retain the reader for existing files; do not silently redefine it.
 
-Words contain decimal digits only. A C++ writer would seed its fallback
-MT19937 from the low 32 bits of the header seed, while preserving the full seed in the file.
+Words contain decimal digits only. C++ seeds its fallback MT19937 from the
+low 32 bits of the header seed, while preserving the full seed in the file.
 
 A reader restores its native continuation when supported. Otherwise it seeds
 its own level generator from the stored seed and advances it for the stored
@@ -147,8 +140,9 @@ entire file even when the reader uses another generator internally.
 `generate.py` writes independent fixtures into
 `vanedb/tests/fixtures/vndb_graph/`, which is included with the Rust crate.
 The fixtures cover all metrics and continuation encodings, an empty graph,
-a tombstone with ID reuse, a deleted entry point, and an all-deleted graph. `SHA256SUMS` pins the contract bytes, which the Rust
-engine's output must match.
+a tombstone with ID reuse, a deleted entry point, and an all-deleted graph.
+`SHA256SUMS` pins the fixture bytes. Both engine-written output and cross-engine
+roundtrips must match them.
 
 Legacy readers remain available. Load an old file and save it to a new path to
 migrate, retaining the original until the migrated file has been verified.

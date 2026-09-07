@@ -134,7 +134,8 @@ fn mmap_open_rejects_non_finite_stored_vectors() {
     bytes[vector_offset..vector_offset + 4].copy_from_slice(&f32::NAN.to_le_bytes());
     fs::write(&path, bytes).unwrap();
 
-    let err = match DiskIndex::open(&path) {
+    // SAFETY: this test does not modify the file while it is mapped.
+    let err = match unsafe { DiskIndex::open(&path) } {
         Ok(_) => panic!("open should have failed"),
         Err(error) => error,
     };
@@ -225,19 +226,7 @@ fn hnsw_load_rejects_garbage_payload() {
 }
 
 #[test]
-fn hnsw_load_rejects_invalid_metric() {
-    // Path: build a valid index, save, then patch the serialized `metric` u32
-    // to an invalid value. We can't surgically patch a bincode field without
-    // parsing — but we can construct a bad index in memory by saving with a
-    // valid metric and then trying to load with the metric u32 mutated.
-    //
-    // Easier strategy: load + re-save with serde isn't exposed, so instead we
-    // test the path indirectly by creating a custom HnswData. That requires
-    // private types — so we settle for the public-API smoke test below
-    // (a real malformed file just ends up failing earlier in deserialize).
-    //
-    // The metric validation IS exercised in the public API by the round-trip:
-    // saving/loading with each valid metric must succeed.
+fn hnsw_save_load_preserves_all_metrics() {
     for &metric in &[Metric::L2, Metric::Cosine, Metric::Dot] {
         let path = std::env::temp_dir().join(format!("vanedb_metric_{metric:?}.bin"));
         let idx = ApproxIndex::builder(3, metric).capacity(4).build().unwrap();
@@ -301,6 +290,30 @@ fn hnsw_save_load_preserves_rng_determinism() {
 
 #[cfg(feature = "disk")]
 #[test]
+fn mmap_load_rejects_nonzero_reserved_header_bytes() {
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_reserved_header_{}.vndb",
+        std::process::id()
+    ));
+    let mut bytes = disk_file_bytes(DISK_MAGIC, 1, 2, &[7], &[1.0, 2.0]);
+    for reserved in [0_u32, 1, 0x100, 0x1_0000, 0x8000_0000, 0] {
+        bytes[28..32].copy_from_slice(&reserved.to_le_bytes());
+        fs::write(&path, &bytes).unwrap();
+        // SAFETY: this test file is unchanged until this iteration's map drops.
+        let result = unsafe { DiskIndex::open(&path) };
+        if reserved == 0 {
+            assert_eq!(result.unwrap().get(7).unwrap().as_ref(), [1.0, 2.0]);
+        } else {
+            let error = result.unwrap_err();
+            assert!(matches!(error, VaneError::Corrupt { .. }));
+            assert!(error.to_string().contains("reserved"), "{error}");
+        }
+    }
+    fs::remove_file(path).unwrap();
+}
+
+#[cfg(feature = "disk")]
+#[test]
 fn mmap_load_rejects_unsupported_version() {
     let path = std::env::temp_dir().join("vanedb_mmap_bad_version.bin");
     let mut data = Vec::new();
@@ -312,7 +325,8 @@ fn mmap_load_rejects_unsupported_version() {
     data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -322,12 +336,16 @@ fn mmap_load_rejects_unsupported_version() {
 #[test]
 fn mmap_load_rejects_zero_dim_with_vectors() {
     // Self-consistent at dim = 0: 2 ids and no vector bytes is exactly the
-    // declared length. Without that, removing the zero-dim guard just moves
-    // the rejection to the truncation check and the test still passes.
+    // declared length, so the truncation check passes and only the explicit
+    // zero-dim guard can reject this.
     let bytes = disk_file_bytes(DISK_MAGIC, 1, 0, &[1, 2], &[]);
     let p = write_tmp("mmap_zero_dim", &bytes);
     assert!(
-        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        // SAFETY: this test does not modify the file while it is mapped.
+        matches!(
+            unsafe { DiskIndex::open(&p) },
+            Err(VaneError::Corrupt { .. })
+        ),
         "dim = 0 with vectors present must be rejected"
     );
     let _ = fs::remove_file(&p);
@@ -347,7 +365,8 @@ fn mmap_load_rejects_truncated_data() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -367,7 +386,8 @@ fn mmap_load_rejects_size_overflow() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -387,7 +407,8 @@ fn mmap_load_rejects_invalid_metric() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -400,7 +421,8 @@ fn mmap_search_rejects_zero_k() {
     let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
     b.add(1, &[1.0, 2.0, 3.0]).unwrap();
     b.save(&path).unwrap();
-    let store = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = unsafe { DiskIndex::open(&path) }.unwrap();
     assert!(matches!(
         store.search(&[1.0, 2.0, 3.0], 0),
         Err(VaneError::InvalidK)
@@ -486,7 +508,7 @@ fn hnsw_load_rejects_a_count_times_dim_overflow() {
     // satisfies the length check and a few hundred bytes describe an index
     // claiming 2^61 dimensions.
     let count = 8usize;
-    let dim = 1usize << 61;
+    let dim = 1usize << (usize::BITS - 3);
     assert_eq!(
         count.wrapping_mul(dim),
         0,
@@ -516,7 +538,7 @@ fn hnsw_load_rejects_an_m_doubling_overflow() {
     // `m_max0 != m * 2` is itself an unchecked multiply. At m = 2^63 the
     // product wraps to 0, so a file declaring m_max0 = 0 passes the very
     // check that exists to keep the graph parameters consistent.
-    let m = 1usize << 63;
+    let m = 1usize << (usize::BITS - 1);
     assert_eq!(m.wrapping_mul(2), 0, "the wrap is what this test is about");
 
     let mut data = v2_huge_max_elements(1);
@@ -533,11 +555,47 @@ fn hnsw_load_rejects_an_m_doubling_overflow() {
     let _ = fs::remove_file(&p);
 }
 
+#[test]
+fn hnsw_load_rejects_inconsistent_graph_structure() {
+    for case in [
+        "negative_level",
+        "missing_layer",
+        "extra_layer",
+        "max_level",
+        "self_link",
+        "duplicate_link",
+        "degree",
+        "neighbor_layer",
+    ] {
+        let mut data = v1_full_capacity_payload();
+        match case {
+            "negative_level" => data.levels[0] = -1,
+            "missing_layer" => data.neighbors[0].clear(),
+            "extra_layer" => data.neighbors[0].push(vec![]),
+            "max_level" => data.max_level = 1,
+            "self_link" => data.neighbors[0][0].push(0),
+            "duplicate_link" => data.neighbors[0][0].push(1),
+            "degree" => data.neighbors[0][0] = vec![1; 5],
+            "neighbor_layer" => {
+                data.levels[0] = 1;
+                data.max_level = 1;
+                data.neighbors[0].push(vec![1]);
+            }
+            _ => unreachable!(),
+        }
+        let p = write_tmp(case, &hnsw_file_bytes(1, &data));
+        assert!(
+            matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+            "accepted {case}"
+        );
+        fs::remove_file(p).unwrap();
+    }
+}
+
 /// A complete, self-consistent `VNDB` file. Every derived length agrees, so
-/// the deliberately-planted defect is the only thing a loader can reject it
-/// for. With a short file, a second check rejects the same bytes once the
-/// guard under test is removed, so the test passes either way and proves
-/// nothing about that guard.
+/// only the deliberately-planted defect can make a loader reject it — a
+/// short file is caught by the truncation check first, which is how a header
+/// guard can look tested when it never runs.
 #[cfg(feature = "disk")]
 fn disk_file_bytes(magic: u32, version: u32, dim: usize, ids: &[u64], vectors: &[f32]) -> Vec<u8> {
     let mut data = Vec::new();
@@ -572,7 +630,11 @@ fn mmap_load_rejects_duplicate_ids() {
     );
     let p = write_tmp("mmap_duplicate_ids", &bytes);
     assert!(
-        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        // SAFETY: this test does not modify the file while it is mapped.
+        matches!(
+            unsafe { DiskIndex::open(&p) },
+            Err(VaneError::Corrupt { .. })
+        ),
         "a VNDB file with duplicate ids must be rejected"
     );
     let _ = fs::remove_file(&p);
@@ -592,45 +654,13 @@ fn mmap_load_rejects_invalid_magic() {
         &[1.0, 0.0, 0.0, 1.0],
     );
     let p = write_tmp("mmap_bad_magic", &bytes);
-    let err = match DiskIndex::open(&p) {
+    // SAFETY: this test does not modify the file while it is mapped.
+    let err = match unsafe { DiskIndex::open(&p) } {
         Ok(_) => panic!("a file with the wrong magic must not open"),
         Err(e) => e,
     };
     assert!(format!("{err}").contains("magic"), "got: {err}");
     let _ = fs::remove_file(&p);
-}
-
-#[cfg(feature = "disk")]
-#[test]
-fn mmap_load_rejects_nonzero_reserved_header_bytes() {
-    // The format specifies offsets 28..32 as zero. A loader that ignores them
-    // can never be given a meaning for them later, because every binary
-    // already in the field would silently misread a file that used one.
-    for byte in 0..4usize {
-        let mut bytes = disk_file_bytes(DISK_MAGIC, 1, 2, &[1, 2], &[1.0, 0.0, 0.0, 1.0]);
-        bytes[28 + byte] = 1;
-        let p = write_tmp(&format!("mmap_reserved_{byte}"), &bytes);
-        let err = match DiskIndex::open(&p) {
-            Ok(_) => panic!(
-                "a nonzero reserved byte at offset {} must be rejected",
-                28 + byte
-            ),
-            Err(e) => e,
-        };
-        assert!(format!("{err}").contains("reserved"), "got: {err}");
-        let _ = fs::remove_file(&p);
-    }
-}
-
-/// Writes `vanedb/tests/fixtures/hnsw_v1.bin` from the mirror. Ignored by
-/// default: run it only to mint a fixture for a new format version.
-#[test]
-#[ignore]
-fn mint_the_v1_golden_fixture() {
-    let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join("hnsw_v1.bin"), &bytes).unwrap();
 }
 
 #[test]

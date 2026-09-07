@@ -19,7 +19,8 @@ fn mmap_matches_brute_force() {
     }
     builder.save(&path).unwrap();
 
-    let mmap = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let mmap = unsafe { DiskIndex::open(&path) }.unwrap();
     assert_eq!(mmap.size(), 100);
 
     for q in 0..5u64 {
@@ -48,7 +49,8 @@ fn mmap_cosine_search() {
     builder.add(3, &[-1.0, 0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
 
-    let store = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = unsafe { DiskIndex::open(&path) }.unwrap();
     let results = store.search(&[0.9, 0.1, 0.0], 1).unwrap();
     assert_eq!(results[0].id, 1);
 
@@ -70,7 +72,8 @@ fn mmap_concurrent_search() {
     }
     builder.save(&path).unwrap();
 
-    let store = Arc::new(DiskIndex::open(&path).unwrap());
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = Arc::new(unsafe { DiskIndex::open(&path) }.unwrap());
 
     let mut handles = vec![];
     for t in 0..10u64 {
@@ -92,4 +95,28 @@ fn mmap_concurrent_search() {
 fn mmap_is_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<DiskIndex>();
+}
+
+#[test]
+fn atomic_replacement_preserves_an_open_mapping() {
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_atomic_replacement_{}.vndb",
+        std::process::id()
+    ));
+    let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+    builder.add(1, &[1.0, 2.0]).unwrap();
+    builder.save(&path).unwrap();
+    // SAFETY: save replaces the path; it never modifies the mapped file.
+    let old = unsafe { DiskIndex::open(&path) }.unwrap();
+    builder.add(2, &[3.0, 4.0]).unwrap();
+    builder.save(&path).unwrap();
+    // SAFETY: the replacement file remains unchanged until both indexes drop.
+    let new = unsafe { DiskIndex::open(&path) }.unwrap();
+    assert_eq!(old.len(), 1);
+    assert_eq!(old.get(1).unwrap().as_ref(), [1.0, 2.0]);
+    assert!(!old.contains(2));
+    assert_eq!(new.len(), 2);
+    assert_eq!(new.get(2).unwrap().as_ref(), [3.0, 4.0]);
+    drop((old, new));
+    std::fs::remove_file(path).unwrap();
 }

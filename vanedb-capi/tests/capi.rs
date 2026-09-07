@@ -1,6 +1,44 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
 #[test]
+fn search_beam_width_is_per_call() {
+    unsafe {
+        let h = std::ptr::NonNull::new(vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42))
+            .expect("index construction failed");
+        // The constructor transfers a Box allocation. Reclaim ownership so
+        // assertions use safe references and a panic still frees the index.
+        let mut index = Box::from_raw(h.as_ptr());
+        index.set_ef_search(73);
+        let vector = [1.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(&mut *index, 1, vector.as_ptr()),
+            0
+        );
+        let mut ids = [0];
+        let mut distances = [0.0];
+        for ef in [1, 100] {
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_search(
+                    &mut *index,
+                    vector.as_ptr(),
+                    1,
+                    ef,
+                    ids.as_mut_ptr(),
+                    distances.as_mut_ptr(),
+                ),
+                1
+            );
+            assert_eq!(ids, [1]);
+            assert_eq!(
+                index.get_ef_search(),
+                73,
+                "a query must not change another query's beam width"
+            );
+        }
+    }
+}
+
+#[test]
 fn null_path_guards() {
     unsafe {
         assert_eq!(
@@ -385,56 +423,24 @@ fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
                 vanedb_capi::vanedb_rs_index_new(4, unknown, 16, 4, 40, 7).is_null(),
                 "metric {unknown} must be rejected"
             );
+            let path = std::env::temp_dir().join(format!(
+                "vanedb-invalid-metric-{}-{unknown}.vndb",
+                std::process::id()
+            ));
+            let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
+            assert_eq!(
+                vanedb_capi::vanedb_rs_disk_build(
+                    c_path.as_ptr(),
+                    4,
+                    unknown,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                ),
+                1
+            );
+            assert!(!path.exists(), "invalid input must not write a file");
         }
-    }
-}
-
-/// Reads a handle's own `ef_search` without dereferencing the raw pointer.
-///
-/// The C ABI hands out `Box::into_raw`, so reconstituting the `Box` is the
-/// ownership round-trip that matches how the handle was made, and it gives a
-/// static analyser a well-formed borrow to reason about instead of a bare
-/// `(*h)`.
-fn ef_search_of(h: *mut vanedb_capi::vanedb_rs_index) -> usize {
-    let owned: Box<vanedb_capi::vanedb_rs_index> = unsafe { Box::from_raw(h) };
-    let ef = owned.get_ef_search();
-    // Hand ownership straight back; the C ABI still frees this handle.
-    let _ = Box::into_raw(owned);
-    ef
-}
-
-#[test]
-fn a_per_call_ef_search_does_not_change_the_index() {
-    // The parameter reads as per-call, so it must not be a store: mutating the
-    // handle made one caller's beam width visible to every other user of the
-    // index, and `save` then wrote it into the file.
-    unsafe {
-        let h = vanedb_capi::vanedb_rs_index_new(2, 0, 64, 4, 40, 7);
-        assert!(!h.is_null());
-        for i in 0..20u64 {
-            let v = [i as f32, (i * 2) as f32];
-            assert_eq!(vanedb_capi::vanedb_rs_index_add(h, i, v.as_ptr()), 0);
-        }
-        let before = ef_search_of(h);
-
-        let q = [1.0f32, 2.0];
-        let mut ids = [0u64; 5];
-        let mut ds = [0f32; 5];
-        let n = vanedb_capi::vanedb_rs_index_search(
-            h,
-            q.as_ptr(),
-            5,
-            250,
-            ids.as_mut_ptr(),
-            ds.as_mut_ptr(),
-        );
-        assert_eq!(n, 5);
-        assert_eq!(
-            ef_search_of(h),
-            before,
-            "a per-call ef_search must leave the index's own setting alone"
-        );
-        vanedb_capi::vanedb_rs_index_free(h);
     }
 }
 

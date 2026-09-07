@@ -1,11 +1,10 @@
-//! GPU backends. Metal is the only one; a CUDA path can be added when there
-//! is hardware in CI to validate it, which is additive rather than breaking.
+//! Optional GPU distance computation; enabled with `gpu-metal` on macOS.
 //!
-//! These are a standalone parallel-scan API: no index uses them internally.
-//! The caller supplies a flat corpus, uploads it, and searches the handle.
+//! This is a standalone scan API. Upload vectors and call it explicitly;
+//! enabling the feature does not move index operations to the GPU.
 
-/// Metal kernels, on Apple platforms.
 #[cfg(feature = "gpu-metal")]
+/// Apple Metal distance kernels and device buffers.
 pub mod metal;
 
 #[cfg(feature = "gpu-metal")]
@@ -14,15 +13,12 @@ pub use self::metal::MetalCompute;
 use crate::distance::Metric;
 
 /// GPU distance metric (maps from [`Metric`]).
-///
-/// `#[non_exhaustive]`, like [`Metric`]: matching needs a `_` arm, so adding a
-/// metric is not a breaking change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum GpuMetric {
     /// Squared Euclidean distance.
     L2,
-    /// Cosine distance, `1 - cos(a, b)`.
+    /// One minus cosine similarity.
     Cosine,
     /// Negative dot product.
     Dot,

@@ -1,4 +1,4 @@
-//! Cross-engine cosine cases from `conformance/cosine_scale_invariance.tsv`.
+//! Cross-engine cosine cases from `tests/fixtures/conformance/cosine_scale_invariance.tsv`.
 //!
 //! Cosine distance is scale-invariant, but the zero-vector guard compared
 //! `norm_a * norm_b` against a fixed epsilon. That product scales with the
@@ -11,7 +11,7 @@ use vanedb::distance::{distance_fn, Metric};
 const TOLERANCE: f32 = 1e-5;
 
 fn cases() -> Vec<(f32, String, f32)> {
-    let raw = include_str!("../../conformance/cosine_scale_invariance.tsv");
+    let raw = include_str!("fixtures/conformance/cosine_scale_invariance.tsv");
     raw.lines()
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.starts_with('#'))

@@ -1,5 +1,6 @@
 import vanedb
 import os
+import sys
 import tempfile
 
 import pytest
@@ -19,6 +20,15 @@ def test_version():
 
 
 # --- FlatIndex ---
+
+def test_batch_validates_width_before_reserving_storage():
+    store = vanedb.FlatIndex(sys.maxsize // 2)
+    with pytest.raises(ValueError, match="dimension mismatch"):
+        store.add_batch([1], [[]])
+    assert len(store) == 0
+    store.add_batch([], [])
+    assert len(store) == 0
+
 
 def test_vector_store_basic():
     store = vanedb.FlatIndex(3)

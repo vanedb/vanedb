@@ -1,6 +1,6 @@
 [build-system]
-# license-files in list form is a TOML parse error before maturin 1.9.
-requires = ["maturin>=1.9,<2.0"]
+# 1.9.3 includes the PEP 639 wheel metadata and source-license fixes.
+requires = ["maturin>=1.9.3,<2.0"]
 build-backend = "maturin"
 
 [project]

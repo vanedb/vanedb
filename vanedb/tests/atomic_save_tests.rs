@@ -58,7 +58,8 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
             panic!("round {round}: index save failed: {e}");
         }
 
-        let store = DiskIndex::open(&store_path)
+        // SAFETY: this test does not modify the file while it is mapped.
+        let store = unsafe { DiskIndex::open(&store_path) }
             .unwrap_or_else(|e| panic!("round {round}: store reload failed: {e}"));
         assert_eq!(store.size(), N as usize, "round {round}");
         assert_eq!(

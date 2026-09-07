@@ -1,8 +1,6 @@
 name: Publish vanedb crate
 
-# The crate releases on its own tag rather than sharing `vanedb-v*` with the
-# wheels: the name has to be claimed on crates.io before any wheel exists, and
-# a failed crate publish should not strand a half-released set of wheels.
+# Separate crate and Python tags allow independent verification and publication.
 on:
   push:
     tags: ['vanedb-crate-v*']
@@ -66,20 +64,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: stable
-      # --dry-run builds the crate exactly as uploaded and compiles it from the
-      # packaged sources, so a file missing from the package fails here rather
-      # than after the version is permanently taken.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      # Verify publication metadata and the default-feature package build.
+      # The following step retains an archive and runs its tests in isolation.
       - name: Verify the package builds from its own contents
         run: cargo publish -p vanedb --locked --dry-run
-      - name: Show what would be uploaded
-        run: |
-          cargo package -p vanedb --locked --list | tee package-contents.txt
+      - name: Test the unpacked crate and retain its archive
+        run: python scripts/check_crate_package.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vanedb-crate
-          path: |
-            target/package/*.crate
-            package-contents.txt
+          path: target/crate-artifacts/*
           if-no-files-found: error
 
   publish:
@@ -101,7 +98,7 @@ jobs:
       # Bootstrap note: crates.io cannot pre-register a trusted publisher the
       # way PyPI's pending publishers can. RFC 3691: "A Trusted Publisher
       # Configuration can only be created after an initial manual publishing
-      # of a crate." So version 0.1.0 must be published once by hand with a
+      # of a crate." So the first approved version must be published with a
       # scoped API token, the publisher configured on the crate's settings
       # page, and every release after that runs through here.
       - name: Exchange the OIDC token for a crates.io token

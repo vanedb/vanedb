@@ -7,12 +7,88 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <limits>
 #include <random>
 #include <thread>
 #include <unordered_set>
 #include <vector>
 
 using Catch::Approx;
+
+static std::filesystem::path legacy_graph_fixture(int version) {
+#ifdef __GLIBCXX__
+  const std::string rng_layout = "_indexed";
+#else
+  const std::string rng_layout = "_state";  // libc++ and MSVC
+#endif
+  return std::filesystem::path(VANEDB_LEGACY_GRAPH_DIR) /
+      ("v" + std::to_string(version) + (version == 1 ? "" : rng_layout) + ".qvrd");
+}
+
+TEST_CASE("ApproxIndex - fixed legacy files preserve graph state", "[index][persistence][legacy]") {
+  auto bytes = [](const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    REQUIRE(input.good());
+    return std::vector<char>(std::istreambuf_iterator<char>(input), {});
+  };
+  for (int version = 1; version <= 3; ++version) {
+    INFO(version);
+    auto index = vanedb::ApproxIndex::load(legacy_graph_fixture(version).string());
+    REQUIRE(index->size() == 3);
+    REQUIRE(index->dimension() == 2);
+    REQUIRE(index->capacity() == 4);
+    REQUIRE(index->get_ef_search() == 16);
+    REQUIRE(index->get_vector(101) == std::vector<float>{1.0f, 0.0f});
+    REQUIRE(index->get_vector(202) == std::vector<float>{0.0f, 1.0f});
+    REQUIRE(index->get_vector(UINT64_MAX) == std::vector<float>{0.8f, 0.2f});
+    const float query[] = {1.0f, 0.0f};
+    auto hits = index->search(query, 3);
+    REQUIRE(hits.size() == 3);
+    REQUIRE(hits[0].id == 101);
+    REQUIRE(hits[1].id == UINT64_MAX);
+    REQUIRE(hits[2].id == 202);
+    REQUIRE(hits[0].distance == (version == 3 ? -1.0f : 0.0f));
+
+    const std::string saved = "legacy_graph_roundtrip_" + std::to_string(version) + ".qvrd";
+    index->save(saved);
+    auto actual = bytes(saved);
+    const std::string metric = version == 1 ? "l2" : (version == 2 ? "cosine" : "dot");
+    auto expected = bytes(std::filesystem::path(VANEDB_GRAPH_DIR) /
+        (metric + "_rng" + std::to_string(vanedb::detail::graph::NATIVE_RNG) + ".vndb"));
+    std::filesystem::remove(saved);
+    // Legacy fixtures retain M=2 and ef_search=16. The canonical VNDB fixture
+    // uses distinct header values (M=5, ef_search=32) to detect transposition.
+    // Adjust only those two expected fields; all legacy configuration and
+    // graph/RNG bytes must still survive migration exactly.
+    expected[40] = 2;
+    expected[56] = 16;
+    // Exact bytes cover topology, configuration, vectors, identity and RNG.
+    REQUIRE(actual == expected);
+    const float added[] = {0.25f, 0.75f};
+    REQUIRE_NOTHROW(index->add(303, added));
+    REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  }
+}
+
+TEST_CASE("ApproxIndex - legacy level multiplier is derived on load", "[index][persistence][legacy]") {
+  for (double multiplier : {-100.0, std::numeric_limits<double>::infinity(),
+                            std::numeric_limits<double>::quiet_NaN()}) {
+    const std::string path = "legacy_graph_untrusted_multiplier.qvrd";
+    std::filesystem::copy_file(legacy_graph_fixture(3),
+                              path, std::filesystem::copy_options::overwrite_existing);
+    {
+      std::fstream file(path, std::ios::in | std::ios::out | std::ios::binary);
+      file.seekp(52);
+      file.write(reinterpret_cast<const char*>(&multiplier), sizeof(multiplier));
+    }
+    auto index = vanedb::ApproxIndex::load(path);
+    std::filesystem::remove(path);
+    const float added[] = {0.25f, 0.75f};
+    REQUIRE_NOTHROW(index->add(303, added));
+    REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  }
+}
 
 TEST_CASE("ApproxIndex - construction", "[index]") {
   SECTION("Valid construction") {
@@ -537,11 +613,10 @@ TEST_CASE("ApproxIndex - serialization", "[index][serialization]") {
                               std::istreambuf_iterator<char>());
       ifs.close();
 
-      // ep_ is at offset: 4(magic) + 4(version) + 8(dim) + 4(metric) + 8(max_el) + 8(M) +
-      //                   8(ef_con) + 8(ef_s) + 8(mult) + 8(count) = 68 bytes
+      // VNDB v2 entry point is at byte 72.
       // Write invalid ep_ value (999999, much larger than count)
       size_t invalid_ep = 999999;
-      std::memcpy(data.data() + 68, &invalid_ep, sizeof(invalid_ep));
+      std::memcpy(data.data() + 72, &invalid_ep, sizeof(invalid_ep));
 
       std::ofstream ofs(corrupt_file, std::ios::binary);
       ofs.write(data.data(), data.size());
@@ -560,9 +635,9 @@ TEST_CASE("ApproxIndex - serialization", "[index][serialization]") {
                               std::istreambuf_iterator<char>());
       ifs.close();
 
-      // max_level_ is at offset 68 + 8(ep_) = 76 bytes
+      // VNDB v2 max_level is at byte 80.
       int invalid_max_level = 100;  // > MAX_LEVEL (32)
-      std::memcpy(data.data() + 76, &invalid_max_level, sizeof(invalid_max_level));
+      std::memcpy(data.data() + 80, &invalid_max_level, sizeof(invalid_max_level));
 
       std::ofstream ofs(corrupt_file, std::ios::binary);
       ofs.write(data.data(), data.size());
@@ -858,7 +933,7 @@ namespace {
 // 2-of-4-slots index. `full_arrays` selects the legacy v1/v2 layout (arrays
 // span the whole capacity) vs the v3 compact layout (count-sized).
 void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arrays,
-                        float first_value = 1.0f) {
+                        float first_value = 1.0f, const std::string& corruption = "") {
   using vanedb::detail::write_bin;
   using vanedb::detail::write_vec;
   const size_t stored = full_arrays ? 4 : 2;
@@ -874,7 +949,7 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   write_bin(f, double{1.0});  // mult
   write_bin(f, size_t{2});    // count
   write_bin(f, size_t{0});    // entry point
-  write_bin(f, int{0});       // max_level
+  write_bin(f, int{corruption == "max_level" || corruption == "neighbor_layer" ? 1 : 0});
   std::vector<float> vectors = {first_value, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
   vectors.resize(stored * 2);
   write_vec(f, vectors);
@@ -882,6 +957,8 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   ext_ids.resize(stored);
   write_vec(f, ext_ids);
   std::vector<int> levels(stored, 0);
+  if (corruption == "negative_level") levels[0] = -1;
+  if (corruption == "neighbor_layer") levels[0] = 1;
   write_vec(f, levels);
   write_bin(f, size_t{2});  // id_map size
   write_bin(f, uint64_t{10});
@@ -889,8 +966,15 @@ void write_hnsw_fixture(const std::string& filename, uint32_t ver, bool full_arr
   write_bin(f, uint64_t{20});
   write_bin(f, size_t{1});
   write_bin(f, stored);  // neighbors size
-  write_bin(f, size_t{1});  // node 0: one level
-  write_vec(f, std::vector<size_t>{1});
+  const size_t layer_count = corruption == "missing_layer" ? 0 :
+      (corruption == "extra_layer" || corruption == "neighbor_layer" ? 2 : 1);
+  write_bin(f, layer_count);
+  std::vector<size_t> first_neighbors{1};
+  if (corruption == "self_link") first_neighbors.push_back(0);
+  if (corruption == "duplicate_link") first_neighbors.push_back(1);
+  if (corruption == "degree") first_neighbors.assign(5, 1);
+  if (layer_count) write_vec(f, first_neighbors);
+  if (layer_count == 2) write_vec(f, std::vector<size_t>{1});
   write_bin(f, size_t{1});  // node 1: one level
   write_vec(f, std::vector<size_t>{0});
   for (size_t i = 2; i < stored; ++i) write_bin(f, size_t{0});  // unused slots
@@ -943,7 +1027,7 @@ TEST_CASE("ApproxIndex - load rejects non-finite stored vectors", "[index][persi
 }
 
 TEST_CASE("ApproxIndex - empty index save/load roundtrip", "[index][persistence]") {
-  // v3 stores zero-length arrays for an empty index; load must re-expand to
+  // VNDB stores no nodes for an empty index; load must re-expand to
   // full capacity so subsequent adds work.
   const std::string filename = "test_hnsw_empty_roundtrip.bin";
   vanedb::ApproxIndex idx(4, vanedb::Metric::L2, 10);
@@ -959,4 +1043,132 @@ TEST_CASE("ApproxIndex - empty index save/load roundtrip", "[index][persistence]
   const auto results = loaded->search(v, 1);
   REQUIRE(results.size() == 1);
   REQUIRE(results[0].id == 1);
+}
+
+TEST_CASE("ApproxIndex - load rejects inconsistent graph structure", "[index][persistence]") {
+  for (const std::string corruption : {"negative_level", "missing_layer", "extra_layer", "max_level",
+                                       "self_link", "duplicate_link", "degree", "neighbor_layer"}) {
+    INFO(corruption);
+    const std::string filename = "test_hnsw_graph_" + corruption + ".bin";
+    write_hnsw_fixture(filename, 1, true, 1.0f, corruption);
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(filename), std::runtime_error);
+    std::filesystem::remove(filename);
+  }
+}
+
+TEST_CASE("ApproxIndex - portable graph fixtures preserve every byte", "[index][persistence][vndb]") {
+  for (const auto& entry : std::filesystem::directory_iterator(VANEDB_GRAPH_DIR)) {
+    if (entry.path().extension() != ".vndb") continue;
+    INFO(entry.path().filename().string());
+    auto index = vanedb::ApproxIndex::load(entry.path().string());
+    const std::string saved = "portable_graph_roundtrip.vndb";
+    index->save(saved);
+    auto bytes = [](const std::filesystem::path& path) {
+      std::ifstream input(path, std::ios::binary);
+      return std::vector<char>(std::istreambuf_iterator<char>(input), {});
+    };
+    REQUIRE(bytes(saved) == bytes(entry.path()));
+    REQUIRE(index->dimension() == 2);
+    REQUIRE(index->capacity() == 4);
+    const float query[] = {1.0f, 0.0f};
+    const auto hits = index->search(query, 3);
+    const auto name = entry.path().stem().string();
+    const size_t count = (name == "empty" || name == "all_deleted") ? 0 : (name.starts_with("deleted_") ? 2 : 3);
+    REQUIRE(index->size() == count);
+    REQUIRE(hits.size() == count);
+    if (count) {
+      REQUIRE(hits[0].id == (name == "deleted_entry" ? UINT64_MAX : 101));
+      REQUIRE(hits[1].id == (name == "deleted_entry" ? 202 : UINT64_MAX));
+      if (name != "deleted_entry")
+        REQUIRE(hits[0].distance == (name.starts_with("dot") ? -1.0f : 0.0f));
+      REQUIRE(index->get_vector(UINT64_MAX) == std::vector<float>{0.8f, 0.2f});
+    }
+    const float added[] = {0.25f, 0.75f};
+    index->add(303, added);
+    index->save(saved);
+    auto reloaded = vanedb::ApproxIndex::load(saved);
+    REQUIRE(reloaded->size() == count + 1);
+    REQUIRE(reloaded->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+    std::filesystem::remove(saved);
+  }
+}
+
+TEST_CASE("ApproxIndex - portable graph rejects malformed files", "[index][persistence][vndb]") {
+  std::ifstream input(std::filesystem::path(VANEDB_GRAPH_DIR) / "l2_rng1.vndb", std::ios::binary);
+  const std::vector<char> base(std::istreambuf_iterator<char>(input), {});
+  REQUIRE(base.size() == 272);
+  const std::string path = "portable_graph_corruption.vndb";
+  auto rejects = [&](const std::vector<char>& bytes) {
+    { std::ofstream file(path, std::ios::binary); file.write(bytes.data(), bytes.size()); }
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path), std::runtime_error);
+  };
+  for (size_t end = 0; end < base.size(); ++end) {
+    INFO(end);
+    rejects(std::vector<char>(base.begin(), base.begin() + end));
+  }
+  auto trailing = base;
+  trailing.push_back(0);
+  rejects(trailing);
+  struct Change { size_t offset, width; uint64_t value; };
+  for (auto change : std::vector<Change>{
+      {4,4,3}, {8,4,2}, {12,4,99}, {16,8,0}, {24,8,UINT64_MAX}, {32,8,2},
+      {40,8,UINT64_MAX}, {40,8,1}, {48,8,0}, {72,8,3}, {72,8,1}, {72,8,UINT64_MAX},
+      {80,4,UINT32_MAX}, {84,4,0}, {88,8,UINT64_MAX}, {104,4,33}, {108,4,2},
+      {112,4,0x7fc00000}, {120,8,5}, {128,8,0}, {136,8,1}, {136,8,3}, {152,8,1}, {160,8,101}}) {
+    INFO(change.offset);
+    auto bytes = base;
+    for (size_t i = 0; i < change.width; ++i)
+      bytes[change.offset + i] = static_cast<char>(change.value >> (8 * i));
+    rejects(bytes);
+  }
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("ApproxIndex - portable graph validates continuation metadata", "[index][persistence][vndb]") {
+  auto read = [](const std::string& name) {
+    std::ifstream file(std::filesystem::path(VANEDB_GRAPH_DIR) / name, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(file), {});
+  };
+  const auto base = read("l2_rng1.vndb");
+  const auto words = read("l2_rng2.vndb").substr(272);
+  const std::string path = "portable_graph_rng_corruption.vndb";
+  const auto rest = words.substr(words.find(' '));
+  for (auto [kind, state] : std::vector<std::pair<uint32_t, std::string>>{
+      {1, "0"}, {2, ""}, {2, "-42" + rest}, {2, "+42" + rest},
+      {2, "4294967296" + rest}, {2, words.substr(0, words.rfind(' ')) + " 625"},
+      {3, words}, {2, words + "\xc2\xa0"}}) {
+    {
+      std::ofstream file(path, std::ios::binary);
+      file.write(base.data(), 84);
+      vanedb::detail::graph::write(file, kind);
+      vanedb::detail::graph::write(file, static_cast<uint64_t>(state.size()));
+      file.write(base.data() + 96, base.size() - 96);
+      file.write(state.data(), state.size());
+    }
+    REQUIRE_THROWS_AS(vanedb::ApproxIndex::load(path), std::runtime_error);
+  }
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("ApproxIndex - graph capacity hint does not allocate unused slots", "[index][persistence][vndb]") {
+  const std::string path = "portable_graph_large_capacity.vndb";
+  std::filesystem::copy_file(std::filesystem::path(VANEDB_GRAPH_DIR) / "l2_rng1.vndb",
+                            path, std::filesystem::copy_options::overwrite_existing);
+  {
+    std::fstream file(path, std::ios::binary | std::ios::in | std::ios::out);
+    file.seekp(32);
+    vanedb::detail::graph::write(file, uint64_t{100000000});
+  }
+  auto index = vanedb::ApproxIndex::load(path);
+  REQUIRE(index->capacity() == 100000000);
+  REQUIRE(index->size() == 3);
+  const float added[] = {0.25f, 0.75f};
+  index->add(303, added);
+  REQUIRE(index->get_vector(303) == std::vector<float>{0.25f, 0.75f});
+  index->save(path);
+  REQUIRE(std::filesystem::file_size(path) < 10000);
+  auto reloaded = vanedb::ApproxIndex::load(path);
+  REQUIRE(reloaded->capacity() == 100000000);
+  REQUIRE(reloaded->size() == 4);
+  std::filesystem::remove(path);
 }

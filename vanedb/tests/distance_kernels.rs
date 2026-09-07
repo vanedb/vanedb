@@ -16,13 +16,13 @@ const METRICS: [(&str, Metric, Kernel); 3] = [
     ("dot", Metric::Dot, scalar::dot_distance),
 ];
 
-/// Values with mixed signs and magnitudes, so a dropped lane changes the sum.
 /// Relative bound: an absolute epsilon shrinks in headroom as `n` grows,
 /// and the AVX2 tiers accumulate in a different order from NEON's.
 fn close(got: f32, want: f32) -> bool {
     (got - want).abs() <= 1e-5 * want.abs().max(1.0)
 }
 
+/// Values with mixed signs and magnitudes, so a dropped lane changes the sum.
 fn ramp(n: usize, phase: f32) -> Vec<f32> {
     (0..n)
         .map(|i| ((i as f32) * 0.37 + phase).sin() * 3.0)

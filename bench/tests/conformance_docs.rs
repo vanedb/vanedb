@@ -1,20 +1,6 @@
-//! The conformance specs must not describe things that do not exist.
-//!
-//! This has now gone wrong three times, each the same shape — documentation
-//! asserting verification that was never there:
-//!
-//! 1. `7c938bb`: thirteen graph fixtures that no test loaded.
-//! 2. `conformance/legacy_graph/generate.py` emitting five `.qvrd` files into
-//!    a directory that does not exist, no test reads, and `SHA256SUMS` does
-//!    not list — behind a README describing a "C++ roundtrip" that was never
-//!    written.
-//! 3. A bullet in that same README detailing those files, and a
-//!    `ctest -R 'legacy'` in its verification block matching zero tests —
-//!    both found *inside* the fix for occurrence 2.
-//!
-//! Prose is not compiled, so nothing caught any of them. This checks the two
-//! claims a spec makes that can be checked mechanically: the paths it names
-//! exist, and the commands it tells you to run refer to something real.
+//! Check conformance documentation's repository paths and supported command
+//! references. These static checks do not execute the documented commands or
+//! prove that a selected test is registered in a particular build.
 //!
 //! It lives in `bench` because it reads the whole repository, and `bench` is
 //! a separate workspace that is never published.
@@ -115,10 +101,7 @@ fn commands(body: &str) -> Vec<String> {
     let mut inside = false;
     for line in body.lines() {
         if line.starts_with("```") {
-            inside = line.len() > 3 || !inside;
-            if line.trim_end() == "```" {
-                inside = !inside;
-            }
+            inside = !inside;
             continue;
         }
         let line = line.trim();
@@ -127,6 +110,34 @@ fn commands(body: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// This repository uses Cargo's conventional integration-test file layout.
+fn missing_cargo_test_target<'a>(root: &Path, krate: &str, words: &[&'a str]) -> Option<&'a str> {
+    let target = *words.iter().skip_while(|word| **word != "--test").nth(1)?;
+    let tests = root.join(krate).join("tests");
+    (!tests.join(format!("{target}.rs")).is_file() && !tests.join(target).join("main.rs").is_file())
+        .then_some(target)
+}
+
+#[test]
+fn command_blocks_end_at_the_closing_fence() {
+    let body = "```sh\ncargo test --lib\n```\ncargo prose\n```\nctest -R legacy\n```\npython prose";
+    assert_eq!(commands(body), ["cargo test --lib", "ctest -R legacy"]);
+}
+
+#[test]
+fn cargo_integration_targets_are_checked_without_a_name_filter() {
+    let root = repo_root();
+    for (target, missing) in [("vndb_graph_format", false), ("does_not_exist", true)] {
+        let words = [
+            "cargo", "test", "-p", "vanedb", "--test", target, "--locked",
+        ];
+        assert_eq!(
+            missing_cargo_test_target(&root, "vanedb", &words),
+            missing.then_some(target)
+        );
+    }
 }
 
 /// Every `fn` name declared anywhere under a crate directory.
@@ -217,9 +228,17 @@ fn every_command_the_conformance_specs_give_refers_to_something_real() {
             } else if words[0] == "cargo" && words.get(1) == Some(&"test") {
                 let krate = words
                     .iter()
-                    .skip_while(|w| **w != "-p")
+                    .skip_while(|w| **w != "-p" && **w != "--package")
                     .nth(1)
                     .unwrap_or(&"vanedb");
+                if words.contains(&"--test") {
+                    checked += 1;
+                    if let Some(target) = missing_cargo_test_target(&root, krate, &words) {
+                        broken.push(format!(
+                            "{name}: `{cmd}` names missing integration test {krate}/tests/{target}"
+                        ));
+                    }
+                }
                 // Only these cargo flags consume the word after them; any
                 // other bare word is the test-name filter.
                 const TAKES_VALUE: [&str; 8] = [

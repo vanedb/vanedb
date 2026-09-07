@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>VaneDB browser package acceptance</title>
+<pre id="result">Running</pre>
+<script type="module">
+import init, { FlatIndex, ApproxIndex } from './package/vanedb_wasm.js';
+
+const result = document.querySelector('#result');
+function check(condition, message) {
+    if (!condition) throw new Error(message);
+}
+function rejectsNumber(operation) {
+    try { operation(); }
+    catch (error) {
+        check(/must be an integer between/.test(error.message), 'wrong numeric error');
+        return;
+    }
+    throw new Error('invalid number was accepted');
+}
+const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
+try {
+    await init();
+    for (const value of invalidNumbers) {
+        rejectsNumber(() => new FlatIndex(value, 'l2'));
+        for (const position of [0, 2, 3, 4]) {
+            const args = [3, 'l2', 2, 4, 16];
+            args[position] = value;
+            rejectsNumber(() => new ApproxIndex(...args));
+        }
+    }
+    for (const metric of ['l2', 'cosine', 'dot']) {
+        for (const create of [
+            () => new FlatIndex(3, metric),
+            () => new ApproxIndex(3, metric, 2, 4, 16),
+        ]) {
+            const index = create();
+            try {
+                const id = 2n ** 64n - 1n;
+                index.add_batch(new BigUint64Array([id, 1n]),
+                    new Float32Array([1, 0, 0, 0, 1, 0]));
+                for (const value of invalidNumbers) {
+                    rejectsNumber(() => index.search(new Float32Array([1, 0, 0]), value));
+                    if (index instanceof ApproxIndex) {
+                        index.ef_search = 16;
+                        rejectsNumber(() => { index.ef_search = value; });
+                        check(index.ef_search === 16, 'invalid setting changed ef_search');
+                    }
+                }
+                const hits = index.search(new Float32Array([1, 0, 0]), 2);
+                try {
+                    check(hits.ids.length === 2 && hits.ids[0] === id, 'wrong nearest ID');
+                    check(hits.distances[0] === (metric === 'dot' ? -1 : 0), 'wrong distance');
+                } finally { hits.free(); }
+                let rejected = false;
+                try { index.add(-1n, new Float32Array([1, 0, 0])); }
+                catch { rejected = true; }
+                check(rejected && index.size() === 2, 'invalid ID was accepted');
+                index.remove(id);
+                check(!index.contains(id) && index.size() === 1, 'remove failed');
+            } finally { index.free(); }
+        }
+    }
+    result.textContent = 'PASS: packaged browser bindings, both indexes, all metrics';
+} catch (error) {
+    result.textContent = `FAIL: ${error.stack || error}`;
+    throw error;
+}
+</script>

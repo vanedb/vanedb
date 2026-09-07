@@ -6,13 +6,10 @@ Embeddable vector database for edge AI. Header-only C++20, SIMD-optimized, cross
 ## Role in the VaneDB Project
 
 This is the **C++ header-only** implementation in the `cpp/` directory. The
-Rust implementation lives at the repository root and is the primary entry
-point for Rust (`cargo add vanedb`), Python (`pip install vanedb`), and WASM
-consumers.
-This implementation is not published. It once had supplementary Python
-bindings; #100 decided to ship one Python package, so the workflow is gone and
-the name is not registered. The engine stays as reference code and as the
-benchmark's control.
+Rust implementation lives at the repository root and owns the Rust, Python,
+C and WASM product. See the root README for source-build instructions.
+The C++ Python bindings are built locally for reference and testing; there is
+no `vanedb-cpp` publication workflow.
 
 **Why this engine still exists:** it is the other arm of the cross-engine
 benchmark, and a header you can drop into a CMake/Bazel project with no Rust
@@ -20,7 +17,8 @@ toolchain. It is not a second product, and not a path a new user should be
 steered down.
 
 **Alignment policy:** none — features are not synced. Shared regression
-vectors and cross-load fixtures live in `../conformance/`, and those must keep
+vectors and disk fixtures live in `../vanedb/tests/fixtures/conformance/`, with
+their contract in `../conformance/`, and those must keep
 passing, but that is a constraint on changes rather than a sync obligation.
 
 ## Current Status: v0.1.0, frozen
@@ -76,7 +74,7 @@ Run these commands from the repository root.
 - ARM64: Native runners
 - iOS: Xcode arm64
 - Android: NDK arm64-v8a, x86_64
-- Python: 3 platforms x Python 3.9–3.14
+- Python: 3 platforms x Python 3.11–3.14
 - Sanitizers: ASan, UBSan
 - Coverage: Codecov
 
@@ -119,7 +117,8 @@ agent reading only this file drew the wrong conclusion.
 Change it only to:
 - Fix a defect in the engine itself, including CVEs
 - Keep it building and its own tests passing
-- Keep the shared `DiskIndex` format loadable both ways
+- Keep shared VNDB disk and graph files loadable both ways, preserving topology
+  and loaded tombstones without adding a public delete API
 - Keep the benchmark comparison honest — where a Rust change makes a row
   measure something different, annotate the row rather than porting to match
 

@@ -225,25 +225,23 @@ impl DiskIndex {
     /// constant-cost mapping. A file that is already corrupt or truncated is
     /// rejected here rather than surfacing as a wrong answer later.
     ///
-    /// # The file must not change while it is open
+    /// # Safety
     ///
-    /// The contents are mapped, not read, so the mapping and the file are the
-    /// same bytes for as long as this value lives. If another process
-    /// truncates the file, touching the mapped region raises `SIGBUS` and the
-    /// process dies — no panic, no error, nothing to catch. If another process
-    /// rewrites it in place, reads return whatever was written, including
-    /// values the checks above rejected.
-    ///
-    /// Validation happens once, at open. It cannot speak for what the file
-    /// does afterwards.
+    /// The caller must ensure that the underlying file's contents and length
+    /// cannot change, in this process or another, from before this call until
+    /// the returned index is dropped. Validation does not establish this
+    /// guarantee: the index borrows directly from mapped bytes, and modifying
+    /// them can cause undefined behavior. Truncation can also cause a process
+    /// fault such as `SIGBUS`, rather than a recoverable error.
     ///
     /// Writing with [`DiskIndexBuilder::save`] is safe against this: it builds
     /// a temporary sibling and renames it into place, which replaces the
     /// directory entry and leaves this mapping pointing at the old, intact
     /// inode. Rebuilding an index while readers hold it open is therefore
     /// fine. Editing a mapped file in place is not.
-    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+    pub unsafe fn open(path: impl AsRef<Path>) -> Result<Self> {
         let file = fs::File::open(path.as_ref()).map_err(|e| VaneError::from_io("open", e))?;
+        // SAFETY: the caller guarantees immutability for this mapping's lifetime.
         let mmap = unsafe { Mmap::map(&file) }.map_err(|e| VaneError::from_io("mmap", e))?;
 
         if mmap.len() < HEADER_SIZE {
@@ -267,10 +265,8 @@ impl DiskIndex {
         let metric = u32_to_metric(metric_raw)?;
         // Offsets 28..32 are reserved and specified as zero. Rejecting a
         // nonzero value is what keeps them claimable: a reader that ignores
-        // them can never be given a meaning later, because it would silently
-        // misread any file that used one. The frozen C++ reader still skips
-        // these bytes, so this reclaims the escape hatch for the Rust engine
-        // only — enough to matter, since that is the engine that ships.
+        // them can never be given a meaning later, because every binary
+        // already in the field would silently misread a file that used one.
         if u32::from_le_bytes(mmap[28..32].try_into().unwrap()) != 0 {
             return Err(VaneError::corrupt("reserved header bytes are not zero"));
         }
@@ -314,10 +310,9 @@ impl DiskIndex {
         for i in 0..num_vectors {
             let off = ids_offset + i * 8;
             let id = u64::from_le_bytes(mmap[off..off + 8].try_into().unwrap());
-            id_map.insert(id, i);
-        }
-        if id_map.len() != num_vectors {
-            return Err(VaneError::corrupt("duplicate ids"));
+            if id_map.insert(id, i).is_some() {
+                return Err(VaneError::corrupt("duplicate vector id"));
+            }
         }
 
         Ok(Self {
@@ -480,7 +475,8 @@ mod tests {
         b.add(30, &[10.0, 10.0, 10.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = DiskIndex::open(&path).unwrap();
+        // SAFETY: this test does not modify the file while it is mapped.
+        let store = unsafe { DiskIndex::open(&path) }.unwrap();
         assert_eq!(store.size(), 3);
         assert_eq!(store.dimension(), 3);
         assert!(store.contains(10));
@@ -503,7 +499,8 @@ mod tests {
     fn open_rejects_bad_file() {
         let path = std::env::temp_dir().join("vanedb_test_mmap_bad.bin");
         std::fs::write(&path, b"garbage").unwrap();
-        assert!(DiskIndex::open(&path).is_err());
+        // SAFETY: this test does not modify the file while it is mapped.
+        assert!(unsafe { DiskIndex::open(&path) }.is_err());
         let _ = std::fs::remove_file(&path);
     }
 
@@ -518,7 +515,8 @@ mod tests {
         data.extend_from_slice(&(0u32).to_le_bytes());
         data.extend_from_slice(&(0u32).to_le_bytes());
         std::fs::write(&path, &data).unwrap();
-        assert!(DiskIndex::open(&path).is_err());
+        // SAFETY: this test does not modify the file while it is mapped.
+        assert!(unsafe { DiskIndex::open(&path) }.is_err());
         let _ = std::fs::remove_file(&path);
     }
 
@@ -529,7 +527,8 @@ mod tests {
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.save(&path).unwrap();
 
-        let store = DiskIndex::open(&path).unwrap();
+        // SAFETY: this test does not modify the file while it is mapped.
+        let store = unsafe { DiskIndex::open(&path) }.unwrap();
         assert!(store.search(&[1.0, 2.0], 1).is_err());
         let _ = std::fs::remove_file(&path);
     }

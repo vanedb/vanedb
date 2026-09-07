@@ -6,7 +6,7 @@ use vanedb::{ApproxIndex, FlatIndex, Metric, SearchResult, VaneError};
 use vanedb::{DiskIndex, DiskIndexBuilder};
 
 fn cases() -> Vec<(&'static str, f32)> {
-    include_str!("../../conformance/non_finite_vectors.tsv")
+    include_str!("fixtures/conformance/non_finite_vectors.tsv")
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .map(|line| {
@@ -96,7 +96,8 @@ fn mmap_store_rejects_non_finite_queries() {
     let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
-    let store = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = unsafe { DiskIndex::open(&path) }.unwrap();
 
     for (_, value) in cases() {
         let error = store.search(&[value, 0.0], 1).unwrap_err();
@@ -127,4 +128,15 @@ fn finite_exact_match_outranks_overflowed_distance() {
     assert_eq!(results[0].id, 2);
     assert_eq!(results[0].distance, 0.0);
     assert!(!results[1].distance.is_finite());
+}
+
+#[test]
+fn hnsw_small_beam_prefers_finite_distance_to_overflow() {
+    let index = ApproxIndex::builder(1, Metric::Dot).build().unwrap();
+    index.add(1, &[1e20]).unwrap();
+    index.add(2, &[0.0]).unwrap();
+    index.set_ef_search(1);
+    let results = index.search(&[1e20], 1).unwrap();
+    assert_eq!(results[0].id, 2);
+    assert!(results[0].distance.is_finite());
 }

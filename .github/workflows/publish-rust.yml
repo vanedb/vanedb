@@ -165,12 +165,14 @@ jobs:
     # The wheel is tested inside an Alpine container driven from the host:
     # running the job *in* a container instead would break the JS-based
     # actions, whose bundled Node is glibc-linked and cannot start on musl.
-    name: Test musl wheel (${{ matrix.arch }})
+    name: Test musl wheel (${{ matrix.arch }}, Python ${{ matrix.python-version }})
     needs: linux
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
+        python-version: ['3.11', '3.12', '3.13', '3.14']
+        arch: [x86_64, aarch64]
         include:
           - arch: x86_64
             runner: ubuntu-latest
@@ -200,14 +202,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # pip selects the wheel matching the container's interpreter, so the
-          # Alpine image pins which cp3XX wheel this leg covers.
-          docker run --rm --volume "$PWD:/work" --workdir /work alpine:3.22 sh -euc '
-            apk add --no-cache python3 py3-pip
+          docker run --rm --volume "$PWD:/work" --workdir /work \
+            "python:${{ matrix.python-version }}-alpine" sh -euc '
             python3 -m venv /venv
             /venv/bin/python -m pip install --disable-pip-version-check --quiet \
               --no-index --no-deps --find-links dist vanedb
             /venv/bin/python -m pip install --disable-pip-version-check --quiet pytest numpy
+            /venv/bin/python -m pip check
             /venv/bin/python scripts/check_wheel_install.py vanedb
             /venv/bin/python -m pytest vanedb-py/tests -v
           '
@@ -295,6 +296,8 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
+          # Exercise the minimum backend declared in pyproject.toml.
+          maturin-version: v1.9.3
           command: sdist
           args: --out dist --manifest-path vanedb-py/Cargo.toml
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -320,8 +323,8 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
-          python -m pip install pytest numpy
-          python -m pip install --no-deps --force-reinstall dist/*.tar.gz
+          python -m pip install pytest numpy maturin==1.9.3
+          python -m pip install --no-build-isolation --no-deps --force-reinstall dist/*.tar.gz
           python -m pip check
           python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v

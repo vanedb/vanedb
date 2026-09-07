@@ -27,8 +27,8 @@ pub enum Metric {
     Cosine,
     /// Negative dot product (higher similarity = lower distance).
     ///
-    /// Unlike L2 and cosine, this is not scale-invariant and not a metric: a
-    /// longer vector scores better than a shorter one pointing the same way,
+    /// Dot similarity depends on magnitude: a longer vector scores better
+    /// than a shorter one pointing the same way,
     /// so a vector need not be its own nearest neighbour. Normalise, or keep
     /// magnitudes comparable, if you want similarity-search semantics.
     Dot,

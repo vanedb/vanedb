@@ -22,50 +22,36 @@ fn to_pyerr(e: VaneError) -> PyErr {
     }
 }
 
-/// Converts a Python int to an id.
+/// Converts a Python int to an unsigned value, preserving type errors.
 ///
 /// PyO3's own `u64` conversion raises `OverflowError` for a negative value,
 /// and `OverflowError` is not a `ValueError` subclass, so `except ValueError`
-/// would miss it. Every method taking an id goes through this.
+/// would miss it. Extract only once so user-defined `__index__` methods are
+/// not called again after an error.
+fn unsigned_value(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<u64> {
+    obj.extract::<u64>().map_err(|e| {
+        if e.is_instance_of::<PyOverflowError>(obj.py()) {
+            PyValueError::new_err(format!("{name} out of range for an unsigned integer"))
+        } else {
+            e
+        }
+    })
+}
+
 fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
-    if let Ok(id) = obj.extract::<u64>() {
-        return Ok(id);
-    }
-    match obj.extract::<i64>() {
-        Ok(signed) => u64::try_from(signed)
-            .map_err(|_| PyValueError::new_err(format!("negative id: {signed}"))),
-        // An integer too large for i64 as well: still out of range for an id,
-        // and still must not escape as OverflowError.
-        Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => Err(PyValueError::new_err(
-            "id out of range: must be between 0 and 2**64 - 1",
-        )),
-        Err(e) => Err(e),
-    }
+    unsigned_value(obj, "id")
+}
+
+fn one_seed(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
+    unsigned_value(obj, "seed")
 }
 
 /// Converts a Python int to a count, dimension or other size.
 ///
-/// Same reason as [`one_id`]: PyO3 raises `OverflowError` for a negative
-/// value, which is not a `ValueError` subclass, so a caller following the
-/// documented error model with `except ValueError` would miss it. That was
-/// fixed for ids and not for every other integer parameter.
+/// The additional checked conversion preserves the platform's size limit.
 fn one_usize(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
-    if let Ok(n) = obj.extract::<usize>() {
-        return Ok(n);
-    }
-    match obj.extract::<i64>() {
-        // On a 32-bit target a positive value can fit i64 and not usize, so
-        // the sign decides the message rather than the conversion failing.
-        Ok(signed) if signed < 0 => Err(PyValueError::new_err(format!(
-            "must not be negative: {signed}"
-        ))),
-        Ok(signed) => usize::try_from(signed)
-            .map_err(|_| PyValueError::new_err("value out of range for a size")),
-        Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => {
-            Err(PyValueError::new_err("value out of range for a size"))
-        }
-        Err(e) => Err(e),
-    }
+    usize::try_from(unsigned_value(obj, "size")?)
+        .map_err(|_| PyValueError::new_err("size out of range for this platform"))
 }
 
 /// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
@@ -128,21 +114,6 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
             "vectors must be a 2-D float32 buffer (e.g. numpy array) or a sequence of float sequences",
         )
     })?;
-    // `rows.len() * dim` floats, allocated as four times that many bytes.
-    // 2 * (2^62 - 1) is a valid usize that still exceeds isize::MAX bytes, and
-    // `with_capacity` answers that with a panic rather than an error — which
-    // escapes the documented ValueError model as a PanicException.
-    let capacity = rows
-        .len()
-        .checked_mul(dim)
-        .filter(|n| *n <= isize::MAX as usize / std::mem::size_of::<f32>())
-        .ok_or_else(|| PyValueError::new_err("rows * dim is too large to allocate"))?;
-    // Fallibly, because a request that is merely enormous rather than invalid
-    // reaches `handle_alloc_error`, which aborts the process — worse than the
-    // panic above, since an abort takes the interpreter with it.
-    let mut flat: Vec<f32> = Vec::new();
-    flat.try_reserve_exact(capacity)
-        .map_err(|_| PyValueError::new_err("not enough memory for this batch"))?;
     for row in &rows {
         if row.len() != dim {
             return Err(PyValueError::new_err(format!(
@@ -150,9 +121,17 @@ fn batch_f32(obj: &Bound<'_, PyAny>, dim: usize) -> PyResult<(usize, Vec<f32>)> 
                 row.len()
             )));
         }
-        flat.extend_from_slice(row);
     }
-    Ok((rows.len(), flat))
+    let count = rows.len();
+    let capacity = count
+        .checked_mul(dim)
+        .filter(|n| *n <= isize::MAX as usize / std::mem::size_of::<f32>())
+        .ok_or_else(|| PyValueError::new_err("batch is too large"))?;
+    let mut flat = Vec::new();
+    flat.try_reserve_exact(capacity)
+        .map_err(|_| PyValueError::new_err("not enough memory for this batch"))?;
+    flat.extend(rows.into_iter().flatten());
+    Ok((count, flat))
 }
 
 /// Extract ids. Fast paths: 1-D uint64 or int64 buffers (int64 is numpy's
@@ -320,9 +299,7 @@ impl PyStore {
 
     /// The metric this index was built with.
     ///
-    /// Worth having on a loaded index: `FlatIndex.open`/`load` reads the metric out
-    /// of the file, and without this the caller cannot check that their query
-    /// convention matches.
+    /// Use this to confirm the distance convention expected by queries.
     #[getter]
     fn metric(&self) -> PyMetric {
         self.inner.metric().into()
@@ -350,7 +327,7 @@ impl PyIndex {
         #[pyo3(from_py_with = one_usize)] capacity: usize,
         #[pyo3(from_py_with = one_usize)] m: usize,
         #[pyo3(from_py_with = one_usize)] ef_construction: usize,
-        #[pyo3(from_py_with = one_id)] seed: u64,
+        #[pyo3(from_py_with = one_seed)] seed: u64,
     ) -> PyResult<Self> {
         let inner = ApproxIndex::builder(dim, metric.into())
             .capacity(capacity)
@@ -483,7 +460,7 @@ impl PyIndex {
 
     /// The metric this index was built with.
     ///
-    /// Worth having on a loaded index: `ApproxIndex.open`/`load` reads the metric out
+    /// Worth having on a loaded index: `ApproxIndex.load` reads the metric out
     /// of the file, and without this the caller cannot check that their query
     /// convention matches.
     #[getter]
@@ -576,17 +553,18 @@ impl PyDiskStore {
     /// Validates the header and every stored value, so this is linear in the
     /// corpus rather than a constant-cost mapping.
     ///
-    /// The file is mapped, not read: nothing may modify or truncate it while
-    /// this object exists. Truncating it makes a later read raise SIGBUS,
-    /// which kills the interpreter — there is no Python exception for that,
-    /// and no traceback. Validation happens once here and cannot speak for
-    /// what the file does afterwards.
-    ///
-    /// Rebuilding with `DiskIndexBuilder.save` is safe: it renames a new file
-    /// into place, leaving this object mapped on the old one.
+    /// The caller must keep the underlying file's contents and length unchanged,
+    /// in every process, from before this call until the index is released.
+    /// In-place writes or truncation can cause undefined behavior or crash the
+    /// process. `DiskIndexBuilder.save` safely replaces the file atomically,
+    /// leaving existing mappings intact.
     #[staticmethod]
     fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
-        let inner = py.detach(|| DiskIndex::open(path)).map_err(to_pyerr)?;
+        // SAFETY: the Python caller must uphold the external file immutability
+        // requirement documented above; the binding cannot enforce it.
+        let inner = py
+            .detach(|| unsafe { DiskIndex::open(path) })
+            .map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 

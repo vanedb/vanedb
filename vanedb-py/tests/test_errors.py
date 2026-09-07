@@ -1,12 +1,12 @@
 """The Python error contract.
 
 A missing index file, a corrupt one and a bad argument must be
-distinguishable without reading the message, and every out-of-range id must
+distinguishable without reading the message, and every out-of-range integer must
 raise ValueError -- OverflowError is not a ValueError subclass, so
 `except ValueError` would miss it.
 """
 
-import pathlib
+import sys
 
 import pytest
 
@@ -104,40 +104,90 @@ def test_an_out_of_range_id_in_a_list_batch_is_a_valueerror():
         index.add_batch([1, 2**64], [[1.0, 0.0], [0.0, 1.0]])
 
 
+INVALID_SIZES = [
+    pytest.param(-1, ValueError, id="negative"),
+    pytest.param(-(2**100), ValueError, id="huge_negative"),
+    pytest.param(2 * (sys.maxsize + 1), ValueError, id="above_usize"),
+    pytest.param(2**100, ValueError, id="huge_positive"),
+    pytest.param(1.5, TypeError, id="float"),
+    pytest.param("1", TypeError, id="string"),
+    pytest.param(None, TypeError, id="none"),
+]
+
+
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
 @pytest.mark.parametrize(
-    "call",
+    "construct",
     [
-        lambda: vanedb.FlatIndex(-1, vanedb.Metric.L2),
-        lambda: vanedb.ApproxIndex(-1, vanedb.Metric.L2),
-        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, capacity=-1),
-        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, m=-1),
-        lambda: vanedb.ApproxIndex(3, vanedb.Metric.L2, ef_construction=-1),
-        lambda: vanedb.DiskIndexBuilder(-1, vanedb.Metric.L2),
+        lambda value: vanedb.FlatIndex(value, vanedb.Metric.L2),
+        lambda value: vanedb.ApproxIndex(value, vanedb.Metric.L2),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, capacity=value),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, m=value),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, ef_construction=value),
+        lambda value: vanedb.DiskIndexBuilder(value, vanedb.Metric.L2),
     ],
     ids=["flat_dim", "approx_dim", "capacity", "m", "ef_construction", "disk_dim"],
 )
-def test_a_negative_size_is_a_valueerror_not_an_overflowerror(call):
-    """The error model documents ValueError; OverflowError is not a subclass.
+def test_invalid_constructor_sizes(construct, value, error):
+    with pytest.raises(error):
+        construct(value)
 
-    This was fixed for ids and left unfixed for every other integer parameter,
-    so `except ValueError` missed dim, capacity, m, ef_construction and k.
-    """
+
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
+@pytest.mark.parametrize("kind", ["flat", "approx", "disk"])
+def test_invalid_search_k(tmp_path, kind, value, error):
+    if kind == "disk":
+        builder = vanedb.DiskIndexBuilder(2, vanedb.Metric.L2)
+        builder.add(1, [1.0, 0.0])
+        path = str(tmp_path / "index.vane")
+        builder.save(path)
+        index = vanedb.DiskIndex.open(path)
+    else:
+        cls = vanedb.FlatIndex if kind == "flat" else vanedb.ApproxIndex
+        index = cls(2, vanedb.Metric.L2)
+        index.add(1, [1.0, 0.0])
+    with pytest.raises(error):
+        index.search([1.0, 0.0], value)
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
     with pytest.raises(ValueError):
-        call()
+        index.search([1.0, 0.0], 0)
 
 
-def test_a_negative_k_or_ef_search_is_a_valueerror():
-    index = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
+def test_invalid_ef_search_preserves_setting(value, error):
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2, capacity=1)
     index.add(1, [1.0, 0.0])
-    with pytest.raises(ValueError):
-        index.search([1.0, 0.0], -1)
-    with pytest.raises(ValueError):
-        index.ef_search = -1
+    index.ef_search = 73
+    with pytest.raises(error):
+        index.ef_search = value
+    assert index.ef_search == 73
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
+    index.ef_search = 0
+    assert index.ef_search == 0
 
-    store = vanedb.FlatIndex(2, vanedb.Metric.L2)
-    store.add(1, [1.0, 0.0])
-    with pytest.raises(ValueError):
-        store.search([1.0, 0.0], -1)
+
+@pytest.mark.parametrize(
+    "value,error",
+    [
+        (-1, ValueError),
+        (-(2**100), ValueError),
+        (2**64, ValueError),
+        (2**100, ValueError),
+        (1.5, TypeError),
+        ("1", TypeError),
+        (None, TypeError),
+    ],
+)
+def test_invalid_seed(value, error):
+    with pytest.raises(error):
+        vanedb.ApproxIndex(2, seed=value, capacity=1)
+
+
+@pytest.mark.parametrize("seed", [0, 2**64 - 1])
+def test_seed_accepts_unsigned_boundaries(seed):
+    index = vanedb.ApproxIndex(2, seed=seed, capacity=1)
+    index.add(1, [1.0, 0.0])
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
 
 
 def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
@@ -150,24 +200,12 @@ def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
         vanedb.DiskIndexBuilder(2**62, vanedb.Metric.L2)
 
 
-def test_a_batch_whose_rows_times_dim_overflows_is_a_valueerror():
-    """The multiply happens after construction, so it needs its own case.
-
-    2**62 - 1 is the largest dimension the constructor accepts: `dim * 4` fits.
-    `rows * dim` does not, and `Vec::with_capacity` panics rather than
-    returning, so this escaped as a PanicException — which derives from
-    BaseException and slips past `except ValueError` and `except Exception`
-    alike. The earlier version of this test used 2**62 exactly, the one value
-    the constructor rejects, so it never reached the multiply it was named for.
-    """
-    dim = 2**62 - 1
+def test_a_batch_with_huge_dimension_validates_rows_before_allocation():
+    """Invalid row widths must fail before reserving rows * dimension floats."""
+    dim = sys.maxsize // 2
     for index in (
         vanedb.FlatIndex(dim, vanedb.Metric.L2),
         vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=1),
     ):
-        with pytest.raises(ValueError, match="too large to allocate"):
-            # A list of lists: the buffer fast paths take their length from
-            # the shape and never perform this multiply. The match anchors on
-            # the guard's own message, because the previous version of this
-            # test passed on a different ValueError entirely.
+        with pytest.raises(ValueError, match="dimension mismatch"):
             index.add_batch([0, 1], [[1.0], [1.0]])

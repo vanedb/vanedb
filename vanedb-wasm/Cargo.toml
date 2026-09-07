@@ -2,9 +2,11 @@
 name = "vanedb-wasm"
 version = "0.1.0"
 edition = "2021"
-# Bound by bincode 2.x, the newest runtime dependency. CI checks it.
 rust-version = "1.85"
+description = "Embeddable vector search for JavaScript and WebAssembly"
 license = "MIT"
+repository = "https://github.com/vanedb/vanedb"
+readme = "README.md"
 publish = false
 
 [lib]

@@ -13,6 +13,7 @@ import pathlib
 import struct
 
 HERE = pathlib.Path(__file__).resolve().parent
+DEST = HERE.parents[1] / "vanedb/tests/fixtures/conformance/vndb"
 
 MAGIC = b"VNDB"
 VERSION = 1
@@ -49,8 +50,9 @@ def build(metric_value: int) -> bytes:
 
 
 def main() -> None:
+    DEST.mkdir(parents=True, exist_ok=True)
     for name, value in METRICS.items():
-        path = HERE / f"v1_{name}.vndb"
+        path = DEST / f"v1_{name}.vndb"
         path.write_bytes(build(value))
         print(f"{path.name}: {path.stat().st_size} bytes, metric={value}")
 

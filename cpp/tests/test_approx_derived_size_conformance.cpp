@@ -1,4 +1,4 @@
-// Cross-engine HNSW size cases from conformance/index_derived_sizes.tsv.
+// Cross-engine HNSW size cases from vanedb/tests/fixtures/conformance/index_derived_sizes.tsv.
 #include "core/approx_index.h"
 
 #include <catch2/catch_test_macros.hpp>

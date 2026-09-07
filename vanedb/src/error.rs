@@ -64,7 +64,7 @@ pub enum VaneError {
         /// What was wrong with it, for diagnostics only. Not stable API.
         detail: String,
     },
-    /// A compute backend (Metal, CUDA) is unavailable. Fall back to the CPU
+    /// A compute backend is unavailable. Fall back to the CPU
     /// rather than retry.
     Backend {
         /// What failed, for diagnostics only. Not stable API.

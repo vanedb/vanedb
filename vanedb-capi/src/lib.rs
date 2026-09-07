@@ -468,13 +468,9 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
 /// # Safety
 /// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
 /// that must be freed with `vanedb_rs_disk_free`.
-///
-/// The file is mapped, not read, and must not be modified or truncated by any
-/// process while the handle lives. Truncating it makes a later read raise
-/// SIGBUS, which kills the process: the panic guard on every entry point here
-/// catches unwinding, not signals. Rebuilding with `vanedb_rs_disk_build` is
-/// safe, since it renames a new file into place and leaves this handle on the
-/// old one.
+/// The underlying file must not be modified or truncated from the start of
+/// this call until the handle is freed. Replacing its path with a newly built
+/// file is allowed; modifying the mapped file in place is not.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb_rs_disk {
     guard(std::ptr::null_mut(), || {
@@ -482,7 +478,8 @@ pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb
             return std::ptr::null_mut();
         }
         match CStr::from_ptr(path).to_str() {
-            Ok(p) => match DiskIndex::open(p) {
+            // The caller guarantees the mapped file remains immutable.
+            Ok(p) => match unsafe { DiskIndex::open(p) } {
                 Ok(m) => Box::into_raw(Box::new(m)),
                 Err(_) => std::ptr::null_mut(),
             },

@@ -32,6 +32,7 @@ jobs:
               # runs, so a change to it must trigger the jobs that run it.
               - 'scripts/**'
               - 'conformance/**'
+              - 'README.md'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'deny.toml'
@@ -43,6 +44,7 @@ jobs:
               - '.github/workflows/**'
             cpp:
               - 'conformance/**'
+              - 'vanedb/tests/fixtures/**'
               - 'cpp/**'
               - '.github/requirements-release.txt'
               - '.github/workflows/**'

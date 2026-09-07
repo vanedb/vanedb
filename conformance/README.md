@@ -1,13 +1,15 @@
 # VaneDB conformance
 
 This directory owns the contract shared by the Rust and C++ engines. A
-component-specific test may prove an implementation detail; a fixture here
-proves a product behavior that both implementations must honor.
+component-specific test may prove an implementation detail; the shared fixtures
+prove behaviors both engines must honor. Their canonical bytes live in
+[`vanedb/tests/fixtures/conformance/`](../vanedb/tests/fixtures/conformance/), so
+the Rust crate includes every file its tests need. Both engines read that same
+copy; this directory retains the specifications and independent generators.
 
 ## Initial regression set
 
-The first conformance cases will cover the paired findings already present in
-both issue trackers:
+The current conformance cases cover paired findings from both engines:
 
 - cosine distance for small, identical vectors;
 - non-finite vectors and queries are rejected at every public store/index
@@ -38,31 +40,37 @@ by `vanedb/tests/cosine_conformance.rs` and
 
 ## Persisted identity
 
-A loaded HNSW index must carry an exact one-to-one relationship between live
-slots and external ids:
+A loaded HNSW index must map each live external ID to the slot carrying that
+ID. Both engines enforce this direction, where `stored_count` includes every
+occupied slot:
 
 ```
-id_map.len() == count      and      id_map[ext_ids[i]] == i   for every live i
+id_map[id] == slot  implies  slot < stored_count  and  ext_ids[slot] == id
 ```
 
-Those two conditions together force a bijection, so one pass rejects
-key/value mismatches, duplicate external ids, duplicated internal ids, missing
-entries and out-of-range values. Checking only the length and the value range
-accepted files in which an external id resolved to a different slot — reads
-returned well-formed data under the wrong identity, which is worse than a
-refusal to load.
+This rejects key/value mismatches, duplicated internal IDs and out-of-range
+slots. Checking only map length and value range accepted files in which an ID
+resolved to another slot's vector.
 
-`index_id_map_consistency.tsv` pins these cases for both engines and is consumed
+Rust supports deletion: a slot is live only when `id_map[ext_ids[slot]] == slot`.
+A slot missing that mapping is a tombstone, and its external ID may have been
+reused by another live slot. The public size counts live entries, while the
+legacy file's `count` includes tombstones. Legacy C++ files instead require a
+mapping for every stored slot. VNDB v2 encodes liveness with node flags, and both
+readers rebuild the map from live slots while preserving tombstones. The frozen
+C++ engine still has no public deletion API.
+
+`index_id_map_consistency.tsv` pins the legacy map cases for both engines and is consumed
 by `vanedb/tests/approx_id_map_conformance.rs` and
 `cpp/tests/test_approx_id_map_conformance.cpp`.
 
 ## Universal persistence
 
-The first public persistence format is **VNDB v1**. Existing Rust and C++
-format version numbers are pre-release implementation details and do not
-determine the public version.
+The shared disk persistence format is **VNDB v1**, implemented by both engines.
+The shared graph release candidate is **VNDB v2**, specified in
+[graph/README.md](graph/README.md). Disk v1 is unchanged.
 
-The format design must:
+A shared persistence format must:
 
 - begin with the literal four-byte magic `VNDB`;
 - use explicitly sized, little-endian fields;
@@ -79,7 +87,7 @@ require the reader to preserve the graph represented in the file.
 ### VNDB v1 — DiskIndex
 
 The `DiskIndex` payload already meets this contract and is specified here.
-`conformance/vndb/*.vndb` are the canonical fixtures, and both engines must
+`vanedb/tests/fixtures/conformance/vndb/*.vndb` are the canonical fixtures, and both engines must
 read them and reproduce them byte for byte.
 
 All fields are little-endian. The header is exactly 32 bytes:
@@ -114,11 +122,16 @@ wrong meaning — while the fixture fails at offset 24.
 Regenerate the fixtures only when this table changes, and treat any change to
 them as a format version change.
 
-The `ApproxIndex` graph payload is specified in
-[`graph/README.md`](graph/README.md) as `VNDB` v2, with fixtures generated from
-that table by `graph/generate.py` and checked in both directions by
-`vanedb/tests/vndb_graph_format.rs`. Legacy `HNSW` files remain loadable.
+### VNDB v2 — ApproxIndex
 
-The remaining work is the C++ side: that engine reads `VNDB` v1 disk files but
-not v2 graph files, so the graph format is specified and anchored but not yet
-cross-engine.
+The [graph field table and fixtures](graph/README.md) define the release
+candidate. Both engines reproduce the fixtures exactly, including all metrics,
+continuation encodings, deleted entries and ID reuse. The benchmark harness's
+`cross_engine_graph.rs` also crosses engine-written files both ways, verifies
+byte-for-byte graph preservation, compares query results within the distance
+tolerance, and inserts into imported graphs before crossing them again.
+
+[Fixed legacy graph files](legacy_graph/README.md) protect the old Rust
+`HNSW`/bincode and C++ `QVRD` readers. Migrate an old file in its original engine
+by loading it and saving to a new path. They are compatibility fixtures for
+those readers; the new format is defined by the VNDB v2 field table.

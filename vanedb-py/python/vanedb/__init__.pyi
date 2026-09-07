@@ -101,11 +101,10 @@ class DiskIndexBuilder:
 class DiskIndex:
     """Memory-mapped exact k-NN. Open with DiskIndex.open; not constructible.
 
-    The file is mapped, not read: nothing may modify or truncate it while the
-    object exists. Truncating it makes a later read raise SIGBUS, which kills
-    the interpreter with no exception and no traceback. Rebuilding with
-    DiskIndexBuilder.save is safe -- it renames a new file into place and
-    leaves an open DiskIndex on the old one.
+    Keep the underlying file's contents and length unchanged in every process,
+    from before open until the index is released. In-place modification can
+    corrupt results or crash the interpreter. DiskIndexBuilder.save atomically
+    replaces the path while leaving existing mappings intact.
     """
 
     @property
