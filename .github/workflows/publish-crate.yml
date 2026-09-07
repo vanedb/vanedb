@@ -63,7 +63,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       # --dry-run builds the crate exactly as uploaded and compiles it from the
       # packaged sources, so a file missing from the package fails here rather
       # than after the version is permanently taken.
@@ -93,7 +95,9 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
       # Bootstrap note: crates.io cannot pre-register a trusted publisher the
       # way PyPI's pending publishers can. RFC 3691: "A Trusted Publisher
       # Configuration can only be created after an initial manual publishing
