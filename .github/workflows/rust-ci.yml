@@ -196,6 +196,12 @@ jobs:
     name: Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Codecov authenticates by OIDC here — there is no CODECOV_TOKEN secret,
+    # and a protected branch refuses a tokenless upload with "Token required
+    # because branch is protected". Matches the C++ coverage job.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -225,6 +231,8 @@ jobs:
           files: lcov.info
           flags: rust
           fail_ci_if_error: true
+          use_oidc: true
+          verbose: true
 
   sanitize:
     name: AddressSanitizer (unsafe paths)
@@ -252,8 +260,11 @@ jobs:
           RUSTFLAGS: -Zsanitizer=address
           ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
         run: |
+          # --tests skips doctests: rustdoc compiles them without the
+          # sanitizer flags, so they fail to link against the instrumented
+          # std. They run unsanitized in the Test (native) jobs.
           cargo test -Zbuild-std --target x86_64-unknown-linux-gnu \
-            -p vanedb --features disk --locked
+            -p vanedb --features disk --locked --tests
       # The C ABI is where raw pointers cross the boundary: 39 `unsafe extern
       # "C"` functions taking caller-owned buffers. Neither engine's sanitizer
       # job covered it before.
@@ -263,7 +274,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
         run: |
           cargo test -Zbuild-std --target x86_64-unknown-linux-gnu \
-            -p vanedb-capi --locked
+            -p vanedb-capi --locked --tests
 
   test-wasm:
     name: Test (WASM)

@@ -579,3 +579,33 @@ TEST_CASE("detail::temp_path_for is unique per writer", "[disk][concurrency]") {
   // Stays beside the destination so the rename is same-filesystem.
   REQUIRE(vanedb::detail::temp_path_for(dest).rfind("some/dir/", 0) == 0);
 }
+
+TEST_CASE("DiskIndex - saving twice to one path replaces it", "[disk]") {
+  // `std::rename` has implementation-defined behaviour when the destination
+  // exists; on Windows it fails instead of replacing. Every save after the
+  // first therefore threw there while working on POSIX, and no test covered
+  // it because none saved twice to one path. `ApproxIndex::save` already used
+  // `std::filesystem::rename`, which the standard requires to replace.
+  const std::string path = "test_disk_save_twice.bin";
+  std::filesystem::remove(path);
+
+  vanedb::DiskIndexBuilder first(2);
+  float a[2] = {1.0f, 0.0f};
+  first.add(1, a);
+  REQUIRE_NOTHROW(first.save(path));
+
+  vanedb::DiskIndexBuilder second(2);
+  float b[2] = {0.0f, 1.0f};
+  second.add(7, b);
+  second.add(9, a);
+  REQUIRE_NOTHROW(second.save(path));
+
+  // The second save must have replaced the first, not merged with it.
+  vanedb::DiskIndex index(path);
+  REQUIRE(index.size() == 2);
+  REQUIRE(index.contains(7));
+  REQUIRE(index.contains(9));
+  REQUIRE_FALSE(index.contains(1));
+
+  std::filesystem::remove(path);
+}
