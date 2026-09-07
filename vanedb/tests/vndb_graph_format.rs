@@ -128,3 +128,129 @@ fn an_empty_and_an_all_deleted_graph_are_distinguishable() {
         "all_deleted must retain its tombstones"
     );
 }
+
+// --- Negative cases -------------------------------------------------------
+//
+// Reading a valid fixture proves the accept path. It says nothing about the
+// reject paths, and a loader that accepts everything reads every fixture
+// perfectly. Each case below patches one field of a real fixture, so the file
+// differs from a valid one in exactly one way.
+
+fn corrupt(name: &str, patch: impl FnOnce(&mut Vec<u8>)) -> vanedb::VaneError {
+    let mut bytes = std::fs::read(fixture(name)).unwrap();
+    patch(&mut bytes);
+    // A directory per call: these run in parallel, and a shared scratch path
+    // had them deleting each other's files, which reads as a loader bug.
+    static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = scratch(&format!("negative_{n}"));
+    let path = dir.join("patched.vndb");
+    std::fs::write(&path, &bytes).unwrap();
+    let err = ApproxIndex::load(&path).expect_err("a patched fixture must be rejected");
+    let _ = std::fs::remove_dir_all(&dir);
+    err
+}
+
+#[test]
+fn a_wrong_magic_is_rejected() {
+    let err = corrupt("l2_rng1.vndb", |b| b[0..4].copy_from_slice(b"BDNV"));
+    assert!(format!("{err}").contains("magic"), "got: {err}");
+}
+
+#[test]
+fn an_unsupported_version_is_rejected() {
+    // Offset 4, per the field table. A future version must not be read as v2.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[4..8].copy_from_slice(&7u32.to_le_bytes())
+    });
+    assert!(format!("{err}").contains("version"), "got: {err}");
+}
+
+#[test]
+fn an_unsupported_kind_is_rejected() {
+    // Offset 8. Kind 1 is the HNSW graph; nothing else is defined.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[8..12].copy_from_slice(&9u32.to_le_bytes())
+    });
+    assert!(!format!("{err}").is_empty());
+}
+
+#[test]
+fn an_invalid_metric_is_rejected() {
+    // Offset 12: 0, 1 and 2 are defined.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[12..16].copy_from_slice(&99u32.to_le_bytes())
+    });
+    assert!(!format!("{err}").is_empty());
+}
+
+#[test]
+fn trailing_bytes_are_rejected() {
+    // A file that decodes correctly and then continues is not this format.
+    // Without this, a reader silently ignores appended content.
+    let err = corrupt("l2_rng1.vndb", |b| b.extend_from_slice(&[0u8; 8]));
+    assert!(format!("{err}").contains("trailing"), "got: {err}");
+}
+
+#[test]
+fn a_truncated_file_is_rejected_at_every_length() {
+    // Every prefix of a valid file must fail rather than read past the end.
+    let bytes = std::fs::read(fixture("l2_rng1.vndb")).unwrap();
+    let dir = scratch("truncated");
+    for cut in 0..bytes.len() {
+        let path = dir.join("cut.vndb");
+        std::fs::write(&path, &bytes[..cut]).unwrap();
+        assert!(
+            ApproxIndex::load(&path).is_err(),
+            "a {cut}-byte prefix of a {}-byte file must not load",
+            bytes.len()
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_absurd_dimension_is_rejected_before_allocating() {
+    // Offset 16 is dim. A few hundred bytes must not request terabytes.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[16..24].copy_from_slice(&(1u64 << 62).to_le_bytes())
+    });
+    assert!(!format!("{err}").is_empty());
+}
+
+#[test]
+fn a_count_larger_than_the_file_is_rejected() {
+    // Offset 24 is the stored slot count. It must be cross-checked against
+    // the bytes actually present, not trusted.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[24..32].copy_from_slice(&u64::MAX.to_le_bytes())
+    });
+    assert!(!format!("{err}").is_empty());
+}
+
+#[test]
+fn two_live_slots_with_the_same_id_are_rejected() {
+    // `deleted_id_reuse.vndb` stores id 101 twice: slot 0 live, slot 1
+    // tombstoned. That is legal — an id may be reused after removal. Clearing
+    // slot 1's deleted flag makes both live, which is not, because lookups
+    // would resolve one id to two slots.
+    //
+    // Slot layout per the field table: id u64, level u32, deleted u32, then
+    // the vector, then the neighbour lists. Slot 1 begins at 160, so its
+    // deleted flag is at 160 + 12.
+    const SLOT1_DELETED: usize = 160 + 12;
+    let bytes = std::fs::read(fixture("deleted_id_reuse.vndb")).unwrap();
+    assert_eq!(
+        u32::from_le_bytes(bytes[SLOT1_DELETED..SLOT1_DELETED + 4].try_into().unwrap()),
+        1,
+        "slot 1 is not tombstoned at the expected offset; layout changed"
+    );
+
+    let err = corrupt("deleted_id_reuse.vndb", |b| {
+        b[SLOT1_DELETED..SLOT1_DELETED + 4].copy_from_slice(&0u32.to_le_bytes())
+    });
+    assert!(
+        format!("{err}").contains("duplicate"),
+        "two live slots sharing an id must be rejected, got: {err}"
+    );
+}
