@@ -7,10 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 1.0.0, breaking changes may land in a minor release.
 
-## [Unreleased]
+## [0.1.0] - 2026-09-07
 
-Nothing has been published yet, so there is no released version to diff
-against. This section records what the first release will contain.
+The first release. There is no earlier version to diff against, so this
+section records what it contains rather than what changed.
 
 ### Security
 
