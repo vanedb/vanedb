@@ -53,7 +53,7 @@ returned well-formed data under the wrong identity, which is worse than a
 refusal to load.
 
 `index_id_map_consistency.tsv` pins these cases for both engines and is consumed
-by `vanedb/tests/index_id_map_conformance.rs` and
+by `vanedb/tests/approx_id_map_conformance.rs` and
 `cpp/tests/test_approx_id_map_conformance.cpp`.
 
 ## Universal persistence

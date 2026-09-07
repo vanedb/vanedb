@@ -87,8 +87,9 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   These are transition safeguards, not a public-version promise.
 - **HNSW cross-engine parity is semantic, not byte-for-byte adjacency**:
   independently built graphs may differ. Each graph must satisfy structural
-  invariants and recall expectations, and either engine must preserve the graph
-  it loads from the other engine's `VNDB` file.
+  invariants and recall expectations. Only the Rust engine reads `VNDB` v2, so
+  the graph half of that is a property to preserve if a second reader is ever
+  written, not one tested today.
 - **HNSW construction choices are performance-sensitive**: new nodes receive
   `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
   reverse lists use distance sort+truncate rather than the diversity heuristic.

@@ -20,14 +20,6 @@ single-layer case.
   with the crate's tests. v1 has capacity-sized arrays; v2 has count-sized
   arrays. Both cover L2, cosine, and dot. The additional v2 cosine fixture
   retains a deleted slot whose ID has been reused by a live slot.
-- C++ files live in `cpp/tests/fixtures/legacy_graph/`. v1/v2 have
-  capacity-sized arrays; v3 has count-sized arrays. Versions 1, 2, and 3 use
-  L2, cosine, and dot respectively. v2/v3 include MT19937 state seeded with 42.
-  The `indexed` fixtures use libstdc++'s 624 words plus position; `state`
-  fixtures use the 624-word initial-state form used by libc++ and
-  [MSVC](https://github.com/microsoft/STL/blob/main/stl/inc/random).
-  Tests select the runtime's layout. The legacy RNG stream is therefore not
-  a universal wire format.
 
 Rust checks IDs, vectors, metrics, graph preservation and subsequent insertion:
 it decodes the topology directly, including tombstones, then verifies that a
@@ -39,5 +31,4 @@ Verify the committed files from the repository root:
 ```sh
 shasum -a 256 -c conformance/legacy_graph/SHA256SUMS
 cargo test -p vanedb --lib fixed_legacy --locked
-ctest --test-dir cpp/build -R 'legacy' --output-on-failure
 ```
