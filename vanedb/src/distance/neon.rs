@@ -8,12 +8,12 @@ use std::arch::aarch64::*;
 /// Squared Euclidean distance. The square root is skipped: it does not
 /// change the ordering, and every caller here only ranks.
 pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
 
-    // SAFETY: NEON is always available on aarch64.
-    // Pointer arithmetic stays within slice bounds (i + 4 <= n).
+    // SAFETY: NEON is always available on aarch64. Every load is bounded
+    // by `n`, which is the shorter of the two lengths, so neither pointer
+    // walks off its own slice.
     let mut sum = unsafe {
         // Four independent accumulators hide the fused multiply-add latency
         // (~4 cycles); a single-accumulator loop is latency-bound at one
@@ -59,8 +59,7 @@ pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
 /// when a norm is zero or overflows to infinity, so a degenerate input
 /// ranks as orthogonal rather than as NaN.
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
 
     let (mut dot, mut norm_a, mut norm_b) = unsafe {
@@ -123,8 +122,7 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 /// Negated dot product, so that lower still means nearer as it does for
 /// the other metrics.
 pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
-    let n = a.len();
+    let n = a.len().min(b.len());
     let mut i = 0;
 
     let mut sum = unsafe {

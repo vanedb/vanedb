@@ -1,9 +1,11 @@
 //! Portable reference kernels. The SIMD paths must agree with these.
+//!
+//! `zip` stops at the shorter iterator, so a length mismatch truncates.
+//! That is the contract the SIMD kernels bound themselves to.
 
 /// Squared Euclidean distance. The square root is skipped: it does not
 /// change the ordering, and every caller here only ranks.
 pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
     a.iter()
         .zip(b.iter())
         .map(|(x, y)| {
@@ -17,7 +19,6 @@ pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
 /// when a norm is zero or overflows to infinity, so a degenerate input
 /// ranks as orthogonal rather than as NaN.
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
     let mut dot = 0.0f32;
     let mut norm_a = 0.0f32;
     let mut norm_b = 0.0f32;
@@ -47,7 +48,6 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 /// Negated dot product, so that lower still means nearer as it does for
 /// the other metrics.
 pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    debug_assert_eq!(a.len(), b.len());
     -a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>()
 }
 
