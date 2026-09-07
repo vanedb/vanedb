@@ -1,0 +1,44 @@
+# Supply-chain gate. Runs in CI on every change to Rust sources or manifests.
+#
+# The point is that a new advisory fails the build rather than waiting to be
+# noticed out of band. Everything ignored below is ignored with a reason and a
+# way out, not silenced.
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = [
+    { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained. It carries the ApproxIndex persistence format and is deliberately pinned to 2.x with config::legacy() (see AGENTS.md); the 3.x major is intentionally uncompilable and Dependabot ignores it. Not a vulnerability. The exit is the VNDB graph payload, which removes bincode from the runtime dependency set entirely." },
+  { id = "RUSTSEC-2024-0436", reason = "paste unmaintained, via metal, reachable only through the optional gpu-metal feature and never in a default build. No safe upgrade exists. Not a vulnerability. Revisit if gpu-metal moves toward being a shipped default." },
+]
+
+[licenses]
+version = 2
+# Exactly the licences the current graph resolves to — nothing speculative.
+# A dependency that introduces a new one fails the check and gets looked at,
+# which is the point; a permissive list that anticipates licences we do not
+# use would let that land unnoticed.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "ISC",
+  "MPL-2.0",       # cbindgen, a build-dependency only; nothing links it
+  "Unicode-3.0",
+  "Unlicense",
+]
+
+[bans]
+# Duplicate versions are noise in a graph this size, not a defect.
+multiple-versions = "warn"
+wildcards = "deny"
+# The binding crates depend on `vanedb` by path with no version, which is
+# correct for unpublished crates in this workspace and not a supply-chain risk.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
