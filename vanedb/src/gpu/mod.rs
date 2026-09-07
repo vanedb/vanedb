@@ -1,6 +1,7 @@
-#[cfg(feature = "gpu-cuda")]
-pub mod cuda;
+//! Optional GPU distance computation; enabled with `gpu-metal` on macOS.
+
 #[cfg(feature = "gpu-metal")]
+/// Apple Metal distance kernels and device buffers.
 pub mod metal;
 
 #[cfg(feature = "gpu-metal")]
@@ -11,8 +12,11 @@ use crate::distance::Metric;
 /// GPU distance metric (maps from Metric).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuMetric {
+    /// Squared Euclidean distance.
     L2,
+    /// One minus cosine similarity.
     Cosine,
+    /// Negative dot product.
     Dot,
 }
 

@@ -3,17 +3,23 @@
 #[test]
 fn search_beam_width_is_per_call() {
     unsafe {
-        let h = vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42);
-        assert!(!h.is_null());
-        (*h).set_ef_search(73);
+        let h = std::ptr::NonNull::new(vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42))
+            .expect("index construction failed");
+        // The constructor transfers a Box allocation. Reclaim ownership so
+        // assertions use safe references and a panic still frees the index.
+        let mut index = Box::from_raw(h.as_ptr());
+        index.set_ef_search(73);
         let vector = [1.0];
-        assert_eq!(vanedb_capi::vanedb_rs_index_add(h, 1, vector.as_ptr()), 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(&mut *index, 1, vector.as_ptr()),
+            0
+        );
         let mut ids = [0];
         let mut distances = [0.0];
         for ef in [1, 100] {
             assert_eq!(
                 vanedb_capi::vanedb_rs_index_search(
-                    h,
+                    &mut *index,
                     vector.as_ptr(),
                     1,
                     ef,
@@ -24,12 +30,11 @@ fn search_beam_width_is_per_call() {
             );
             assert_eq!(ids, [1]);
             assert_eq!(
-                (*h).get_ef_search(),
+                index.get_ef_search(),
                 73,
                 "a query must not change another query's beam width"
             );
         }
-        vanedb_capi::vanedb_rs_index_free(h);
     }
 }
 

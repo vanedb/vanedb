@@ -74,9 +74,11 @@ pub struct GpuBuffer {
 }
 
 impl GpuBuffer {
+    /// Number of uploaded vectors.
     pub fn n(&self) -> usize {
         self.n
     }
+    /// Components per uploaded vector.
     pub fn dim(&self) -> usize {
         self.dim
     }
@@ -135,7 +137,7 @@ impl MetalCompute {
     /// Upload vectors to GPU memory. Vectors is a flat array of n * dim floats.
     /// Dimension must be divisible by 4.
     pub fn upload(&self, vectors: &[f32], n: usize, dim: usize) -> Result<GpuBuffer> {
-        if !dim.is_multiple_of(4) {
+        if dim % 4 != 0 {
             return Err(VaneError::InvalidParameter("GPU requires dim % 4 == 0"));
         }
         if vectors.len() != n * dim {

@@ -32,16 +32,25 @@ jobs:
 
   msrv:
     name: MSRV (1.85)
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      # The version declared in every Cargo.toml. Bound by bincode 2.x, the
-      # newest runtime dependency. `check`, not `test`: criterion is a
-      # dev-dependency and needs a newer toolchain than consumers do.
+      # Check the declared compiler floor, including Python, wasm32 and Metal.
+      # Tests use newer dev-dependencies and run on stable in the jobs below.
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.85.0
-      - run: cargo check --workspace --exclude vanedb-py --features disk --locked
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+      - run: cargo check --workspace --features disk --locked
+      - run: cargo check -p vanedb-wasm --target wasm32-unknown-unknown --locked
+      - if: runner.os == 'macOS'
+        run: cargo check -p vanedb --features disk,gpu-metal --locked
 
   deny:
     name: Advisories & licenses

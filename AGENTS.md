@@ -63,11 +63,15 @@ rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
 cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
-Feature caveats: `gpu-metal` builds/tests only on macOS; `gpu-cuda` needs a CUDA
-toolchain. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
+Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is excluded from
+1.0.0 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
+Do not reintroduce an unimplemented CUDA feature or claim support without the
+roadmap's NVIDIA hardware, correctness, lifecycle and performance evidence. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
 acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built
 Android ARM64 bundle also passes locally on an Android 15 emulator with 16 KiB
-pages; see the release evidence. Physical-device checks remain open. Node wasm tests likewise
+pages; see the release evidence. The September 7 decision accepts simulators
+and emulators for 1.0.0 verification. Physical-device checks remain a follow-up, and
+no physical-device success may be claimed without a recorded run. Node wasm tests likewise
 do not prove browser integration; CI also runs headless Chrome. Match each
 platform claim to the actual build and runtime evidence; use the relevant host
 and toolchain for checks that cannot run locally.

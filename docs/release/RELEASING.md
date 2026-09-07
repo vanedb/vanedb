@@ -12,8 +12,10 @@ authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
    `vanedb-py/pyproject.toml` agree. Both Cargo lockfiles must resolve that version.
    The frozen C++ reference and benchmark harness have independent versions.
 3. Require the complete platform CI matrix and installed/extracted artifact
-   checks for that candidate. Complete the physical-device, GPU, performance,
-   persistence-contract and role-review requirements in the readiness record.
+   checks for that candidate. Complete the accepted simulator/emulator mobile,
+   Metal, performance, persistence-contract and role-review requirements in the
+   readiness record. CUDA is a required post-1.0.0 roadmap item; physical-device
+   checks are a follow-up. Neither may be advertised as verified in this release.
 4. Dispatch publication-disabled rehearsals on the candidate branch:
 
    ```sh
@@ -33,13 +35,18 @@ authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
 The Python publisher is repository `vanedb/vanedb`, workflow `publish-rust.yml`,
 with environment `pypi` (or `testpypi` for an explicitly requested rehearsal).
 PyPI supports a [pending publisher for a new project](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
-The registry owner must verify this configuration; the GitHub environment's
-existence does not prove the registry trusts it.
+On September 7, 2026, the owner reported that PyPI was already configured with
+this release effort. Verify that existing setup instead of creating a duplicate;
+it has not yet been rechecked in this session because the Mac is locked and
+browser access is unavailable. The GitHub environment's existence alone does
+not prove that PyPI trusts it.
 
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
 The [crates.io prerequisites](https://crates.io/docs/trusted-publishing)
 require an initial manual publication before configuring trusted publishing.
-Confirm the current registry setup with the owner before the first release.
+The owner reported on September 7 that a crates.io account still needs to be
+created. Complete account creation and confirm its ownership before arranging
+the initial publication and trusted publisher.
 If bootstrap publication is needed, use the approved version and commit with a
 scoped token through Cargo's credential mechanism; never put credentials in
 release notes, shell history or logs. Configure the trusted publisher afterward.

@@ -471,17 +471,17 @@ impl PyDiskStoreBuilder {
         py.detach(|| self.inner.lock().save(path)).map_err(to_pyerr)
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.lock().size()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.lock().size())
     }
 
-    fn size(&self) -> usize {
-        self.inner.lock().size()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.lock().size())
     }
 
     #[getter]
-    fn dimension(&self) -> usize {
-        self.inner.lock().dimension()
+    fn dimension(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.lock().dimension())
     }
 }
 

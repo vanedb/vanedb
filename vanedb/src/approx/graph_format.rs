@@ -211,8 +211,11 @@ pub(super) fn read(bytes: &[u8]) -> Result<(HnswData, RngState)> {
             .split_at_checked(dim * 4)
             .ok_or_else(|| VaneError::corrupt("truncated VNDB graph vectors"))?;
         input.0 = rest;
-        let (bits, _) = components.as_chunks::<4>();
-        vectors.extend(bits.iter().copied().map(f32::from_le_bytes));
+        vectors.extend(
+            components
+                .chunks_exact(4)
+                .map(|bits| f32::from_le_bytes(bits.try_into().unwrap())),
+        );
         let mut layers = reserve(level as usize + 1)?;
         for layer in 0..=level {
             let degree = input.size()?;

@@ -46,7 +46,7 @@ pub mod disk;
 pub mod distance;
 pub mod error;
 pub mod flat;
-#[cfg(any(feature = "gpu-metal", feature = "gpu-cuda"))]
+#[cfg(feature = "gpu-metal")]
 pub mod gpu;
 mod validation;
 

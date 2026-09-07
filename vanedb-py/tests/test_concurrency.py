@@ -1,98 +1,130 @@
-"""Every class releases the GIL for work that blocks, and tolerates sharing.
+"""Concurrent lifecycle checks, isolated so a deadlock cannot hang pytest.
 
-These assert behaviour a single-threaded test cannot see: that a long call
-does not pin the interpreter, and that two threads may use one object.
+These verify coherent objects and snapshots under sharing, not scheduler timing
+or a minimum number of interpreter ticks.
 """
 
+from pathlib import Path
+import subprocess
+import sys
 import threading
-import time
 
 import vanedb
 
 
-def _dim():
-    return 8
+def _vec(i):
+    return [float((i + j) % 17) for j in range(8)]
 
 
-def _vec(i, dim=8):
-    return [float((i + j) % 17) for j in range(dim)]
-
-
-def test_disk_builder_is_usable_from_two_threads(tmp_path):
-    """`add` releases the GIL, so its receiver has to tolerate overlap."""
-    builder = vanedb.DiskIndexBuilder(_dim(), vanedb.Metric.L2)
+def _parallel(*operations):
+    start = threading.Barrier(len(operations), timeout=10)
     errors = []
 
-    def fill(lo, hi):
+    def run(operation):
         try:
-            for i in range(lo, hi):
-                builder.add(i, _vec(i))
-        except BaseException as exc:  # noqa: BLE001 - report, do not swallow
+            start.wait()
+            operation()
+        except BaseException as exc:
             errors.append(exc)
 
-    threads = [threading.Thread(target=fill, args=(lo, lo + 250)) for lo in (0, 250)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    assert not errors, f"concurrent add raised: {errors!r}"
-    assert builder.size() == 500
-
-    path = tmp_path / "concurrent.vndb"
-    builder.save(str(path))
-    assert vanedb.DiskIndex.open(str(path)).size() == 500
+    threads = [threading.Thread(target=run, args=(op,), daemon=True) for op in operations]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=20)
+    assert not any(thread.is_alive() for thread in threads), "worker did not finish"
+    assert not errors, f"concurrent operation raised: {errors!r}"
 
 
-def test_index_save_does_not_block_other_threads(tmp_path):
-    """`save` serialises the whole graph; holding the GIL would freeze the process."""
-    index = vanedb.ApproxIndex(_dim(), vanedb.Metric.COSINE, capacity=4000)
-    for i in range(4000):
+def _disk_builder(directory):
+    builder = vanedb.DiskIndexBuilder(8, vanedb.Metric.L2)
+
+    def fill(lo):
+        for i in range(lo, lo + 250):
+            builder.add(i, _vec(i))
+
+    def snapshots():
+        for n in range(5):
+            assert builder.dimension == 8
+            assert 0 <= len(builder) <= 500
+            assert 0 <= builder.size() <= 500
+            path = str(directory / f"builder-{n}.vndb")
+            builder.save(path)
+            snapshot = vanedb.DiskIndex.open(path)
+            assert snapshot.dimension == 8
+            assert 0 <= snapshot.size() <= 500
+
+    _parallel(lambda: fill(0), lambda: fill(250), snapshots)
+    assert len(builder) == builder.size() == 500
+    path = str(directory / "complete.vndb")
+    builder.save(path)
+    snapshot = vanedb.DiskIndex.open(path)
+    assert snapshot.size() == 500
+    for i in range(500):
+        assert snapshot.get(i) == _vec(i)
+
+
+def _index_snapshots(directory):
+    index = vanedb.ApproxIndex(8, vanedb.Metric.COSINE, capacity=100)
+    for i in range(100):
         index.add(i, _vec(i))
 
-    ticks = []
-    stop = threading.Event()
+    def replace():
+        for i in range(100):
+            index.upsert(i, _vec(i + 1))
 
-    def tick():
-        while not stop.is_set():
-            ticks.append(time.perf_counter())
-            time.sleep(0.001)
-
-    watcher = threading.Thread(target=tick)
-    watcher.start()
-    try:
+    def snapshots():
         for n in range(5):
-            index.save(str(tmp_path / f"s{n}.hnsw"))
-    finally:
-        stop.set()
-        watcher.join()
+            path = str(directory / f"graph-{n}.vndb")
+            index.save(path)
+            snapshot = vanedb.ApproxIndex.load(path)
+            assert snapshot.size() == 100
+            for i in range(100):
+                assert snapshot.get_vector(i) in (_vec(i), _vec(i + 1))
+            assert len(snapshot.search(_vec(0), 10)) == 10
+            snapshot.add(100, _vec(100))
+            assert snapshot.size() == 101
 
-    # A GIL-holding save would stall the watcher for the whole serialisation.
-    # This asserts it kept running at all, not how fast it ran.
-    assert len(ticks) > 5, f"watcher thread only ran {len(ticks)} times during save"
+    _parallel(replace, snapshots)
+    for i in range(100):
+        assert index.get_vector(i) == _vec(i + 1)
 
 
-def test_upsert_and_remove_are_shareable(tmp_path):
-    """Both take the write lock; both must be callable from several threads."""
-    index = vanedb.ApproxIndex(_dim(), vanedb.Metric.L2, capacity=1000)
+def _index_churn(_directory):
+    index = vanedb.ApproxIndex(8, vanedb.Metric.L2, capacity=200)
     for i in range(200):
         index.add(i, _vec(i))
 
-    errors = []
+    def churn(lo):
+        for i in range(lo, lo + 100):
+            index.upsert(i, _vec(i + 1))
+            index.remove(i)
 
-    def churn(lo, hi):
-        try:
-            for i in range(lo, hi):
-                index.upsert(i, _vec(i + 1))
-                index.remove(i)
-        except BaseException as exc:  # noqa: BLE001
-            errors.append(exc)
-
-    threads = [threading.Thread(target=churn, args=(lo, lo + 100)) for lo in (0, 100)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    assert not errors, f"concurrent upsert/remove raised: {errors!r}"
+    _parallel(lambda: churn(0), lambda: churn(100))
     assert index.size() == 0
+
+
+def _check_scenario(name, directory):
+    completed = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve()), name, str(directory)],
+        cwd=directory, capture_output=True, text=True, timeout=60,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def test_disk_builder_concurrent_add_getters_and_save(tmp_path):
+    _check_scenario("builder", tmp_path)
+
+
+def test_index_snapshots_remain_usable_during_upsert(tmp_path):
+    _check_scenario("snapshots", tmp_path)
+
+
+def test_upsert_and_remove_are_shareable(tmp_path):
+    _check_scenario("churn", tmp_path)
+
+
+if __name__ == "__main__":
+    {"builder": _disk_builder, "snapshots": _index_snapshots, "churn": _index_churn}[
+        sys.argv[1]
+    ](Path(sys.argv[2]))

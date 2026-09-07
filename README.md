@@ -143,8 +143,10 @@ for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
 iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
 simulator and Android x86-64 emulator. The CI-built Android ARM64 library also
 passes acceptance locally on an Android 15 emulator with 16 KiB pages; see the
-[release evidence](docs/release/1.0.0-readiness.md). Physical-device verification
-remains required before claiming 1.0.0 support on every platform.
+[release evidence](docs/release/1.0.0-readiness.md). The accepted 1.0.0 mobile
+verification scope is simulator/emulator based. Physical-device acceptance
+remains a follow-up; these results do not establish behavior on an iPhone or
+Android device.
 
 The supplementary C++ engine has different constructor arguments, result shapes,
 and feature coverage. Moving between Python engines requires adapting the API,
@@ -183,6 +185,13 @@ keep the reference implementation useful for the benchmark comparison.
 
 Release tags are `vanedb-vX.Y.Z` for Python and `vanedb-crate-vX.Y.Z`
 for the Rust crate. The C++ reference is not published to PyPI.
+
+## Roadmap
+
+CUDA support for NVIDIA GPUs is a required, high-priority follow-up after 1.0.0.
+It is excluded from this release. The [roadmap](docs/ROADMAP.md) records the
+implementation, hardware verification and performance requirements, plus mobile
+physical-device follow-up. No delivery version or date has been assigned.
 
 ## License
 
