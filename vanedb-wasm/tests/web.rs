@@ -137,3 +137,30 @@ fn test_non_finite_vectors_and_queries_are_rejected() {
         assert_eq!(index.size(), 0);
     }
 }
+
+#[wasm_bindgen_test]
+fn every_metric_round_trips_and_is_reportable() {
+    // Dot had no coverage here, and neither class could report the metric it
+    // was built with. The reported spelling is the one the constructor takes,
+    // so it can be fed straight back.
+    for name in ["l2", "cosine", "dot"] {
+        let store = WasmStore::new(2, name).unwrap();
+        assert_eq!(store.metric(), name);
+        let index = WasmIndex::new(2, name, 16, 4, 40).unwrap();
+        assert_eq!(index.metric(), name);
+        // Round-trips through the constructor it names.
+        assert!(WasmStore::new(2, &store.metric()).is_ok());
+    }
+}
+
+#[wasm_bindgen_test]
+fn dot_ranks_by_largest_inner_product() {
+    let store = WasmStore::new(2, "dot").unwrap();
+    store.add(1, &[1.0, 0.0]).unwrap();
+    store.add(2, &[4.0, 0.0]).unwrap();
+    store.add(3, &[0.0, 1.0]).unwrap();
+    let hits = store.search(&[1.0, 0.0], 3).unwrap();
+    let ids = hits.ids();
+    assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
+    assert_eq!(ids[2], 3);
+}

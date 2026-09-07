@@ -263,3 +263,47 @@ def test_upsert_and_compaction():
     assert idx.tombstones() == 0
     assert len(idx) == 1
     assert idx.search([199.0, 0.0], 1)[0][0] == 1
+
+
+@pytest.mark.parametrize(
+    "metric", [vanedb.Metric.L2, vanedb.Metric.COSINE, vanedb.Metric.DOT]
+)
+def test_every_metric_round_trips_and_is_reportable(metric, tmp_path):
+    """DOT had no binding-level coverage at all, and no class reported its metric.
+
+    A loaded index reads its metric out of the file, so without a getter the
+    caller cannot check that their query convention matches what was stored.
+    """
+    vecs = [[1.0, 0.0], [0.0, 1.0], [0.7, 0.7]]
+
+    store = vanedb.FlatIndex(2, metric)
+    for i, v in enumerate(vecs):
+        store.add(i, v)
+    assert store.metric == metric
+    assert len(store.search([1.0, 0.0], 3)) == 3
+
+    index = vanedb.ApproxIndex(2, metric)
+    for i, v in enumerate(vecs):
+        index.add(i, v)
+    assert index.metric == metric
+    path = tmp_path / f"i-{metric}.hnsw"
+    index.save(str(path))
+    assert vanedb.ApproxIndex.load(str(path)).metric == metric
+
+    builder = vanedb.DiskIndexBuilder(2, metric)
+    for i, v in enumerate(vecs):
+        builder.add(i, v)
+    disk_path = tmp_path / f"d-{metric}.vndb"
+    builder.save(str(disk_path))
+    assert vanedb.DiskIndex.open(str(disk_path)).metric == metric
+
+
+def test_dot_ranks_by_largest_inner_product():
+    """Dot is not a metric: the longest aligned vector wins, not the closest."""
+    index = vanedb.FlatIndex(2, vanedb.Metric.DOT)
+    index.add(1, [1.0, 0.0])
+    index.add(2, [4.0, 0.0])
+    index.add(3, [0.0, 1.0])
+    ids = [i for i, _ in index.search([1.0, 0.0], 3)]
+    assert ids[0] == 2, "Dot must rank the largest inner product first"
+    assert ids[-1] == 3

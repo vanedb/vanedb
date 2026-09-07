@@ -202,6 +202,19 @@ enum PyMetric {
     Dot = 2,
 }
 
+impl From<Metric> for PyMetric {
+    fn from(m: Metric) -> Self {
+        match m {
+            Metric::Cosine => PyMetric::Cosine,
+            Metric::Dot => PyMetric::Dot,
+            // `Metric` is #[non_exhaustive]; a metric this binding does not
+            // know cannot be constructed through it, so L2 is unreachable-but-
+            // total rather than a silent substitution.
+            _ => PyMetric::L2,
+        }
+    }
+}
+
 impl From<PyMetric> for Metric {
     fn from(m: PyMetric) -> Self {
         match m {
@@ -289,6 +302,16 @@ impl PyStore {
     /// program to one engine (#85).
     fn size(&self, py: Python<'_>) -> usize {
         py.detach(|| self.inner.len())
+    }
+
+    /// The metric this index was built with.
+    ///
+    /// Worth having on a loaded index: `FlatIndex.open`/`load` reads the metric out
+    /// of the file, and without this the caller cannot check that their query
+    /// convention matches.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
     }
 
     #[getter]
@@ -444,6 +467,16 @@ impl PyIndex {
         py.detach(|| self.inner.size())
     }
 
+    /// The metric this index was built with.
+    ///
+    /// Worth having on a loaded index: `ApproxIndex.open`/`load` reads the metric out
+    /// of the file, and without this the caller cannot check that their query
+    /// convention matches.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
+    }
+
     #[getter]
     fn dimension(&self) -> usize {
         self.inner.dimension()
@@ -528,6 +561,15 @@ impl PyDiskStore {
     ///
     /// Validates the header and every stored value, so this is linear in the
     /// corpus rather than a constant-cost mapping.
+    ///
+    /// The file is mapped, not read: nothing may modify or truncate it while
+    /// this object exists. Truncating it makes a later read raise SIGBUS,
+    /// which kills the interpreter — there is no Python exception for that,
+    /// and no traceback. Validation happens once here and cannot speak for
+    /// what the file does afterwards.
+    ///
+    /// Rebuilding with `DiskIndexBuilder.save` is safe: it renames a new file
+    /// into place, leaving this object mapped on the old one.
     #[staticmethod]
     fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
         let inner = py.detach(|| DiskIndex::open(path)).map_err(to_pyerr)?;
@@ -562,6 +604,16 @@ impl PyDiskStore {
 
     fn size(&self) -> usize {
         self.inner.size()
+    }
+
+    /// The metric this index was built with.
+    ///
+    /// Worth having on a loaded index: `open` reads the metric out of the
+    /// file, and without this the caller cannot check that their query
+    /// convention matches.
+    #[getter]
+    fn metric(&self) -> PyMetric {
+        self.inner.metric().into()
     }
 
     #[getter]
