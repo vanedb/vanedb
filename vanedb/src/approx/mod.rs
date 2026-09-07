@@ -376,8 +376,8 @@ impl ApproxIndex {
 
     /// Insert many vectors under a single lock acquisition. `vectors` is the
     /// row-major concatenation of `ids.len()` vectors of `dimension()` floats.
-    /// All-or-nothing: capacity and every id are validated before any insert,
-    /// so an error leaves the index unchanged. Levels are drawn from the RNG
+    /// All-or-nothing: the batch shape and every id are validated before any
+    /// insert, so an error leaves the index unchanged. Levels are drawn from the RNG
     /// in batch order, so the resulting graph is identical to serial `add`.
     pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<()> {
         // Checked: `ids.len() * dim` wraps for absurd dimensions, and a
@@ -414,7 +414,7 @@ impl ApproxIndex {
     }
 
     /// Graph insertion body shared by `add` and `add_batch`. Caller must hold
-    /// the write lock and have already validated dimension, capacity, and id
+    /// the write lock and have already validated dimension and id
     /// uniqueness — from here on insertion cannot fail.
     fn insert_into(&self, inner: &mut Inner, id: u64, vector: &[f32]) {
         let iid = inner.count;
@@ -805,7 +805,8 @@ pub(super) fn derive_mult(m: usize) -> f64 {
 }
 
 impl ApproxIndexBuilder {
-    /// Vectors the index will be able to hold. Fixed once built.
+    /// Vectors to reserve room for. A hint, not a ceiling: chunks are
+    /// allocated as vectors arrive and adding beyond this succeeds.
     pub fn capacity(mut self, cap: usize) -> Self {
         self.capacity = cap;
         self
