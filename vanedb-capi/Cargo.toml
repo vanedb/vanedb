@@ -2,6 +2,9 @@
 name = "vanedb-capi"
 version = "0.1.0-rc.1"
 edition = "2021"
+# Bound by bincode 2.x, the newest runtime dependency. CI checks it.
+rust-version = "1.85"
+license = "MIT"
 # Not published: the vanedb dependency is a path without a version, and the
 # crate carries no description or license, so `cargo publish` rejects it. The
 # C ABI ships as a built artifact, not a crates.io package. Give it real

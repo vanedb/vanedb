@@ -2,6 +2,9 @@
 name = "vanedb-py"
 version = "0.1.0-rc.1"
 edition = "2021"
+# Bound by bincode 2.x, the newest runtime dependency. CI checks it.
+rust-version = "1.85"
+license = "MIT"
 publish = false
 
 [lib]
