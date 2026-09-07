@@ -439,7 +439,11 @@ struct PyDiskStoreBuilder {
     // overlap and raise `RuntimeError: Already borrowed`. The lock is what
     // makes the GIL release safe, and it also makes this the last of the five
     // classes to take `&self`, matching how the index types synchronise.
-    inner: parking_lot::Mutex<DiskIndexBuilder>,
+    //
+    // An RwLock rather than a Mutex because only `add` needs `&mut` in the
+    // core; `save`, `size` and `dimension` take `&self` there, so they have no
+    // reason to exclude each other.
+    inner: parking_lot::RwLock<DiskIndexBuilder>,
 }
 
 #[pymethods]
@@ -448,7 +452,7 @@ impl PyDiskStoreBuilder {
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
     fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
-            inner: parking_lot::Mutex::new(
+            inner: parking_lot::RwLock::new(
                 DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
             ),
         })
@@ -461,27 +465,27 @@ impl PyDiskStoreBuilder {
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        py.detach(|| self.inner.lock().add(id, &v))
+        py.detach(|| self.inner.write().add(id, &v))
             .map_err(to_pyerr)
     }
 
     /// Writes the store to `path`, atomically: built beside the destination
     /// and renamed in after an fsync.
     fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
-        py.detach(|| self.inner.lock().save(path)).map_err(to_pyerr)
+        py.detach(|| self.inner.read().save(path)).map_err(to_pyerr)
     }
 
     fn __len__(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.lock().size())
+        py.detach(|| self.inner.read().size())
     }
 
     fn size(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.lock().size())
+        py.detach(|| self.inner.read().size())
     }
 
     #[getter]
     fn dimension(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.lock().dimension())
+        py.detach(|| self.inner.read().dimension())
     }
 }
 
