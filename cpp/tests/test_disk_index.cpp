@@ -132,18 +132,48 @@ TEST_CASE("DiskIndex - save and load", "[disk]") {
   std::filesystem::remove(filename);
 }
 
+/// Writes a complete, self-consistent `VNDB` file so that a crafted defect is
+/// the only thing a loader can reject.
+static void write_vndb_file(const std::string& path, uint32_t magic, uint64_t dim,
+                            const std::vector<uint64_t>& ids,
+                            const std::vector<float>& vectors) {
+  std::ofstream ofs(path, std::ios::binary);
+  uint32_t version = vanedb::DiskIndex::VERSION;
+  uint64_t n = ids.size();
+  uint32_t metric = 0, reserved = 0;
+  ofs.write(reinterpret_cast<const char*>(&magic), 4);
+  ofs.write(reinterpret_cast<const char*>(&version), 4);
+  ofs.write(reinterpret_cast<const char*>(&dim), 8);
+  ofs.write(reinterpret_cast<const char*>(&n), 8);
+  ofs.write(reinterpret_cast<const char*>(&metric), 4);
+  ofs.write(reinterpret_cast<const char*>(&reserved), 4);
+  for (uint64_t id : ids) ofs.write(reinterpret_cast<const char*>(&id), 8);
+  for (float v : vectors) ofs.write(reinterpret_cast<const char*>(&v), 4);
+}
+
 TEST_CASE("DiskIndex - error handling", "[disk]") {
   SECTION("Non-existent file throws") {
     REQUIRE_THROWS_AS(vanedb::DiskIndex("nonexistent_file.bin"), std::runtime_error);
   }
 
   SECTION("Invalid magic throws") {
+    // A complete, self-consistent file whose only defect is the magic. A
+    // 4-byte file is rejected by the size check before the magic is compared,
+    // which makes the magic guard look tested when it never runs.
     const std::string filename = "test_bad_magic.bin";
-    {
-      std::ofstream ofs(filename, std::ios::binary);
-      uint32_t bad_magic = 0xDEADBEEF;
-      ofs.write(reinterpret_cast<const char*>(&bad_magic), sizeof(bad_magic));
-    }
+    write_vndb_file(filename, 0xDEADBEEF, 2, {1, 2}, {1.0f, 0.0f, 0.0f, 1.0f});
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
+    std::filesystem::remove(filename);
+  }
+
+  SECTION("Duplicate ids throw") {
+    // Neither builder writes duplicates, but VNDB is the shared cross-engine
+    // format, so the loader is what has to reject them. Accepting them made
+    // size() overcount, get() return a row the id does not name, and search()
+    // emit one id twice.
+    const std::string filename = "test_duplicate_ids.bin";
+    write_vndb_file(filename, vanedb::DiskIndex::MAGIC, 2, {7, 7, 9},
+                    {1.0f, 0.0f, 0.0f, 1.0f, 5.0f, 4.0f});
     REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
     std::filesystem::remove(filename);
   }

@@ -121,6 +121,14 @@ public:
       id_map_.reserve(num_vectors_);
       for (size_t i = 0; i < num_vectors_; ++i) id_map_[ids_ptr_[i]] = i;
     } catch (...) { cleanup(); throw; }
+    // Duplicates would overwrite silently: size() would disagree with the
+    // map, get() would return a row the id does not name, and search() would
+    // emit one id twice. VNDB is the shared format, so both loaders enforce
+    // this (vanedb src/disk.rs).
+    if (id_map_.size() != num_vectors_) {
+      cleanup();
+      throw std::runtime_error("Duplicate ids");
+    }
   }
 
   ~DiskIndex() { cleanup(); }
