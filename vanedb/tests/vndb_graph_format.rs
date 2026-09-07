@@ -45,6 +45,27 @@ const FIXTURES: [&str; 13] = [
     "deleted_id_reuse.vndb",
 ];
 
+/// Every header value in `l2_rng1.vndb`, read from
+/// `conformance/graph/README.md`'s field table rather than from the engine.
+///
+/// This is the assertion the round-trip below cannot make. `load` then `save`
+/// compares the reader against the writer, so transposing two header fields in
+/// both directions reproduces the bytes exactly and passes — the very
+/// misreading an independently generated fixture exists to catch. Only
+/// comparing to the table catches it.
+#[test]
+fn the_header_matches_the_field_table() {
+    let index = ApproxIndex::load(fixture("l2_rng1.vndb")).unwrap();
+    assert_eq!(index.dimension(), 2, "dim, offset 16");
+    assert_eq!(index.len(), 3, "count, offset 24");
+    assert_eq!(index.capacity(), 4, "capacity hint, offset 32");
+    assert_eq!(index.m(), 2, "M, offset 40");
+    assert_eq!(index.ef_construction(), 16, "ef_construction, offset 48");
+    assert_eq!(index.get_ef_search(), 16, "ef_search, offset 56");
+    assert_eq!(index.seed(), 42, "seed, offset 64");
+    assert_eq!(index.metric(), Metric::L2, "metric, offset 12");
+}
+
 #[test]
 fn every_fixture_loads() {
     for name in FIXTURES {
@@ -210,22 +231,38 @@ fn a_truncated_file_is_rejected_at_every_length() {
 }
 
 #[test]
-fn an_absurd_dimension_is_rejected_before_allocating() {
-    // Offset 16 is dim. A few hundred bytes must not request terabytes.
+fn an_absurd_dimension_is_rejected() {
+    // Offset 16 is dim. A few hundred bytes must not describe terabytes.
+    // Named for what it asserts: that the file is refused. It does not
+    // observe whether an allocation was attempted first.
     let err = corrupt("l2_rng1.vndb", |b| {
         b[16..24].copy_from_slice(&(1u64 << 62).to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("dimension"), "got: {err}");
 }
 
 #[test]
 fn a_count_larger_than_the_file_is_rejected() {
-    // Offset 24 is the stored slot count. It must be cross-checked against
-    // the bytes actually present, not trusted.
+    // Offset 24 is the stored slot count, cross-checked against the bytes
+    // actually present. A count of u64::MAX would trip the MAX_ELEMENTS cap
+    // first and never reach that check, so this uses a value that is small
+    // enough to be plausible and still larger than the file can hold.
+    let err = corrupt("l2_rng1.vndb", |b| {
+        b[24..32].copy_from_slice(&1000u64.to_le_bytes())
+    });
+    let text = format!("{err}");
+    assert!(
+        !text.contains("exceeds") && !text.contains("limit"),
+        "should fail the file-size cross-check, not the element cap: {text}"
+    );
+}
+
+#[test]
+fn a_count_beyond_the_element_cap_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[24..32].copy_from_slice(&u64::MAX.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(!format!("{err}").is_empty(), "must reject");
 }
 
 #[test]
@@ -250,7 +287,7 @@ fn two_live_slots_with_the_same_id_are_rejected() {
         b[SLOT1_DELETED..SLOT1_DELETED + 4].copy_from_slice(&0u32.to_le_bytes())
     });
     assert!(
-        format!("{err}").contains("duplicate"),
+        format!("{err}").contains("duplicate live"),
         "two live slots sharing an id must be rejected, got: {err}"
     );
 }

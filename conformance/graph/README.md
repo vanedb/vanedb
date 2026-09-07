@@ -72,10 +72,11 @@ independently building the same input does today.
 
 - 1: Rust `rand` 0.10 `StdRng` seeded from the header, advanced by one level draw
   per stored slot. The section is empty.
-Encodings 2 and 3 are **reserved, not implemented**. No engine in this
-repository writes or reads them; they hold identifiers for a C++ writer so
-that one can be added without a version bump. A reader encountering them today
-rejects the file.
+The Rust engine reads, validates and preserves all three encodings — the
+fixtures cover 1, 2 and 3, and each round-trips byte for byte. Encodings 2 and
+3 exist so a C++ writer's RNG state survives a round trip through the Rust
+engine unchanged; no such writer exists in this repository yet, so nothing
+here emits them outside the fixtures.
 
 - 2: C++ libstdc++ MT19937 stream: 624 decimal u32 state words and a position
   in 0–624, separated by ASCII whitespace.
@@ -90,7 +91,8 @@ against the fixed fixtures and save/load continuation tests. If a future version
 requires a distinct, reproducible generator contract, assign a new continuation
 encoding and retain the reader for existing files; do not silently redefine it.
 
-Words contain decimal digits only. C++ seeds its fallback MT19937 from the
+Words contain decimal digits only. A C++ writer would seed its fallback
+MT19937 from the
 low 32 bits of the header seed, while preserving the full seed in the file.
 
 A reader restores its native continuation when supported. Otherwise it seeds

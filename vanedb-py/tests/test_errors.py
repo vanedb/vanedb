@@ -141,14 +141,31 @@ def test_a_negative_k_or_ef_search_is_a_valueerror():
 
 
 def test_an_absurd_dimension_is_a_valueerror_not_a_panic():
-    """`rows * dim` overflowed into a capacity panic, escaping the error model.
-
-    `FlatIndex::new` accepted a dimension `ApproxIndexBuilder::build` rejects,
-    so the failure surfaced later as a PanicException rather than a ValueError.
-    """
+    """A dimension no constructor should accept."""
     with pytest.raises(ValueError):
         vanedb.FlatIndex(2**62, vanedb.Metric.L2)
     with pytest.raises(ValueError):
         vanedb.ApproxIndex(2**62, vanedb.Metric.L2)
     with pytest.raises(ValueError):
         vanedb.DiskIndexBuilder(2**62, vanedb.Metric.L2)
+
+
+def test_a_batch_whose_rows_times_dim_overflows_is_a_valueerror():
+    """The multiply happens after construction, so it needs its own case.
+
+    2**62 - 1 is the largest dimension the constructor accepts: `dim * 4` fits.
+    `rows * dim` does not, and `Vec::with_capacity` panics rather than
+    returning, so this escaped as a PanicException — which derives from
+    BaseException and slips past `except ValueError` and `except Exception`
+    alike. The earlier version of this test used 2**62 exactly, the one value
+    the constructor rejects, so it never reached the multiply it was named for.
+    """
+    dim = 2**62 - 1
+    for index in (
+        vanedb.FlatIndex(dim, vanedb.Metric.L2),
+        vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=1),
+    ):
+        with pytest.raises(ValueError):
+            # A list of lists: the buffer fast paths take their length from
+            # the shape and never perform this multiply.
+            index.add_batch([0, 1], [[1.0], [1.0]])
