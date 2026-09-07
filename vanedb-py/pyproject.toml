@@ -5,7 +5,7 @@ build-backend = "maturin"
 
 [project]
 name = "vanedb"
-version = "1.0.0"
+version = "0.1.0"
 description = "Embeddable vector database for edge AI"
 readme = "README.md"
 requires-python = ">=3.11"
