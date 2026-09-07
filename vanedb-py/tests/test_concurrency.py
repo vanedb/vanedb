@@ -117,3 +117,55 @@ def test_upsert_and_remove_are_shareable(tmp_path):
 
     assert not errors, f"concurrent upsert/remove raised: {errors!r}"
     assert index.size() == 0
+
+
+def test_a_read_accessor_does_not_freeze_the_interpreter_behind_a_writer():
+    """A reader blocked on the index lock must not be holding the GIL.
+
+    `compact` rebuilds the graph under the write lock. A `len()` from another
+    thread has to wait for it either way — the question is whether it waits
+    with the interpreter in its hand, which would stall every unrelated thread
+    for the whole rebuild.
+    """
+    n, dim = 20_000, 64
+    index = vanedb.ApproxIndex(dim, vanedb.Metric.L2, capacity=n)
+    rng = np.random.default_rng(1)
+    index.add_batch(
+        np.arange(n, dtype=np.uint64),
+        rng.random((n, dim), dtype=np.float32),
+    )
+    for i in range(0, n, 2):
+        index.remove(i)
+
+    ticks = []
+    stop = threading.Event()
+
+    def tick():
+        while not stop.is_set():
+            ticks.append(time.perf_counter())
+            time.sleep(0.001)
+
+    def reader():
+        while not stop.is_set():
+            len(index)
+
+    watcher = threading.Thread(target=tick)
+    blocked = threading.Thread(target=reader)
+    watcher.start()
+    blocked.start()
+    try:
+        started = time.perf_counter()
+        index.compact()
+        finished = time.perf_counter()
+    finally:
+        stop.set()
+        watcher.join()
+        blocked.join()
+
+    inside = [t for t in ticks if started < t < finished]
+    elapsed = finished - started
+    gaps = [b - a for a, b in zip([started] + inside, inside + [finished])]
+    assert max(gaps) < elapsed / 2, (
+        f"watcher stalled {max(gaps) * 1000:.1f}ms of a {elapsed * 1000:.1f}ms "
+        f"compact: a reader was waiting for the lock while holding the GIL"
+    )

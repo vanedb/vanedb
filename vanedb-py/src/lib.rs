@@ -205,11 +205,12 @@ impl PyStore {
     /// Add one vector. Accepts a 1-D float32 buffer (numpy) or any float sequence.
     fn add(
         &self,
+        py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let v = vec_f32(vector)?;
-        self.inner.add(id, &v).map_err(to_pyerr)
+        py.detach(|| self.inner.add(id, &v)).map_err(to_pyerr)
     }
 
     /// Bulk insert. `ids`: 1-D uint64/int64 buffer or int sequence; `vectors`:
@@ -240,20 +241,20 @@ impl PyStore {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map_err(to_pyerr)
+    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        py.detach(|| self.inner.get(id)).map_err(to_pyerr)
     }
 
     fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.len()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.len())
     }
 
     /// Number of vectors stored.
@@ -261,8 +262,8 @@ impl PyStore {
     /// `len(store)` is the Pythonic spelling; `size()` is what vanedb_cpp and
     /// the wasm bindings expose. Both work here so neither spelling ties a
     /// program to one engine (#85).
-    fn size(&self) -> usize {
-        self.inner.len()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.len())
     }
 
     #[getter]
@@ -338,12 +339,16 @@ impl PyIndex {
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
-    fn get_vector(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get_vector(id).map_err(to_pyerr)
+    fn get_vector(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Vec<f32>> {
+        py.detach(|| self.inner.get_vector(id)).map_err(to_pyerr)
     }
 
-    fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        self.inner.contains(id)
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
+        py.detach(|| self.inner.contains(id))
     }
 
     fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
@@ -366,8 +371,8 @@ impl PyIndex {
         self.inner.set_ef_search(ef);
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.size()
+    fn __len__(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.size())
     }
 
     /// Inserts `vector` under `id`, replacing any existing entry.
@@ -388,8 +393,8 @@ impl PyIndex {
     /// Number of tombstoned slots: removed vectors whose space is not yet
     /// reclaimed. Re-adding a removed id allocates a fresh slot, so an upsert
     /// loop grows this even at constant length.
-    fn tombstones(&self) -> usize {
-        self.inner.tombstones()
+    fn tombstones(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.tombstones())
     }
 
     /// Rebuilds the graph without tombstoned slots, reclaiming their space.
@@ -410,8 +415,8 @@ impl PyIndex {
     }
 
     /// Number of vectors in the graph. See `FlatIndex.size`.
-    fn size(&self) -> usize {
-        self.inner.size()
+    fn size(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.size())
     }
 
     #[getter]
@@ -420,8 +425,8 @@ impl PyIndex {
     }
 
     #[getter]
-    fn capacity(&self) -> usize {
-        self.inner.capacity()
+    fn capacity(&self, py: Python<'_>) -> usize {
+        py.detach(|| self.inner.capacity())
     }
 }
 
