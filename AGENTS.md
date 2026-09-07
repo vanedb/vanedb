@@ -72,10 +72,13 @@ tests). Don't attempt any of these from a Linux cloud sandbox — CI covers them
   magic, fixed-width little-endian fields, anchored to shared fixtures in
   `conformance/vndb/` that are generated from the spec table rather than from
   either engine, and each engine reads the other's file. That one is public.
-  The `ApproxIndex` graph payload is still `HNSW` magic over bincode:
-  pre-release, engine-specific, and not a promise. Replace it only in the
-  dedicated universal-format work, not as part of unrelated refactors, and
-  keep the existing corruption checks passing until then.
+  `ApproxIndex::save` writes `VNDB` v2 kind 1, specified in
+  `conformance/graph/README.md` and anchored the same way. Legacy `HNSW` v1
+  and v2 files still load, pinned by committed bytes in
+  `vanedb/tests/fixtures/legacy_graph/` rather than by re-encoding a mirror
+  struct — mirror and encoder would otherwise change together and hide a real
+  break. The cross-engine half is not done: the C++ engine reads `VNDB` v1
+  disk files but not v2 graph files.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep

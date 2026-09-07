@@ -62,7 +62,6 @@ index.save("index.bin");
 
 ```python
 # Supplementary C++ bindings; the canonical Python package is `vanedb`.
-# python -m pip install vanedb-cpp
 import vanedb_cpp as vanedb
 import numpy as np
 

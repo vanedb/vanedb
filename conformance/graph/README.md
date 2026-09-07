@@ -8,8 +8,12 @@ kind and continuation identifiers must never be reinterpreted; incompatible
 encodings require new identifiers while retaining readers for existing files.
 This does not promise that older readers accept future formats.
 
-Both engines reproduce the shared fixtures. Cross-engine tests preserve
-engine-written graphs through load/save and verify further insertions.
+The Rust engine reproduces these fixtures, in both directions: it reads each
+one and re-writing what it read reproduces the bytes
+(`vanedb/tests/vndb_graph_format.rs`). The C++ engine does **not** read this
+format yet — it reads its own legacy graph files — so the cross-engine half of
+this contract is unimplemented. `VNDB` v1 disk files are cross-engine today;
+graph files are not.
 VNDB v1 remains the disk format unchanged. VNDB v2 identifies graph files, with
 kind 1 identifying HNSW. Readers reject other versions and kinds.
 
@@ -51,7 +55,8 @@ Readers check sizes against the available bytes and platform limits before
 allocation, then validate the complete graph before exposing an index. Dimension
 and capacity must be nonzero; capacity is capped at 100 million slots. Sizes
 must fit the reader's address space and available memory. Readers allocate
-storage for saved slots. C++ treats capacity as a hard insertion limit; Rust
+storage for saved slots. The Rust engine treats capacity as a hint; a C++
+reader, if one is written, would treat it as a hard insertion limit, and Rust
 can grow beyond the original hint up to the same 100-million stored-slot limit.
 Rust rejects additions and whole batches that exceed this limit before changing
 the graph. An upsert consumes one new slot, even when replacing an existing ID;
@@ -67,6 +72,11 @@ independently building the same input does today.
 
 - 1: Rust `rand` 0.10 `StdRng` seeded from the header, advanced by one level draw
   per stored slot. The section is empty.
+Encodings 2 and 3 are **reserved, not implemented**. No engine in this
+repository writes or reads them; they hold identifiers for a C++ writer so
+that one can be added without a version bump. A reader encountering them today
+rejects the file.
+
 - 2: C++ libstdc++ MT19937 stream: 624 decimal u32 state words and a position
   in 0–624, separated by ASCII whitespace.
 - 3: C++ libc++/MSVC MT19937 stream: 624 decimal u32 state words separated by
