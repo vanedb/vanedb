@@ -175,6 +175,9 @@ int32_t vanedb_rs_disk_build(const char *path,
  * # Safety
  * `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
  * that must be freed with `vanedb_rs_disk_free`.
+ * The underlying file must not be modified or truncated from the start of
+ * this call until the handle is freed. Replacing its path with a newly built
+ * file is allowed; modifying the mapped file in place is not.
  */
 vanedb_rs_disk *vanedb_rs_disk_open(const char *path);
 

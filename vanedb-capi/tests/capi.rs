@@ -402,3 +402,44 @@ fn hnsw_add_batch() {
         vanedb_capi::vanedb_rs_index_free(h);
     }
 }
+
+#[test]
+fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
+    // Mapping an unrecognised value to L2 would defeat `Metric`'s
+    // #[non_exhaustive] across the boundary: a caller built against a newer
+    // header would get silently wrong distances instead of a refusal.
+    unsafe {
+        for known in [0u32, 1, 2] {
+            let h = vanedb_capi::vanedb_rs_store_new(4, known);
+            assert!(!h.is_null(), "metric {known} must be accepted");
+            vanedb_capi::vanedb_rs_store_free(h);
+        }
+        for unknown in [3u32, 99, u32::MAX] {
+            assert!(
+                vanedb_capi::vanedb_rs_store_new(4, unknown).is_null(),
+                "metric {unknown} must be rejected"
+            );
+            assert!(
+                vanedb_capi::vanedb_rs_index_new(4, unknown, 16, 4, 40, 7).is_null(),
+                "metric {unknown} must be rejected"
+            );
+            let path = std::env::temp_dir().join(format!(
+                "vanedb-invalid-metric-{}-{unknown}.vndb",
+                std::process::id()
+            ));
+            let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
+            assert_eq!(
+                vanedb_capi::vanedb_rs_disk_build(
+                    c_path.as_ptr(),
+                    4,
+                    unknown,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                ),
+                1
+            );
+            assert!(!path.exists(), "invalid input must not write a file");
+        }
+    }
+}

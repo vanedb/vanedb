@@ -3,7 +3,7 @@
 //! ef_search — these match the parallel C++ ABI so a benchmark harness can call
 //! both through one uniform FFI. Stored vectors and queries must contain only
 //! finite values; raw-pointer wrappers additionally null-guard handles.
-//! `to_metric` maps any unrecognized metric value to L2 (no error).
+//! An unrecognized metric value is rejected: constructors return null.
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
@@ -21,11 +21,17 @@ pub type vanedb_rs_index = ApproxIndex;
 #[allow(non_camel_case_types)]
 pub type vanedb_rs_disk = DiskIndex;
 
-fn to_metric(m: u32) -> Metric {
+/// `None` for a value this ABI does not define.
+///
+/// Mapping an unknown value to L2 would defeat `Metric`'s `#[non_exhaustive]`
+/// across the boundary: a caller built against a newer header would get
+/// silently wrong distances rather than a refusal.
+fn to_metric(m: u32) -> Option<Metric> {
     match m {
-        1 => Metric::Cosine,
-        2 => Metric::Dot,
-        _ => Metric::L2,
+        0 => Some(Metric::L2),
+        1 => Some(Metric::Cosine),
+        2 => Some(Metric::Dot),
+        _ => None,
     }
 }
 
@@ -92,7 +98,10 @@ pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut vanedb_rs_store {
     guard(std::ptr::null_mut(), || {
-        match FlatIndex::new(dim, to_metric(metric)) {
+        let Some(metric) = to_metric(metric) else {
+            return std::ptr::null_mut();
+        };
+        match FlatIndex::new(dim, metric) {
             Ok(s) => Box::into_raw(Box::new(s)),
             Err(_) => std::ptr::null_mut(),
         }
@@ -220,7 +229,10 @@ pub unsafe extern "C" fn vanedb_rs_index_new(
     seed: u64,
 ) -> *mut vanedb_rs_index {
     guard(std::ptr::null_mut(), || {
-        match ApproxIndex::builder(dim, to_metric(metric))
+        let Some(metric) = to_metric(metric) else {
+            return std::ptr::null_mut();
+        };
+        match ApproxIndex::builder(dim, metric)
             .capacity(capacity)
             .m(m)
             .ef_construction(ef_construction)
@@ -316,7 +328,11 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
         }
         let idx = &*h;
         let query = slice::from_raw_parts(q, idx.dimension());
-        match idx.search_with_ef(query, k, ef_search) {
+        // Per-call, not a store: mutating the handle here made one caller's
+        // beam width visible to every other user of the index, and `save`
+        // then wrote it into the file.
+        let params = vanedb::SearchParams::new().ef_search(ef_search);
+        match idx.search_with(query, k, &params) {
             Ok(res) => {
                 let n = res.len().min(k);
                 for (i, r) in res.iter().take(k).enumerate() {
@@ -404,7 +420,10 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
             Ok(s) => s,
             Err(_) => return 1,
         };
-        let mut b = match DiskIndexBuilder::new(dim, to_metric(metric)) {
+        let Some(metric) = to_metric(metric) else {
+            return 1;
+        };
+        let mut b = match DiskIndexBuilder::new(dim, metric) {
             Ok(b) => b,
             Err(_) => return 1,
         };
@@ -439,6 +458,9 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
 /// # Safety
 /// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
 /// that must be freed with `vanedb_rs_disk_free`.
+/// The underlying file must not be modified or truncated from the start of
+/// this call until the handle is freed. Replacing its path with a newly built
+/// file is allowed; modifying the mapped file in place is not.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb_rs_disk {
     guard(std::ptr::null_mut(), || {
@@ -446,7 +468,8 @@ pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb
             return std::ptr::null_mut();
         }
         match CStr::from_ptr(path).to_str() {
-            Ok(p) => match DiskIndex::open(p) {
+            // The caller guarantees the mapped file remains immutable.
+            Ok(p) => match unsafe { DiskIndex::open(p) } {
                 Ok(m) => Box::into_raw(Box::new(m)),
                 Err(_) => std::ptr::null_mut(),
             },

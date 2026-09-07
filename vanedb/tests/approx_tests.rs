@@ -1,4 +1,35 @@
-use vanedb::{ApproxIndex, FlatIndex, Metric};
+use vanedb::{ApproxIndex, FlatIndex, Metric, SearchParams};
+
+#[test]
+fn per_query_search_options_preserve_defaults_and_clamp_to_k() {
+    let index = ApproxIndex::builder(2, Metric::L2)
+        .m(4)
+        .seed(7)
+        .build()
+        .unwrap();
+    for id in 0..20 {
+        index.add(id, &[id as f32, (id * 2) as f32]).unwrap();
+    }
+    index.set_ef_search(100);
+    let query = [3.0, 6.0];
+    let expected = index.search(&query, 5).unwrap();
+    assert_eq!(
+        index.search_with(&query, 5, &SearchParams::new()).unwrap(),
+        expected
+    );
+    let clamped = index
+        .search_with(&query, 5, &SearchParams::new().ef_search(0))
+        .unwrap();
+    assert_eq!(clamped.len(), 5);
+    assert_eq!(
+        clamped,
+        index
+            .search_with(&query, 5, &SearchParams::new().ef_search(5))
+            .unwrap()
+    );
+    assert_eq!(index.get_ef_search(), 100);
+    assert_eq!(index.search(&query, 5).unwrap(), expected);
+}
 
 /// Sparse graphs must retrieve against the same metric's exact search.
 #[test]

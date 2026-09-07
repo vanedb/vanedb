@@ -64,6 +64,9 @@ For each metric, smaller distances rank first. Vectors must match the store or
 index dimension and contain finite values; IDs must be unique unsigned 64-bit
 integers.
 
+Validation errors, including negative or out-of-range integer sizes and seeds,
+raise `ValueError`. Arguments of the wrong type can raise `TypeError`.
+
 `ApproxIndex` writes shared VNDB v2 graph files. Both engines preserve their
 vectors, links, IDs and deleted slots; further insertions may differ across
 engines. Legacy Rust graphs remain readable: load and save to a new path to
@@ -71,6 +74,14 @@ migrate. Older readers cannot open VNDB v2. Keep originals and source vectors
 while verifying migration; the format is still a release candidate. `DiskIndex`
 continues to use shared VNDB v1 files. Disk construction buffers vectors in
 memory before saving, while the opened index uses a read-only memory mapping.
+
+For `DiskIndex.open(path)`, keep the underlying file immutable from before the
+call until the last reference to the index is released. Prevent every process
+from writing or truncating that file, including through other paths or open
+handles. A read-only mapping does not prevent those changes; they can corrupt
+results or crash Python. To update the data, write a separate file and atomically
+replace the path where supported. Existing indexes keep the original mapping;
+open a new index to read the replacement.
 
 The C++ Python package has different constructor keywords and returns separate
 id and distance arrays. Changing engines requires adapting those calls and

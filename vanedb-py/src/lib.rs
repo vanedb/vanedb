@@ -22,25 +22,36 @@ fn to_pyerr(e: VaneError) -> PyErr {
     }
 }
 
-/// Converts a Python int to an id.
+/// Converts a Python int to an unsigned value, preserving type errors.
 ///
 /// PyO3's own `u64` conversion raises `OverflowError` for a negative value,
 /// and `OverflowError` is not a `ValueError` subclass, so `except ValueError`
-/// would miss it. Every method taking an id goes through this.
+/// would miss it. Extract only once so user-defined `__index__` methods are
+/// not called again after an error.
+fn unsigned_value(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<u64> {
+    obj.extract::<u64>().map_err(|e| {
+        if e.is_instance_of::<PyOverflowError>(obj.py()) {
+            PyValueError::new_err(format!("{name} out of range for an unsigned integer"))
+        } else {
+            e
+        }
+    })
+}
+
 fn one_id(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
-    if let Ok(id) = obj.extract::<u64>() {
-        return Ok(id);
-    }
-    match obj.extract::<i64>() {
-        Ok(signed) => u64::try_from(signed)
-            .map_err(|_| PyValueError::new_err(format!("negative id: {signed}"))),
-        // An integer too large for i64 as well: still out of range for an id,
-        // and still must not escape as OverflowError.
-        Err(e) if e.is_instance_of::<PyOverflowError>(obj.py()) => Err(PyValueError::new_err(
-            "id out of range: must be between 0 and 2**64 - 1",
-        )),
-        Err(e) => Err(e),
-    }
+    unsigned_value(obj, "id")
+}
+
+fn one_seed(obj: &Bound<'_, PyAny>) -> PyResult<u64> {
+    unsigned_value(obj, "seed")
+}
+
+/// Converts a Python int to a count, dimension or other size.
+///
+/// The additional checked conversion preserves the platform's size limit.
+fn one_usize(obj: &Bound<'_, PyAny>) -> PyResult<usize> {
+    usize::try_from(unsigned_value(obj, "size")?)
+        .map_err(|_| PyValueError::new_err("size out of range for this platform"))
 }
 
 /// Extract a single vector. Fast paths: any 1-D float32 or float64 buffer
@@ -201,7 +212,7 @@ struct PyStore {
 impl PyStore {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
-    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+    fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         let inner = FlatIndex::new(dim, metric.into()).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
@@ -238,7 +249,7 @@ impl PyStore {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -287,12 +298,12 @@ impl PyIndex {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
     fn new(
-        dim: usize,
+        #[pyo3(from_py_with = one_usize)] dim: usize,
         metric: PyMetric,
-        capacity: usize,
-        m: usize,
-        ef_construction: usize,
-        seed: u64,
+        #[pyo3(from_py_with = one_usize)] capacity: usize,
+        #[pyo3(from_py_with = one_usize)] m: usize,
+        #[pyo3(from_py_with = one_usize)] ef_construction: usize,
+        #[pyo3(from_py_with = one_seed)] seed: u64,
     ) -> PyResult<Self> {
         let inner = ApproxIndex::builder(dim, metric.into())
             .capacity(capacity)
@@ -336,7 +347,7 @@ impl PyIndex {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -371,7 +382,7 @@ impl PyIndex {
     }
 
     #[setter]
-    fn set_ef_search(&self, ef: usize) {
+    fn set_ef_search(&self, #[pyo3(from_py_with = one_usize)] ef: usize) {
         self.inner.set_ef_search(ef);
     }
 
@@ -455,7 +466,7 @@ struct PyDiskStoreBuilder {
 impl PyDiskStoreBuilder {
     #[new]
     #[pyo3(signature = (dim, metric=PyMetric::L2))]
-    fn new(dim: usize, metric: PyMetric) -> PyResult<Self> {
+    fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
             inner: parking_lot::RwLock::new(
                 DiskIndexBuilder::new(dim, metric.into()).map_err(to_pyerr)?,
@@ -507,9 +518,19 @@ impl PyDiskStore {
     ///
     /// Validates the header and every stored value, so this is linear in the
     /// corpus rather than a constant-cost mapping.
+    ///
+    /// The caller must keep the underlying file's contents and length unchanged,
+    /// in every process, from before this call until the index is released.
+    /// In-place writes or truncation can cause undefined behavior or crash the
+    /// process. `DiskIndexBuilder.save` safely replaces the file atomically,
+    /// leaving existing mappings intact.
     #[staticmethod]
     fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
-        let inner = py.detach(|| DiskIndex::open(path)).map_err(to_pyerr)?;
+        // SAFETY: the Python caller must uphold the external file immutability
+        // requirement documented above; the binding cannot enforce it.
+        let inner = py
+            .detach(|| unsafe { DiskIndex::open(path) })
+            .map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -517,7 +538,7 @@ impl PyDiskStore {
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
-        k: usize,
+        #[pyo3(from_py_with = one_usize)] k: usize,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
@@ -525,7 +546,7 @@ impl PyDiskStore {
     }
 
     fn get(&self, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
-        self.inner.get(id).map(<[f32]>::to_vec).map_err(to_pyerr)
+        self.inner.get(id).map(|v| v.into_owned()).map_err(to_pyerr)
     }
 
     fn contains(&self, #[pyo3(from_py_with = one_id)] id: u64) -> bool {

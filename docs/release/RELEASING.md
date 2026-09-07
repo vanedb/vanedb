@@ -16,6 +16,10 @@ authorize publication. [Draft notes](1.0.0-notes.md) describe the candidate.
    Metal, performance, persistence-contract and role-review requirements in the
    readiness record. CUDA is a required post-1.0.0 roadmap item; physical-device
    checks are a follow-up. Neither may be advertised as verified in this release.
+   Check that Rust unsafe disk-open call sites establish file immutability from
+   before opening through the mapping's lifetime, and that Python/C guidance
+   explains the same obligation. Reconcile the draft notes with the final
+   per-query search API, result/lookup types and stricter input validation.
 4. Dispatch publication-disabled rehearsals on the candidate branch:
 
    ```sh

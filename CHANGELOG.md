@@ -36,6 +36,8 @@ against. This section records what the first release will contain.
 - Declared MSRV of 1.85, checked in CI on that exact toolchain.
 - The generated C header is rebuilt in CI and must match what is committed;
   `build.rs` fails loudly instead of leaving a stale header in place.
+- Rust `SearchParams` selects a graph query's beam width without changing
+  defaults used by other callers.
 
 ### Changed
 
@@ -49,6 +51,11 @@ against. This section records what the first release will contain.
   Accessors that wait on index locks also release the GIL while waiting.
 - `Metric::Dot` documents that it is not scale-invariant and not a metric, so
   a vector need not be its own nearest neighbour.
+- Rust `SearchResult` is non-exhaustive; use its constructor. Disk lookup
+  returns `Cow<[f32]>`, borrowing mapped vectors without copying.
+- Rust disk open is unsafe: callers must keep the backing file unchanged
+  throughout its mapped lifetime. Python and C consumers have the same
+  requirement; atomic path replacement remains supported.
 - The published recall figure is annotated as measured on uniform-random
   vectors, the adversarial case for a proximity graph.
 
@@ -61,6 +68,8 @@ against. This section records what the first release will contain.
   which the wasm bindings reject.
 - Optional Metal compute validates sizes, finite inputs, ID counts and device
   resources; tiny-value calculations use CPU kernels to preserve rankings.
+- Both disk loaders reject nonzero reserved VNDB v1 header bytes. Python
+  negative or out-of-range integer sizes and seeds consistently raise `ValueError`.
 
 ### Roadmap
 

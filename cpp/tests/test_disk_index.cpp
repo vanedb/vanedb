@@ -178,6 +178,19 @@ TEST_CASE("DiskIndex - error handling", "[disk]") {
     std::filesystem::remove(filename);
   }
 
+  SECTION("Nonzero reserved header bytes throw") {
+    const std::string filename = "test_reserved_header.bin";
+    write_vndb_file(filename, vanedb::DiskIndex::MAGIC, 2, {7}, {1.0f, 0.0f});
+    {
+      std::fstream file(filename, std::ios::binary | std::ios::in | std::ios::out);
+      file.seekp(28);
+      const uint32_t reserved = 1;
+      file.write(reinterpret_cast<const char*>(&reserved), sizeof(reserved));
+    }
+    REQUIRE_THROWS_AS(vanedb::DiskIndex(filename), std::runtime_error);
+    std::filesystem::remove(filename);
+  }
+
   SECTION("Truncated file throws") {
     const std::string filename = "test_truncated.bin";
     {
@@ -511,4 +524,3 @@ TEST_CASE("DiskIndex - dot product metric", "[disk]") {
 
   std::filesystem::remove(filename);
 }
-

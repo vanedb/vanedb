@@ -134,7 +134,8 @@ fn mmap_open_rejects_non_finite_stored_vectors() {
     bytes[vector_offset..vector_offset + 4].copy_from_slice(&f32::NAN.to_le_bytes());
     fs::write(&path, bytes).unwrap();
 
-    let err = match DiskIndex::open(&path) {
+    // SAFETY: this test does not modify the file while it is mapped.
+    let err = match unsafe { DiskIndex::open(&path) } {
         Ok(_) => panic!("open should have failed"),
         Err(error) => error,
     };
@@ -289,6 +290,30 @@ fn hnsw_save_load_preserves_rng_determinism() {
 
 #[cfg(feature = "disk")]
 #[test]
+fn mmap_load_rejects_nonzero_reserved_header_bytes() {
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_reserved_header_{}.vndb",
+        std::process::id()
+    ));
+    let mut bytes = disk_file_bytes(DISK_MAGIC, 1, 2, &[7], &[1.0, 2.0]);
+    for reserved in [0_u32, 1, 0x8000_0000, 0] {
+        bytes[28..32].copy_from_slice(&reserved.to_le_bytes());
+        fs::write(&path, &bytes).unwrap();
+        // SAFETY: this test file is unchanged until this iteration's map drops.
+        let result = unsafe { DiskIndex::open(&path) };
+        if reserved == 0 {
+            assert_eq!(result.unwrap().get(7).unwrap().as_ref(), [1.0, 2.0]);
+        } else {
+            let error = result.unwrap_err();
+            assert!(matches!(error, VaneError::Corrupt { .. }));
+            assert!(error.to_string().contains("reserved"), "{error}");
+        }
+    }
+    fs::remove_file(path).unwrap();
+}
+
+#[cfg(feature = "disk")]
+#[test]
 fn mmap_load_rejects_unsupported_version() {
     let path = std::env::temp_dir().join("vanedb_mmap_bad_version.bin");
     let mut data = Vec::new();
@@ -300,7 +325,8 @@ fn mmap_load_rejects_unsupported_version() {
     data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -315,7 +341,11 @@ fn mmap_load_rejects_zero_dim_with_vectors() {
     let bytes = disk_file_bytes(DISK_MAGIC, 1, 0, &[1, 2], &[]);
     let p = write_tmp("mmap_zero_dim", &bytes);
     assert!(
-        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        // SAFETY: this test does not modify the file while it is mapped.
+        matches!(
+            unsafe { DiskIndex::open(&p) },
+            Err(VaneError::Corrupt { .. })
+        ),
         "dim = 0 with vectors present must be rejected"
     );
     let _ = fs::remove_file(&p);
@@ -335,7 +365,8 @@ fn mmap_load_rejects_truncated_data() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -355,7 +386,8 @@ fn mmap_load_rejects_size_overflow() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -375,7 +407,8 @@ fn mmap_load_rejects_invalid_metric() {
     data.extend_from_slice(&0u32.to_le_bytes());
     fs::write(&path, &data).unwrap();
     assert!(matches!(
-        DiskIndex::open(&path),
+        // SAFETY: this test does not modify the file while it is mapped.
+        unsafe { DiskIndex::open(&path) },
         Err(VaneError::Corrupt { .. })
     ));
     let _ = fs::remove_file(&path);
@@ -388,7 +421,8 @@ fn mmap_search_rejects_zero_k() {
     let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
     b.add(1, &[1.0, 2.0, 3.0]).unwrap();
     b.save(&path).unwrap();
-    let store = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = unsafe { DiskIndex::open(&path) }.unwrap();
     assert!(matches!(
         store.search(&[1.0, 2.0, 3.0], 0),
         Err(VaneError::InvalidK)
@@ -596,7 +630,11 @@ fn mmap_load_rejects_duplicate_ids() {
     );
     let p = write_tmp("mmap_duplicate_ids", &bytes);
     assert!(
-        matches!(DiskIndex::open(&p), Err(VaneError::Corrupt { .. })),
+        // SAFETY: this test does not modify the file while it is mapped.
+        matches!(
+            unsafe { DiskIndex::open(&p) },
+            Err(VaneError::Corrupt { .. })
+        ),
         "a VNDB file with duplicate ids must be rejected"
     );
     let _ = fs::remove_file(&p);
@@ -616,7 +654,8 @@ fn mmap_load_rejects_invalid_magic() {
         &[1.0, 0.0, 0.0, 1.0],
     );
     let p = write_tmp("mmap_bad_magic", &bytes);
-    let err = match DiskIndex::open(&p) {
+    // SAFETY: this test does not modify the file while it is mapped.
+    let err = match unsafe { DiskIndex::open(&p) } {
         Ok(_) => panic!("a file with the wrong magic must not open"),
         Err(e) => e,
     };

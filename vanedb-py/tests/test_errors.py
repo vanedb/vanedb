@@ -1,12 +1,12 @@
 """The Python error contract.
 
 A missing index file, a corrupt one and a bad argument must be
-distinguishable without reading the message, and every out-of-range id must
+distinguishable without reading the message, and every out-of-range integer must
 raise ValueError -- OverflowError is not a ValueError subclass, so
 `except ValueError` would miss it.
 """
 
-import pathlib
+import sys
 
 import pytest
 
@@ -102,3 +102,89 @@ def test_an_out_of_range_id_in_a_list_batch_is_a_valueerror():
     index = vanedb.ApproxIndex(dim=2)
     with pytest.raises(ValueError):
         index.add_batch([1, 2**64], [[1.0, 0.0], [0.0, 1.0]])
+
+
+INVALID_SIZES = [
+    pytest.param(-1, ValueError, id="negative"),
+    pytest.param(-(2**100), ValueError, id="huge_negative"),
+    pytest.param(2 * (sys.maxsize + 1), ValueError, id="above_usize"),
+    pytest.param(2**100, ValueError, id="huge_positive"),
+    pytest.param(1.5, TypeError, id="float"),
+    pytest.param("1", TypeError, id="string"),
+    pytest.param(None, TypeError, id="none"),
+]
+
+
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
+@pytest.mark.parametrize(
+    "construct",
+    [
+        lambda value: vanedb.FlatIndex(value, vanedb.Metric.L2),
+        lambda value: vanedb.ApproxIndex(value, vanedb.Metric.L2),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, capacity=value),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, m=value),
+        lambda value: vanedb.ApproxIndex(3, vanedb.Metric.L2, ef_construction=value),
+        lambda value: vanedb.DiskIndexBuilder(value, vanedb.Metric.L2),
+    ],
+    ids=["flat_dim", "approx_dim", "capacity", "m", "ef_construction", "disk_dim"],
+)
+def test_invalid_constructor_sizes(construct, value, error):
+    with pytest.raises(error):
+        construct(value)
+
+
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
+@pytest.mark.parametrize("kind", ["flat", "approx", "disk"])
+def test_invalid_search_k(tmp_path, kind, value, error):
+    if kind == "disk":
+        builder = vanedb.DiskIndexBuilder(2, vanedb.Metric.L2)
+        builder.add(1, [1.0, 0.0])
+        path = str(tmp_path / "index.vane")
+        builder.save(path)
+        index = vanedb.DiskIndex.open(path)
+    else:
+        cls = vanedb.FlatIndex if kind == "flat" else vanedb.ApproxIndex
+        index = cls(2, vanedb.Metric.L2)
+        index.add(1, [1.0, 0.0])
+    with pytest.raises(error):
+        index.search([1.0, 0.0], value)
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
+    with pytest.raises(ValueError):
+        index.search([1.0, 0.0], 0)
+
+
+@pytest.mark.parametrize("value,error", INVALID_SIZES)
+def test_invalid_ef_search_preserves_setting(value, error):
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2, capacity=1)
+    index.add(1, [1.0, 0.0])
+    index.ef_search = 73
+    with pytest.raises(error):
+        index.ef_search = value
+    assert index.ef_search == 73
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]
+    index.ef_search = 0
+    assert index.ef_search == 0
+
+
+@pytest.mark.parametrize(
+    "value,error",
+    [
+        (-1, ValueError),
+        (-(2**100), ValueError),
+        (2**64, ValueError),
+        (2**100, ValueError),
+        (1.5, TypeError),
+        ("1", TypeError),
+        (None, TypeError),
+    ],
+)
+def test_invalid_seed(value, error):
+    with pytest.raises(error):
+        vanedb.ApproxIndex(2, seed=value, capacity=1)
+
+
+@pytest.mark.parametrize("seed", [0, 2**64 - 1])
+def test_seed_accepts_unsigned_boundaries(seed):
+    index = vanedb.ApproxIndex(2, seed=seed, capacity=1)
+    index.add(1, [1.0, 0.0])
+    assert index.search([1.0, 0.0], 1) == [(1, 0.0)]

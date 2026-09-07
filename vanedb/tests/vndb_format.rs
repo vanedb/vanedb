@@ -42,8 +42,9 @@ fn cases() -> [(&'static str, Metric); 3] {
 #[test]
 fn every_metric_fixture_loads_with_its_contents_intact() {
     for (name, metric) in cases() {
-        let index =
-            DiskIndex::open(fixture(name)).unwrap_or_else(|e| panic!("{name} failed to open: {e}"));
+        // SAFETY: these checked-in fixtures are not modified by the test.
+        let index = unsafe { DiskIndex::open(fixture(name)) }
+            .unwrap_or_else(|e| panic!("{name} failed to open: {e}"));
 
         assert_eq!(index.dimension(), DIM, "{name}");
         assert_eq!(index.size(), IDS.len(), "{name}");

@@ -96,7 +96,8 @@ fn mmap_store_rejects_non_finite_queries() {
     let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
-    let store = DiskIndex::open(&path).unwrap();
+    // SAFETY: this test does not modify the file while it is mapped.
+    let store = unsafe { DiskIndex::open(&path) }.unwrap();
 
     for (_, value) in cases() {
         let error = store.search(&[value, 0.0], 1).unwrap_err();

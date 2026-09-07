@@ -85,6 +85,8 @@ public:
     uint32_t met; std::memcpy(&met, p, 4);
     if (met > 2) { cleanup(); throw std::runtime_error("Invalid metric"); }
     metric_ = static_cast<Metric>(met);
+    uint32_t reserved; std::memcpy(&reserved, p + 4, 4);
+    if (reserved != 0) { cleanup(); throw std::runtime_error("Reserved header bytes are not zero"); }
 
     // Check for overflow in size calculations step by step
     if (num_vectors_ > SIZE_MAX / sizeof(uint64_t)) {

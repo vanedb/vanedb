@@ -87,6 +87,12 @@ searchable. Building one still buffers its vectors in memory until `save`.
 `ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
+For a Rust query with its own recall setting, construct
+`let params = vanedb::SearchParams::new().ef_search(100);` and call
+`index.search_with(&query, 10, &params)`. These options leave the index's default
+unchanged, so concurrent callers can choose different beam widths. The effective
+beam is at least `k`; ordinary `search` uses the index's defaults.
+
 Every type takes a `Metric` (`L2`, cosine, or dot) and returns results nearest
 first. The native `ApproxIndex` supports `save`/`load`. `DiskIndex` is written
 by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
@@ -158,6 +164,17 @@ in addition to changing the import.
 with [format specification and cross-engine fixtures](conformance/README.md).
 Both Rust and C++ can read these files. Building a disk index currently buffers
 its vectors in memory before saving; searches use a read-only memory mapping.
+
+The mapped file must remain immutable from before opening it until every mapped
+index using it has been released. This applies to Rust, Python and C consumers:
+prevent writes and truncation by all processes, even through another path or
+file handle. A read-only mapping does not enforce this requirement; violating
+it can corrupt results or crash the process. Rust makes `DiskIndex::open` unsafe
+to express this caller obligation. In Python, keep the file unchanged until
+the last reference to the index is released; in C, until all reads have finished
+and its handle has been freed. To update data, write a separate file and
+atomically replace the path where supported. Existing mappings keep the old
+file; new opens see the replacement.
 
 `ApproxIndex` now writes the shared [VNDB v2 graph format](conformance/graph/README.md).
 Both engines preserve its vectors, links, IDs and deleted slots across load/save.

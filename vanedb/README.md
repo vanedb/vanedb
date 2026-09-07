@@ -47,6 +47,14 @@ Older readers cannot open VNDB v2. Keep originals and source vectors while
 verifying migration: this is a release candidate, without a public 1.0.0 format
 compatibility promise yet. `DiskIndex` continues to accept VNDB v1 only.
 
+`DiskIndex::open` is unsafe because its vectors borrow from a memory-mapped
+file. Before calling it, ensure no process can rewrite or truncate the underlying
+file until the index is dropped; violating this requirement can cause undefined
+behavior or a process fault. Replacing the path with `DiskIndexBuilder::save`
+is supported: its atomic rename leaves existing readers on the intact old file.
+`DiskIndex::get` returns `Cow<[f32]>`; use `as_ref()` to borrow or `into_owned()`
+to obtain an independent vector.
+
 ## Optional Metal compute on macOS
 
 Metal compute requires macOS 10.14 or newer and a usable Metal device. Enable
