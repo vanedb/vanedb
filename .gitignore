@@ -24,5 +24,9 @@ vanedb-py/python/vanedb/*.dylib
 !vanedb/tests/fixtures/*.bin
 !conformance/**/*.bin
 
-# Stray files from shell redirects; never intentional.
+# Swept in by `git add -A` and never intentional: stray shell redirects,
+# and per-developer editor configuration.
 /0
+.zed/
+.idea/
+*.code-workspace
