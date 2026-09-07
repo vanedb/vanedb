@@ -217,8 +217,7 @@ impl MetalCompute {
                 got: vectors.len(),
             });
         }
-        validate_finite(vectors, "vector batch")?;
-        let scalar_fallback = needs_scalar(vectors);
+        let scalar_fallback = classify_upload(vectors)?;
         let buffer = self.copy_buffer(vectors)?;
         Ok(GpuBuffer {
             buffer,
@@ -362,6 +361,25 @@ impl MetalCompute {
     }
 }
 
+fn classify_upload(values: &[f32]) -> Result<bool> {
+    let threshold = (f32::MIN_POSITIVE.sqrt() / f32::EPSILON).to_bits();
+    let mut invalid = 0_u32;
+    let mut tiny = 0_u32;
+    for value in values {
+        // Positive f32 bit patterns have the same order as their magnitudes.
+        // Bitwise reductions avoid per-element exits and permit SIMD scanning.
+        let magnitude = value.to_bits() & 0x7fff_ffff;
+        invalid |= u32::from(magnitude >= f32::INFINITY.to_bits());
+        tiny |= u32::from((magnitude != 0) & (magnitude < threshold));
+    }
+    if invalid != 0 {
+        return Err(VaneError::NonFiniteValue {
+            input: "vector batch",
+        });
+    }
+    Ok(tiny != 0)
+}
+
 fn needs_scalar(values: &[f32]) -> bool {
     // Below 2^-40, adjacent f32 values can have a difference whose square is
     // subnormal, even when the components' own squares are normal. This also
@@ -376,6 +394,49 @@ fn needs_scalar(values: &[f32]) -> bool {
 mod tests {
     use super::*;
     use crate::distance::{self, Metric};
+
+    #[test]
+    fn upload_classification_preserves_zero_and_threshold_boundaries() {
+        let threshold = f32::MIN_POSITIVE.sqrt() / f32::EPSILON;
+        let below = f32::from_bits(threshold.to_bits() - 1);
+        let above = f32::from_bits(threshold.to_bits() + 1);
+        assert!(!classify_upload(&[]).unwrap());
+        assert!(!classify_upload(&[
+            0.0,
+            -0.0,
+            threshold,
+            -threshold,
+            above,
+            -above,
+            f32::MAX,
+            -f32::MAX,
+        ])
+        .unwrap());
+        for value in [below, -below, f32::from_bits(1), -f32::from_bits(1)] {
+            assert!(classify_upload(&[0.0, value, -0.0]).unwrap());
+        }
+    }
+
+    #[test]
+    fn upload_classification_never_skips_invalid_values_after_tiny_values() {
+        for bits in [0x7f80_0000, 0x7f80_0001, 0x7fc0_0000, 0x7fff_ffff] {
+            for sign in [0, 0x8000_0000] {
+                // Cover vectorized blocks and scalar tails, with a tiny value
+                // found before each positive/negative infinity or NaN payload.
+                for len in [2, 7, 8, 9, 31, 32, 33, 65] {
+                    let mut values = vec![1.0; len];
+                    values[0] = f32::from_bits(1);
+                    values[len - 1] = f32::from_bits(bits | sign);
+                    assert!(matches!(
+                        classify_upload(&values),
+                        Err(VaneError::NonFiniteValue {
+                            input: "vector batch"
+                        })
+                    ));
+                }
+            }
+        }
+    }
 
     #[test]
     fn metal_init() {
