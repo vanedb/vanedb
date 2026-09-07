@@ -118,8 +118,17 @@ semantics, persistence, structural safety, and search-quality expectations are
 tested as one product. The canonical Python package is `vanedb`;
 `vanedb-cpp` / `import vanedb_cpp` is supplementary.
 
-Release tags are product-scoped: `vanedb-vX.Y.Z` for the canonical product
-and `vanedb-cpp-vX.Y.Z` for the supplementary C++ distribution.
+Release tags are product-scoped, and the crate has its own:
+
+| Tag | Publishes |
+|---|---|
+| `vanedb-crate-vX.Y.Z` | the `vanedb` crate to crates.io |
+| `vanedb-vX.Y.Z` | the `vanedb` wheels to PyPI |
+| `vanedb-cpp-vX.Y.Z` | the supplementary C++ distribution |
+
+The crate releases on its own tag rather than sharing one with the wheels: the
+name has to exist on crates.io before any wheel does, and a failed crate
+publish should not strand a half-released set of wheels.
 
 ## License
 
