@@ -179,3 +179,102 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
         }
     }
 }
+
+/// The test above deliberately builds a complete graph (`M = N + 4`) so every
+/// live ID can be compared exhaustively. That makes its adjacency trivial:
+/// every node links to every other, the layer-0 cap of `2M` and the upper-layer
+/// cap of `M` can never bind, and `1/ln(68)` puts an expected 0.94 nodes above
+/// layer 0 — so the multi-level structure is effectively absent.
+///
+/// Byte-identical round-trip across engines therefore proved that ids, vectors
+/// and tombstones survive, but said almost nothing about neighbour lists. This
+/// builds the graph the other test cannot: realistic `M`, degree caps that
+/// bind, reverse-link truncation exercised, and enough nodes that upper layers
+/// are populated. Cross-loading it and re-saving byte-for-byte is a real
+/// topology check.
+#[test]
+fn a_sparse_multi_level_graph_survives_cross_loading_byte_for_byte() {
+    const SPARSE_N: usize = 256;
+    const M: usize = 16;
+
+    for metric in 0..3 {
+        for source_rust in [true, false] {
+            let dir = std::env::temp_dir().join(format!(
+                "vanedb-cross-sparse-{}-{metric}-{source_rust}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&dir).unwrap();
+            let original = dir.join("original.vndb");
+            let roundtrip = dir.join("roundtrip.vndb");
+
+            let rs = Rust(unsafe { rust::vanedb_rs_index_new(DIM, metric, SPARSE_N, M, 200, 42) });
+            let cpp = Cpp(unsafe { ffi::vanedb_cpp_index_new(DIM, metric, SPARSE_N, M, 200, 42) });
+            assert!(!rs.0.is_null() && !cpp.0.is_null());
+
+            for i in 0..SPARSE_N {
+                let v = vector(i % 64);
+                let rc = unsafe {
+                    if source_rust {
+                        rust::vanedb_rs_index_add(rs.0, i as u64, v.as_ptr())
+                    } else {
+                        ffi::vanedb_cpp_index_add(cpp.0, i as u64, v.as_ptr())
+                    }
+                };
+                assert_eq!(rc, 0, "add {i} must succeed");
+            }
+
+            let rc = unsafe {
+                if source_rust {
+                    rust::vanedb_rs_index_save(rs.0, path(&original).as_ptr())
+                } else {
+                    ffi::vanedb_cpp_index_save(cpp.0, path(&original).as_ptr())
+                }
+            };
+            assert_eq!(rc, 0, "save must succeed");
+            let bytes = fs::read(&original).unwrap();
+
+            // A complete graph on 256 nodes at 4 bytes per neighbour slot would
+            // dwarf this. Staying well under proves the degree caps bound the
+            // adjacency, which is the property the dense test cannot show.
+            let complete_lower_bound = SPARSE_N * (SPARSE_N - 1) * 8;
+            assert!(
+                bytes.len() < complete_lower_bound / 4,
+                "graph looks complete ({} bytes); M is not binding and this test \
+                 would prove nothing about adjacency",
+                bytes.len()
+            );
+
+            // Each engine must read the other's sparse graph and reproduce it
+            // exactly. A reader that mis-ordered or truncated a neighbour list
+            // fails here; the dense case cannot see either error.
+            let rs_loaded = Rust(unsafe { rust::vanedb_rs_index_load(path(&original).as_ptr()) });
+            let cpp_loaded = Cpp(unsafe { ffi::vanedb_cpp_index_load(path(&original).as_ptr()) });
+            assert!(
+                !rs_loaded.0.is_null() && !cpp_loaded.0.is_null(),
+                "both engines must load a sparse graph written by {}",
+                if source_rust { "Rust" } else { "C++" }
+            );
+
+            assert_eq!(
+                unsafe { rust::vanedb_rs_index_save(rs_loaded.0, path(&roundtrip).as_ptr()) },
+                0
+            );
+            assert_eq!(
+                fs::read(&roundtrip).unwrap(),
+                bytes,
+                "Rust must reproduce a sparse graph byte for byte"
+            );
+            assert_eq!(
+                unsafe { ffi::vanedb_cpp_index_save(cpp_loaded.0, path(&roundtrip).as_ptr()) },
+                0
+            );
+            assert_eq!(
+                fs::read(&roundtrip).unwrap(),
+                bytes,
+                "C++ must reproduce a sparse graph byte for byte"
+            );
+
+            let _ = fs::remove_dir_all(&dir);
+        }
+    }
+}

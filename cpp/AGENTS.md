@@ -35,7 +35,7 @@ passing, but that is a constraint on changes rather than a sync obligation.
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
 
 ### Test Coverage
-- 38 C++ test cases (131k+ assertions)
+- 79 C++ test cases, 92 registered ctest tests
 - 28 Python tests
 - 3 GPU tests (Metal)
 - Sanitizers: ASan + UBSan clean
@@ -48,15 +48,25 @@ passing, but that is a constraint on changes rather than a sync obligation.
 ## Structure
 ```
 src/core/
-├── distance.h           # SIMD distance functions
-├── vector_store.h       # Brute-force k-NN
-├── hnsw_index.h         # HNSW approximate NN
-├── mmap_vector_store.h  # Memory-mapped store
+├── distance.h            # Metric entry points
+├── distance_kernels.h    # NEON/AVX2/scalar kernels
+├── distance_runtime.h    # Runtime ISA dispatch
+├── distance_strategy.h   # Per-index metric binding
+├── cpu_features.h        # CPUID / xgetbv detection
+├── flat_index.h          # Brute-force k-NN
+├── approx_index.h        # HNSW approximate NN
+├── disk_index.h          # Memory-mapped store
+├── validation.h          # Shared input and size checks
+├── version.h             # VERSION_STRING and components
+├── detail/
+│   ├── file_utils.h      # fsync/rename durability helpers
+│   └── graph_format.h    # VNDB v2 graph reader
 └── gpu/
-    ├── metal_distance.h # Metal compute
-    └── cuda_distance.cuh # CUDA kernels
+    ├── gpu_distance.h    # Backend selection
+    ├── metal_distance.h  # Metal compute (off by default)
+    └── cuda_distance.cuh # EXPERIMENTAL: unwired, not built, not installed
 ```
-~1,000 lines of core code total.
+~2,160 lines of core code total.
 
 ## Build
 ```bash
