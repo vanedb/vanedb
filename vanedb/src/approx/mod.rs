@@ -180,6 +180,32 @@ impl std::fmt::Debug for ApproxIndex {
     }
 }
 
+/// Per-query options for [`ApproxIndex::search_with`].
+///
+/// `#[non_exhaustive]`: build with [`SearchParams::new`] and the setters, so
+/// an option added later is not a breaking change.
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct SearchParams {
+    ef_search: Option<usize>,
+}
+
+impl SearchParams {
+    /// Options that follow the index's own settings.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Beam width for this query only, overriding the index's `ef_search`.
+    ///
+    /// Larger widens the search: better recall, more work. Values below `k`
+    /// are raised to `k`, since fewer candidates than results is meaningless.
+    pub fn ef_search(mut self, ef: usize) -> Self {
+        self.ef_search = Some(ef);
+        self
+    }
+}
+
 impl ApproxIndex {
     /// Starts configuring an index over vectors of `dim` components.
     pub fn builder(dim: usize, metric: Metric) -> ApproxIndexBuilder {
@@ -549,8 +575,23 @@ impl ApproxIndex {
     /// The `k` nearest vectors to `query`, nearest first.
     ///
     /// Approximate: a true neighbour can be missed. Raise the beam width with
-    /// [`set_ef_search`](Self::set_ef_search) to trade speed for recall.
+    /// [`set_ef_search`](Self::set_ef_search) to trade speed for recall, or
+    /// pass it for one query with [`search_with`](Self::search_with).
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        self.search_with(query, k, &SearchParams::new())
+    }
+
+    /// [`search`](Self::search) with per-query options.
+    ///
+    /// Options given here apply to this call only and leave the index
+    /// untouched, so callers with different needs can share one index without
+    /// changing each other's results.
+    pub fn search_with(
+        &self,
+        query: &[f32],
+        k: usize,
+        params: &SearchParams,
+    ) -> Result<Vec<SearchResult>> {
         if query.len() != self.dim {
             return Err(VaneError::DimensionMismatch {
                 expected: self.dim,
@@ -589,7 +630,10 @@ impl ApproxIndex {
         }
 
         // Search at layer 0 with ef = max(ef_search, k)
-        let ef = self.ef_search.load(Ordering::Relaxed).max(k);
+        let ef = params
+            .ef_search
+            .unwrap_or_else(|| self.ef_search.load(Ordering::Relaxed))
+            .max(k);
         let top = Self::search_layer(
             &inner.vectors,
             self.dist_fn,

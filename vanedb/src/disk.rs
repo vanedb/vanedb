@@ -1,5 +1,6 @@
 //! Exact search over a memory-mapped file.
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{BufWriter, Write};
@@ -117,6 +118,17 @@ impl DiskIndexBuilder {
         self.ids.len()
     }
 
+    /// Number of vectors collected so far. Same count as [`size`](Self::size);
+    /// both spellings exist so a program is not tied to one engine (#85).
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    /// Whether nothing has been added yet.
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
     /// Writes the store to `path`.
     ///
     /// The file is built beside the destination and renamed into place after
@@ -202,8 +214,26 @@ impl DiskIndex {
     ///
     /// Validates the header, checks every stored component is finite, and
     /// builds the id index, so this is linear in the corpus rather than a
-    /// constant-cost mapping. A corrupt or truncated file is rejected here
-    /// rather than surfacing as a wrong answer later.
+    /// constant-cost mapping. A file that is already corrupt or truncated is
+    /// rejected here rather than surfacing as a wrong answer later.
+    ///
+    /// # The file must not change while it is open
+    ///
+    /// The contents are mapped, not read, so the mapping and the file are the
+    /// same bytes for as long as this value lives. If another process
+    /// truncates the file, touching the mapped region raises `SIGBUS` and the
+    /// process dies — no panic, no error, nothing to catch. If another process
+    /// rewrites it in place, reads return whatever was written, including
+    /// values the checks above rejected.
+    ///
+    /// Validation happens once, at open. It cannot speak for what the file
+    /// does afterwards.
+    ///
+    /// Writing with [`DiskIndexBuilder::save`] is safe against this: it builds
+    /// a temporary sibling and renames it into place, which replaces the
+    /// directory entry and leaves this mapping pointing at the old, intact
+    /// inode. Rebuilding an index while readers hold it open is therefore
+    /// fine. Editing a mapped file in place is not.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let file = fs::File::open(path.as_ref()).map_err(|e| VaneError::from_io("open", e))?;
         let mmap = unsafe { Mmap::map(&file) }.map_err(|e| VaneError::from_io("mmap", e))?;
@@ -227,6 +257,13 @@ impl DiskIndex {
         let num_vectors = u64::from_le_bytes(mmap[16..24].try_into().unwrap()) as usize;
         let metric_raw = u32::from_le_bytes(mmap[24..28].try_into().unwrap());
         let metric = u32_to_metric(metric_raw)?;
+        // Offsets 28..32 are reserved and specified as zero. Rejecting a
+        // nonzero value is what keeps them claimable: a reader that ignores
+        // them can never be given a meaning later, because every binary
+        // already in the field would silently misread a file that used one.
+        if u32::from_le_bytes(mmap[28..32].try_into().unwrap()) != 0 {
+            return Err(VaneError::corrupt("reserved header bytes are not zero"));
+        }
 
         if dim == 0 && num_vectors > 0 {
             return Err(VaneError::corrupt("zero dimension with vectors"));
@@ -289,6 +326,18 @@ impl DiskIndex {
         self.num_vectors
     }
 
+    /// Number of vectors in the mapped file. Same count as
+    /// [`size`](Self::size); both spellings exist so a program is not tied
+    /// to one engine (#85).
+    pub fn len(&self) -> usize {
+        self.num_vectors
+    }
+
+    /// Whether the mapped file holds no vectors.
+    pub fn is_empty(&self) -> bool {
+        self.num_vectors == 0
+    }
+
     /// Component count of every vector in this store.
     pub fn dimension(&self) -> usize {
         self.dim
@@ -304,10 +353,17 @@ impl DiskIndex {
         self.id_map.contains_key(&id)
     }
 
-    /// Get a vector by ID. Returns a slice into the memory-mapped file (zero-copy).
-    pub fn get(&self, id: u64) -> Result<&[f32]> {
+    /// The vector stored under `id`.
+    ///
+    /// Borrows directly from the mapping today, so this copies nothing. The
+    /// return type is [`Cow`] rather than `&[f32]` because a slice would make
+    /// the on-disk layout part of the signature: a store that encodes vectors
+    /// in any form other than native `f32` has nothing to lend and must decode
+    /// into a buffer. Callers that want an owned vector can use
+    /// [`Cow::into_owned`].
+    pub fn get(&self, id: u64) -> Result<Cow<'_, [f32]>> {
         let &idx = self.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
-        Ok(self.get_vec(idx))
+        Ok(Cow::Borrowed(self.get_vec(idx)))
     }
 
     /// The `k` nearest vectors to `query`, nearest first.
@@ -421,8 +477,8 @@ mod tests {
         assert!(!store.contains(99));
 
         // Get (zero-copy)
-        assert_eq!(store.get(10).unwrap(), &[0.0, 0.0, 0.0]);
-        assert_eq!(store.get(20).unwrap(), &[1.0, 0.0, 0.0]);
+        assert_eq!(store.get(10).unwrap().as_ref(), [0.0, 0.0, 0.0]);
+        assert_eq!(store.get(20).unwrap().as_ref(), [1.0, 0.0, 0.0]);
 
         // Search
         let results = store.search(&[0.0, 0.1, 0.0], 2).unwrap();

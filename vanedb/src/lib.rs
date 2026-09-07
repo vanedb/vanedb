@@ -50,7 +50,7 @@ pub mod flat;
 pub mod gpu;
 mod validation;
 
-pub use approx::ApproxIndex;
+pub use approx::{ApproxIndex, SearchParams};
 #[cfg(feature = "disk")]
 #[cfg_attr(docsrs, doc(cfg(feature = "disk")))]
 pub use disk::{DiskIndex, DiskIndexBuilder};

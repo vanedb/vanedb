@@ -364,3 +364,62 @@ fn hnsw_add_batch() {
         vanedb_capi::vanedb_rs_index_free(h);
     }
 }
+
+#[test]
+fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
+    // Mapping an unrecognised value to L2 would defeat `Metric`'s
+    // #[non_exhaustive] across the boundary: a caller built against a newer
+    // header would get silently wrong distances instead of a refusal.
+    unsafe {
+        for known in [0u32, 1, 2] {
+            let h = vanedb_capi::vanedb_rs_store_new(4, known);
+            assert!(!h.is_null(), "metric {known} must be accepted");
+            vanedb_capi::vanedb_rs_store_free(h);
+        }
+        for unknown in [3u32, 99, u32::MAX] {
+            assert!(
+                vanedb_capi::vanedb_rs_store_new(4, unknown).is_null(),
+                "metric {unknown} must be rejected"
+            );
+            assert!(
+                vanedb_capi::vanedb_rs_index_new(4, unknown, 16, 4, 40, 7).is_null(),
+                "metric {unknown} must be rejected"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_per_call_ef_search_does_not_change_the_index() {
+    // The parameter reads as per-call, so it must not be a store: mutating the
+    // handle made one caller's beam width visible to every other user of the
+    // index, and `save` then wrote it into the file.
+    unsafe {
+        let h = vanedb_capi::vanedb_rs_index_new(2, 0, 64, 4, 40, 7);
+        assert!(!h.is_null());
+        for i in 0..20u64 {
+            let v = [i as f32, (i * 2) as f32];
+            assert_eq!(vanedb_capi::vanedb_rs_index_add(h, i, v.as_ptr()), 0);
+        }
+        let before = (*h).get_ef_search();
+
+        let q = [1.0f32, 2.0];
+        let mut ids = [0u64; 5];
+        let mut ds = [0f32; 5];
+        let n = vanedb_capi::vanedb_rs_index_search(
+            h,
+            q.as_ptr(),
+            5,
+            250,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n, 5);
+        assert_eq!(
+            (*h).get_ef_search(),
+            before,
+            "a per-call ef_search must leave the index's own setting alone"
+        );
+        vanedb_capi::vanedb_rs_index_free(h);
+    }
+}

@@ -1,5 +1,11 @@
 /// A single result from a vector search.
-#[derive(Debug, Clone)]
+///
+/// `#[non_exhaustive]`: construct with [`SearchResult::new`] and match with a
+/// `..` rest pattern. Fields a search may later want to report — a rerank
+/// score, a shard, a metadata handle — can then be added without a major
+/// version.
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct SearchResult {
     /// The ID of the matched vector.
     pub id: u64,
