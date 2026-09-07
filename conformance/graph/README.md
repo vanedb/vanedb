@@ -72,16 +72,16 @@ independently building the same input does today.
 
 - 1: Rust `rand` 0.10 `StdRng` seeded from the header, advanced by one level draw
   per stored slot. The section is empty.
+- 2: C++ libstdc++ MT19937 stream: 624 decimal u32 state words and a position
+  in 0–624, separated by ASCII whitespace.
+- 3: C++ libc++/MSVC MT19937 stream: 624 decimal u32 state words separated by
+  ASCII whitespace.
+
 The Rust engine reads, validates and preserves all three encodings — the
 fixtures cover 1, 2 and 3, and each round-trips byte for byte. Encodings 2 and
 3 exist so a C++ writer's RNG state survives a round trip through the Rust
 engine unchanged; no such writer exists in this repository yet, so nothing
 here emits them outside the fixtures.
-
-- 2: C++ libstdc++ MT19937 stream: 624 decimal u32 state words and a position
-  in 0–624, separated by ASCII whitespace.
-- 3: C++ libc++/MSVC MT19937 stream: 624 decimal u32 state words separated by
-  ASCII whitespace.
 
 Rust `StdRng` does not promise the same output across dependency releases or
 platforms. Encoding 1 preserves the graph and supports seed-based continuation;

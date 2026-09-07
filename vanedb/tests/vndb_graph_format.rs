@@ -7,9 +7,15 @@
 //! with itself no matter what it does, which is the loop these fixtures exist
 //! to break.
 //!
-//! Each fixture runs in both directions, matching `vndb_format.rs` for the
-//! disk format: the engine must read it, and re-writing what it read must
-//! reproduce the bytes.
+//! Each fixture runs in both directions: the engine must read it, and
+//! re-writing what it read must reproduce the bytes.
+//!
+//! Note what the second direction does *not* prove. It is a round trip
+//! through the reader, so a transposition applied to both writer and reader
+//! reproduces the bytes exactly. That is why the contents are asserted against
+//! the field table here, and the graph geometry — entry slot, levels,
+//! neighbour lists — in `approx::graph_format::spec_geometry`, which can see
+//! fields the public API cannot.
 
 use std::path::PathBuf;
 
@@ -84,6 +90,38 @@ fn every_fixture_loads() {
         };
         assert_eq!(index.metric(), expected, "{name}");
     }
+}
+
+#[test]
+fn the_fixture_contents_match_the_field_table() {
+    // The header test pins the parameters; this pins the data. Reversing the
+    // vector component order in writer and reader together round-trips byte
+    // for byte and returns the wrong neighbour — the round-trip test cannot
+    // see it, and neither can anything that only checks dim and metric.
+    let index = ApproxIndex::load(fixture("l2_rng1.vndb")).unwrap();
+    for (id, vector) in [
+        (101u64, [1.0f32, 0.0]),
+        (202, [0.0, 1.0]),
+        (u64::MAX, [0.8, 0.2]),
+    ] {
+        assert!(index.contains(id), "id {id} from the table is missing");
+        assert_eq!(
+            index.get(id).unwrap(),
+            vector.to_vec(),
+            "vector for id {id}"
+        );
+    }
+
+    // And the query the geometry decides: (1,0) is id 101 exactly.
+    let hits = index.search(&[1.0, 0.0], 1).unwrap();
+    assert_eq!(
+        hits[0].id, 101,
+        "nearest to (1,0) is the vector stored as (1,0)"
+    );
+    assert!(
+        hits[0].distance.abs() < 1e-6,
+        "exact match should be distance 0"
+    );
 }
 
 #[test]
@@ -193,7 +231,7 @@ fn an_unsupported_kind_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[8..12].copy_from_slice(&9u32.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("kind"), "got: {err}");
 }
 
 #[test]
@@ -202,7 +240,7 @@ fn an_invalid_metric_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[12..16].copy_from_slice(&99u32.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty());
+    assert!(format!("{err}").contains("metric"), "got: {err}");
 }
 
 #[test]
@@ -264,7 +302,10 @@ fn a_count_beyond_the_element_cap_is_rejected() {
     let err = corrupt("l2_rng1.vndb", |b| {
         b[24..32].copy_from_slice(&u64::MAX.to_le_bytes())
     });
-    assert!(!format!("{err}").is_empty(), "must reject");
+    assert!(
+        format!("{err}").contains("dimensions or parameters"),
+        "got: {err}"
+    );
 }
 
 #[test]
