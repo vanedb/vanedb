@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage reporting now excludes test and benchmark files (measures only production code)
 - Division by zero in DiskIndex when loading corrupted file with dim=0
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-09-07
 
 ### Added
 - Core distance functions with SIMD optimization (ARM NEON, x86 AVX2)
