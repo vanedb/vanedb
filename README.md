@@ -114,8 +114,8 @@ metric (`"l2"` or `"L2"`, `"cosine"` or `"Cosine"`, `"dot"` or `"Dot"` — not
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
 The Rust and C++ engines may make different internal trade-offs, but distance
-semantics, persistence, structural safety, and search-quality expectations are
-tested as one product. The Python package is `vanedb`, built from the Rust
+semantics, the `DiskIndex` format, structural safety, and search-quality
+expectations are tested as one product. The graph format is Rust-only. The Python package is `vanedb`, built from the Rust
 engine. The C++ engine is not published: it stays in the repository as
 reference code and as the control the benchmark measures against, which is
 where #32, #77, #109 and #110 came from.

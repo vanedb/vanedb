@@ -76,7 +76,7 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
 }
 
 impl ApproxIndex {
-    /// Writes a shared VNDB v2 graph to `path`, preserving stored slots and links.
+    /// Writes a VNDB v2 graph to `path`, preserving stored slots and links.
     ///
     /// The Rust reader supports this format; the C++ engine reads only its
     /// own legacy graph files. Older readers do not accept it either. To
@@ -106,9 +106,10 @@ impl ApproxIndex {
 
     /// Reads an index written by [`save`](Self::save).
     ///
-    /// Accepts shared VNDB v2 graphs and legacy Rust v1/v2 files. Structural
-    /// invariants are validated before the index is exposed. Inserting into a
-    /// graph from another engine may produce different topology.
+    /// Accepts VNDB v2 graphs and legacy Rust v1/v2 files. Structural
+    /// invariants are validated before the index is exposed. This engine is
+    /// the only one that writes VNDB v2; the C++ engine reads its own legacy
+    /// graph files, so a graph is not portable between the two.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let bytes = fs::read(path.as_ref()).map_err(|e| VaneError::from_io("read", e))?;
         if bytes.len() < HEADER_LEN {

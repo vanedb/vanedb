@@ -55,7 +55,8 @@ against. This section records what the first release will contain.
   reads its metric from the file, and without this a caller who did not build
   it could not check that their query convention matched. `Metric::Dot` now
   has binding-level test coverage, which it had nowhere before.
-- `ApproxIndex::m`, `ef_construction` and `seed` getters, for the same reason.
+- `ApproxIndex::m`, `ef_construction` and `seed` getters on the Rust core,
+  for the same reason. These are not exposed through the bindings.
 - `DiskIndex` and `DiskIndexBuilder` appear in the published documentation,
   with the feature badge that says they need `disk`.
 - Declared MSRV of 1.85, checked in CI on that exact toolchain.
