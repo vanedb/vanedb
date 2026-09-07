@@ -19,3 +19,6 @@ vanedb-py/python/vanedb/*.dylib
 # their mmap stores on a real filesystem (see bench/benches/mmap.rs).
 *.mmap
 *.bin
+
+# Stray files from shell redirects; never intentional.
+/0
