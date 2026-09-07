@@ -1,9 +1,15 @@
-# VNDB graph format — release candidate
+# VNDB graph format
 
-Both engines implement this release candidate and reproduce its shared fixtures.
-Cross-engine tests also preserve engine-written graphs through load/save and
-verify further insertions. Final platform checks and review remain release gates;
-this is not yet a public 1.0.0 stability promise.
+For the 1.0.0 release, VNDB v1 disk files and VNDB v2 graph files are the
+persistence contract. The Rust engine in VaneDB 1.x will continue to read valid
+files written by VaneDB 1.0.0, subject to documented platform and resource limits.
+Existing version,
+kind and continuation identifiers must never be reinterpreted; incompatible
+encodings require new identifiers while retaining readers for existing files.
+This does not promise that older readers accept future formats.
+
+Both engines reproduce the shared fixtures. Cross-engine tests preserve
+engine-written graphs through load/save and verify further insertions.
 VNDB v1 remains the disk format unchanged. VNDB v2 identifies graph files, with
 kind 1 identifying HNSW. Readers reject other versions and kinds.
 
@@ -89,7 +95,7 @@ entire file even when the reader uses another generator internally.
 `generate.py` writes independent fixtures into
 `vanedb/tests/fixtures/vndb_graph/`, which is included with the Rust crate.
 The fixtures cover all metrics and continuation encodings, an empty graph,
-a tombstone with ID reuse, a deleted entry point, and an all-deleted graph. `SHA256SUMS` pins the candidate bytes. Both
+a tombstone with ID reuse, a deleted entry point, and an all-deleted graph. `SHA256SUMS` pins the contract bytes. Both
 engine-written output and cross-engine roundtrips must match them.
 
 Legacy readers remain available. Load an old file and save it to a new path to

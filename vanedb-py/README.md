@@ -71,7 +71,9 @@ raise `ValueError`. Arguments of the wrong type can raise `TypeError`.
 vectors, links, IDs and deleted slots; further insertions may differ across
 engines. Legacy Rust graphs remain readable: load and save to a new path to
 migrate. Older readers cannot open VNDB v2. Keep originals and source vectors
-while verifying migration; the format is still a release candidate. `DiskIndex`
+while verifying migration. The Rust engine in VaneDB 1.x will keep valid VNDB v1 disk
+and VNDB v2 graph files written by 1.0.0 readable, within documented resource
+limits. Future insertions need not reproduce identical topology. `DiskIndex`
 continues to use shared VNDB v1 files. Disk construction buffers vectors in
 memory before saving, while the opened index uses a read-only memory mapping.
 

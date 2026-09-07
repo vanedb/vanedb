@@ -81,10 +81,13 @@ and toolchain for checks that cannot run locally.
 - **Persistence contract**: `DiskIndex` already uses shared `VNDB` v1:
   literal `VNDB` magic, fixed-width little-endian fields, and fixtures in
   `vanedb/tests/fixtures/conformance/vndb/` that each engine reads and reproduces. Preserve that
-  contract. Approximate graphs now use the shared VNDB v2 release candidate in
+  contract. Approximate graphs now use the shared VNDB v2 format in
   `conformance/graph/`; keep its golden files, cross-load preservation and legacy
-  reader checks passing. Do not promise public graph-format stability before
-  final platform verification and release review. Keep all corruption checks.
+  reader checks passing. The contract preserves reads of valid VNDB v1/v2 files
+  written by VaneDB 1.0.0 throughout the Rust engine in VaneDB 1.x, within
+  documented resource limits. Never reinterpret
+  existing format/kind/continuation identifiers; retain old readers when adding
+  a new encoding. Future insertion topology is not guaranteed. Keep all corruption checks.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep

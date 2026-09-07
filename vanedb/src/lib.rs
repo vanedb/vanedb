@@ -32,8 +32,10 @@
 //! tombstones across graph load/save. Further insertions may differ across
 //! engines. The Rust loader also reads legacy Rust v1/v2 graphs; save to a new
 //! path to migrate, retaining the original and source vectors for verification.
-//! Older readers cannot open VNDB v2. The graph format remains a release
-//! candidate until the 1.0.0 compatibility gates pass.
+//! Older readers cannot open VNDB v2. The Rust engine in VaneDB 1.x will
+//! continue to read valid VNDB v1 disk and VNDB v2 graph files written by
+//! VaneDB 1.0.0, within documented
+//! resource limits. Identical topology after future insertions is not promised.
 
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

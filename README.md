@@ -182,8 +182,10 @@ Further insertions can produce different graphs across engines. Rust still reads
 legacy Rust v1/v2 files; C++ still reads legacy C++ v1/v2/v3 files. To migrate,
 load a legacy file in its original engine and save to a new path; older readers
 cannot open VNDB v2. Keep the original file and source vectors while verifying
-the migration. This remains a release candidate, without a public 1.0.0
-compatibility promise until the release gates pass.
+the migration. The persistence contract keeps valid VNDB v1 disk and VNDB v2
+graph files written by VaneDB 1.0.0 readable by the Rust engine in VaneDB 1.x,
+within documented resource limits.
+This does not guarantee identical future graph topology after insertions.
 
 ## Repository layout
 
