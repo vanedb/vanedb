@@ -48,13 +48,15 @@ The loaders parse untrusted input, so that is where the interesting surface is.
 
 ## What the project does about this
 
-- `cargo-deny` gates advisories, licences and sources on every change; the two
+- `cargo-deny` gates advisories, licences, bans and sources on every change
+  to Rust sources or manifests; the two
   ignored advisories are both `unmaintained`, not vulnerabilities, and each
   records a reason and an exit in `deny.toml`.
 - Both loaders validate magic, version, and every derived size with checked
-  arithmetic before allocating or indexing, and reject files whose ids are not
-  unique. `vanedb/tests/corruption_tests.rs` pins these with crafted files, and
-  each guard is verified by confirming its removal fails a test.
+  arithmetic before allocating or indexing. Neither accepts a file whose ids
+  are not unique: `DiskIndex` checks directly, and `ApproxIndex` enforces a
+  bijection between its id map and its stored ids, which forces the same thing.
+  `vanedb/tests/corruption_tests.rs` pins these with crafted files.
 - The C ABI routes every entry point through `catch_unwind`, so a panic returns
   an error rather than unwinding into a foreign frame.
 - SIMD kernels are checked against the scalar reference at every length from 0

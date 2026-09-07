@@ -1,10 +1,13 @@
 # Security Policy
 
-## Supported Versions
+> The project-wide policy is [`../SECURITY.md`](../SECURITY.md); that is the
+> one GitHub reads and the one to follow. This file covers the frozen C++
+> engine specifically.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+## Supported versions
+
+Nothing is published, so no released version is supported. Report against
+`main`.
 
 ## Reporting a Vulnerability
 

@@ -25,7 +25,8 @@ against. This section records what the first release will contain.
   disagreed with lookups, `get` returned a row the id did not name, and a
   single search could return one id twice. Both engines now reject them.
 - The `@claude` workflow ran a job holding an OAuth token for any comment
-  containing the mention, including from forks. It now requires write access.
+  containing the mention, including from forks. It now requires the commenter
+  to be an owner, member or collaborator.
 - Every GitHub Action is pinned to a commit; `cargo-deny` gates advisories,
   licences, bans and sources on each change.
 
@@ -42,9 +43,6 @@ against. This section records what the first release will contain.
 - The persistence promise is scoped to what is true: `DiskIndex` writes `VNDB`
   v1, a specified, versioned, cross-engine format; `ApproxIndex::save` is
   engine-specific and not yet a public format.
-- Python methods that block — `save`, `load`, `upsert`, `remove`, and the
-  `DiskIndexBuilder` methods — release the GIL. `DiskIndexBuilder` takes
-  `&self` like every other class and can be shared between threads.
 - `Metric::Dot` documents that it is not scale-invariant and not a metric, so
   a vector need not be its own nearest neighbour.
 - The published recall figure is annotated as measured on uniform-random
