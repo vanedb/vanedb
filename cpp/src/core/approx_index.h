@@ -169,6 +169,22 @@ public:
 
     for (int l = std::min(level, cur_max_level); l >= 0; --l) {
       auto top = search_layer(vec, curr, ef_construction_, l);
+      // Capture the nearest candidate before `select_neighbors` drains `top`.
+      // Reading it afterwards, as this loop used to, always saw an empty heap,
+      // so the entry point never advanced and every layer restarted its beam
+      // search from the node the greedy descent found.
+      size_t next_entry = curr;
+      {
+        float best = std::numeric_limits<float>::infinity();
+        MaxHeap scan = top;
+        while (!scan.empty()) {
+          if (detail::distance_less(scan.top().first, best)) {
+            best = scan.top().first;
+            next_entry = scan.top().second;
+          }
+          scan.pop();
+        }
+      }
       auto sel = select_neighbors(top, M_, l);
       neighbors_[iid][l] = std::move(sel);
 
@@ -187,15 +203,7 @@ public:
           for (size_t i = 0; i < max_conn && i < cands.size(); ++i) nc.push_back(cands[i].second);
         }
       }
-      // Use closest candidate (min distance) for next layer entry point
-      if (!top.empty()) {
-        std::pair<float, size_t> best = top.top();
-        while (!top.empty()) {
-          if (top.top().first < best.first) best = top.top();
-          top.pop();
-        }
-        curr = best.second;
-      }
+      curr = next_entry;
     }
     if (level > cur_max_level) { ep_.store(iid); max_level_.store(level); }
   }
