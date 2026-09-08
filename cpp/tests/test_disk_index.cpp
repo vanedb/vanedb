@@ -620,6 +620,16 @@ TEST_CASE("detail::temp_path_for is unique per writer", "[disk][concurrency]") {
           vanedb::detail::temp_path_for("index.idx"));
   // Stays beside the destination so the rename is same-filesystem.
   REQUIRE(vanedb::detail::temp_path_for(dest).rfind("some/dir/", 0) == 0);
+  // The pid specifically: the counter alone satisfies both inequalities
+  // above, so dropping the pid passes every other assertion here while
+  // reintroducing collisions between *processes* saving the same path. That
+  // is the one case the threaded test can never reach.
+#if defined(_WIN32) || defined(_WIN64)
+  const std::string pid = std::to_string(GetCurrentProcessId());
+#else
+  const std::string pid = std::to_string(getpid());
+#endif
+  REQUIRE(vanedb::detail::temp_path_for(dest).find("." + pid + ".") != std::string::npos);
 }
 
 TEST_CASE("DiskIndex - saving twice to one path replaces it", "[disk]") {

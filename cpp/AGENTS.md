@@ -35,7 +35,7 @@ passing, but that is a constraint on changes rather than a sync obligation.
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
 
 ### Test Coverage
-- 79 C++ test cases, 92 registered ctest tests
+- 82 C++ test cases, 95 registered ctest tests
 - 28 Python tests
 - 3 GPU tests (Metal)
 - Sanitizers: ASan + UBSan clean
@@ -66,7 +66,7 @@ src/core/
     ├── metal_distance.h  # Metal compute (off by default)
     └── cuda_distance.cuh # EXPERIMENTAL: unwired, not built, not installed
 ```
-~2,160 lines of core code total.
+~1,920 lines of core code total (excluding the uninstalled `.cuh`).
 
 ## Build
 ```bash
