@@ -88,13 +88,13 @@ within a single interleaved run and is the comparable number.
 | cosine (768d) | 71.0 ns | 73.5 ns | 1.04 |
 | dot (768d) | 33.8 ns | 33.9 ns | 1.00 |
 | store_add (n=10k) | 742 µs | 1.17 ms | 1.58 ‡ |
-| store_search (k=10, n=1k) | 8.1 µs | 8.3 µs | 1.02 |
-| store_search (k=10, n=10k) | 78.8 µs | 77.2 µs | **0.98** |
+| store_search (k=10, n=1k) | 8.1 µs | 8.3 µs | 1.02 ◊ |
+| store_search (k=10, n=10k) | 78.8 µs | 77.2 µs | 0.98 ◊ |
 | index_build (M=16, efC=200) | 947 ms | 1.03 s | 1.08 |
 | index_search (ef=50) | 19.1 µs | 23.1 µs | 1.21 ◊ |
 | disk_build | 5.06 ms | 11.05 ms | 2.18 ¶ |
 | disk_open | 503 µs | 565 µs | 1.12 ‡ |
-| disk_search (k=10) | 78.4 µs | 79.0 µs | 1.01 |
+| disk_search (k=10) | 78.4 µs | 79.0 µs | 1.01 ◊ |
 
 ApproxIndex recall@10 (100 queries, ef=50): C++ 0.689, Rust 0.700. ◊◊
 
@@ -114,9 +114,11 @@ identity, worth about 40 ns per add (vanedb#109).
 (`StdRng` versus `std::mt19937`), so per-query work differed by graph luck.
 Measured over 16 queries the mean was 0.97 with a 41% spread — Rust ahead on
 average, and every ratio ever published for this row sits inside that spread.
-The bench now sweeps 32 queries (vanedb#111), so this row, along with the two
-other search rows, is replaced by the next snapshot taken on dedicated
-hardware. Until then it measures nothing.
+The bench now sweeps 32 queries (vanedb#111), so every row marked ◊ — all four
+search rows — is replaced by the next snapshot taken on dedicated hardware.
+Until then they measure nothing, which is why none of them is emphasised: the
+0.98 was the table's only bolded ratio and read as a headline Rust win while
+resting on the same single-query method that disqualified `index_search`.
 
 **¶ Measured against mismatched durability; awaiting a re-run.** When this
 snapshot was taken the engines called different primitives: Rust `sync_all()`

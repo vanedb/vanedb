@@ -64,7 +64,10 @@ Constructors return null on failure. Status functions return zero on success;
 searches return the number of results written, where zero alone cannot tell a
 failure from an empty store. After any call, `vanedb_rs_last_error()` gives the
 reason as a `VANEDB_RS_*` code and `vanedb_rs_last_error_message()` the detail —
-both thread-local, both reset by the next call on that thread. Branch on the
+both thread-local, and both reset by the next call on that thread — except
+the `*_free` functions, which deliberately preserve them so the ordinary C
+path of fail, clean up, then report does not lose the reason. The message
+pointer is also freed when its thread exits. Branch on the
 code rather than the return value: `VANEDB_RS_IO` is worth retrying,
 `VANEDB_RS_CORRUPT` is not, and `VANEDB_RS_FILE_NOT_FOUND` means build the file
 instead. Treat an unrecognized code as a failure; the set grows in minor

@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 
-use vanedb::ApproxIndex;
+use vanedb::{ApproxIndex, VaneError};
 
 const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 const HNSW_VERSION: u32 = 2;
@@ -142,9 +142,18 @@ fn loader_enforces_the_shared_id_map_contract() {
                 );
             }
         } else {
+            // `Corrupt` specifically, not merely `is_err`. These payloads are
+            // hand-encoded against the `HnswDataMirror` above; if that mirror
+            // drifts from the real `HnswData`, every one of them fails to
+            // decode at all and a bare `is_err` keeps passing for the wrong
+            // reason — the accept cases would fail loudly, and this half would
+            // go quietly green while testing nothing.
+            let err = result.err().unwrap_or_else(|| {
+                panic!("{}: expected the loader to reject this file", case.name)
+            });
             assert!(
-                result.is_err(),
-                "{}: expected the loader to reject this file",
+                matches!(err, VaneError::Corrupt { .. }),
+                "{}: expected a format rejection, got {err:?}",
                 case.name
             );
         }

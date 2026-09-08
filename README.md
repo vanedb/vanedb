@@ -7,7 +7,9 @@ C++ engine in [`cpp/`](cpp) is kept as reference code and as the other arm of
 a cross-engine benchmark; it is frozen, and features are not ported to it.
 
 Bring your own embeddings: VaneDB stores and searches vectors; it does not
-generate them. This checkout is pre-release.
+generate them. VaneDB stores only `(u64 id, vector)` pairs. There is no metadata or
+payload storage and no filtered search, so keep your own id-to-document
+mapping alongside it. This checkout is pre-release.
 
 ## Quick start
 
@@ -93,7 +95,8 @@ For a Rust query with its own recall setting, construct
 unchanged, so concurrent callers can choose different beam widths. The effective
 beam is at least `k`; ordinary `search` uses the index's defaults.
 
-Every type takes a `Metric` (`L2`, cosine, or dot) and returns results nearest
+Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in
+the Python and wasm bindings, and returns results nearest
 first. The native `ApproxIndex` supports `save`/`load`. `DiskIndex` is written
 by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
 and is rebuilt on each run.

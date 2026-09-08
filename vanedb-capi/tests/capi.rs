@@ -1,5 +1,18 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
+/// A unique path under the system temp directory.
+///
+/// These files were bare relative names, so they landed in whatever working
+/// directory the test binary inherited and collided between concurrently
+/// running binaries. The pid keeps two runs apart; the name keeps two tests
+/// in one run apart.
+fn scratch_path(name: &str) -> String {
+    std::env::temp_dir()
+        .join(format!("vanedb-{name}-{}.bin", std::process::id()))
+        .to_string_lossy()
+        .into_owned()
+}
+
 #[test]
 fn search_beam_width_is_per_call() {
     unsafe {
@@ -66,7 +79,7 @@ fn hnsw() {
     let v0 = [0.0f32, 0.0];
     let v1 = [1.0f32, 1.0];
     let q = [0.1f32, 0.1];
-    let path = std::ffi::CString::new("rs_capi_hnsw.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_hnsw")).unwrap();
     unsafe {
         let h = vanedb_capi::vanedb_rs_index_new(2, 0, 100, 16, 200, 42);
         assert!(!h.is_null());
@@ -124,7 +137,7 @@ fn hnsw() {
             1
         );
     }
-    let _ = std::fs::remove_file("rs_capi_hnsw.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_hnsw"));
 }
 
 #[test]
@@ -132,7 +145,7 @@ fn mmap() {
     let ids_in = [10u64, 20];
     let vecs = [0.0f32, 0.0, 1.0, 1.0]; // row-major: id10=(0,0), id20=(1,1)
     let q = [0.1f32, 0.1];
-    let path = std::ffi::CString::new("rs_capi_mmap.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_mmap")).unwrap();
     unsafe {
         assert_eq!(
             vanedb_capi::vanedb_rs_disk_build(
@@ -166,14 +179,14 @@ fn mmap() {
             0
         );
     }
-    let _ = std::fs::remove_file("rs_capi_mmap.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_mmap"));
 }
 
 /// n == 0 with null ids/vecs must build a valid empty store, matching the
 /// null-safe-when-empty contract of the add_batch entry points.
 #[test]
 fn mmap_build_empty_with_null_pointers() {
-    let path = std::ffi::CString::new("rs_capi_mmap_empty.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_mmap_empty")).unwrap();
     unsafe {
         assert_eq!(
             vanedb_capi::vanedb_rs_disk_build(
@@ -196,7 +209,7 @@ fn mmap_build_empty_with_null_pointers() {
         assert_eq!(n, 0);
         vanedb_capi::vanedb_rs_disk_free(m);
     }
-    let _ = std::fs::remove_file("rs_capi_mmap_empty.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_mmap_empty"));
 }
 
 #[test]
@@ -752,7 +765,7 @@ fn zero_ef_search_means_the_indexs_own_setting() {
     }
 }
 
-/// Every status function returned a bare `1`/// Every status function returned a bare `1` for a duplicate id, a dimension
+/// Every status function returned a bare `1` for a duplicate id, a dimension
 /// mismatch, a corrupt file and an I/O failure alike, and searches returned `0`
 /// results for both "empty" and "your query had a NaN in it". A caller could
 /// not implement the branching the core error type is designed for — retry on
