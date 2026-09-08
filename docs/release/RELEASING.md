@@ -21,17 +21,30 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    before opening through the mapping's lifetime, and that Python/C guidance
    explains the same obligation. Reconcile the draft notes with the final
    per-query search API, result/lookup types and stricter input validation.
-4. Dispatch publication-disabled rehearsals on the candidate branch:
+4. Dispatch publication-disabled rehearsals **from a branch, never a tag**:
 
    ```sh
-   gh workflow run publish-crate.yml --ref release/1.0.0-readiness
-   gh workflow run publish-rust.yml --ref release/1.0.0-readiness -f publish_testpypi=false
+   gh workflow run publish-crate.yml --ref main
+   gh workflow run publish-rust.yml --ref main -f publish_testpypi=false
    ```
+
+   The publish jobs test `github.event_name == 'push'`, so a dispatch cannot
+   satisfy them whatever ref it names. That was not always true: they
+   previously tested `ref_type == 'tag'`, which a `--ref <tag>` dispatch does
+   satisfy, so this step could publish. Keep the `event_name` form.
 
    Require successful crate, wheel and source-distribution verification, with
    all publication jobs skipped. Download the artifacts; check their versions,
    file lists and checksums. The crate verifier tests the extracted archive in
    its own build directory. Inspect the actual `.crate`, not only the listing.
+   **Publication is irreversible.** Neither registry lets a version be
+   re-uploaded: if `0.1.0` goes out wrong, that number is burned and the fix
+   ships as `0.1.1`. `cargo yank` and a PyPI yank stop new resolution but
+   delete nothing and do not break existing lockfiles; deleting a PyPI file is
+   permanent and does not free the filename. The Python job uploads 29 files in
+   one action, so a partial upload leaves `0.1.0` permanently half-populated.
+   This is a property of the registries, not a project policy.
+
 5. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
 
@@ -56,13 +69,27 @@ verification before arranging initial publication and the trusted publisher.
 Do not create a duplicate account or assume sign-in alone enables publishing.
 If bootstrap publication is needed, use the approved version and commit with a
 scoped token through Cargo's credential mechanism; never put credentials in
-release notes, shell history or logs. Configure the trusted publisher afterward.
+release notes, shell history or logs. Configure the trusted publisher
+afterward, then **revoke the bootstrap token** — it is a long-lived credential
+whose only purpose was the one publish that trusted publishing could not do,
+and leaving it live defeats the reason for using OIDC everywhere else.
+
+Do not also push `vanedb-crate-v<version>` for a version published by
+bootstrap: the tagged workflow would attempt the same version and fail against
+a registry that never allows a re-upload.
 
 ## Publish the approved release
 
 Publication requires explicit maintainer authorization after verification.
 Merge the approved candidate through the protected-main PR process. Both tag
 workflows reject release commits that are not on main.
+
+The two registries can be published in either order. `vanedb-py` depends on the
+core by path (`vanedb = { path = "../vanedb" }`) and maturin vendors that source
+into the sdist — `vanedb-<version>/vanedb/src/lib.rs` is inside the tarball — so
+installing from source never resolves `vanedb` from crates.io. Verify with
+`maturin sdist -m vanedb-py/Cargo.toml` and list the archive if this ever
+changes to a version dependency, which would make crates.io a hard prerequisite.
 
 - Python uses tag `vanedb-v0.1.0`; its workflow builds and validates the wheels
   and source distribution before the protected `pypi` publication job.
