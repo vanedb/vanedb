@@ -36,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Combined dim*num_vectors overflow test
 
 ### Fixed
+- `DiskIndex` accepted a file whose header understated its geometry. The
+  expected length is computed from the header, so `file_size_ < expected` could
+  not catch a header claiming a smaller `dim` or `count` than the file holds;
+  the payload was then read at the wrong stride and `get` returned a vector
+  straddling two stored records. Now requires exact equality, matching the Rust
+  reader and the VNDB v1 spec. A defect fix in the engine, not a feature port:
+  both readers of a shared format must reject the same files, and
+  `bench/tests/cross_engine_format.rs` now asserts that over a bit sweep.
 - Windows file locking issue in mmap tests (scope store before file removal)
 - Type consistency in test file format (uint64_t for dimension field)
 - Coverage reporting now excludes test and benchmark files (measures only production code)

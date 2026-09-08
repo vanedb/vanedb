@@ -374,6 +374,192 @@ fn mmap_load_rejects_truncated_data() {
 
 #[cfg(feature = "disk")]
 #[test]
+fn mmap_load_rejects_a_header_that_understates_the_payload() {
+    // The mirror of `mmap_load_rejects_truncated_data`, and the case that was
+    // missing. `expected` is derived FROM the header, so a header that lies in
+    // the direction that makes the file look larger than declared moves the
+    // goalpost instead of tripping a one-sided `len() < expected` check.
+    //
+    // One bit, in the low byte of `dim`: 3 becomes 2. The payload is then read
+    // at the wrong stride and `get` returns a vector that straddles two stored
+    // records — a value that was never written by anyone.
+    let mut builder = DiskIndexBuilder::new(3, Metric::L2).unwrap();
+    builder.add(11, &[1.0, 2.0, 3.0]).unwrap();
+    builder.add(22, &[4.0, 5.0, 6.0]).unwrap();
+    let good = std::env::temp_dir().join(format!(
+        "vanedb_mmap_understated_good_{}.bin",
+        std::process::id()
+    ));
+    builder.save(&good).unwrap();
+
+    let mut bytes = fs::read(&good).unwrap();
+    bytes[8] ^= 0x01;
+    let bad = write_tmp("mmap_understated_bad", &bytes);
+
+    // SAFETY: this test owns both files and does not modify them while mapped.
+    let opened = unsafe { DiskIndex::open(&bad) };
+    assert!(
+        matches!(opened, Err(VaneError::Corrupt { .. })),
+        "a header whose declared geometry is shorter than the file must be \
+         rejected, not reinterpreted at the wrong stride: {:?}",
+        opened.map(|i| (i.dimension(), i.size()))
+    );
+
+    let _ = fs::remove_file(&good);
+    let _ = fs::remove_file(&bad);
+}
+
+#[cfg(feature = "disk")]
+#[test]
+fn mmap_load_rejects_every_single_bit_flip_in_the_geometry_fields() {
+    // `dim` (offsets 8..16) and `num_vectors` (16..24) are the two fields the
+    // payload length is computed from, so every flip in them makes the header
+    // disagree with the file. None may be accepted: an accepted flip here is
+    // silent misinterpretation, not a smaller index.
+    //
+    // The other header fields are covered elsewhere — magic and version have
+    // their own tests, the reserved word is checked for zero, and `metric`
+    // yields a structurally valid file, so no length check can reject it.
+    let mut builder = DiskIndexBuilder::new(4, Metric::L2).unwrap();
+    for id in 0..5u64 {
+        let f = id as f32;
+        builder.add(id, &[f, f + 1.0, f + 2.0, f + 3.0]).unwrap();
+    }
+    let good = std::env::temp_dir().join(format!(
+        "vanedb_mmap_geometry_good_{}.bin",
+        std::process::id()
+    ));
+    builder.save(&good).unwrap();
+    let original = fs::read(&good).unwrap();
+
+    let mut accepted = Vec::new();
+    for byte in 8..24usize {
+        for bit in 0..8u32 {
+            let mut bytes = original.clone();
+            bytes[byte] ^= 1 << bit;
+            let path = write_tmp(&format!("mmap_geometry_{byte}_{bit}"), &bytes);
+            // SAFETY: this test owns the file and does not modify it while mapped.
+            if let Ok(index) = unsafe { DiskIndex::open(&path) } {
+                accepted.push((byte, bit, index.dimension(), index.size()));
+            }
+            let _ = fs::remove_file(&path);
+        }
+    }
+    let _ = fs::remove_file(&good);
+
+    assert!(
+        accepted.is_empty(),
+        "{} of 128 geometry-field bit flips were accepted \
+         (byte, bit, dimension, size): {:?}",
+        accepted.len(),
+        accepted
+    );
+}
+
+/// What the length check cannot do, pinned so the docs cannot overstate it.
+///
+/// `expected = 32 + n*8 + n*dim*4 = 32 + n*(8 + 4*dim)`, so every `(dim, n)`
+/// on that hyperbola produces the same file length. Equality narrows the space
+/// of accepted lies enormously — a single-bit flip in one field almost always
+/// moves the length — but it cannot pin the geometry, and a coordinated
+/// rewrite of both fields is still read as a valid file at the wrong stride.
+///
+/// Closing this needs a checksum, which VNDB v1 does not have. The
+/// `# Integrity` section on `DiskIndex::open` says so; this is what keeps that
+/// sentence honest, and it fails if the format ever gains one.
+#[cfg(feature = "disk")]
+#[test]
+fn a_coordinated_geometry_rewrite_is_still_accepted() {
+    let dir = std::env::temp_dir().join(format!("vanedb-hyperbola-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+
+    let (dim, n) = (8usize, 64usize);
+    let mut builder = DiskIndexBuilder::new(dim, Metric::L2).unwrap();
+    for id in 0..n as u64 {
+        let vector: Vec<f32> = (0..dim).map(|d| (id as usize * 7 + d * 3) as f32).collect();
+        builder.add(id, &vector).unwrap();
+    }
+    let good = dir.join("good.vndb");
+    builder.save(&good).unwrap();
+    let bytes = fs::read(&good).unwrap();
+
+    // dim 8, n 64 -> 2592 bytes. dim 6, n 80 lands on the same length.
+    let mut forged = bytes.clone();
+    forged[8..16].copy_from_slice(&6u64.to_le_bytes());
+    forged[16..24].copy_from_slice(&80u64.to_le_bytes());
+    let path = write_tmp("hyperbola", &forged);
+
+    // SAFETY: this test owns the file and does not modify it while mapped.
+    let index = unsafe { DiskIndex::open(&path) }
+        .expect("the length still matches, so this is accepted -- that is the point");
+    assert_eq!(index.dimension(), 6);
+    assert_eq!(index.size(), 80);
+    assert_ne!(
+        index.get(3).unwrap().as_ref(),
+        (0..dim).map(|d| (3 * 7 + d * 3) as f32).collect::<Vec<_>>(),
+        "a coordinated rewrite yields vectors that were never stored"
+    );
+
+    let _ = fs::remove_file(&path);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+/// An empty store is 32 bytes whatever its `dim`, so the length check cannot
+/// see that field at all: `expected` is 32 for every dimension.
+///
+/// A flip there is not a wrong *vector* — there are none — but `dimension()`
+/// then lies, and `search` rejects a correctly sized query. What can still be
+/// rejected is a dimension too large to address, which is the guard that keeps
+/// the two engines agreeing: the C++ reader bounds `dim` unconditionally, and
+/// without the matching Rust bound an empty store with `dim = 2^62` was a file
+/// one engine read and the other refused.
+#[cfg(feature = "disk")]
+#[test]
+fn an_empty_store_cannot_validate_its_dimension_but_still_bounds_it() {
+    let dir = std::env::temp_dir().join(format!("vanedb-empty-dim-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let good = dir.join("empty.vndb");
+    DiskIndexBuilder::new(4, Metric::L2)
+        .unwrap()
+        .save(&good)
+        .unwrap();
+    let bytes = fs::read(&good).unwrap();
+    assert_eq!(bytes.len(), 32, "an empty store is header-only");
+
+    // A small dim flip is invisible to a length check and is accepted.
+    let mut small = bytes.clone();
+    small[8] ^= 0x01;
+    let path = write_tmp("empty_small_dim", &small);
+    // SAFETY: this test owns the file and does not modify it while mapped.
+    let index = unsafe { DiskIndex::open(&path) }.expect("length is unchanged at 32");
+    assert_eq!(
+        index.dimension(),
+        5,
+        "the header is believed; nothing can check it"
+    );
+    let _ = fs::remove_file(&path);
+
+    // A dim whose vectors could never be addressed is rejected, matching C++.
+    for bit in [62u32, 63] {
+        let mut huge = bytes.clone();
+        let dim = u64::from_le_bytes(huge[8..16].try_into().unwrap()) ^ (1u64 << bit);
+        huge[8..16].copy_from_slice(&dim.to_le_bytes());
+        let path = write_tmp(&format!("empty_huge_dim_{bit}"), &huge);
+        // SAFETY: same.
+        let err = unsafe { DiskIndex::open(&path) }.unwrap_err();
+        assert!(
+            matches!(err, VaneError::Corrupt { .. }),
+            "dim = 2^{bit} must be rejected, got {err:?}"
+        );
+        let _ = fs::remove_file(&path);
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[cfg(feature = "disk")]
+#[test]
 fn mmap_load_rejects_size_overflow() {
     // num_vectors * dim that overflows usize when multiplied by sizeof(f32).
     let path = std::env::temp_dir().join("vanedb_mmap_overflow.bin");
