@@ -223,6 +223,11 @@ impl SearchParams<'_> {
 
 impl ApproxIndex {
     /// Starts configuring an index over vectors of `dim` components.
+    ///
+    /// Defaults: `capacity` 100_000, `m` 16, `ef_construction` 200, `seed` 42,
+    /// and a search beam (`ef_search`) of 50. The last one is the number to
+    /// know first — recall is a function of it, so a baseline measured without
+    /// setting it was measured at 50.
     pub fn builder(dim: usize, metric: Metric) -> ApproxIndexBuilder {
         ApproxIndexBuilder {
             dim,
@@ -419,7 +424,19 @@ impl ApproxIndex {
     }
 
     /// Sets the search beam width: higher recovers more true neighbours and
-    /// costs more time. Applies to subsequent searches.
+    /// costs more time. Applies to subsequent searches. Default 50.
+    ///
+    /// **A search uses `max(ef_search, k)`**, so every value at or below `k`
+    /// behaves identically — setting 1, 5 or 10 before a `search(_, 10)` gives
+    /// the same answers, which reads as the setting being ignored.
+    /// [`get_ef_search`](Self::get_ef_search) reports the stored value, not the
+    /// effective one.
+    ///
+    /// This value is written into the graph file by [`save`](Self::save) and
+    /// restored by [`load`](Self::load), so a tuned index can be shipped
+    /// without a separate configuration note. To override the beam for one
+    /// query without disturbing the shared setting — which concurrent searches
+    /// observe — use [`search_with`](Self::search_with) and [`SearchParams`].
     pub fn set_ef_search(&self, ef: usize) {
         self.ef_search.store(ef, Ordering::Relaxed);
     }
@@ -911,21 +928,36 @@ impl ApproxIndexBuilder {
     }
 
     /// Links kept per node. Larger graphs recall better and cost more memory
-    /// and build time.
+    /// and build time. Default 16.
+    ///
+    /// # Errors
+    ///
+    /// `build` returns [`VaneError::InvalidParameter`] for `m < 2`: a node with
+    /// fewer than two links cannot form a navigable graph. Note the contrast
+    /// with [`ef_construction`](Self::ef_construction), which clamps rather
+    /// than rejecting.
     pub fn m(mut self, m: usize) -> Self {
         self.m = m;
         self
     }
 
     /// Beam width used while building. Larger yields a better-connected graph
-    /// and a slower build; it does not affect query cost.
+    /// and a slower build; it does not affect query cost. Default 200.
+    ///
+    /// **Values below `m` are raised to `m`.** A beam narrower than the number
+    /// of links being chosen cannot fill them, so the request is not
+    /// meaningful — but the clamp is silent, and tuning for build speed by
+    /// setting this to 8 under the default `m` of 16 leaves it at 16 with no
+    /// indication. [`ApproxIndex::ef_construction`] reports the effective
+    /// value. Unlike [`m`](Self::m), an out-of-range value here is not an
+    /// error.
     pub fn ef_construction(mut self, ef: usize) -> Self {
         self.ef_construction = ef;
         self
     }
 
     /// Seeds the level-assignment RNG. A fixed seed makes construction
-    /// reproducible.
+    /// reproducible. Default 42.
     pub fn seed(mut self, seed: u64) -> Self {
         self.seed = seed;
         self
