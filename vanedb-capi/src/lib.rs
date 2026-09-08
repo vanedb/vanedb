@@ -1455,7 +1455,7 @@ mod tests {
 
             let path = std::ffi::CString::new(
                 std::env::temp_dir()
-                    .join("vanedb_capi_null.disk")
+                    .join(format!("vanedb_capi_null-{}.disk", std::process::id()))
                     .to_str()
                     .unwrap(),
             )

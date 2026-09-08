@@ -92,7 +92,10 @@ fn mmap_builder_rejects_non_finite_vectors() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_store_rejects_non_finite_queries() {
-    let path = std::env::temp_dir().join("vanedb_non_finite_query_conformance.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_non_finite_query_conformance-{}.bin",
+        std::process::id()
+    ));
     let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();

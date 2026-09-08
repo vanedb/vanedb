@@ -13,8 +13,15 @@ fn scratch_path(name: &str) -> String {
         .into_owned()
 }
 
+/// A per-call `ef_search` must leave the handle's stored value alone.
+///
+/// Named for what it checks. It was `search_beam_width_is_per_call`, which
+/// this one-vector fixture cannot show — every beam returns the same single
+/// result. That the beam actually reaches the search is proved by
+/// `zero_ef_search_means_the_indexs_own_setting`, over 5000 vectors with a
+/// measured recall separation.
 #[test]
-fn search_beam_width_is_per_call() {
+fn search_does_not_mutate_the_handles_beam_width() {
     unsafe {
         let h = std::ptr::NonNull::new(vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42))
             .expect("index construction failed");

@@ -96,8 +96,9 @@ fn every_error_variant_renders_a_useful_message() {
                 "{error:?} rendered as {rendered:?}, missing {fragment:?}"
             );
         }
-        // A message that is only a label tells a caller nothing.
-        assert!(rendered.len() > 5, "{error:?} rendered as {rendered:?}");
+        // (A length floor used to sit here. The shortest fragment asserted
+        // above is "finite" at six characters, so every passing `contains`
+        // already implies it — it could not fail.)
     }
 }
 

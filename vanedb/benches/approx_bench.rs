@@ -60,7 +60,7 @@ fn bench_hnsw_save_load(c: &mut Criterion) {
     let dim = 128;
     let n = 10_000;
     let data = gen_data(n, dim);
-    let path = std::env::temp_dir().join("vanedb_bench_hnsw.bin");
+    let path = std::env::temp_dir().join(format!("vanedb_bench_hnsw-{}.bin", std::process::id()));
 
     let idx = ApproxIndex::builder(dim, Metric::L2)
         .capacity(n)

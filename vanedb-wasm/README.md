@@ -50,7 +50,7 @@ containing:
 
 ```html
 <script type="module">
-import init, { ApproxIndex } from './pkg/vanedb_wasm.js';
+import init, { ApproxIndex } from './pkg-web/vanedb_wasm.js';
 await init();
 // dim, metric, capacity, m, ef_construction, and an optional seed
 // (defaults to 42; supply it for reproducible construction).
@@ -69,7 +69,10 @@ grows past it; `m` and `ef_construction` control graph construction; `seed`
 defaults to 42 and fixes the topology for a given insertion order. Read them
 back with `m()`, `ef_construction()`, `capacity()` and `seed()`. Set
 `index.ef_search` to trade search speed for recall.
-For exact search use `new FlatIndex(dimension, metric)`.
+For exact search use `new FlatIndex(dimension, metric)`. It has the same
+surface minus the graph parameters: `add`, `add_batch`, `search`, `get`,
+`remove`, `contains`, `size()`, `metric()` and `dimension()`. The module also
+exports `version()`.
 
 `ApproxIndex` supports the full delete lifecycle. `remove(id)` tombstones a
 vector: it stops appearing in results immediately, but keeps its graph links,

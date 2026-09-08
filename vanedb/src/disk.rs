@@ -60,7 +60,7 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
 /// use vanedb::{DiskIndex, DiskIndexBuilder, Metric};
 ///
 /// # fn main() -> vanedb::Result<()> {
-/// let path = std::env::temp_dir().join("vanedb-doc-example.vndb");
+/// let path = std::env::temp_dir().join(format!("vanedb-doc-example-{}.vndb", std::process::id()));
 ///
 /// let mut builder = DiskIndexBuilder::new(3, Metric::L2)?;
 /// builder.add(1, &[1.0, 0.0, 0.0])?;
@@ -550,7 +550,10 @@ mod tests {
 
     #[test]
     fn builder_save_creates_file() {
-        let path = std::env::temp_dir().join("vanedb_test_mmap_builder.bin");
+        let path = std::env::temp_dir().join(format!(
+            "vanedb_test_mmap_builder-{}.bin",
+            std::process::id()
+        ));
         let mut b = DiskIndexBuilder::new(2, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0]).unwrap();
         b.save(&path).unwrap();
@@ -563,7 +566,10 @@ mod tests {
 
     #[test]
     fn roundtrip_build_open_search() {
-        let path = std::env::temp_dir().join("vanedb_test_mmap_roundtrip.bin");
+        let path = std::env::temp_dir().join(format!(
+            "vanedb_test_mmap_roundtrip-{}.bin",
+            std::process::id()
+        ));
 
         let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(10, &[0.0, 0.0, 0.0]).unwrap();
@@ -593,7 +599,8 @@ mod tests {
 
     #[test]
     fn open_rejects_bad_file() {
-        let path = std::env::temp_dir().join("vanedb_test_mmap_bad.bin");
+        let path =
+            std::env::temp_dir().join(format!("vanedb_test_mmap_bad-{}.bin", std::process::id()));
         std::fs::write(&path, b"garbage").unwrap();
         // SAFETY: this test does not modify the file while it is mapped.
         assert!(unsafe { DiskIndex::open(&path) }.is_err());
@@ -602,7 +609,8 @@ mod tests {
 
     #[test]
     fn open_rejects_truncated_file() {
-        let path = std::env::temp_dir().join("vanedb_test_mmap_trunc.bin");
+        let path =
+            std::env::temp_dir().join(format!("vanedb_test_mmap_trunc-{}.bin", std::process::id()));
         let mut data = Vec::new();
         data.extend_from_slice(&MAGIC.to_le_bytes());
         data.extend_from_slice(&VERSION.to_le_bytes());
@@ -618,7 +626,8 @@ mod tests {
 
     #[test]
     fn search_wrong_dimension() {
-        let path = std::env::temp_dir().join("vanedb_test_mmap_dim.bin");
+        let path =
+            std::env::temp_dir().join(format!("vanedb_test_mmap_dim-{}.bin", std::process::id()));
         let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.save(&path).unwrap();
