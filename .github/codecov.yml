@@ -43,6 +43,10 @@ flags:
   core:
     paths:
       - cpp/src/core/
+    # Rust-only PRs do not run cpp-ci, so without this Codecov sees the C++
+    # coverage vanish rather than persist. Inserting `rust:` above this line
+    # once re-parented it and silently removed it from `core`.
+    carryforward: true
   rust:
     paths:
       - vanedb/src/

@@ -566,7 +566,11 @@ TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][
   }
 
   std::vector<std::thread> writers;
-  std::vector<bool> ok(kThreads, false);
+  // Not vector<bool>: it is bit-packed, so writes to distinct elements share
+  // a word and are a data race — the one container the standard excludes from
+  // its distinct-element guarantee. ThreadSanitizer flags it while the test
+  // still passes.
+  std::vector<char> ok(kThreads, 0);
   writers.reserve(kThreads);
   for (size_t t = 0; t < kThreads; ++t) {
     writers.emplace_back([&, t] {
@@ -574,7 +578,7 @@ TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][
       fill(b, 64 * (t + 1));
       try {
         b.save(path);
-        ok[t] = true;
+        ok[t] = 1;
       } catch (const std::exception&) {
         // Windows can refuse a rename whose destination another writer is
         // replacing at that instant. Losing that race is acceptable;
@@ -583,7 +587,7 @@ TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][
     });
   }
   for (auto& w : writers) w.join();
-  REQUIRE(std::count(ok.begin(), ok.end(), true) >= 1);
+  REQUIRE(std::count(ok.begin(), ok.end(), char{1}) >= 1);
 
   const std::string published = read_all(path);
   REQUIRE_FALSE(published.empty());

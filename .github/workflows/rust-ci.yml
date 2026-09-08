@@ -242,15 +242,19 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # Nightly is required for -Zsanitizer and -Zbuild-std. The C++ engine has
       # run ASan and UBSan since early on; the Rust engine had no dynamic UB
-      # checking at all, while carrying hand-written NEON and AVX2 kernels and
-      # an `extern "C"` surface that takes raw pointers from callers.
+      # checking at all, while carrying hand-written SIMD kernels and an
+      # `extern "C"` surface that takes raw pointers from callers.
       #
-      # This is not theoretical. vanedb#df63f31 was a heap overread in the NEON
-      # and AVX2 kernels, reachable from safe code, guarded only by a
-      # `debug_assert_eq!` that release builds compile out. It was found by a
-      # human reading the code, because no test passed unequal-length slices.
-      # Reverting that fix makes this job report
-      # "heap-buffer-overflow ... READ of size 16".
+      # What this job actually adds, stated precisely because an earlier
+      # version of this comment overclaimed: dynamic checking of
+      # `vanedb-capi`'s raw-pointer surface, and of the AVX2 kernels. It does
+      # NOT cover NEON — `distance/mod.rs` gates that module on
+      # `target_arch = "aarch64"`, so on this x86_64 runner it is never
+      # compiled. Nor is it the only net under the kernels: the regression
+      # test `distance_kernels.rs`, added by the same commit that fixed the
+      # `df63f31` overread, catches that defect unsanitized on five platforms
+      # including two ARM64 legs. An `ubuntu-24.04-arm` leg would extend this
+      # job to NEON.
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # nightly
         with:
           toolchain: nightly
