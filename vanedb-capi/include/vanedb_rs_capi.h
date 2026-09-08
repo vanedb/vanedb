@@ -28,7 +28,9 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  * written -- where 0 alone cannot distinguish a failure from an empty store.
  * After any call, vanedb_rs_last_error() gives the reason as a VANEDB_RS_*
  * code and vanedb_rs_last_error_message() the detail. Both are thread-local
- * and are reset by the next call on the same thread. Branch on the code:
+ * and are reset by the next call on the same thread; the message pointer is
+ * also freed when its thread exits, so copy the bytes before handing them to
+ * another thread. Branch on the code:
  * VANEDB_RS_IO is worth retrying, VANEDB_RS_CORRUPT is not, and
  * VANEDB_RS_FILE_NOT_FOUND means build it instead. Treat an unrecognized
  * code as a failure: VaneError gains variants in minor releases.
@@ -155,12 +157,19 @@ uint32_t vanedb_rs_last_error(void);
  * and never null (the empty string after a success).
  *
  * This carries the detail the code cannot — which field mismatched, what was
- * wrong with the file. The pointer is owned by the library and is invalidated
- * by the next `vanedb_rs_*` call on this thread; copy it to keep it.
+ * wrong with the file.
+ *
+ * The pointer is owned by the library and stays valid only until **either**
+ * the next `vanedb_rs_*` call on this thread, **or** this thread exits — the
+ * buffer lives in thread-local storage and is dropped with it. Handing the
+ * pointer to another thread that outlives this one is a use-after-free, and
+ * so is stashing it across a join. Copy the bytes if they need to outlive
+ * either event.
  *
  * # Safety
- * The returned pointer must not be freed by the caller, and must not be used
- * after another `vanedb_rs_*` call on the same thread.
+ * The returned pointer must not be freed by the caller. It must not be used
+ * after another `vanedb_rs_*` call on the same thread, and must not be used
+ * after that thread has exited — including by a thread that joined it.
  */
 const char *vanedb_rs_last_error_message(void);
 

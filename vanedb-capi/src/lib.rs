@@ -181,12 +181,19 @@ pub extern "C" fn vanedb_rs_last_error() -> u32 {
 /// and never null (the empty string after a success).
 ///
 /// This carries the detail the code cannot — which field mismatched, what was
-/// wrong with the file. The pointer is owned by the library and is invalidated
-/// by the next `vanedb_rs_*` call on this thread; copy it to keep it.
+/// wrong with the file.
+///
+/// The pointer is owned by the library and stays valid only until **either**
+/// the next `vanedb_rs_*` call on this thread, **or** this thread exits — the
+/// buffer lives in thread-local storage and is dropped with it. Handing the
+/// pointer to another thread that outlives this one is a use-after-free, and
+/// so is stashing it across a join. Copy the bytes if they need to outlive
+/// either event.
 ///
 /// # Safety
-/// The returned pointer must not be freed by the caller, and must not be used
-/// after another `vanedb_rs_*` call on the same thread.
+/// The returned pointer must not be freed by the caller. It must not be used
+/// after another `vanedb_rs_*` call on the same thread, and must not be used
+/// after that thread has exited — including by a thread that joined it.
 #[no_mangle]
 pub extern "C" fn vanedb_rs_last_error_message() -> *const c_char {
     LAST_MESSAGE.with(|slot| slot.borrow().as_ptr())
