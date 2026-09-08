@@ -59,6 +59,10 @@ fn one_id(id: BigInt) -> Result<u64, JsError> {
 
 // Preserve the number until validation: Wasm's i32 boundary would silently
 // truncate fractions and wrap negative or oversized JavaScript numbers.
+/// The seed this crate has always used when none is supplied. Named so the
+/// default is one value rather than a literal repeated in code and docs.
+const DEFAULT_SEED: u64 = 42;
+
 fn count(value: f64, name: &str) -> Result<usize, JsError> {
     if !value.is_finite() || value.fract() != 0.0 || !(0.0..=u32::MAX as f64).contains(&value) {
         return Err(JsError::new(&format!(
@@ -172,11 +176,36 @@ pub struct WasmIndex {
 impl WasmIndex {
     /// Removes the vector stored under `id`. Tombstoned: the node keeps its
     /// graph links, which may be the only route between live neighbourhoods,
-    /// and simply stops appearing in results.
-    pub fn remove(&mut self, id: BigInt) -> Result<(), JsError> {
+    /// and simply stops appearing in results. `tombstones` counts them and
+    /// `compact` reclaims them.
+    ///
+    /// Takes `&self` like every other mutator on this type. With `&mut self`,
+    /// wasm-bindgen gives a JS caller holding any other borrow of the object
+    /// "recursive use of an object detected" rather than a deletion.
+    pub fn remove(&self, id: BigInt) -> Result<(), JsError> {
         self.inner.remove(one_id(id)?).map_err(to_jserr)
     }
 
+    /// How many removed slots the graph still carries.
+    ///
+    /// A browser is the most memory-constrained runtime this crate targets, and
+    /// a tombstone holds its vector and links until compaction. Without this a
+    /// caller could delete but could not tell what deleting had cost.
+    pub fn tombstones(&self) -> usize {
+        self.inner.tombstones()
+    }
+
+    /// Rebuilds the graph without its tombstoned slots, reclaiming their
+    /// memory. Live ids and their vectors are preserved; only the removed
+    /// slots go. Cost is a full rebuild, so call it when churn has accumulated
+    /// rather than after each removal.
+    pub fn compact(&self) -> Result<(), JsError> {
+        self.inner.compact().map_err(to_jserr)
+    }
+
+    /// `seed` is optional and defaults to 42, the value this constructor used
+    /// to hardcode. Supplying it makes construction reproducible: two indexes
+    /// built from the same vectors with the same seed have the same topology.
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: f64,
@@ -184,13 +213,21 @@ impl WasmIndex {
         capacity: f64,
         m: f64,
         ef_construction: f64,
+        seed: Option<f64>,
     ) -> Result<WasmIndex, JsError> {
         let met = parse_metric(metric)?;
+        // Ids beyond 2^53 are not exactly representable as f64, so a seed
+        // arrives through the same numeric gate as every other count rather
+        // than being cast silently.
+        let seed = match seed {
+            Some(value) => count(value, "seed")? as u64,
+            None => DEFAULT_SEED,
+        };
         let inner = ApproxIndex::builder(count(dim, "dimension")?, met)
             .capacity(count(capacity, "capacity")?)
             .m(count(m, "m")?)
             .ef_construction(count(ef_construction, "ef_construction")?)
-            .seed(42)
+            .seed(seed)
             .build()
             .map_err(to_jserr)?;
         Ok(Self { inner })
@@ -222,6 +259,17 @@ impl WasmIndex {
         Ok(self.inner.contains(one_id(id)?))
     }
 
+    /// The vector stored under `id`, as a `Float32Array`.
+    pub fn get_vector(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+        self.inner.get_vector(one_id(id)?).map_err(to_jserr)
+    }
+
+    /// The same operation as `get_vector`, under the spelling `FlatIndex` uses.
+    /// Both exist so a program is not tied to one index type (#85).
+    pub fn get(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+        self.get_vector(id)
+    }
+
     pub fn size(&self) -> usize {
         self.inner.size()
     }
@@ -234,6 +282,27 @@ impl WasmIndex {
 
     pub fn dimension(&self) -> usize {
         self.inner.dimension()
+    }
+
+    /// The graph's `M`.
+    pub fn m(&self) -> usize {
+        self.inner.m()
+    }
+
+    /// The `ef_construction` the graph was built with.
+    pub fn ef_construction(&self) -> usize {
+        self.inner.ef_construction()
+    }
+
+    /// The seed the graph was built with.
+    pub fn seed(&self) -> u64 {
+        self.inner.seed()
+    }
+
+    /// The capacity hint the graph was built with. Not a limit: the index
+    /// grows past it, so this may be smaller than `size`.
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
     }
 
     #[wasm_bindgen(getter)]
