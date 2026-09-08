@@ -61,12 +61,27 @@ are `VANEDB_RS_L2` (squared distance), `VANEDB_RS_COSINE` and `VANEDB_RS_DOT`
 the configured dimension and unique unsigned 64-bit IDs.
 
 Constructors return null on failure. Status functions return zero on success;
-searches return the number of results written, with zero also representing an
-error. Allocate output buffers for at least `k` IDs and distances. Free each
-handle once with its matching `*_free` function. The generated header documents
+searches return the number of results written, where zero alone cannot tell a
+failure from an empty store. After any call, `vanedb_rs_last_error()` gives the
+reason as a `VANEDB_RS_*` code and `vanedb_rs_last_error_message()` the detail —
+both thread-local, both reset by the next call on that thread. Branch on the
+code rather than the return value: `VANEDB_RS_IO` is worth retrying,
+`VANEDB_RS_CORRUPT` is not, and `VANEDB_RS_FILE_NOT_FOUND` means build the file
+instead. Treat an unrecognized code as a failure; the set grows in minor
+releases.
+
+Allocate output buffers for at least `k` IDs and distances. Free each handle
+once with its matching `*_free` function. The generated header documents
 pointer validity, ownership and buffer requirements for every function.
 
 The graph search's `ef_search` argument applies only to that call, so concurrent
-queries can choose different recall/speed settings. See the
+queries can choose different recall/speed settings. Pass `0` to search at the
+handle's own setting, which `vanedb_rs_index_ef_search()` reports. Note that
+`vanedb_cpp_index_search` rejects `0` rather than resolving it — the two ABIs
+are otherwise callable through one uniform FFI.
+
+`vanedb_rs_version()` returns the library's version so a consumer can check the
+shared object matches the header it compiled against. This is a 0.x ABI: it may
+change in a minor release. See the
 [repository guide](https://github.com/vanedb/vanedb#persistence) for persistence
 limitations and platform verification.

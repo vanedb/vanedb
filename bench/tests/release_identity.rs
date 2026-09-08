@@ -78,6 +78,24 @@ fn declared_versions() -> Vec<(&'static str, String)> {
         .to_string();
     sites.push(("cpp/src/core/version.h VERSION_STRING", string));
 
+    // `VANEDB_RS_VERSION` in the generated C header, so a consumer can compare
+    // it against `vanedb_rs_version()` at runtime. cbindgen cannot compute it,
+    // so it is a literal in the emitted preamble and drifts silently without
+    // this check — the same failure mode as the two sites above.
+    let preamble = read("vanedb-capi/cbindgen.toml");
+    let macro_version = preamble
+        .lines()
+        .find_map(|l| {
+            l.split_once("#define VANEDB_RS_VERSION ")?
+                .1
+                .split('\\')
+                .nth(1)
+        })
+        .and_then(|v| v.strip_prefix('"'))
+        .expect("cbindgen.toml defines VANEDB_RS_VERSION")
+        .to_string();
+    sites.push(("vanedb-capi/cbindgen.toml VANEDB_RS_VERSION", macro_version));
+
     // Doxygen renders this on the generated C++ docs. A free-form string, so
     // it can spell a prerelease and must match in full; it read "0.1.0"
     // throughout the 0.1.0-rc.1 period without anything noticing.
