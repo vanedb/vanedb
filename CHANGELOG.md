@@ -70,6 +70,28 @@ section records what it contains rather than what changed.
 
 ### Added
 
+- **A real error channel in the C ABI.** Every status function used to return a
+  bare `1` for a dimension mismatch, a duplicate id, a corrupt file, an I/O
+  failure and a caught panic alike, and a search returning `0` results could
+  not be told from an empty store. `vanedb_rs_last_error()` now reports one of
+  sixteen `VANEDB_RS_*` codes and `vanedb_rs_last_error_message()` the detail,
+  both thread-local. Existing return values are unchanged, so `!= 0` checks
+  keep working. `VANEDB_RS_UNKNOWN` is a permanent catch-all because
+  `VaneError` is `#[non_exhaustive]`.
+- `vanedb_rs_version()` and a `VANEDB_RS_VERSION` header macro, so a consumer
+  can check the shared object against the header it compiled against.
+- C ABI accessors for a handle a caller did not build: `_index_m`,
+  `_ef_construction`, `_seed`, `_capacity`, `_ef_search` and its setter, plus
+  `get`/`get_vector` under both spellings on all three handle types.
+- `vanedb_rs_index_search` treats `ef_search = 0` as "use the handle's stored
+  value" rather than clamping the beam to `k`. The parallel C++ ABI rejects `0`
+  instead; the header documents the difference.
+- **WebAssembly `ApproxIndex` can measure and reclaim deletions.** It had
+  `remove` and neither `tombstones` nor `compact`, so a browser application
+  that churned entries grew without bound in the most memory-constrained
+  runtime this crate targets. It also gained `get`/`get_vector`, an optional
+  construction `seed` (previously hardcoded to 42), and `m`/`ef_construction`/
+  `capacity` accessors.
 - `DiskIndex` and `DiskIndexBuilder` appear in the published documentation,
   with the feature badge that says they need `disk`.
 - Declared MSRV of 1.85, checked in CI on that exact toolchain.

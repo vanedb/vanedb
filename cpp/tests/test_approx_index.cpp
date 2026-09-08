@@ -279,6 +279,13 @@ TEST_CASE("ApproxIndex - search quality", "[index]") {
 
     // With ef=100 on 500 vectors, recall should be high
     REQUIRE(recall_high >= 8);  // At least 80% recall
+
+    // NOTE: neither assertion above can fail. At n=500 a beam of 10 already
+    // reaches ~0.95, so `recall_high >= recall_low` is satisfied by 10 == 10
+    // and `>= 8` by the narrow search alone. Deleting the feature — making
+    // search() ignore the stored ef_search, or collapsing the beam to `ef = k`
+    // — leaves this section green. The fixture is too small to show it; the
+    // test case below uses one that can.
   }
 }
 
@@ -1171,4 +1178,56 @@ TEST_CASE("ApproxIndex - graph capacity hint does not allocate unused slots", "[
   REQUIRE(reloaded->capacity() == 100000000);
   REQUIRE(reloaded->size() == 4);
   std::filesystem::remove(path);
+}
+
+TEST_CASE("ef_search actually reaches the search", "[index][recall]") {
+  // The section in "ApproxIndex - recall" named for this cannot fail: its
+  // 500-vector fixture is dense enough that the narrowest legal beam already
+  // finds every true neighbour. A sparse graph over a larger corpus is where
+  // the stored setting shows, and it is what makes the two mutations that
+  // survived the whole 96-test suite fail here:
+  //
+  //   const size_t ef = k;                       // beam collapsed
+  //   const size_t ef = 50;                      // stored value ignored
+  constexpr size_t dim = 32;
+  constexpr size_t n = 5000;
+  constexpr size_t k = 10;
+
+  vanedb::ApproxIndex index(dim, vanedb::Metric::L2, n, 8, 32, 7);
+  std::mt19937 gen(1234);
+  std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+  std::vector<std::vector<float>> corpus(n, std::vector<float>(dim));
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t d = 0; d < dim; ++d) corpus[i][d] = dis(gen);
+    index.add(static_cast<uint64_t>(i), corpus[i].data());
+  }
+
+  std::vector<float> query(dim);
+  for (size_t d = 0; d < dim; ++d) query[d] = dis(gen);
+
+  std::vector<std::pair<float, uint64_t>> truth;
+  truth.reserve(n);
+  for (size_t i = 0; i < n; ++i) {
+    truth.emplace_back(vanedb::l2_sq(query.data(), corpus[i].data(), dim),
+                       static_cast<uint64_t>(i));
+  }
+  std::sort(truth.begin(), truth.end());
+  std::unordered_set<uint64_t> gt;
+  for (size_t i = 0; i < k; ++i) gt.insert(truth[i].second);
+
+  auto recall_at = [&](size_t ef) {
+    index.set_ef_search(ef);
+    auto hits = index.search(query.data(), k);
+    int found = 0;
+    for (const auto& r : hits) {
+      if (gt.count(r.id)) found++;
+    }
+    return found;
+  };
+
+  const int narrow = recall_at(k);   // the narrowest legal beam
+  const int wide = recall_at(500);
+  INFO("recall at ef=k: " << narrow << "/" << k << ", at ef=500: " << wide << "/" << k);
+  REQUIRE(wide > narrow);
+  REQUIRE(index.get_ef_search() == 500);
 }

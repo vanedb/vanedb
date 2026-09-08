@@ -124,7 +124,8 @@ fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_open_rejects_non_finite_stored_vectors() {
-    let path = std::env::temp_dir().join("vanedb_mmap_non_finite.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_mmap_non_finite-{}.bin", std::process::id()));
     let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
     builder.add(1, &[0.0, 0.0]).unwrap();
     builder.save(&path).unwrap();
@@ -147,7 +148,10 @@ fn mmap_open_rejects_non_finite_stored_vectors() {
 /// mutate specific fields and exercise validation paths in `load`. The `tag`
 /// scopes the temp-file path so parallel tests don't collide on the same name.
 fn valid_hnsw_bytes(tag: &str) -> Vec<u8> {
-    let path = std::env::temp_dir().join(format!("vanedb_corruption_seed_{tag}.bin"));
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_corruption_seed_{tag}-{}.bin",
+        std::process::id()
+    ));
     let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(8)
         .seed(7)
@@ -163,7 +167,14 @@ fn valid_hnsw_bytes(tag: &str) -> Vec<u8> {
 }
 
 fn write_tmp(name: &str, bytes: &[u8]) -> std::path::PathBuf {
-    let p = std::env::temp_dir().join(format!("vanedb_corruption_{name}.bin"));
+    // pid-scoped: a fixed name in the shared temp dir made two concurrent runs
+    // of this binary clobber each other's fixtures — it failed 8 of 10 paired
+    // runs, with errors like "dim = 2^62 must be rejected, got FileNotFound".
+    // CI is safe only because Test, Coverage and ASan are separate runners.
+    let p = std::env::temp_dir().join(format!(
+        "vanedb_corruption_{name}_{}.bin",
+        std::process::id()
+    ));
     let mut f = fs::File::create(&p).unwrap();
     f.write_all(bytes).unwrap();
     p
@@ -228,7 +239,10 @@ fn hnsw_load_rejects_garbage_payload() {
 #[test]
 fn hnsw_save_load_preserves_all_metrics() {
     for &metric in &[Metric::L2, Metric::Cosine, Metric::Dot] {
-        let path = std::env::temp_dir().join(format!("vanedb_metric_{metric:?}.bin"));
+        let path = std::env::temp_dir().join(format!(
+            "vanedb_metric_{metric:?}-{}.bin",
+            std::process::id()
+        ));
         let idx = ApproxIndex::builder(3, metric).capacity(4).build().unwrap();
         idx.add(1, &[1.0, 0.0, 0.0]).unwrap();
         idx.save(&path).unwrap();
@@ -245,7 +259,8 @@ fn hnsw_save_load_preserves_rng_determinism() {
     // the original seed, so subsequent inserts diverged from a never-saved
     // index using the same builder seed. Now `load()` replays `count`
     // get_level calls so the next insert sees the same RNG state.
-    let path = std::env::temp_dir().join("vanedb_rng_determinism.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_rng_determinism-{}.bin", std::process::id()));
 
     // Reference: build, insert 5, then insert 5 more, never saving.
     let reference = ApproxIndex::builder(4, Metric::L2)
@@ -315,7 +330,10 @@ fn mmap_load_rejects_nonzero_reserved_header_bytes() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_load_rejects_unsupported_version() {
-    let path = std::env::temp_dir().join("vanedb_mmap_bad_version.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_mmap_bad_version-{}.bin",
+        std::process::id()
+    ));
     let mut data = Vec::new();
     data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&999u32.to_le_bytes()); // unsupported
@@ -355,7 +373,8 @@ fn mmap_load_rejects_zero_dim_with_vectors() {
 #[test]
 fn mmap_load_rejects_truncated_data() {
     // Header claims 1000 vectors but file ends after the header.
-    let path = std::env::temp_dir().join("vanedb_mmap_truncated.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_mmap_truncated-{}.bin", std::process::id()));
     let mut data = Vec::new();
     data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
@@ -480,7 +499,7 @@ fn a_coordinated_geometry_rewrite_is_still_accepted() {
         let vector: Vec<f32> = (0..dim).map(|d| (id as usize * 7 + d * 3) as f32).collect();
         builder.add(id, &vector).unwrap();
     }
-    let good = dir.join("good.vndb");
+    let good = dir.join(format!("good-{}.vndb", std::process::id()));
     builder.save(&good).unwrap();
     let bytes = fs::read(&good).unwrap();
 
@@ -520,7 +539,7 @@ fn an_empty_store_cannot_validate_its_dimension_but_still_bounds_it() {
     let dir = std::env::temp_dir().join(format!("vanedb-empty-dim-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
-    let good = dir.join("empty.vndb");
+    let good = dir.join(format!("empty-{}.vndb", std::process::id()));
     DiskIndexBuilder::new(4, Metric::L2)
         .unwrap()
         .save(&good)
@@ -562,7 +581,8 @@ fn an_empty_store_cannot_validate_its_dimension_but_still_bounds_it() {
 #[test]
 fn mmap_load_rejects_size_overflow() {
     // num_vectors * dim that overflows usize when multiplied by sizeof(f32).
-    let path = std::env::temp_dir().join("vanedb_mmap_overflow.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_mmap_overflow-{}.bin", std::process::id()));
     let mut data = Vec::new();
     data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
     data.extend_from_slice(&1u32.to_le_bytes());
@@ -582,7 +602,8 @@ fn mmap_load_rejects_size_overflow() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_load_rejects_invalid_metric() {
-    let path = std::env::temp_dir().join("vanedb_mmap_bad_metric.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_mmap_bad_metric-{}.bin", std::process::id()));
     // Valid header, dim=3, num=0, metric=99 (out of range)
     let mut data = Vec::new();
     data.extend_from_slice(&DISK_MAGIC.to_le_bytes());
@@ -603,7 +624,7 @@ fn mmap_load_rejects_invalid_metric() {
 #[cfg(feature = "disk")]
 #[test]
 fn mmap_search_rejects_zero_k() {
-    let path = std::env::temp_dir().join("vanedb_mmap_zero_k.bin");
+    let path = std::env::temp_dir().join(format!("vanedb_mmap_zero_k-{}.bin", std::process::id()));
     let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
     b.add(1, &[1.0, 2.0, 3.0]).unwrap();
     b.save(&path).unwrap();

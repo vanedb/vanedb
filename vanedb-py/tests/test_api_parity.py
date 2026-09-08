@@ -216,3 +216,68 @@ def test_keyerror_carries_the_message_not_just_the_id():
     with pytest.raises(KeyError) as excinfo:
         flat.get(42)
     assert excinfo.value.args[0] == "vector not found: 42"
+
+
+def test_distances_are_real_values_not_zero(tmp_path):
+    """Replacing every returned distance with 0.0 passed all 164 tests.
+
+    Every distance assertion in the suite was `< 1e-6`, `== 0.0`, or a
+    comparison between two outputs of the same code path, so none of them
+    could tell a working metric from a constant. These check magnitudes
+    against arithmetic done here.
+    """
+    a, b = [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
+
+    flat = FlatIndex(3, Metric.L2)
+    flat.add(1, a)
+    flat.add(2, b)
+    hits = dict(flat.search(a, 2))
+    assert hits[1] == pytest.approx(0.0, abs=1e-6)
+    assert hits[2] == pytest.approx(2.0, rel=1e-5), "L2 is squared: |a-b|^2 = 2"
+
+    cos = FlatIndex(3, Metric.COSINE)
+    cos.add(1, a)
+    cos.add(2, b)
+    hits = dict(cos.search(a, 2))
+    assert hits[1] == pytest.approx(0.0, abs=1e-6)
+    assert hits[2] == pytest.approx(1.0, rel=1e-5), "orthogonal cosine distance is 1"
+
+    dot = FlatIndex(3, Metric.DOT)
+    dot.add(1, [2.0, 0.0, 0.0])
+    dot.add(2, b)
+    hits = dict(dot.search(a, 2))
+    assert hits[1] == pytest.approx(-2.0, rel=1e-5), "dot is negated: -(a.b)"
+    assert hits[2] == pytest.approx(0.0, abs=1e-6)
+
+    approx = ApproxIndex(3, Metric.L2)
+    approx.add(1, a)
+    approx.add(2, b)
+    assert dict(approx.search(a, 2))[2] == pytest.approx(2.0, rel=1e-5)
+
+    builder = DiskIndexBuilder(3, Metric.L2)
+    builder.add(1, a)
+    builder.add(2, b)
+    path = str(tmp_path / "d.vndb")
+    builder.save(path)
+    assert dict(DiskIndex.open(path).search(a, 2))[2] == pytest.approx(2.0, rel=1e-5)
+
+
+def test_metric_wire_values_are_pinned():
+    """The suite only ever compared `Metric` to `Metric`, so swapping the
+    integer discriminants (L2=2, Cosine=0, Dot=1) changed nothing. Those
+    integers are the on-disk `metric` field and the C ABI's contract; the C
+    side pins them and Python did not."""
+    assert int(Metric.L2) == 0
+    assert int(Metric.COSINE) == 1
+    assert int(Metric.DOT) == 2
+
+
+def test_a_saved_index_restores_its_search_beam(tmp_path):
+    """`ApproxIndex.load` discarding the persisted `ef_search` survived the
+    suite. It travels in the file so a tuned index ships as one artifact."""
+    index = ApproxIndex(2, Metric.L2, capacity=32, m=4, ef_construction=16, seed=3)
+    index.add(1, [1.0, 0.0])
+    index.ef_search = 137
+    path = str(tmp_path / "g.vndb")
+    index.save(path)
+    assert ApproxIndex.load(path).ef_search == 137

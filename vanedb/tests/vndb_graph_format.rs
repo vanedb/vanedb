@@ -204,7 +204,7 @@ fn corrupt(name: &str, patch: impl FnOnce(&mut Vec<u8>)) -> vanedb::VaneError {
     static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = scratch(&format!("negative_{n}"));
-    let path = dir.join("patched.vndb");
+    let path = dir.join(format!("patched-{}.vndb", std::process::id()));
     std::fs::write(&path, &bytes).unwrap();
     let err = ApproxIndex::load(&path).expect_err("a patched fixture must be rejected");
     let _ = std::fs::remove_dir_all(&dir);
@@ -258,7 +258,7 @@ fn a_truncated_file_is_rejected_at_every_length() {
     let bytes = std::fs::read(fixture("l2_rng1.vndb")).unwrap();
     let dir = scratch("truncated");
     for cut in 0..bytes.len() {
-        let path = dir.join("cut.vndb");
+        let path = dir.join(format!("cut-{}.vndb", std::process::id()));
         std::fs::write(&path, &bytes[..cut]).unwrap();
         assert!(
             ApproxIndex::load(&path).is_err(),
@@ -353,7 +353,7 @@ fn two_live_slots_with_the_same_id_are_rejected() {
 fn inserting_into_a_foreign_graph_drops_its_continuation_stream() {
     let dir = std::env::temp_dir().join(format!("vanedb-m9-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("resaved.vndb");
+    let path = dir.join(format!("resaved-{}.vndb", std::process::id()));
 
     let index = ApproxIndex::load(fixture("l2_rng2.vndb")).unwrap();
     index.add(7, &[0.3, 0.4]).unwrap();
@@ -399,9 +399,9 @@ fn a_graph_resumed_from_disk_continues_the_level_sequence() {
 
     let dir = std::env::temp_dir().join(format!("vanedb-m10-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let straight_path = dir.join("straight.vndb");
-    let resumed_path = dir.join("resumed.vndb");
-    let halfway = dir.join("halfway.vndb");
+    let straight_path = dir.join(format!("straight-{}.vndb", std::process::id()));
+    let resumed_path = dir.join(format!("resumed-{}.vndb", std::process::id()));
+    let halfway = dir.join(format!("halfway-{}.vndb", std::process::id()));
 
     let straight = build();
     for i in 0..60 {

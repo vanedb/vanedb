@@ -90,8 +90,12 @@ and toolchain for checks that cannot run locally.
 - **Legacy Rust persistence remains stable during the VNDB transition**:
   bincode stays on 2.x with `bincode::config::legacy()` (the bincode-1 wire
   format); Dependabot ignores the intentionally uncompilable 3.x major. Keep
-  legacy v1 files loadable, update the mirror in `tests/corruption_tests.rs` in
+  legacy v1 files loadable, update **both** `HnswData` mirrors — in
+  `tests/corruption_tests.rs` and `tests/approx_id_map_conformance.rs` — in
   lockstep with layout changes, and add a fixture for every compatibility fix.
+  The two mirrors are byte-identical apart from an import; a layout change
+  applied to one and not the other leaves the second file's hand-encoded
+  payloads decoding as a different struct.
   These are transition safeguards, not a public-version promise.
 - **HNSW cross-engine parity is semantic, not byte-for-byte adjacency**:
   independently built graphs may differ. Each graph must satisfy structural

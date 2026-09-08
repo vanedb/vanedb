@@ -49,14 +49,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage reporting now excludes test and benchmark files (measures only production code)
 - Division by zero in DiskIndex when loading corrupted file with dim=0
 
-## [0.1.0] - 2026-09-07
+## [0.1.0] - Unreleased
+
+This version tracks the core crate, which has not been released. RELEASING.md
+requires the C++ manifest, header and CMake version to match the core, so
+this section carries the core's release state too.
 
 ### Added
 - Core distance functions with SIMD optimization (ARM NEON, x86 AVX2)
   - L2 squared distance
   - Cosine similarity/distance
   - Dot product
-- GPU acceleration (Metal for Apple Silicon, CUDA for NVIDIA)
+- GPU acceleration: Metal (Apple Silicon). CUDA (NVIDIA) is experimental —
+  kernel source only, not wired into the build
   - Persistent buffer API for zero-copy repeated queries
   - 3.9x speedup at 500k vectors
 - In-memory FlatIndex with k-NN brute-force search

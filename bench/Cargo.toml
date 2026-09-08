@@ -1,3 +1,9 @@
+# Its own workspace root. Without this, bench resolves to the nearest
+# ancestor manifest, so it builds only because the repo root excludes it —
+# and fails outright in any checkout nested inside another Cargo workspace,
+# such as a git worktree under the repo.
+[workspace]
+
 [package]
 name = "vanedb-bench"
 version = "0.1.0"

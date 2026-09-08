@@ -7,6 +7,10 @@ inside your process without running a database server.
 - `ApproxIndex` — approximate graph search, with recall controlled by `ef_search`.
 - `DiskIndex` — exact search over a read-only memory-mapped file (feature `disk`).
 
+VaneDB stores only `(u64, vector)` pairs. There is no metadata or payload
+storage and no filtered search; keep your own id-to-document mapping
+alongside it. Supply your own embeddings — VaneDB does not generate them.
+
 From a source checkout, run `cargo run -p vanedb --example quickstart --locked`
 at the repository root. For a local application, add
 `vanedb = { path = "/path/to/vanedb/vanedb" }` to its Cargo dependencies.

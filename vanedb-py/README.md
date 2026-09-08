@@ -2,7 +2,9 @@
 
 VaneDB is an embeddable vector database backed by Rust. Store vectors and search
 for their nearest neighbors inside your Python process, without a database
-server. Supply your own embeddings; VaneDB does not generate them.
+server. Supply your own embeddings; VaneDB does not generate them. It stores only
+`(id, vector)` pairs — no metadata or payload storage and no filtered
+search — so keep your own id-to-document mapping alongside it.
 
 The `vanedb` package is the shipping Python implementation. C++ bindings are
 kept in the repository for reference and local testing, and are not published.
@@ -89,6 +91,23 @@ new identifiers and readers for existing files are retained. Older readers
 need not accept future formats. Future insertions need not reproduce identical topology. `DiskIndex`
 continues to use shared VNDB v1 files. Disk construction buffers vectors in
 memory before saving, while the opened index uses a read-only memory mapping.
+
+`DiskIndexBuilder` is the only way to create a file `DiskIndex.open` accepts:
+
+```python
+from vanedb import DiskIndex, DiskIndexBuilder, Metric
+
+builder = DiskIndexBuilder(3, Metric.L2)
+builder.add(1, [1.0, 0.0, 0.0])
+builder.add(2, [0.0, 1.0, 0.0])
+builder.save("corpus.vndb")
+
+index = DiskIndex.open("corpus.vndb")
+print(len(index))                        # 2
+print(index.search([0.9, 0.1, 0.0], 1))  # [(1, ...)]
+```
+
+`DiskIndex` has no constructor of its own — `DiskIndex(...)` raises `TypeError`.
 
 For `DiskIndex.open(path)`, keep the underlying file immutable from before the
 call until the last reference to the index is released. Prevent every process

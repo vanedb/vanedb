@@ -103,7 +103,7 @@ fn an_emptied_index_searches_without_panicking() {
 fn deletions_survive_save_and_load() {
     let dir = std::env::temp_dir().join(format!("vanedb-del-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("idx.vndb");
+    let path = dir.join(format!("idx-{}.vndb", std::process::id()));
 
     let idx = index(40);
     idx.remove(5).unwrap();

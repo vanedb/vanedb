@@ -36,14 +36,25 @@ The [complete Node example](https://github.com/vanedb/vanedb/blob/main/vanedb-wa
 checks the nearest ID and distance. Generated JavaScript, TypeScript types and
 the wasm module are in `vanedb-wasm/pkg`.
 
-For a browser, build with `--target web` instead. Serve the generated `pkg`
-directory over HTTP alongside an HTML page containing:
+For a browser, build with `--target web` instead — into a **different output
+directory**, because both targets default to `pkg/` and the second build
+overwrites the first, after which the Node example above fails with
+`Cannot read properties of undefined (reading '__wbindgen_malloc')`:
+
+```sh
+wasm-pack build vanedb-wasm --target web --release --locked --out-dir pkg-web
+```
+
+Serve the directory *containing* `pkg-web` over HTTP, alongside an HTML page
+containing:
 
 ```html
 <script type="module">
 import init, { ApproxIndex } from './pkg/vanedb_wasm.js';
 await init();
-const index = new ApproxIndex(3, 'cosine', 100, 16, 200);
+// dim, metric, capacity, m, ef_construction, and an optional seed
+// (defaults to 42; supply it for reproducible construction).
+const index = new ApproxIndex(3, 'cosine', 100, 16, 200, 42);
 index.add(101n, new Float32Array([1, 0, 0]));
 const hits = index.search(new Float32Array([1, 0, 0]), 1);
 console.log(hits.ids[0], hits.distances[0]); // 101n, 0
@@ -53,9 +64,23 @@ index.free();
 ```
 
 The approximate constructor takes `(dimension, metric, capacity, m,
-ef_construction)`. Capacity is a reserve hint; `m` and `ef_construction` control
-graph construction. Set `index.ef_search` to trade search speed for recall.
+ef_construction, seed?)`. Capacity is a reserve hint, not a limit — the index
+grows past it; `m` and `ef_construction` control graph construction; `seed`
+defaults to 42 and fixes the topology for a given insertion order. Read them
+back with `m()`, `ef_construction()`, `capacity()` and `seed()`. Set
+`index.ef_search` to trade search speed for recall.
 For exact search use `new FlatIndex(dimension, metric)`.
+
+`ApproxIndex` supports the full delete lifecycle. `remove(id)` tombstones a
+vector: it stops appearing in results immediately, but keeps its graph links,
+which may be the only route between live neighbourhoods. `tombstones()` counts
+what that has cost and `compact()` reclaims it — worth calling when churn has
+accumulated, since a browser is the most memory-constrained runtime this crate
+targets. `get(id)` and `get_vector(id)` read a stored vector back; both
+spellings exist so a program is not tied to one index type.
+
+Not available in WebAssembly: persistence (`save`/`load`), disk mapping, and
+`upsert`.
 
 Metrics are strings: `"l2"` is squared Euclidean distance, `"cosine"` is cosine
 distance and `"dot"` is negative dot product. Lower distances rank first.

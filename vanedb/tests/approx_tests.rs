@@ -59,21 +59,53 @@ fn hnsw_recall_vs_brute_force() {
             hnsw.add(i, &vector).unwrap();
             brute.add(i, &vector).unwrap();
         }
-        hnsw.set_ef_search(100);
-        let mut hits = 0;
-        for _ in 0..20 {
-            let query: Vec<f32> = (0..dim).map(|_| rng.random_range(-1.0..1.0)).collect();
-            let exact = brute.search(&query, k).unwrap();
-            let approximate = hnsw.search(&query, k).unwrap();
-            assert_eq!(approximate.len(), k);
-            hits += approximate
-                .iter()
-                .filter(|result| exact.iter().any(|truth| truth.id == result.id))
-                .count();
-        }
+        // Twenty fixed queries, replayed at two beam widths from the same
+        // generator state so the two recalls are comparable.
+        let queries: Vec<Vec<f32>> = (0..20)
+            .map(|_| (0..dim).map(|_| rng.random_range(-1.0..1.0)).collect())
+            .collect();
+        let recall_at = |ef: usize| {
+            hnsw.set_ef_search(ef);
+            let mut hits = 0;
+            for query in &queries {
+                let exact = brute.search(query, k).unwrap();
+                let approximate = hnsw.search(query, k).unwrap();
+                assert_eq!(approximate.len(), k);
+                hits += approximate
+                    .iter()
+                    .filter(|result| exact.iter().any(|truth| truth.id == result.id))
+                    .count();
+            }
+            hits as f64 / (queries.len() * k) as f64
+        };
+
         // A regression floor for this fixed workload, not a corpus-level claim.
-        let recall = hits as f64 / (20 * k) as f64;
-        assert!(recall >= 0.8, "{metric:?} recall too low: {recall:.3}");
+        let wide = recall_at(100);
+        assert!(
+            wide >= 0.8,
+            "{metric:?} recall too low at ef=100: {wide:.3}"
+        );
+
+        // The floor above cannot fail. A beam of 100 over 500 vectors covers a
+        // fifth of the corpus and scores exactly 1.000 for every metric, so it
+        // is pinned at its ceiling and detects nothing costing under 20 points.
+        // Inverting the neighbour prune to keep the *farthest* links — the
+        // choice CLAUDE.md names as performance-sensitive — costs 45 points
+        // here and is invisible at ef=100 (0.995).
+        //
+        // A narrow beam is where construction quality shows. Baseline is
+        // 0.925-0.950 across the three metrics; 0.85 leaves headroom for
+        // ordinary drift while rejecting a graph built wrong.
+        let narrow = recall_at(10);
+        assert!(
+            narrow >= 0.85,
+            "{metric:?} recall at ef=10 is {narrow:.3}; a narrow beam is what \
+             catches damaged construction, which ef=100 cannot see"
+        );
+        assert!(
+            wide >= narrow,
+            "{metric:?}: a wider beam must not do worse ({wide:.3} < {narrow:.3})"
+        );
     }
 }
 
@@ -99,7 +131,10 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
     // ~capacity worth of data. 10 vectors x 32 dims x 4 bytes is ~1.3 KB of
     // payload; 20 KB allows generous encoding overhead, while the full
     // pre-allocated arrays would exceed 140 KB.
-    let path = std::env::temp_dir().join("vanedb_test_hnsw_compact.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_test_hnsw_compact-{}.bin",
+        std::process::id()
+    ));
     let idx = ApproxIndex::builder(32, Metric::L2)
         .capacity(1000)
         .seed(42)
@@ -122,7 +157,8 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
 fn hnsw_empty_index_save_load_roundtrip() {
     // v2 stores zero-length arrays for an empty index; load must re-expand
     // to full capacity so subsequent adds work.
-    let path = std::env::temp_dir().join("vanedb_test_hnsw_empty.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_test_hnsw_empty-{}.bin", std::process::id()));
     let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(10)
         .seed(42)
@@ -141,7 +177,7 @@ fn hnsw_empty_index_save_load_roundtrip() {
 #[test]
 fn hnsw_save_load_roundtrip() {
     let dim = 8;
-    let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");
+    let path = std::env::temp_dir().join(format!("vanedb_test_hnsw-{}.bin", std::process::id()));
 
     // Build and populate index
     let idx = ApproxIndex::builder(dim, Metric::L2)

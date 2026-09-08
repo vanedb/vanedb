@@ -15,7 +15,7 @@ fn scratch(tag: &str) -> std::path::PathBuf {
 fn an_index_grown_past_its_capacity_hint_round_trips() {
     // capacity() is a hint that may be grown past, so save() records what it
     // wrote: bounding the file by the hint makes it unreadable.
-    let path = scratch("grown").join("grown.vane");
+    let path = scratch("grown").join(format!("grown-{}.vane", std::process::id()));
     let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(2)
         .build()
@@ -106,7 +106,7 @@ fn a_crafted_negative_mult_cannot_abort_the_process() {
     );
     bytes[MULT_OFFSET..MULT_OFFSET + 8].copy_from_slice(&(-1000.0f64).to_le_bytes());
 
-    let hostile = dir.join("negative-mult.vane");
+    let hostile = dir.join(format!("negative-mult-{}.vane", std::process::id()));
     fs::write(&hostile, &bytes).unwrap();
 
     let loaded = ApproxIndex::load(&hostile).expect("mult is recomputed, so the file still loads");

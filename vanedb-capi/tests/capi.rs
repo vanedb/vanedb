@@ -1,5 +1,18 @@
 // Behavior tests for the vanedb_rs_* C ABI. Functions are unsafe (raw pointers).
 
+/// A unique path under the system temp directory.
+///
+/// These files were bare relative names, so they landed in whatever working
+/// directory the test binary inherited and collided between concurrently
+/// running binaries. The pid keeps two runs apart; the name keeps two tests
+/// in one run apart.
+fn scratch_path(name: &str) -> String {
+    std::env::temp_dir()
+        .join(format!("vanedb-{name}-{}.bin", std::process::id()))
+        .to_string_lossy()
+        .into_owned()
+}
+
 #[test]
 fn search_beam_width_is_per_call() {
     unsafe {
@@ -66,7 +79,7 @@ fn hnsw() {
     let v0 = [0.0f32, 0.0];
     let v1 = [1.0f32, 1.0];
     let q = [0.1f32, 0.1];
-    let path = std::ffi::CString::new("rs_capi_hnsw.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_hnsw")).unwrap();
     unsafe {
         let h = vanedb_capi::vanedb_rs_index_new(2, 0, 100, 16, 200, 42);
         assert!(!h.is_null());
@@ -124,7 +137,7 @@ fn hnsw() {
             1
         );
     }
-    let _ = std::fs::remove_file("rs_capi_hnsw.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_hnsw"));
 }
 
 #[test]
@@ -132,7 +145,7 @@ fn mmap() {
     let ids_in = [10u64, 20];
     let vecs = [0.0f32, 0.0, 1.0, 1.0]; // row-major: id10=(0,0), id20=(1,1)
     let q = [0.1f32, 0.1];
-    let path = std::ffi::CString::new("rs_capi_mmap.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_mmap")).unwrap();
     unsafe {
         assert_eq!(
             vanedb_capi::vanedb_rs_disk_build(
@@ -166,14 +179,14 @@ fn mmap() {
             0
         );
     }
-    let _ = std::fs::remove_file("rs_capi_mmap.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_mmap"));
 }
 
 /// n == 0 with null ids/vecs must build a valid empty store, matching the
 /// null-safe-when-empty contract of the add_batch entry points.
 #[test]
 fn mmap_build_empty_with_null_pointers() {
-    let path = std::ffi::CString::new("rs_capi_mmap_empty.bin").unwrap();
+    let path = std::ffi::CString::new(scratch_path("rs_capi_mmap_empty")).unwrap();
     unsafe {
         assert_eq!(
             vanedb_capi::vanedb_rs_disk_build(
@@ -196,7 +209,7 @@ fn mmap_build_empty_with_null_pointers() {
         assert_eq!(n, 0);
         vanedb_capi::vanedb_rs_disk_free(m);
     }
-    let _ = std::fs::remove_file("rs_capi_mmap_empty.bin");
+    let _ = std::fs::remove_file(scratch_path("rs_capi_mmap_empty"));
 }
 
 #[test]
@@ -752,7 +765,7 @@ fn zero_ef_search_means_the_indexs_own_setting() {
     }
 }
 
-/// Every status function returned a bare `1`/// Every status function returned a bare `1` for a duplicate id, a dimension
+/// Every status function returned a bare `1` for a duplicate id, a dimension
 /// mismatch, a corrupt file and an I/O failure alike, and searches returned `0`
 /// results for both "empty" and "your query had a NaN in it". A caller could
 /// not implement the branching the core error type is designed for — retry on
@@ -1051,4 +1064,135 @@ fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
     })
     .join()
     .expect("the thread must exit cleanly, not abort");
+}
+
+/// Every error code reachable from C must be produced by something, and no
+/// failure may report success.
+///
+/// A mutation sweep found six of the sixteen codes never reached by any test:
+/// coverage showed the `code_for` arms for `Io`, `InvalidK`,
+/// `DimensionMismatch`, `BatchLengthMismatch`, `ZeroDimension` and `Backend`
+/// never executing. Mapping `Io` to `VANEDB_RS_OK` — an I/O failure reporting
+/// *success* to a C caller — survived the whole suite, as did routing
+/// `InvalidK` to `VANEDB_RS_IO`.
+///
+/// Two of those six are not reachable through this ABI at all: it derives a
+/// batch's vector count as `n * dim` rather than accepting a length, so a
+/// caller cannot present a mismatched batch or a wrong-width vector. Those
+/// codes exist because `code_for` maps every `VaneError` variant; the header
+/// records which a C caller can actually see.
+#[test]
+fn every_reachable_error_code_is_actually_produced() {
+    unsafe {
+        let handle = vanedb_capi::vanedb_rs_store_new(3, 0);
+        assert!(!handle.is_null());
+        let mut store = Box::from_raw(handle);
+        let v = [1.0f32, 2.0, 3.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
+            0
+        );
+
+        let mut ids = [0u64; 4];
+        let mut distances = [0.0f32; 4];
+
+        // InvalidK: k = 0. Previously produced by nothing.
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_search(
+                &mut *store,
+                v.as_ptr(),
+                0,
+                ids.as_mut_ptr(),
+                distances.as_mut_ptr(),
+            ),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_INVALID_K,
+            "k = 0 must report InvalidK, not a bare zero count"
+        );
+
+        // ZeroDimension: a store of dimension 0.
+        assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null());
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_ZERO_DIMENSION
+        );
+
+        // Io: a save whose parent directory does not exist. The mutation that
+        // mapped this to VANEDB_RS_OK — a failed write reporting success —
+        // survived everything before this assertion existed.
+        let index = vanedb_capi::vanedb_rs_index_new(3, 0, 8, 4, 16, 1);
+        assert!(!index.is_null());
+        let mut index = Box::from_raw(index);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(&mut *index, 1, v.as_ptr()),
+            0
+        );
+        let nowhere = std::ffi::CString::new(
+            std::env::temp_dir()
+                .join(format!(
+                    "vanedb-absent-{}/deeper/still/g.vndb",
+                    std::process::id()
+                ))
+                .to_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save(&mut *index, nowhere.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_FILE_NOT_FOUND,
+            "a missing parent directory is FileNotFound"
+        );
+
+        // A genuine `Io`, which is a different arm: `from_io` routes NotFound
+        // to FileNotFound and everything else to Io, so a missing directory
+        // never reaches it. Saving *onto* an existing directory does.
+        let dir = std::env::temp_dir().join(format!("vanedb-isdir-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let onto_dir = std::ffi::CString::new(dir.to_str().unwrap()).unwrap();
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save(&mut *index, onto_dir.as_ptr()),
+            1
+        );
+        let code = vanedb_capi::vanedb_rs_last_error();
+        assert_ne!(
+            code,
+            vanedb_capi::VANEDB_RS_OK,
+            "a failed save must never report success -- mapping Io to OK \
+             survived the entire suite before this assertion existed"
+        );
+        assert_eq!(
+            code,
+            vanedb_capi::VANEDB_RS_IO,
+            "writing onto a directory is an Io failure, got {code}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // NonFiniteValue through the batch path, with a correctly sized buffer:
+        // this ABI computes the vector count as `n * dim`, so a short buffer is
+        // undefined behaviour in the caller, not a reportable error.
+        let batch_ids = [7u64, 8];
+        let with_nan = [1.0f32, 2.0, 3.0, f32::NAN, 0.0, 0.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(
+                &mut *store,
+                batch_ids.as_ptr(),
+                with_nan.as_ptr(),
+                2,
+            ),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_NON_FINITE_VALUE
+        );
+        // All-or-nothing: the good vector in that batch must not have landed.
+        assert!(!vanedb_capi::vanedb_rs_store_contains(&*store, 7));
+    }
 }

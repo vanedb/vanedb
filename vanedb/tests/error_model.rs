@@ -30,7 +30,7 @@ fn missing_file_is_its_own_variant_and_keeps_the_io_kind() {
 
 #[test]
 fn a_garbage_file_is_corrupt_not_io() {
-    let path = scratch("garbage").join("index.vane");
+    let path = scratch("garbage").join(format!("index-{}.vane", std::process::id()));
     std::fs::write(&path, b"this is not a vanedb file").unwrap();
 
     let err = ApproxIndex::load(&path).unwrap_err();
@@ -44,7 +44,7 @@ fn a_garbage_file_is_corrupt_not_io() {
 
 #[test]
 fn load_or_build_is_expressible_without_matching_on_strings() {
-    let path = scratch("load-or-build").join("index.vane");
+    let path = scratch("load-or-build").join(format!("index-{}.vane", std::process::id()));
     let _ = std::fs::remove_file(&path);
 
     // The whole point of the split: this match compiles, and the missing-file
@@ -119,7 +119,9 @@ fn a_failing_disk_is_distinguishable_from_a_missing_one() {
 
     let index = ApproxIndex::builder(4, Metric::L2).build().unwrap();
     index.add(1, &[1.0, 0.0, 0.0, 0.0]).unwrap();
-    let err = index.save(blocker.join("index.vane")).unwrap_err();
+    let err = index
+        .save(blocker.join(format!("index-{}.vane", std::process::id())))
+        .unwrap_err();
 
     assert!(
         !matches!(err, VaneError::Corrupt { .. }),

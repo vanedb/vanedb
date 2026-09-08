@@ -47,7 +47,39 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
 /// Collects vectors and writes them to a file [`DiskIndex`] can open.
 ///
 /// Vectors are held in memory until [`save`](Self::save); the memory saving
-/// is on the reading side.
+/// is on the reading side. This is the only way to produce a file
+/// [`DiskIndex::open`] accepts.
+///
+/// # Examples
+///
+/// Build a file, then map it for search. The two halves are usually separate
+/// programs — build once, then open the file read-only from as many processes
+/// as you like.
+///
+/// ```
+/// use vanedb::{DiskIndex, DiskIndexBuilder, Metric};
+///
+/// # fn main() -> vanedb::Result<()> {
+/// let path = std::env::temp_dir().join("vanedb-doc-example.vndb");
+///
+/// let mut builder = DiskIndexBuilder::new(3, Metric::L2)?;
+/// builder.add(1, &[1.0, 0.0, 0.0])?;
+/// builder.add(2, &[0.0, 1.0, 0.0])?;
+/// builder.save(&path)?;
+///
+/// // SAFETY: nothing else writes or truncates this file while it is mapped.
+/// // `save` renames a temporary into place, so rebuilding the path while a
+/// // reader holds the old inode open is safe; editing in place is not.
+/// let index = unsafe { DiskIndex::open(&path)? };
+/// assert_eq!(index.len(), 2);
+///
+/// let hits = index.search(&[0.9, 0.1, 0.0], 1)?;
+/// assert_eq!(hits[0].id, 1);
+///
+/// # std::fs::remove_file(&path).ok();
+/// # Ok(())
+/// # }
+/// ```
 pub struct DiskIndexBuilder {
     dim: usize,
     metric: Metric,
@@ -288,8 +320,20 @@ impl DiskIndex {
             )));
         }
 
-        let dim = u64::from_le_bytes(mmap[8..16].try_into().unwrap()) as usize;
-        let num_vectors = u64::from_le_bytes(mmap[16..24].try_into().unwrap()) as usize;
+        // `try_from`, not `as`. `as` truncates on a 32-bit target, so a header
+        // declaring `dim = 0x1_0000_0001` would read as 1 there and be
+        // rejected on a 64-bit host — the two would disagree about the same
+        // file, which is exactly what `conformance/README.md` forbids and what
+        // `both_engines_accept_and_reject_exactly_the_same_files` asserts. The
+        // v2 reader already does this (`graph_format.rs`, "graph size exceeds
+        // this platform"). Not reachable on a target built today — wasm32 does
+        // not enable `disk` — which is why it is a guard rather than a fix.
+        let header_size = |bytes: [u8; 8]| {
+            usize::try_from(u64::from_le_bytes(bytes))
+                .map_err(|_| VaneError::corrupt("header size exceeds this platform"))
+        };
+        let dim = header_size(mmap[8..16].try_into().unwrap())?;
+        let num_vectors = header_size(mmap[16..24].try_into().unwrap())?;
         let metric_raw = u32::from_le_bytes(mmap[24..28].try_into().unwrap());
         let metric = u32_to_metric(metric_raw)?;
         // Offsets 28..32 are reserved and specified as zero. Rejecting a
