@@ -22,6 +22,16 @@ fn to_pyerr(e: VaneError) -> PyErr {
         // from "wrong dimension" without parsing the message.
         VaneError::NotFound { .. } => PyKeyError::new_err(e.to_string()),
         // Corrupt data and every validation failure stay ValueError.
+        //
+        // The catch-all is right for validation, but `VaneError` is
+        // `#[non_exhaustive]` and not every future variant is a validation
+        // failure. `Backend` is the one already written: it means a compute
+        // backend is unavailable, which is an environment condition a caller
+        // should fall back from, not a bad argument they should fix. It cannot
+        // reach here today — it is constructed only in `gpu/metal.rs`, behind
+        // the `gpu-metal` feature, which Python does not build — but it must
+        // get its own class (`RuntimeError`) before that feature is exposed,
+        // rather than inheriting `ValueError` by falling through.
         _ => PyValueError::new_err(e.to_string()),
     }
 }

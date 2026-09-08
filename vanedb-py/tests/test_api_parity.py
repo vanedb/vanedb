@@ -7,6 +7,7 @@ core survives the boundary, so nothing noticed.
 """
 
 import inspect
+import random
 import threading
 
 import pytest
@@ -40,23 +41,53 @@ def test_both_spellings_of_the_read_exist_on_every_index(tmp_path):
     assert disk.get_vector(1) == vector
 
 
+def _clustered_index(seed=11):
+    """A graph where the beam width actually decides the answer.
+
+    The first version of this test used 40 one-dimensional points and could
+    not fail: `search` computes `max(ef_search, k)`, so a stored `ef_search`
+    of 4 was raised to `k = 10`, and a 40-node 1-D graph is exhaustively
+    correct at any beam. It passed whether the keyword did anything or not.
+
+    2000 vectors in 32 dimensions, with `m` and `ef_construction` low enough
+    that the graph is genuinely sparse, separates the two.
+    """
+    rng = random.Random(seed)
+    rows = [(i, [rng.gauss(0, 1) for _ in range(32)]) for i in range(2000)]
+    index = ApproxIndex(32, Metric.L2, capacity=2048, m=4, ef_construction=8, seed=seed)
+    for vid, vec in rows:
+        index.add(vid, vec)
+    return index, rows
+
+
+def _brute_force(rows, query, k):
+    """Ground truth, computed here rather than asked of the index."""
+    scored = [(sum((a - b) ** 2 for a, b in zip(v, query)), vid) for vid, v in rows]
+    scored.sort()
+    return {vid for _, vid in scored[:k]}
+
+
 def test_search_takes_a_per_query_beam_width():
     """Raising recall for one query used to mean assigning to the shared
     `ef_search` property. Every search releases the GIL, so a concurrent
     thread could observe the mutation -- the exact bug the C ABI was changed
     to fix, and what SearchParams exists to prevent."""
-    index = ApproxIndex(1, Metric.L2, capacity=64, m=4, ef_construction=32, seed=7)
-    for i in range(40):
-        index.add(i, [float(i)])
-    index.ef_search = 4
+    index, rows = _clustered_index()
+    index.ef_search = 10
+    query = [0.0] * 32
+    truth = _brute_force(rows, query, 10)
 
-    wide = index.search([0.0], 10, ef_search=40)
-    assert [r[0] for r in wide] == list(range(10))
-    assert index.ef_search == 4, "a per-query beam must not mutate the index"
+    narrow = {r[0] for r in index.search(query, 10)}
+    wide = {r[0] for r in index.search(query, 10, ef_search=400)}
 
-    # Omitting it uses the stored value, exactly as before.
-    assert len(index.search([0.0], 10)) == 10
-    assert index.ef_search == 4
+    narrow_recall = len(narrow & truth) / 10
+    wide_recall = len(wide & truth) / 10
+    assert wide_recall > narrow_recall + 0.3, (
+        f"a wider beam must find more true neighbours: "
+        f"stored ef=10 gave {narrow_recall}, ef_search=400 gave {wide_recall}. "
+        f"If these are equal the keyword is being ignored."
+    )
+    assert index.ef_search == 10, "a per-query beam must not mutate the index"
 
 
 def test_a_per_query_beam_is_not_visible_to_another_thread():
@@ -66,12 +97,15 @@ def test_a_per_query_beam_is_not_visible_to_another_thread():
         index.add(i, [float(i)])
     index.ef_search = 10
 
-    observed = []
+    # A set, not a list: appending every sample allocated ~290 MB on a fast
+    # runner and scaled with the runner's speed. The assertion only needs the
+    # distinct values ever seen.
+    observed = set()
     stop = threading.Event()
 
     def watcher():
         while not stop.is_set():
-            observed.append(index.ef_search)
+            observed.add(index.ef_search)
 
     t = threading.Thread(target=watcher)
     t.start()
@@ -82,7 +116,7 @@ def test_a_per_query_beam_is_not_visible_to_another_thread():
         stop.set()
         t.join()
 
-    assert set(observed) == {10}, f"another thread saw {sorted(set(observed))}"
+    assert observed == {10}, f"another thread saw {sorted(observed)}"
 
 
 def test_a_loaded_index_reports_the_geometry_it_was_built_with(tmp_path):
@@ -116,32 +150,42 @@ def test_the_geometry_accessors_are_properties_not_methods(name):
     assert inspect.isdatadescriptor(getattr(ApproxIndex, name))
 
 
-def test_a_missing_id_raises_keyerror_on_every_index(tmp_path):
+def test_a_missing_id_raises_keyerror_on_every_read_and_remove(tmp_path):
     """A lookup miss is KeyError in Python. It used to be ValueError, which
     could not be separated from a dimension mismatch without parsing English.
 
-    KeyError subclasses LookupError, not ValueError, so this is a breaking
-    change -- made before the first publish rather than never."""
+    All seven affected methods, including the three alias paths this change
+    introduces -- they are new code, and this is the test named after them.
+    """
     flat = FlatIndex(2, Metric.L2)
     flat.add(1, [1.0, 2.0])
-    with pytest.raises(KeyError):
-        flat.get(99)
-    with pytest.raises(KeyError):
-        flat.remove(99)
 
     approx = ApproxIndex(2, Metric.L2)
     approx.add(1, [1.0, 2.0])
-    with pytest.raises(KeyError):
-        approx.get_vector(99)
-    with pytest.raises(KeyError):
-        approx.remove(99)
 
     builder = DiskIndexBuilder(2, Metric.L2)
     builder.add(1, [1.0, 2.0])
     path = str(tmp_path / "store.vndb")
     builder.save(path)
-    with pytest.raises(KeyError):
-        DiskIndex.open(path).get(99)
+    disk = DiskIndex.open(path)
+
+    calls = [
+        ("FlatIndex.get", lambda: flat.get(99)),
+        ("FlatIndex.get_vector", lambda: flat.get_vector(99)),
+        ("FlatIndex.remove", lambda: flat.remove(99)),
+        ("ApproxIndex.get", lambda: approx.get(99)),
+        ("ApproxIndex.get_vector", lambda: approx.get_vector(99)),
+        ("ApproxIndex.remove", lambda: approx.remove(99)),
+        ("DiskIndex.get", lambda: disk.get(99)),
+        ("DiskIndex.get_vector", lambda: disk.get_vector(99)),
+    ]
+    for name, call in calls:
+        with pytest.raises(KeyError, match="99") as excinfo:
+            call()
+        # The breaking half, asserted on a real exception rather than on
+        # CPython's class hierarchy: a miss is no longer a ValueError. This is
+        # also what would fail if someone later made the exception inherit both.
+        assert not isinstance(excinfo.value, ValueError), name
 
 
 def test_validation_failures_are_still_valueerror():
@@ -159,10 +203,16 @@ def test_validation_failures_are_still_valueerror():
     assert not isinstance(ValueError(), KeyError)
 
 
-def test_keyerror_message_is_readable():
-    """KeyError's repr quotes its argument, so the message must still name the
-    id rather than arriving as a bare number."""
+def test_keyerror_carries_the_message_not_just_the_id():
+    """`str()` on a KeyError renders its argument with surrounding quotes, so
+    asserting `"42" in str(e)` is satisfied by a bare `KeyError(42)` -- exactly
+    the case this is supposed to rule out. Assert the payload instead.
+
+    The quoting itself is unavoidable: `tp_str` comes from KeyError, so a real
+    traceback reads `KeyError: 'vector not found: 42'`. Every KeyError in
+    Python looks like that.
+    """
     flat = FlatIndex(2, Metric.L2)
     with pytest.raises(KeyError) as excinfo:
         flat.get(42)
-    assert "42" in str(excinfo.value)
+    assert excinfo.value.args[0] == "vector not found: 42"

@@ -44,6 +44,18 @@ section records what it contains rather than what changed.
   was written into saved files.
 - Python raises `ValueError`, not `OverflowError`, for every negative size, and
   releases the GIL in every method that reaches the index lock.
+- **Python raises `KeyError`, not `ValueError`, when no vector is stored under
+  an id.** `KeyError` subclasses `LookupError`, so a lookup miss is now
+  separable by type from a dimension mismatch or a bad `k`, which previously
+  needed message matching. The C ABI already treated a miss as its own status
+  code (`VANEDB_RS_NOT_FOUND`); Python was the binding collapsing it into the
+  validation bucket. Affects `get`, `get_vector` and `remove` on every index.
+- `ApproxIndex.search` takes a keyword-only `ef_search` that applies to that
+  query alone. Assigning to the shared property was the only way to raise
+  recall for one query, and searches release the GIL, so the mutation was
+  visible to concurrent threads — the same defect already fixed in the C ABI.
+- Python exposes `get`/`get_vector` on every index type, and `m`,
+  `ef_construction` and `seed` on `ApproxIndex`, matching the Rust core.
 - `FlatIndex::size`, `DiskIndex::len`/`is_empty`, `DiskIndexBuilder::len`/
   `is_empty` and `ApproxIndex::get` added, so the count and read spellings
   match across index types.

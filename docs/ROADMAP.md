@@ -48,3 +48,26 @@ before broader device-support claims. Run the same all-metric C ABI lifecycle, g
 search checks on an iPhone and an Android device, recording hardware, OS, source
 revision and results. Simulator or emulator success must never be presented as
 physical-device evidence.
+
+## Open API question for 0.2: should `get` return `None` instead of raising?
+
+An independent precedent survey done for vanedb#153 found that `.get()`
+returning `None` on a miss is more settled across keyed stores than raising:
+py-lmdb, plyvel, rocksdict, python-rocksdb, redis-py, usearch and
+`collections.abc.Mapping.get` all do it. That makes a *raising* method named
+`get` the outlier — independently of which exception it raises.
+
+`vanedb`'s `get`/`get_vector` raise; the frozen C++ package is inconsistent
+with itself here (`FlatIndex.get` and `DiskIndex.get` return `None`,
+`ApproxIndex.get_vector` throws), so there is no single convention on that side
+to match.
+
+Nothing was changed for 0.1.0, for structural reasons: the Rust core has no
+`Option`-returning accessor to bind, `get`/`get_vector` are the cross-engine
+spelling settled in #85, and `contains` is already the non-raising probe. The
+0.1.0 change to `KeyError` makes the mismatch more conspicuous rather than
+less, because `KeyError` is the exception `dict.get` exists to avoid.
+
+Revisit deliberately: either accept the divergence and document `get` as
+raising with `contains` as the probe, or add a `try_get`-style accessor to the
+core first so every binding can offer both. Do not change one binding alone.

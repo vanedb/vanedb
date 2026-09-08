@@ -74,7 +74,7 @@ Arguments of the wrong type can raise `TypeError`.
 `ApproxIndex.search` accepts a keyword-only `ef_search` that applies to that
 query alone, leaving the shared `ef_search` property untouched — searches
 release the GIL, so raising recall by assigning to the property is visible to
-concurrent threads. `m`, `ef_construction` and `seed` are readable on any index,
+concurrent threads. `m`, `ef_construction` and `seed` are readable on any `ApproxIndex`,
 including one from `ApproxIndex.load`, whose graph the caller did not build.
 `get` and `get_vector` are the same operation on every index type, so swapping
 `FlatIndex` for `ApproxIndex` does not mean renaming call sites.
