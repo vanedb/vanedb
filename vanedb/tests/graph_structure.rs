@@ -271,3 +271,80 @@ fn upper_layers_are_connected_and_links_are_well_formed() {
         "{isolated_above_base} node-layers above the base have no links at all"
     );
 }
+
+/// Each clause of the v2 header guard, violated on its own.
+///
+/// `graph_format.rs` rejects a corrupt header with one `||` chain of eight
+/// conditions. A full mutation sweep turned nine survivors loose in that
+/// function: every `||` can become `&&`, and several comparisons can be
+/// loosened, without failing a test — because the fixtures that reach the
+/// guard violate more than one clause at a time, so the remaining conditions
+/// still catch them.
+///
+/// `CLAUDE.md` requires that all corruption checks be kept. A check nothing
+/// exercises alone is one that can be deleted silently.
+///
+/// Two clauses stay unpinnable, and the reason is worth recording so the next
+/// reader does not chase them. Deleting `dim == 0` or `m < 2` does not make a
+/// malformed file load: `dim = 0` still trips `count > body.len() / row_bytes`,
+/// and `m = 1` still trips the per-layer degree cap, because a file built with
+/// a larger `M` carries degrees the smaller cap rejects. Those mutants survive
+/// with the *behaviour unchanged*, which is defence in depth rather than an
+/// unexercised guard. The cases below still cover them, just not in isolation.
+#[test]
+fn every_header_guard_clause_rejects_on_its_own() {
+    let good = {
+        let index = ApproxIndex::builder(4, Metric::L2)
+            .capacity(16)
+            .m(4)
+            .ef_construction(16)
+            .seed(5)
+            .build()
+            .unwrap();
+        for id in 0..6u64 {
+            index.add(id, &[id as f32, 1.0, 2.0, 3.0]).unwrap();
+        }
+        let dir = std::env::temp_dir().join(format!("vanedb-guards-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("g.vndb");
+        index.save(&path).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+        bytes
+    };
+    // Sanity: the untouched bytes must load, or every case below is vacuous.
+    let dir = std::env::temp_dir().join(format!("vanedb-guards-run-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    let write = |name: &str, bytes: &[u8]| {
+        let p = dir.join(format!("{name}.vndb"));
+        fs::write(&p, bytes).unwrap();
+        p
+    };
+    ApproxIndex::load(write("pristine", &good)).expect("the unmodified graph must load");
+
+    // Offsets from conformance/graph/README.md. Each case moves exactly one
+    // field, to a value that violates exactly one clause.
+    let cases: [(&str, usize, u64); 6] = [
+        ("dim_zero", 16, 0),
+        ("count_over_max_elements", 24, 9),
+        ("max_elements_zero", 32, 0),
+        ("m_below_two", 40, 1),
+        ("ef_construction_zero", 48, 0),
+        ("count_beyond_body", 24, 1_000),
+    ];
+    for (name, offset, value) in cases {
+        let mut bytes = good.clone();
+        bytes[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+        let path = write(name, &bytes);
+        let err = ApproxIndex::load(&path)
+            .err()
+            .unwrap_or_else(|| panic!("{name}: a header violating this clause must be rejected"));
+        assert!(
+            matches!(err, vanedb::VaneError::Corrupt { .. }),
+            "{name}: expected Corrupt, got {err:?}"
+        );
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
