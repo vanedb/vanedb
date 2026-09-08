@@ -110,7 +110,19 @@ public:
       cleanup(); throw std::runtime_error("File corrupted: size overflow");
     }
     size_t expected = HEADER_SIZE + ids_size + vecs_size;
-    if (file_size_ < expected) { cleanup(); throw std::runtime_error("File truncated"); }
+    // Equality, not `>=`. `expected` is derived from the header, so a one-sided
+    // check lets a header that understates the geometry move the goalpost
+    // instead of tripping the guard: one flipped bit in `dim` shrinks
+    // `expected` below the real length, the payload is read at the wrong
+    // stride, and `get` returns a vector straddling two stored records. `save`
+    // writes header + ids + vectors and nothing else, in both engines, so any
+    // conforming VNDB v1 file matches exactly.
+    if (file_size_ != expected) {
+      cleanup();
+      throw std::runtime_error(file_size_ < expected
+                                   ? "File truncated"
+                                   : "File longer than its header declares");
+    }
 
     ids_ptr_ = reinterpret_cast<const uint64_t*>(static_cast<const uint8_t*>(mapped_) + HEADER_SIZE);
     vectors_ptr_ = reinterpret_cast<const float*>(

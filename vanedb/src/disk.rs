@@ -222,8 +222,37 @@ impl DiskIndex {
     ///
     /// Validates the header, checks every stored component is finite, and
     /// builds the id index, so this is linear in the corpus rather than a
-    /// constant-cost mapping. A file that is already corrupt or truncated is
-    /// rejected here rather than surfacing as a wrong answer later.
+    /// constant-cost mapping.
+    ///
+    /// # Integrity
+    ///
+    /// What this rejects: a bad magic or version, a header whose declared
+    /// geometry disagrees with the file length in either direction, a
+    /// dimension too large to address, a non-finite stored component, a
+    /// duplicate id, and a nonzero reserved word.
+    ///
+    /// What it cannot reject — the format carries no checksum, so all of the
+    /// following are structurally valid files:
+    ///
+    /// - A flipped bit inside a stored id, returned as data. A flip inside a
+    ///   vector component is usually returned too, though one that produces an
+    ///   infinity or a NaN is caught by the finiteness check.
+    /// - A flipped `metric`, when the new value is another defined metric.
+    ///   Nothing records which was intended, so every distance changes and the
+    ///   file still loads.
+    /// - A *coordinated* rewrite of `dim` and `num_vectors` that preserves the
+    ///   total length. `expected` is `32 + n * (8 + 4 * dim)`, so any pair on
+    ///   that curve passes: a 2592-byte file written as `dim = 8, n = 64` also
+    ///   reads as `dim = 6, n = 80`, at the wrong stride. The length check
+    ///   makes a *single-bit* flip in either field almost always detectable —
+    ///   it moves the length — but it cannot pin the geometry.
+    /// - Any `dim` at all when `num_vectors` is 0, since the file is then
+    ///   header-only whatever the dimension. No vector can be wrong, but
+    ///   `dimension` will report the corrupted value.
+    ///
+    /// A caller who needs integrity against bitrot must supply it — verify a
+    /// digest of the file before opening it, or store on a filesystem that
+    /// checksums blocks.
     ///
     /// # Safety
     ///
@@ -275,6 +304,16 @@ impl DiskIndex {
             return Err(VaneError::corrupt("zero dimension with vectors"));
         }
 
+        // Bound `dim` on its own, not only through the product below. When
+        // `num_vectors` is 0 the product is 0 for any `dim`, so the length
+        // check cannot see the field at all and an empty store would accept a
+        // `dim` of 2^62 — which the C++ reader rejects here, making one file
+        // the two engines disagree about. A dimension whose vector cannot be
+        // addressed is unreadable whether or not any vector is stored.
+        if dim > usize::MAX / 4 {
+            return Err(VaneError::corrupt("dimension overflows a byte count"));
+        }
+
         let ids_size = num_vectors
             .checked_mul(8)
             .ok_or_else(|| VaneError::corrupt("size overflow"))?;
@@ -287,8 +326,21 @@ impl DiskIndex {
             .and_then(|n| n.checked_add(vecs_size))
             .ok_or_else(|| VaneError::corrupt("size overflow"))?;
 
-        if mmap.len() < expected {
-            return Err(VaneError::corrupt("file truncated"));
+        // Equality, not `>=`. `expected` is derived from the header, so a
+        // one-sided check lets a header that understates the geometry move the
+        // goalpost instead of tripping the guard: flipping one bit of `dim`
+        // from 3 to 2 shrinks `expected` below the real length, and the payload
+        // is then read at the wrong stride, with `get` returning a vector that
+        // straddles two stored records. `save` writes header + ids + vectors
+        // and nothing else, so any file this crate wrote matches exactly. The
+        // graph reader already holds this line (`graph_format.rs`, "trailing
+        // bytes in VNDB graph").
+        if mmap.len() != expected {
+            return Err(VaneError::corrupt(if mmap.len() < expected {
+                "file truncated"
+            } else {
+                "file longer than its header declares"
+            }));
         }
 
         let ids_offset = HEADER_SIZE;
