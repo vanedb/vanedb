@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -117,8 +118,12 @@ TEST_CASE("a header that disagrees with the file length is rejected in both dire
                                    std::istreambuf_iterator<char>());
   REQUIRE(original.size() == 32 + IDS.size() * 8 + IDS.size() * DIM * 4);
 
+  // The system temp directory, not the fixture tree. `temp_path_for` keeps a
+  // file beside its destination so a save can rename same-filesystem; there is
+  // no rename here, and writing into the committed fixture directory makes a
+  // read-only checkout fail and leaves .tmp files behind on an aborted run.
   const std::string path = vanedb::detail::temp_path_for(
-      std::string(VANEDB_CONFORMANCE_DIR) + "/../vndb_geometry_flip");
+      (std::filesystem::temp_directory_path() / "vndb_geometry_flip").string());
 
   std::vector<std::string> accepted;
   for (size_t byte = 8; byte < 24; ++byte) {
@@ -143,8 +148,14 @@ TEST_CASE("a header that disagrees with the file length is rejected in both dire
     }
   }
 
+  // Not INFO in a loop: a Catch2 scoped message is destroyed at the end of the
+  // iteration that created it, so the list would be gone before REQUIRE runs
+  // and a regression would report only "false". Build the diagnostic into the
+  // assertion itself, as the Rust twin does.
+  std::string detail;
   for (const auto& a : accepted) {
-    INFO("accepted: " << a);
+    detail += "\n  " + a;
   }
+  INFO("accepted " << accepted.size() << " flip(s):" << detail);
   REQUIRE(accepted.empty());
 }
