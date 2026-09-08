@@ -14,6 +14,11 @@ typedef struct vanedb_rs_store vanedb_rs_store;
 typedef struct vanedb_rs_index vanedb_rs_index;
 typedef struct vanedb_rs_disk vanedb_rs_disk;
 
+/* The version this header was generated from. Compare against
+ * vanedb_rs_version() at runtime to catch a shared object that does not
+ * match the header you compiled against. */
+#define VANEDB_RS_VERSION "0.1.0"
+
 /* Distance metric, passed as uint32_t: */
 #define VANEDB_RS_L2     0u
 #define VANEDB_RS_COSINE 1u
@@ -32,7 +37,8 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  * also freed when its thread exits, so copy the bytes before handing them to
  * another thread. Branch on the code:
  * VANEDB_RS_IO is worth retrying, VANEDB_RS_CORRUPT is not, and
- * VANEDB_RS_FILE_NOT_FOUND means build it instead. Treat an unrecognized
+ * VANEDB_RS_FILE_NOT_FOUND on a load means build it instead, while on a save
+ * it means the destination directory does not exist. Treat an unrecognized
  * code as a failure: VaneError gains variants in minor releases.
  *
  * Stored vectors and search queries must contain only finite values; adds and
@@ -599,6 +605,20 @@ uint64_t vanedb_rs_index_seed(const vanedb_rs_index *h);
  * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
  */
 uintptr_t vanedb_rs_index_capacity(const vanedb_rs_index *h);
+
+/**
+ * Sets the handle's stored `ef_search` — the beam a search gets when it
+ * passes 0, and the value `vanedb_rs_index_save` writes into the file.
+ *
+ * Search still takes `ef_search` per call and does not touch this, so a query
+ * cannot disturb another thread's. This exists because without it the stored
+ * value was permanently the default for a C-built index: `0` could only ever
+ * mean 50, and a tuned index could not be saved from C at all.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+int32_t vanedb_rs_index_set_ef_search(const vanedb_rs_index *h, uintptr_t ef_search);
 
 /**
  * The handle's stored `ef_search` — the beam a search gets when it passes 0.

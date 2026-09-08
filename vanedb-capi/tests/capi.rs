@@ -672,48 +672,87 @@ fn null_data_with_a_nonzero_count_is_rejected_but_empty_batches_are_not() {
 /// through one uniform FFI (`bench/src/ffi.rs`), so they must agree.
 #[test]
 fn zero_ef_search_means_the_indexs_own_setting() {
+    // The first version of this used 40 one-dimensional points, where a beam
+    // of 40 and a beam clamped to k = 10 return the same ids, so it passed
+    // with the change fully reverted. A sparse graph over 5000 random vectors
+    // separates them: recall differs by a wide margin.
+    const DIM: usize = 32;
+    const N: u64 = 5000;
+    let mut state = 0x243f_6a88_85a3_08d3u64;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 40) as f32 / 8192.0 - 1.0
+    };
+    let rows: Vec<(u64, Vec<f32>)> = (0..N)
+        .map(|id| (id, (0..DIM).map(|_| next()).collect()))
+        .collect();
+
     unsafe {
-        let handle = vanedb_capi::vanedb_rs_index_new(1, 0, 64, 4, 32, 7);
+        let handle = vanedb_capi::vanedb_rs_index_new(DIM, 0, N as usize, 8, 32, 7);
         assert!(!handle.is_null());
         let mut index = Box::from_raw(handle);
-        for id in 0..40u64 {
+        for (id, vector) in &rows {
             assert_eq!(
-                vanedb_capi::vanedb_rs_index_add(&mut *index, id, [id as f32].as_ptr()),
+                vanedb_capi::vanedb_rs_index_add(&mut *index, *id, vector.as_ptr()),
                 0
             );
         }
-        index.set_ef_search(40);
-
-        let query = [0.0f32];
-        let mut ids = [0u64; 10];
-        let mut distances = [0.0f32; 10];
-        let n = vanedb_capi::vanedb_rs_index_search(
-            &mut *index,
-            query.as_ptr(),
-            10,
-            0,
-            ids.as_mut_ptr(),
-            distances.as_mut_ptr(),
-        );
-        assert_eq!(n, 10, "0 must not be an error, as it is in the C++ ABI");
         assert_eq!(
-            index.get_ef_search(),
-            40,
+            vanedb_capi::vanedb_rs_index_set_ef_search(&*index, 400),
+            0,
+            "a C caller must be able to set what 0 resolves to"
+        );
+
+        // A fresh point, not one of the stored vectors: querying a stored
+        // vector finds itself trivially and its neighbourhood with it, which
+        // gives recall 1.0 at any beam and separates nothing.
+        let query: Vec<f32> = (0..DIM).map(|_| next()).collect();
+        let query = &query;
+        // Ground truth from a brute force written here, not from the engine.
+        let mut exact: Vec<(f32, u64)> = rows
+            .iter()
+            .map(|(id, v)| {
+                let d: f32 = v.iter().zip(query).map(|(a, b)| (a - b) * (a - b)).sum();
+                (d, *id)
+            })
+            .collect();
+        exact.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().then(a.1.cmp(&b.1)));
+        let truth: std::collections::HashSet<u64> =
+            exact.iter().take(10).map(|(_, id)| *id).collect();
+
+        let mut recall_at = |ef: usize| {
+            let mut ids = [0u64; 10];
+            let mut distances = [0.0f32; 10];
+            let n = vanedb_capi::vanedb_rs_index_search(
+                &mut *index,
+                query.as_ptr(),
+                10,
+                ef,
+                ids.as_mut_ptr(),
+                distances.as_mut_ptr(),
+            );
+            assert_eq!(n, 10, "ef = {ef} must still fill k");
+            ids.iter().filter(|id| truth.contains(id)).count() as f32 / 10.0
+        };
+
+        let with_zero = recall_at(0); // resolves to the stored 400
+        let with_ten = recall_at(10); // the beam a clamped-to-k call would get
+        assert!(
+            with_zero > with_ten + 0.15,
+            "0 must search at the stored ef_search, not be clamped to k: \
+             ef=0 gave {with_zero}, ef=10 gave {with_ten}"
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_ef_search(&*index),
+            400,
             "resolving 0 must not mutate the handle"
         );
-
-        // At ef = 40 over 40 one-dimensional points the answer is exact, which
-        // a beam clamped to k = 10 does not reach reliably. Asserting the
-        // contents, not just the count, is what distinguishes the two.
-        let mut expected: Vec<u64> = (0..10).collect();
-        let mut got = ids.to_vec();
-        got.sort_unstable();
-        expected.sort_unstable();
-        assert_eq!(got, expected, "0 must search at the stored ef_search");
     }
 }
 
-/// Every status function returned a bare `1` for a duplicate id, a dimension
+/// Every status function returned a bare `1`/// Every status function returned a bare `1` for a duplicate id, a dimension
 /// mismatch, a corrupt file and an I/O failure alike, and searches returned `0`
 /// results for both "empty" and "your query had a NaN in it". A caller could
 /// not implement the branching the core error type is designed for — retry on
@@ -849,14 +888,41 @@ fn a_loaded_handle_reports_the_geometry_it_was_built_with() {
     unsafe {
         let handle = vanedb_capi::vanedb_rs_index_new(4, 1, 512, 6, 48, 1234);
         assert!(!handle.is_null());
-        let index = Box::from_raw(handle);
+        let mut index = Box::from_raw(handle);
         assert_eq!(vanedb_capi::vanedb_rs_index_m(&*index), 6);
+        // The accessors exist for a handle the caller did NOT build, so the
+        // test has to load one. It previously only ever built.
+        {
+            let dir = std::env::temp_dir().join(format!("vanedb-capi-geom-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let path = dir.join("graph.vndb");
+            let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
+            let v = [1.0f32, 0.0, 0.0, 0.0];
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_add(&mut *index, 1, v.as_ptr()),
+                0
+            );
+            assert_eq!(vanedb_capi::vanedb_rs_index_set_ef_search(&*index, 77), 0);
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_save(&mut *index, c_path.as_ptr()),
+                0
+            );
+            let loaded = vanedb_capi::vanedb_rs_index_load(c_path.as_ptr());
+            assert!(!loaded.is_null());
+            let loaded = Box::from_raw(loaded);
+            assert_eq!(vanedb_capi::vanedb_rs_index_m(&*loaded), 6);
+            assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(&*loaded), 48);
+            assert_eq!(vanedb_capi::vanedb_rs_index_seed(&*loaded), 1234);
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_ef_search(&*loaded),
+                77,
+                "the stored beam travels with the file"
+            );
+            let _ = std::fs::remove_dir_all(&dir);
+        }
         assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(&*index), 48);
         assert_eq!(vanedb_capi::vanedb_rs_index_seed(&*index), 1234);
         assert_eq!(vanedb_capi::vanedb_rs_index_capacity(&*index), 512);
-        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(&*index), 50);
-        index.set_ef_search(120);
-        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(&*index), 120);
 
         // Null is the documented no-handle case for every accessor.
         assert_eq!(vanedb_capi::vanedb_rs_index_m(std::ptr::null()), 0);
@@ -924,4 +990,65 @@ fn the_library_reports_its_own_version() {
             .unwrap();
         assert_eq!(version, env!("CARGO_PKG_VERSION"));
     }
+}
+
+/// A *failing* ABI call from a thread-local destructor must not abort.
+///
+/// `set_code` writes to `LAST_MESSAGE`, a thread-local with drop glue, so it
+/// enters the "destroyed" state at thread exit and `LocalKey::with` panics
+/// there with `AccessError`. That panic is raised outside `catch_unwind`, and
+/// a panic crossing an `extern "C"` boundary aborts the process. The pattern
+/// is ordinary in C++: a `thread_local` handle whose destructor calls back
+/// into the library at thread exit.
+///
+/// Ordering matters and is why the handle is registered *before* the first
+/// failing call: destructors run in reverse registration order, so
+/// `LAST_MESSAGE` must be registered later to be destroyed first. `LAST_ERROR`
+/// alone would not reproduce it — a `Cell<u32>` has no drop glue, so its TLS
+/// is never destroyed and `with` never fails on it.
+///
+/// If this regresses the whole test binary aborts rather than reporting a
+/// failure. That is the point: the failure mode is a dead host process.
+#[test]
+fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
+    struct CallsAtThreadExit(*mut vanedb_capi::vanedb_rs_store);
+    impl Drop for CallsAtThreadExit {
+        fn drop(&mut self) {
+            // SAFETY: the handle came from `vanedb_rs_store_new` and is freed
+            // exactly once, here.
+            unsafe { vanedb_capi::vanedb_rs_store_free(self.0) };
+            // A guarded call that FAILS, so it reaches `set_code` and the
+            // message TLS rather than only the code cell.
+            // SAFETY: a zero dimension is rejected; nothing is allocated.
+            let rejected = unsafe { vanedb_capi::vanedb_rs_store_new(0, 0) };
+            assert!(rejected.is_null());
+            let _ = vanedb_capi::vanedb_rs_last_error();
+            let _ = vanedb_capi::vanedb_rs_last_error_message();
+        }
+    }
+    thread_local! {
+        static HANDLE: std::cell::RefCell<Option<CallsAtThreadExit>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    std::thread::spawn(|| {
+        // SAFETY: valid arguments.
+        let handle = unsafe { vanedb_capi::vanedb_rs_store_new(2, 0) };
+        assert!(!handle.is_null());
+        // Registered first, so its destructor runs last.
+        HANDLE.with(|slot| *slot.borrow_mut() = Some(CallsAtThreadExit(handle)));
+        // Registers LAST_MESSAGE now, after HANDLE, so it is destroyed first.
+        // SAFETY: a duplicate add fails and records a message.
+        unsafe {
+            let v = [1.0f32, 0.0];
+            vanedb_capi::vanedb_rs_store_add(handle, 1, v.as_ptr());
+            vanedb_capi::vanedb_rs_store_add(handle, 1, v.as_ptr());
+        }
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_DUPLICATE_ID
+        );
+    })
+    .join()
+    .expect("the thread must exit cleanly, not abort");
 }
