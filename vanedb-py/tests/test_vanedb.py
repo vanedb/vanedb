@@ -252,7 +252,7 @@ def test_approx_index_delete():
     assert not idx.contains(7)
     assert all(hit[0] != 7 for hit in idx.search([7.0, 0.0], 5))
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         idx.remove(7)
 
     # The id is free again.
