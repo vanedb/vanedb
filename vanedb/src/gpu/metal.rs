@@ -393,6 +393,65 @@ fn needs_scalar(values: &[f32]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `needs_scalar` is the guard that keeps Metal off inputs where its
+    /// flush-to-zero behaviour would give wrong distances. A mutation sweep of
+    /// the `gpu-metal` build — the first ever run against this file, since the
+    /// default sweep does not enable the feature and silently reported every
+    /// mutant here as surviving — left nine mutants alive in it, including
+    /// returning a constant `true` and a constant `false`.
+    ///
+    /// A constant `false` is the dangerous one: it routes subnormal inputs to
+    /// the GPU and returns quietly wrong answers. A constant `true` only
+    /// forfeits the GPU.
+    #[test]
+    fn needs_scalar_identifies_inputs_metal_would_flush() {
+        let threshold = f32::MIN_POSITIVE.sqrt() / f32::EPSILON;
+
+        // Ordinary magnitudes: the GPU is safe.
+        assert!(!needs_scalar(&[1.0, -2.5, 1e3, 1e-6]));
+        assert!(!needs_scalar(&[]));
+
+        // Exact zeros are excluded deliberately — zero squares to zero on any
+        // hardware, so it needs no fallback.
+        assert!(!needs_scalar(&[0.0, 0.0, -0.0]));
+
+        // Below the threshold and nonzero: the difference of two adjacent
+        // values can square to a subnormal, which Metal flushes.
+        assert!(needs_scalar(&[threshold / 2.0]));
+        assert!(needs_scalar(&[-threshold / 2.0]));
+        assert!(needs_scalar(&[1.0, 2.0, threshold / 1e3, 4.0]));
+        assert!(needs_scalar(&[f32::MIN_POSITIVE]));
+
+        // The boundary itself is safe; just under it is not. This is what
+        // pins the comparison as `<` rather than `<=`, `>` or `==`.
+        assert!(!needs_scalar(&[threshold]));
+        assert!(needs_scalar(&[threshold * (1.0 - f32::EPSILON)]));
+
+        // One offending value anywhere is enough, wherever it sits.
+        assert!(needs_scalar(&[threshold / 2.0, 1.0, 1.0]));
+        assert!(needs_scalar(&[1.0, 1.0, threshold / 2.0]));
+    }
+
+    /// `GpuBuffer::n` reports how many vectors a buffer holds; returning 0
+    /// survived every test. A zero length silently makes a search return
+    /// nothing rather than fail.
+    #[test]
+    fn a_buffer_reports_the_count_it_was_built_with() {
+        let Ok(compute) = MetalCompute::new() else {
+            // No Metal device on this machine; the rest of the suite skips
+            // the same way.
+            return;
+        };
+        // dim must be a multiple of 4 for the GPU path.
+        let vectors: Vec<f32> = (0..16).map(|i| i as f32).collect();
+        let buffer = compute
+            .upload(&vectors, 4, 4)
+            .expect("16 components at dim 4 is 4 vectors");
+        assert_eq!(buffer.n(), 4, "the buffer must report the count it holds");
+        assert_eq!(buffer.dim(), 4);
+    }
+
     use crate::distance::{self, Metric};
 
     #[test]
