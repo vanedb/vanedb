@@ -1,6 +1,6 @@
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{
-    PyFileNotFoundError, PyOSError, PyOverflowError, PyTypeError, PyValueError,
+    PyFileNotFoundError, PyKeyError, PyOSError, PyOverflowError, PyTypeError, PyValueError,
 };
 use pyo3::prelude::*;
 
@@ -17,7 +17,21 @@ fn to_pyerr(e: VaneError) -> PyErr {
     match &e {
         VaneError::FileNotFound { .. } => PyFileNotFoundError::new_err(e.to_string()),
         VaneError::Io { .. } => PyOSError::new_err(e.to_string()),
+        // A lookup miss is KeyError in Python, and it subclasses LookupError
+        // rather than ValueError, so `except KeyError` separates "no such id"
+        // from "wrong dimension" without parsing the message.
+        VaneError::NotFound { .. } => PyKeyError::new_err(e.to_string()),
         // Corrupt data and every validation failure stay ValueError.
+        //
+        // The catch-all is right for validation, but `VaneError` is
+        // `#[non_exhaustive]` and not every future variant is a validation
+        // failure. `Backend` is the one already written: it means a compute
+        // backend is unavailable, which is an environment condition a caller
+        // should fall back from, not a bad argument they should fix. It cannot
+        // reach here today — it is constructed only in `gpu/metal.rs`, behind
+        // the `gpu-metal` feature, which Python does not build — but it must
+        // get its own class (`RuntimeError`) before that feature is exposed,
+        // rather than inheriting `ValueError` by falling through.
         _ => PyValueError::new_err(e.to_string()),
     }
 }
@@ -276,6 +290,16 @@ impl PyStore {
         py.detach(|| self.inner.get(id)).map_err(to_pyerr)
     }
 
+    /// The same operation as `get`, under the spelling `ApproxIndex` uses.
+    /// Both exist so a program is not tied to one index type (#85).
+    fn get_vector(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Vec<f32>> {
+        self.get(py, id)
+    }
+
     fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
@@ -367,14 +391,31 @@ impl PyIndex {
     }
 
     /// k-NN search. Accepts a 1-D float32 buffer (numpy) or any float sequence.
+    ///
+    /// `ef_search` overrides the beam width for this query alone. Without it,
+    /// raising recall for one query means assigning to the shared `ef_search`
+    /// property -- and because every search releases the GIL, a concurrent
+    /// thread can observe that mutation. The C ABI takes the same parameter
+    /// per call for the same reason.
+    #[pyo3(signature = (query, k, *, ef_search=None))]
     fn search(
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
         #[pyo3(from_py_with = one_usize)] k: usize,
+        ef_search: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
-        let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
+        let ef = ef_search.map(one_usize).transpose()?;
+        let results = py
+            .detach(|| match ef {
+                Some(ef) => {
+                    let params = ::vanedb::SearchParams::new().ef_search(ef);
+                    self.inner.search_with(&q, k, &params)
+                }
+                None => self.inner.search(&q, k),
+            })
+            .map_err(to_pyerr)?;
         Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
     }
 
@@ -384,6 +425,13 @@ impl PyIndex {
         #[pyo3(from_py_with = one_id)] id: u64,
     ) -> PyResult<Vec<f32>> {
         py.detach(|| self.inner.get_vector(id)).map_err(to_pyerr)
+    }
+
+    /// The same operation as `get_vector`, under the spelling `FlatIndex` and
+    /// `DiskIndex` use. Both exist so a program that outgrows an exact index
+    /// does not have to rename every call site (#85).
+    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        self.get_vector(py, id)
     }
 
     fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
@@ -477,6 +525,29 @@ impl PyIndex {
     #[getter]
     fn capacity(&self, py: Python<'_>) -> usize {
         py.detach(|| self.inner.capacity())
+    }
+
+    /// The graph's `M`.
+    ///
+    /// Worth having for the same reason as `metric`: `ApproxIndex.load` reads
+    /// this from the file, and a caller who did not build the graph has no
+    /// other way to know what they are searching.
+    #[getter]
+    fn m(&self) -> usize {
+        self.inner.m()
+    }
+
+    /// The `ef_construction` the graph was built with.
+    #[getter]
+    fn ef_construction(&self) -> usize {
+        self.inner.ef_construction()
+    }
+
+    /// The seed the graph was built with. Two indexes built from the same
+    /// vectors with the same seed have the same topology.
+    #[getter]
+    fn seed(&self) -> u64 {
+        self.inner.seed()
     }
 }
 
@@ -585,6 +656,16 @@ impl PyDiskStore {
         // cold file — the same reason `search` detaches.
         py.detach(|| self.inner.get(id).map(|v| v.into_owned()))
             .map_err(to_pyerr)
+    }
+
+    /// The same operation as `get`, under the spelling `ApproxIndex` uses.
+    /// Both exist so a program is not tied to one index type (#85).
+    fn get_vector(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Vec<f32>> {
+        self.get(py, id)
     }
 
     fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
