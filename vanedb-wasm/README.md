@@ -26,6 +26,19 @@ the downloadable assets; both retain the JavaScript package name `vanedb-wasm`.
 To build from source, install Rust, the `wasm32-unknown-unknown` target, and
 `wasm-pack`. Node.js is needed for the Node example. Run from the repository root:
 
+Published to npm as [`vanedb-wasm`](https://www.npmjs.com/package/vanedb-wasm).
+One package serves both runtimes through conditional `exports`, so the same
+source works either way:
+
+```js
+import init, { FlatIndex } from 'vanedb-wasm';
+
+await init();          // no-op under Node, loads the module in a browser
+const index = new FlatIndex(3, 'l2');
+```
+
+`require('vanedb-wasm')` works too. To build from a checkout instead:
+
 ```sh
 rustup target add wasm32-unknown-unknown
 wasm-pack build vanedb-wasm --target nodejs --release --locked
