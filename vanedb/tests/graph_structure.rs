@@ -35,8 +35,8 @@ const HEADER: usize = 96;
 struct Node {
     level: u32,
     deleted: bool,
-    /// Neighbour count per layer, index 0 = layer 0.
-    degrees: Vec<usize>,
+    /// Neighbour slots per layer, index 0 = layer 0.
+    neighbours: Vec<Vec<u64>>,
 }
 
 struct Graph {
@@ -69,16 +69,18 @@ fn parse(bytes: &[u8]) -> Graph {
         let flags = u32_at(at);
         at += 4;
         at += dim * 4; // vector components
-        let mut degrees = Vec::with_capacity(level as usize + 1);
+        let mut neighbours = Vec::with_capacity(level as usize + 1);
         for _ in 0..=level {
             let degree = u64_at(at) as usize;
-            at += 8 + degree * 8;
-            degrees.push(degree);
+            at += 8;
+            let layer: Vec<u64> = (0..degree).map(|i| u64_at(at + i * 8)).collect();
+            at += degree * 8;
+            neighbours.push(layer);
         }
         nodes.push(Node {
             level,
             deleted: flags == 1,
-            degrees,
+            neighbours,
         });
     }
     Graph {
@@ -133,15 +135,16 @@ fn no_node_exceeds_its_layer_degree_cap() {
         let graph = build_and_parse(n, m, 42);
         assert_eq!(graph.m, m, "M must round-trip through the header");
         for (slot, node) in graph.nodes.iter().enumerate() {
-            for (layer, &degree) in node.degrees.iter().enumerate() {
+            for (layer, links) in node.neighbours.iter().enumerate() {
                 let cap = if layer == 0 { 2 * m } else { m };
+                let degree = links.len();
                 assert!(
                     degree <= cap,
                     "n={n} m={m}: slot {slot} layer {layer} has {degree} links, cap {cap}"
                 );
             }
             assert_eq!(
-                node.degrees.len(),
+                node.neighbours.len(),
                 node.level as usize + 1,
                 "a node must carry exactly one neighbour list per layer it occupies"
             );
@@ -155,7 +158,7 @@ fn no_node_exceeds_its_layer_degree_cap() {
         let widest = graph
             .nodes
             .iter()
-            .filter_map(|node| node.degrees.first().copied())
+            .filter_map(|node| node.neighbours.first().map(|l| l.len()))
             .max()
             .unwrap_or(0);
         assert!(
@@ -230,14 +233,36 @@ fn the_level_distribution_is_a_hierarchy_not_a_flat_graph() {
 /// Every neighbour list must be free of self-links and duplicates, and every
 /// node above layer 0 must actually be connected there — an isolated upper
 /// node makes the layer it occupies useless for descent.
+///
+/// The first two clauses used to be a claim only: the parser walked past the
+/// neighbour ids without recording them, so nothing could see a self-link or a
+/// repeat. It records them now. Writing a comment that outruns its assertions,
+/// in the change whose whole purpose was to find tests doing exactly that, is
+/// the reason this note exists.
 #[test]
 fn upper_layers_are_connected_and_links_are_well_formed() {
     let graph = build_and_parse(1500, 16, 11);
+    let slots = graph.nodes.len();
     let mut isolated_above_base = 0;
-    for node in &graph.nodes {
-        for (layer, &degree) in node.degrees.iter().enumerate() {
-            if layer > 0 && degree == 0 {
+    for (slot, node) in graph.nodes.iter().enumerate() {
+        for (layer, links) in node.neighbours.iter().enumerate() {
+            if layer > 0 && links.is_empty() {
                 isolated_above_base += 1;
+            }
+            let mut seen = std::collections::HashSet::with_capacity(links.len());
+            for &neighbour in links {
+                assert_ne!(
+                    neighbour as usize, slot,
+                    "slot {slot} links to itself on layer {layer}"
+                );
+                assert!(
+                    (neighbour as usize) < slots,
+                    "slot {slot} layer {layer} links to {neighbour}, past the {slots} stored slots"
+                );
+                assert!(
+                    seen.insert(neighbour),
+                    "slot {slot} lists {neighbour} twice on layer {layer}"
+                );
             }
         }
     }

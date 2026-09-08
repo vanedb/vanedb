@@ -95,8 +95,9 @@ For a Rust query with its own recall setting, construct
 unchanged, so concurrent callers can choose different beam widths. The effective
 beam is at least `k`; ordinary `search` uses the index's defaults.
 
-Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in
-the Python and wasm bindings, and returns results nearest
+Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
+Python bindings; wasm takes it as a required string argument. Results come back
+nearest
 first. The native `ApproxIndex` supports `save`/`load`. `DiskIndex` is written
 by `DiskIndexBuilder` and then opened read-only; `FlatIndex` is in-memory only
 and is rebuilt on each run.
@@ -134,9 +135,11 @@ WebAssembly currently supports add, batch add, search, lookup methods, remove,
 `tombstones` and `compact`; it does not expose persistence or upsert. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
-`wasm-pack build vanedb-wasm --target web --release --locked` after installing
-`wasm-pack` and the `wasm32-unknown-unknown` Rust target. The generated `pkg/`
-directory includes JavaScript, TypeScript declarations, and the wasm module.
+`wasm-pack build vanedb-wasm --target web --release --locked --out-dir pkg-web`
+after installing `wasm-pack` and the `wasm32-unknown-unknown` Rust target. The
+`--out-dir` matters: the Node target also defaults to `pkg/`, and whichever
+build runs second silently overwrites the first. The generated directory
+includes JavaScript, TypeScript declarations, and the wasm module.
 The [JavaScript guide](vanedb-wasm/README.md) includes runnable Node and browser
 examples. Initialize that module before constructing an index. For example, the approximate
 constructor takes `(3, "cosine", 100, 16, 200)`.

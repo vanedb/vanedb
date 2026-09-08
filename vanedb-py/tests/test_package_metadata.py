@@ -11,7 +11,12 @@ def test_installed_package_has_markdown_description():
     assert package.get("Description", "").strip()
 
 
-def test_installed_readme_python_examples():
+def test_installed_readme_python_examples(monkeypatch, tmp_path):
+    """The README's examples use bare relative paths, which is right for a
+    README and wrong for a test that `exec`s them: the DiskIndexBuilder example
+    saves `corpus.vndb`, which landed in the source tree on every run. Run them
+    somewhere disposable instead of complicating the documented code."""
+    monkeypatch.chdir(tmp_path)
     description = metadata("vanedb").get("Description", "")
     examples = re.findall(r"```python\n(.*?)\n```", description, re.DOTALL)
     assert examples, "The installed description must contain a runnable quick start"

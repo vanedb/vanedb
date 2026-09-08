@@ -45,7 +45,21 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    one action, so a partial upload leaves `0.1.0` permanently half-populated.
    This is a property of the registries, not a project policy.
 
-5. Record the candidate commit, run URLs, artifact checksums, resolved findings
+5. **Before designating the final candidate**, put the published-install form
+   into `vanedb/README.md` and `vanedb-py/README.md`. `vanedb/Cargo.toml`
+   declares `readme = "README.md"`, so that file is inside the `.crate` and is
+   what crates.io renders; `vanedb-py/pyproject.toml` does the same, making its
+   README the core-metadata description of all 28 wheels and the sdist, and the
+   PyPI project page. Neither registry permits a re-upload, so a checkout-only
+   install line in either file is permanent for that version: for the whole
+   time 0.1.0 is the newest release, both registry pages would tell a visitor
+   nothing is published while they are standing on the published package.
+
+   Every other guide is git-only and is corrected after publication (#122).
+   Make this edit in the release commit itself, not earlier — until the tag,
+   the checkout instructions are the true ones.
+
+6. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
 
 ## Registry setup
@@ -107,7 +121,10 @@ changes to a version dependency, which would make crates.io a hard prerequisite.
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
 the downloadable C and WebAssembly assets match the approved checksums. Only
-then add the verified registry commands and release links to the user guides.
+then add the verified registry commands and release links to the **git-only**
+user guides: the root `README.md`, `cpp/`, and the organisation profile. That
+step cannot reach `vanedb/README.md` or `vanedb-py/README.md` — those are
+already inside the published artifacts by this point. See step 5.
 
 If publication fails, inspect which versions and files were actually accepted
 before retrying. Preserve published versions and tags; do not delete or move

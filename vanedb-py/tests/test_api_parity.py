@@ -200,7 +200,10 @@ def test_validation_failures_are_still_valueerror():
         flat.add(1, [1.0, 2.0])          # duplicate id
     with pytest.raises(ValueError):
         flat.search([1.0, 2.0], 0)
-    assert not isinstance(ValueError(), KeyError)
+    # (A `not isinstance(ValueError(), KeyError)` line used to sit here. It
+    # asserted CPython's builtin hierarchy, which no vanedb change can affect.
+    # The real claim — that a miss is no longer a ValueError — is asserted on a
+    # real exception in test_a_missing_id_raises_keyerror_on_every_read_and_remove.)
 
 
 def test_keyerror_carries_the_message_not_just_the_id():
