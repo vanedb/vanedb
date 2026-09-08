@@ -102,7 +102,20 @@ All fields are little-endian. The header is exactly 32 bytes:
 | 28 | 4 | reserved | `0` |
 
 The header is followed by `count` ids (`u64` each), then `count * dim` vector
-components (`f32` each), in the same order as the ids.
+components (`f32` each), in the same order as the ids. No padding or trailing
+bytes are allowed: the file length is exactly `32 + count * 8 + count * dim * 4`,
+and both loaders reject any other length in either direction.
+
+**Length equality is a loader rule, not just a writer rule.** A one-sided
+"shorter than declared" check leaves a header that *understates* the geometry
+accepted, because the expected length is derived from the header being checked:
+one flipped bit in `dim` reads the payload at the wrong stride, and `get`
+returns a vector that straddles two stored records. Equality does not make the
+geometry tamper-proof — `32 + count * (8 + 4 * dim)` is the same for every
+`(dim, count)` on that curve, and a header-only file (`count = 0`) fixes no
+dimension at all — so a loader must also reject a `dim` too large to address,
+which is what keeps the two engines agreeing on an empty store. Full integrity
+needs a checksum, which v1 does not carry.
 
 **Ids must be unique.** Both loaders reject a file where they are not, on the
 same rule the HNSW payload uses above: the id map must end up the same size as
