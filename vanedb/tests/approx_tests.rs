@@ -131,7 +131,10 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
     // ~capacity worth of data. 10 vectors x 32 dims x 4 bytes is ~1.3 KB of
     // payload; 20 KB allows generous encoding overhead, while the full
     // pre-allocated arrays would exceed 140 KB.
-    let path = std::env::temp_dir().join("vanedb_test_hnsw_compact.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_test_hnsw_compact-{}.bin",
+        std::process::id()
+    ));
     let idx = ApproxIndex::builder(32, Metric::L2)
         .capacity(1000)
         .seed(42)
@@ -154,7 +157,8 @@ fn hnsw_save_size_proportional_to_count_not_capacity() {
 fn hnsw_empty_index_save_load_roundtrip() {
     // v2 stores zero-length arrays for an empty index; load must re-expand
     // to full capacity so subsequent adds work.
-    let path = std::env::temp_dir().join("vanedb_test_hnsw_empty.bin");
+    let path =
+        std::env::temp_dir().join(format!("vanedb_test_hnsw_empty-{}.bin", std::process::id()));
     let idx = ApproxIndex::builder(4, Metric::L2)
         .capacity(10)
         .seed(42)
@@ -173,7 +177,7 @@ fn hnsw_empty_index_save_load_roundtrip() {
 #[test]
 fn hnsw_save_load_roundtrip() {
     let dim = 8;
-    let path = std::env::temp_dir().join("vanedb_test_hnsw.bin");
+    let path = std::env::temp_dir().join(format!("vanedb_test_hnsw-{}.bin", std::process::id()));
 
     // Build and populate index
     let idx = ApproxIndex::builder(dim, Metric::L2)

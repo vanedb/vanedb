@@ -24,8 +24,8 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
 
-    let store_path = dir.join("index.bin");
-    let index_path = dir.join("index.idx");
+    let store_path = dir.join(format!("index-{}.bin", std::process::id()));
+    let index_path = dir.join(format!("index-{}.idx", std::process::id()));
 
     for round in 0..ROUNDS {
         let mut builder = DiskIndexBuilder::new(DIM, Metric::L2).unwrap();
@@ -92,7 +92,7 @@ fn failed_save_leaves_no_temporary_file() {
     builder.add(1, &vector(1)).unwrap();
 
     // A directory as the destination makes the final rename fail.
-    let dest = dir.join("occupied.bin");
+    let dest = dir.join(format!("occupied-{}.bin", std::process::id()));
     std::fs::create_dir(&dest).unwrap();
     assert!(builder.save(&dest).is_err());
 

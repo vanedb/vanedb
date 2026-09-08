@@ -5,7 +5,10 @@ use vanedb::{DiskIndex, DiskIndexBuilder, FlatIndex, Metric};
 #[test]
 fn mmap_matches_brute_force() {
     let dim = 16;
-    let path = std::env::temp_dir().join("vanedb_test_mmap_vs_brute.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_test_mmap_vs_brute-{}.bin",
+        std::process::id()
+    ));
 
     let mut builder = DiskIndexBuilder::new(dim, Metric::L2).unwrap();
     let brute = FlatIndex::new(dim, Metric::L2).unwrap();
@@ -42,7 +45,10 @@ fn mmap_matches_brute_force() {
 
 #[test]
 fn mmap_cosine_search() {
-    let path = std::env::temp_dir().join("vanedb_test_mmap_cosine.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_test_mmap_cosine-{}.bin",
+        std::process::id()
+    ));
     let mut builder = DiskIndexBuilder::new(3, Metric::Cosine).unwrap();
     builder.add(1, &[1.0, 0.0, 0.0]).unwrap();
     builder.add(2, &[0.0, 1.0, 0.0]).unwrap();
@@ -63,7 +69,10 @@ fn mmap_concurrent_search() {
     use std::thread;
 
     let dim = 8;
-    let path = std::env::temp_dir().join("vanedb_test_mmap_concurrent.bin");
+    let path = std::env::temp_dir().join(format!(
+        "vanedb_test_mmap_concurrent-{}.bin",
+        std::process::id()
+    ));
 
     let mut builder = DiskIndexBuilder::new(dim, Metric::L2).unwrap();
     for i in 0..50u64 {

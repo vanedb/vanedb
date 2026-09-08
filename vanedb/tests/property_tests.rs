@@ -35,6 +35,18 @@ proptest! {
         let d = dist_fn(&a, &b);
         prop_assert!((0.0..=2.0).contains(&d),
             "Cosine distance out of [0, 2]: {d}");
+
+        // `a` and `b` are drawn independently, so this never generates the
+        // identical-vector case — which is the one that breaks without the
+        // similarity clamp, because floating-point error pushes the cosine
+        // just past 1.0 and the distance just below 0.
+        let same = dist_fn(&a, &a);
+        prop_assert!((0.0..=2.0).contains(&same),
+            "Cosine self-distance out of [0, 2]: {same}");
+        let scaled: Vec<f32> = a.iter().map(|x| x * 3.0).collect();
+        let parallel = dist_fn(&a, &scaled);
+        prop_assert!((0.0..=2.0).contains(&parallel),
+            "Cosine distance to a scaled copy out of [0, 2]: {parallel}");
     }
 
     #[test]
@@ -43,7 +55,15 @@ proptest! {
     ) {
         let dist_fn = distance::distance_fn(Metric::Cosine);
         let d = dist_fn(&a, &a);
-        prop_assert!(d.abs() < 1e-5, "Cosine self-distance was {d}");
+        // Not `d.abs()`. Removing the `clamp(-1.0, 1.0)` in the kernels makes
+        // a self-distance go slightly *negative* — 3763 of 14000 cases, worst
+        // -1.19e-7 — and `.abs()` hid exactly that sign. The lower bound is
+        // what the clamp exists for.
+        prop_assert!(
+            (0.0..1e-5).contains(&d),
+            "Cosine self-distance was {d}; a negative distance means the \
+             similarity clamp is gone"
+        );
     }
 
     #[test]
