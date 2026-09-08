@@ -1,5 +1,10 @@
-# Codecov configuration for the C++ engine.
+# Codecov configuration for the repository.
 # Codecov discovers this file from .github/ at the monorepo root.
+#
+# This file used to say "for the C++ engine", and it was accurate: every path
+# and flag named `cpp/`, and the only upload lived in cpp-ci.yml. Coverage was
+# measured on the frozen reference engine and not on the Rust engine that
+# ships — a gate pointed at the wrong target. The `rust` flag below fixes that.
 
 coverage:
   precision: 2
@@ -38,4 +43,11 @@ flags:
   core:
     paths:
       - cpp/src/core/
+    # Rust-only PRs do not run cpp-ci, so without this Codecov sees the C++
+    # coverage vanish rather than persist. Inserting `rust:` above this line
+    # once re-parented it and silently removed it from `core`.
+    carryforward: true
+  rust:
+    paths:
+      - vanedb/src/
     carryforward: true

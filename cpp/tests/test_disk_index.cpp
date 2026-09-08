@@ -1,8 +1,10 @@
 #include "core/disk_index.h"
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <random>
+#include <thread>
 #include <vector>
 
 using Catch::Approx;
@@ -523,4 +525,143 @@ TEST_CASE("DiskIndex - dot product metric", "[disk]") {
   }  // Scope ensures store is destroyed and file unmapped before removal (Windows file locking)
 
   std::filesystem::remove(filename);
+}
+
+TEST_CASE("DiskIndex - concurrent saves to one path do not corrupt it", "[disk][concurrency]") {
+  // Both save paths wrote to `filename + ".tmp"`. That is unique per
+  // destination, so it never had the extension-replacing collision Rust fixed
+  // in vanedb#38 — but two threads saving the *same* path shared one temp
+  // file and interleaved their writes into it.
+  //
+  // Each writer saves a *differently sized* index, and every candidate is
+  // written once, alone, beforehand. The published file must then be
+  // byte-identical to exactly one candidate. Sharing a temp file blends
+  // several writers' bytes into the file that gets renamed, so it matches
+  // none — which a same-content workload cannot show, because there every
+  // interleaving still produces the right bytes.
+  const std::string path = "test_disk_concurrent_save.bin";
+  constexpr size_t kDim = 8, kThreads = 8;
+  std::filesystem::remove(path);
+
+  auto fill = [](vanedb::DiskIndexBuilder& b, size_t n) {
+    for (size_t i = 0; i < n; ++i) {
+      std::vector<float> v(kDim, static_cast<float>(i));
+      b.add(i, v.data());
+    }
+  };
+  auto read_all = [](const std::string& p) {
+    std::ifstream f(p, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+  };
+
+  // One candidate per writer, each a different size, each written alone.
+  std::vector<std::string> candidates;
+  for (size_t t = 0; t < kThreads; ++t) {
+    vanedb::DiskIndexBuilder b(kDim);
+    fill(b, 64 * (t + 1));
+    const std::string only = "test_disk_candidate_" + std::to_string(t) + ".bin";
+    b.save(only);
+    candidates.push_back(read_all(only));
+    std::filesystem::remove(only);
+  }
+
+  std::vector<std::thread> writers;
+  // Not vector<bool>: it is bit-packed, so writes to distinct elements share
+  // a word and are a data race — the one container the standard excludes from
+  // its distinct-element guarantee. ThreadSanitizer flags it while the test
+  // still passes.
+  std::vector<char> ok(kThreads, 0);
+  writers.reserve(kThreads);
+  for (size_t t = 0; t < kThreads; ++t) {
+    writers.emplace_back([&, t] {
+      vanedb::DiskIndexBuilder b(kDim);
+      fill(b, 64 * (t + 1));
+      try {
+        b.save(path);
+        ok[t] = 1;
+      } catch (const std::exception&) {
+        // Windows can refuse a rename whose destination another writer is
+        // replacing at that instant. Losing that race is acceptable;
+        // publishing a blend of two writers is not.
+      }
+    });
+  }
+  for (auto& w : writers) w.join();
+  REQUIRE(std::count(ok.begin(), ok.end(), char{1}) >= 1);
+
+  const std::string published = read_all(path);
+  REQUIRE_FALSE(published.empty());
+  REQUIRE(std::find(candidates.begin(), candidates.end(), published) != candidates.end());
+
+  // Scoped: Windows refuses to delete a mapped file.
+  {
+    vanedb::DiskIndex index(path);
+    REQUIRE(index.size() % 64 == 0);
+    REQUIRE(index.dimension() == kDim);
+  }
+
+  // No temp file may survive a clean run.
+  size_t leftovers = 0;
+  for (const auto& entry : std::filesystem::directory_iterator(".")) {
+    const std::string name = entry.path().filename().string();
+    if (name.rfind("test_disk_concurrent_save.bin.", 0) == 0) ++leftovers;
+  }
+  REQUIRE(leftovers == 0);
+
+  std::filesystem::remove(path);
+}
+
+TEST_CASE("detail::temp_path_for is unique per writer", "[disk][concurrency]") {
+  const std::string dest = "some/dir/index.bin";
+  REQUIRE(vanedb::detail::temp_path_for(dest) != vanedb::detail::temp_path_for(dest));
+  // Distinct destinations must still not collide, which `filename + ".tmp"`
+  // already guaranteed and the fix must not regress.
+  REQUIRE(vanedb::detail::temp_path_for("index.bin") !=
+          vanedb::detail::temp_path_for("index.idx"));
+  // Stays beside the destination so the rename is same-filesystem.
+  REQUIRE(vanedb::detail::temp_path_for(dest).rfind("some/dir/", 0) == 0);
+  // The pid specifically: the counter alone satisfies both inequalities
+  // above, so dropping the pid passes every other assertion here while
+  // reintroducing collisions between *processes* saving the same path. That
+  // is the one case the threaded test can never reach.
+#if defined(_WIN32) || defined(_WIN64)
+  const std::string pid = std::to_string(GetCurrentProcessId());
+#else
+  const std::string pid = std::to_string(getpid());
+#endif
+  REQUIRE(vanedb::detail::temp_path_for(dest).find("." + pid + ".") != std::string::npos);
+}
+
+TEST_CASE("DiskIndex - saving twice to one path replaces it", "[disk]") {
+  // `std::rename` has implementation-defined behaviour when the destination
+  // exists; on Windows it fails instead of replacing. Every save after the
+  // first therefore threw there while working on POSIX, and no test covered
+  // it because none saved twice to one path. `ApproxIndex::save` already used
+  // `std::filesystem::rename`, which the standard requires to replace.
+  const std::string path = "test_disk_save_twice.bin";
+  std::filesystem::remove(path);
+
+  vanedb::DiskIndexBuilder first(2);
+  float a[2] = {1.0f, 0.0f};
+  first.add(1, a);
+  REQUIRE_NOTHROW(first.save(path));
+
+  vanedb::DiskIndexBuilder second(2);
+  float b[2] = {0.0f, 1.0f};
+  second.add(7, b);
+  second.add(9, a);
+  REQUIRE_NOTHROW(second.save(path));
+
+  // The second save must have replaced the first, not merged with it.
+  // Scoped: Windows refuses to delete a file while it is mapped, so the
+  // DiskIndex has to be destroyed before the cleanup below.
+  {
+    vanedb::DiskIndex index(path);
+    REQUIRE(index.size() == 2);
+    REQUIRE(index.contains(7));
+    REQUIRE(index.contains(9));
+    REQUIRE_FALSE(index.contains(1));
+  }
+
+  std::filesystem::remove(path);
 }

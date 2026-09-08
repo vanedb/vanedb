@@ -95,3 +95,37 @@ def test_stub_properties_match_runtime_descriptors():
                 f"{cls.name}.{member.name}: stub has {properties} property decorators; "
                 f"runtime data descriptor={descriptor}"
             )
+
+
+def test_read_only_scalar_accessors_are_properties():
+    """`ix.tombstones` returned a bound method, printing
+    `<built-in method tombstones ...>` where a count was expected.
+
+    Nothing caught it. The stub agreed with the runtime — both said "method" —
+    so the stub tests passed, and no functional test ever read the attribute
+    without calling it. It only showed up when someone exercised the API by
+    hand.
+
+    `size` is deliberately excluded: it mirrors C++ `size()` for cross-engine
+    parity (#85) and pairs with `__len__`. Every other read-only scalar is a
+    property, and a Python caller who writes `ix.capacity` next to
+    `ix.tombstones` should get a number from both.
+    """
+    import inspect
+
+    expected = {
+        "FlatIndex": ["dimension", "metric"],
+        "ApproxIndex": ["dimension", "metric", "capacity", "ef_search", "tombstones"],
+        "DiskIndex": ["dimension", "metric"],
+        "DiskIndexBuilder": ["dimension"],
+    }
+    for cls_name, accessors in expected.items():
+        cls = getattr(vanedb, cls_name)
+        for name in accessors:
+            attr = getattr(cls, name, None)
+            assert attr is not None, f"{cls_name}.{name} is missing"
+            assert inspect.isdatadescriptor(attr), (
+                f"{cls_name}.{name} is a method; every read-only scalar accessor "
+                f"except size() is a property, and a caller reading it without "
+                f"parentheses gets a method object rather than an error"
+            )

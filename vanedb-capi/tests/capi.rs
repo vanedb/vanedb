@@ -491,3 +491,171 @@ fn dot_ranks_by_largest_inner_product_through_the_abi() {
         vanedb_capi::vanedb_rs_store_free(s);
     }
 }
+
+/// Every entry point must reject a null handle rather than dereference it.
+///
+/// Coverage on the C ABI was 88% of lines, and almost all of the remainder was
+/// these rejection branches — the ones that stand between a C caller's mistake
+/// and undefined behaviour in Rust. `vanedb_capi::vanedb_rs_store_add(s, id, NULL)` going
+/// straight into `from_raw_parts` was a real defect once (`54156f0`); it is
+/// exactly this shape.
+///
+/// A null handle returns the failure code for its return type: 1 for status
+/// codes, 0 for counts, and for the metric accessors 0, which is also L2's
+/// value — so the header tells callers to check the handle first.
+#[test]
+fn every_entry_point_rejects_a_null_handle() {
+    use std::ptr;
+    let v = [1.0f32, 0.0];
+    let mut ids = [0u64; 4];
+    let mut ds = [0f32; 4];
+
+    unsafe {
+        // Status-code returning calls: 1 on rejection.
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(ptr::null_mut(), 1, v.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(ptr::null_mut(), ids.as_ptr(), v.as_ptr(), 1),
+            1
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_remove(ptr::null_mut(), 1), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_get(ptr::null_mut(), 1, ds.as_mut_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(ptr::null_mut(), 1, v.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add_batch(ptr::null_mut(), ids.as_ptr(), v.as_ptr(), 1),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_upsert(ptr::null_mut(), 1, v.as_ptr()),
+            1
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_remove(ptr::null_mut(), 1), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_get_vector(ptr::null_mut(), 1, ds.as_mut_ptr()),
+            1
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_compact(ptr::null_mut()), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_disk_get(ptr::null_mut(), 1, ds.as_mut_ptr()),
+            1
+        );
+
+        // Count-returning calls: 0 on rejection.
+        assert_eq!(vanedb_capi::vanedb_rs_store_len(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_store_dimension(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_len(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_dimension(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_tombstones(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_len(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_dimension(ptr::null()), 0);
+
+        // Membership: false on rejection.
+        assert!(!vanedb_capi::vanedb_rs_store_contains(ptr::null(), 1));
+        assert!(!vanedb_capi::vanedb_rs_index_contains(ptr::null(), 1));
+        assert!(!vanedb_capi::vanedb_rs_disk_contains(ptr::null(), 1));
+
+        // Search: 0 results on rejection.
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_search(
+                ptr::null_mut(),
+                v.as_ptr(),
+                1,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_search(
+                ptr::null_mut(),
+                v.as_ptr(),
+                1,
+                1,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_disk_search(
+                ptr::null_mut(),
+                v.as_ptr(),
+                1,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr()
+            ),
+            0
+        );
+
+        // Freeing a null handle is a no-op, not a crash — C callers free in
+        // cleanup paths that may not have allocated.
+        vanedb_capi::vanedb_rs_store_free(ptr::null_mut());
+        vanedb_capi::vanedb_rs_index_free(ptr::null_mut());
+        vanedb_capi::vanedb_rs_disk_free(ptr::null_mut());
+    }
+}
+
+/// A null data pointer with a non-zero count must be rejected before it
+/// reaches `from_raw_parts`. An empty batch is legal and must stay legal, so
+/// the guard is `n != 0 && ptr.is_null()`, not `ptr.is_null()`.
+#[test]
+fn null_data_with_a_nonzero_count_is_rejected_but_empty_batches_are_not() {
+    use std::ptr;
+    unsafe {
+        let store = vanedb_capi::vanedb_rs_store_new(2, 0);
+        assert!(!store.is_null());
+        let index = vanedb_capi::vanedb_rs_index_new(2, 0, 16, 4, 16, 42);
+        assert!(!index.is_null());
+
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(store, 1, ptr::null()), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(index, 1, ptr::null()), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_upsert(index, 1, ptr::null()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(store, ptr::null(), ptr::null(), 1),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add_batch(index, ptr::null(), ptr::null(), 1),
+            1
+        );
+
+        // n == 0 never dereferences, so null is fine and the call succeeds.
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(store, ptr::null(), ptr::null(), 0),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add_batch(index, ptr::null(), ptr::null(), 0),
+            0
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_len(store), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_len(index), 0);
+
+        // A count whose product with the dimension overflows must be refused
+        // before any slice is formed.
+        let ids = [0u64; 1];
+        let vecs = [0f32; 2];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add_batch(store, ids.as_ptr(), vecs.as_ptr(), usize::MAX),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add_batch(index, ids.as_ptr(), vecs.as_ptr(), usize::MAX),
+            1
+        );
+
+        vanedb_capi::vanedb_rs_store_free(store);
+        vanedb_capi::vanedb_rs_index_free(index);
+    }
+}

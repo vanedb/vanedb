@@ -1,6 +1,8 @@
 // VaneDB - Copyright (c) 2025 Anton Tsvetkov - MIT License
 #pragma once
 
+#include <atomic>
+#include <cstdint>
 #include <string>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -15,6 +17,29 @@
 
 namespace vanedb {
 namespace detail {
+
+/// A temporary path beside `dest`, unique per process and per writer.
+///
+/// A save writes here and renames into place, so a crash mid-write cannot
+/// leave a half-written file. `dest + ".tmp"` is unique per destination —
+/// unlike the extension-replacing form that collided in vanedb#38 — but two
+/// concurrent saves to the *same* path still share one temp file and
+/// interleave their writes, and the loser's rename publishes the corruption.
+/// The pid and counter make the name unique per writer, matching what the
+/// Rust engine does in `atomic_write.rs`.
+///
+/// Stays in the destination directory so the final rename is same-filesystem,
+/// and therefore atomic.
+inline std::string temp_path_for(const std::string& dest) {
+  static std::atomic<uint64_t> sequence{0};
+#if defined(_WIN32) || defined(_WIN64)
+  const unsigned long pid = static_cast<unsigned long>(GetCurrentProcessId());
+#else
+  const unsigned long pid = static_cast<unsigned long>(getpid());
+#endif
+  return dest + "." + std::to_string(pid) + "." +
+         std::to_string(sequence.fetch_add(1, std::memory_order_relaxed)) + ".tmp";
+}
 
 /// Reopen a file by path, flush it to persistent media, close.
 ///

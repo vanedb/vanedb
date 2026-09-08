@@ -24,7 +24,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
+#include <system_error>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -236,7 +238,7 @@ public:
   void reserve(size_t cap) { ids_.reserve(cap); vectors_.reserve(cap * dim_); }
 
   void save(const std::string& filename) const {
-    std::string tmp = filename + ".tmp";
+    std::string tmp = detail::temp_path_for(filename);
     std::ofstream f(tmp, std::ios::binary);
     if (!f) throw std::runtime_error("Cannot open: " + tmp);
     uint32_t magic = DiskIndex::MAGIC, ver = DiskIndex::VERSION;
@@ -254,8 +256,17 @@ public:
     if (!f) { std::remove(tmp.c_str()); throw std::runtime_error("Write failed"); }
     f.close();  // close before fsync_file (see file_utils.h: Windows lock contract)
     detail::fsync_file(tmp);
-    if (std::rename(tmp.c_str(), filename.c_str()) != 0) {
-      std::remove(tmp.c_str()); throw std::runtime_error("Rename failed");
+    // std::filesystem::rename, not std::rename: the C library's rename has
+    // implementation-defined behaviour when the destination exists, and on
+    // Windows it fails rather than replacing. Saving twice to one path — or
+    // two threads racing to publish — therefore failed there while working on
+    // POSIX. ApproxIndex::save already used the filesystem form; this makes
+    // the two save paths agree.
+    std::error_code ec;
+    std::filesystem::rename(tmp, filename, ec);
+    if (ec) {
+      std::filesystem::remove(tmp);
+      throw std::runtime_error("Rename failed: " + ec.message());
     }
   }
 
