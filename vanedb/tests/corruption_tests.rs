@@ -374,6 +374,90 @@ fn mmap_load_rejects_truncated_data() {
 
 #[cfg(feature = "disk")]
 #[test]
+fn mmap_load_rejects_a_header_that_understates_the_payload() {
+    // The mirror of `mmap_load_rejects_truncated_data`, and the case that was
+    // missing. `expected` is derived FROM the header, so a header that lies in
+    // the direction that makes the file look larger than declared moves the
+    // goalpost instead of tripping a one-sided `len() < expected` check.
+    //
+    // One bit, in the low byte of `dim`: 3 becomes 2. The payload is then read
+    // at the wrong stride and `get` returns a vector that straddles two stored
+    // records — a value that was never written by anyone.
+    let mut builder = DiskIndexBuilder::new(3, Metric::L2).unwrap();
+    builder.add(11, &[1.0, 2.0, 3.0]).unwrap();
+    builder.add(22, &[4.0, 5.0, 6.0]).unwrap();
+    let good = std::env::temp_dir().join(format!(
+        "vanedb_mmap_understated_good_{}.bin",
+        std::process::id()
+    ));
+    builder.save(&good).unwrap();
+
+    let mut bytes = fs::read(&good).unwrap();
+    bytes[8] ^= 0x01;
+    let bad = write_tmp("mmap_understated_bad", &bytes);
+
+    // SAFETY: this test owns both files and does not modify them while mapped.
+    let opened = unsafe { DiskIndex::open(&bad) };
+    assert!(
+        matches!(opened, Err(VaneError::Corrupt { .. })),
+        "a header whose declared geometry is shorter than the file must be \
+         rejected, not reinterpreted at the wrong stride: {:?}",
+        opened.map(|i| (i.dimension(), i.size()))
+    );
+
+    let _ = fs::remove_file(&good);
+    let _ = fs::remove_file(&bad);
+}
+
+#[cfg(feature = "disk")]
+#[test]
+fn mmap_load_rejects_every_single_bit_flip_in_the_geometry_fields() {
+    // `dim` (offsets 8..16) and `num_vectors` (16..24) are the two fields the
+    // payload length is computed from, so every flip in them makes the header
+    // disagree with the file. None may be accepted: an accepted flip here is
+    // silent misinterpretation, not a smaller index.
+    //
+    // The other header fields are covered elsewhere — magic and version have
+    // their own tests, the reserved word is checked for zero, and `metric`
+    // yields a structurally valid file, so no length check can reject it.
+    let mut builder = DiskIndexBuilder::new(4, Metric::L2).unwrap();
+    for id in 0..5u64 {
+        let f = id as f32;
+        builder.add(id, &[f, f + 1.0, f + 2.0, f + 3.0]).unwrap();
+    }
+    let good = std::env::temp_dir().join(format!(
+        "vanedb_mmap_geometry_good_{}.bin",
+        std::process::id()
+    ));
+    builder.save(&good).unwrap();
+    let original = fs::read(&good).unwrap();
+
+    let mut accepted = Vec::new();
+    for byte in 8..24usize {
+        for bit in 0..8u32 {
+            let mut bytes = original.clone();
+            bytes[byte] ^= 1 << bit;
+            let path = write_tmp(&format!("mmap_geometry_{byte}_{bit}"), &bytes);
+            // SAFETY: this test owns the file and does not modify it while mapped.
+            if let Ok(index) = unsafe { DiskIndex::open(&path) } {
+                accepted.push((byte, bit, index.dimension(), index.size()));
+            }
+            let _ = fs::remove_file(&path);
+        }
+    }
+    let _ = fs::remove_file(&good);
+
+    assert!(
+        accepted.is_empty(),
+        "{} of 128 geometry-field bit flips were accepted \
+         (byte, bit, dimension, size): {:?}",
+        accepted.len(),
+        accepted
+    );
+}
+
+#[cfg(feature = "disk")]
+#[test]
 fn mmap_load_rejects_size_overflow() {
     // num_vectors * dim that overflows usize when multiplied by sizeof(f32).
     let path = std::env::temp_dir().join("vanedb_mmap_overflow.bin");

@@ -9,10 +9,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
+#include "core/detail/file_utils.h"
 #include "core/disk_index.h"
 
 namespace {
@@ -94,4 +97,54 @@ TEST_CASE("writing the same content reproduces the VNDB fixture byte for byte",
     }
     std::remove(out.c_str());
   }
+}
+
+TEST_CASE("a header that disagrees with the file length is rejected in both directions",
+          "[vndb]") {
+  // `expected` is derived from the header, so a one-sided `file_size_ <
+  // expected` check lets a header that UNDERSTATES the geometry move the
+  // goalpost rather than trip the guard: the payload is then read at the wrong
+  // stride and `get` returns a vector straddling two stored records.
+  //
+  // `dim` (offsets 8..16) and `num_vectors` (16..24) are the only fields the
+  // length is computed from. Every flip in them makes the header disagree with
+  // the file, so none may be accepted. The Rust reader asserts the same thing
+  // over the same fixture layout (`corruption_tests.rs`), which is the point:
+  // both readers of VNDB v1 must reject exactly the same shapes.
+  std::ifstream in(fixture("v1_l2.vndb"), std::ios::binary);
+  REQUIRE(in);
+  const std::vector<char> original((std::istreambuf_iterator<char>(in)),
+                                   std::istreambuf_iterator<char>());
+  REQUIRE(original.size() == 32 + IDS.size() * 8 + IDS.size() * DIM * 4);
+
+  const std::string path = vanedb::detail::temp_path_for(
+      std::string(VANEDB_CONFORMANCE_DIR) + "/../vndb_geometry_flip");
+
+  std::vector<std::string> accepted;
+  for (size_t byte = 8; byte < 24; ++byte) {
+    for (int bit = 0; bit < 8; ++bit) {
+      std::vector<char> bytes = original;
+      bytes[byte] = static_cast<char>(bytes[byte] ^ (1 << bit));
+      {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        REQUIRE(out);
+        out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+      }
+      try {
+        vanedb::DiskIndex index(path);
+        accepted.push_back("byte " + std::to_string(byte) + " bit " +
+                           std::to_string(bit) + " -> dim " +
+                           std::to_string(index.dimension()) + " size " +
+                           std::to_string(index.size()));
+      } catch (const std::exception&) {
+        // Rejected, as required.
+      }
+      std::remove(path.c_str());
+    }
+  }
+
+  for (const auto& a : accepted) {
+    INFO("accepted: " << a);
+  }
+  REQUIRE(accepted.empty());
 }

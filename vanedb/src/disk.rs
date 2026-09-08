@@ -222,8 +222,21 @@ impl DiskIndex {
     ///
     /// Validates the header, checks every stored component is finite, and
     /// builds the id index, so this is linear in the corpus rather than a
-    /// constant-cost mapping. A file that is already corrupt or truncated is
-    /// rejected here rather than surfacing as a wrong answer later.
+    /// constant-cost mapping.
+    ///
+    /// # Integrity
+    ///
+    /// What this rejects: a bad magic or version, a header whose declared
+    /// geometry disagrees with the file length in either direction, a
+    /// non-finite stored component, a duplicate id, and a nonzero reserved
+    /// word. Corruption that changes the file's *shape* therefore cannot
+    /// surface as a wrong answer.
+    ///
+    /// What it cannot reject: the format carries no checksum, so a flipped bit
+    /// inside a stored id or vector component produces a structurally valid
+    /// file and is returned as data. A caller who needs integrity against
+    /// bitrot must supply it — verify a digest of the file before opening it,
+    /// or store on a filesystem that checksums blocks.
     ///
     /// # Safety
     ///
@@ -287,8 +300,21 @@ impl DiskIndex {
             .and_then(|n| n.checked_add(vecs_size))
             .ok_or_else(|| VaneError::corrupt("size overflow"))?;
 
-        if mmap.len() < expected {
-            return Err(VaneError::corrupt("file truncated"));
+        // Equality, not `>=`. `expected` is derived from the header, so a
+        // one-sided check lets a header that understates the geometry move the
+        // goalpost instead of tripping the guard: flipping one bit of `dim`
+        // from 3 to 2 shrinks `expected` below the real length, and the payload
+        // is then read at the wrong stride, with `get` returning a vector that
+        // straddles two stored records. `save` writes header + ids + vectors
+        // and nothing else, so any file this crate wrote matches exactly. The
+        // graph reader already holds this line (`graph_format.rs`, "trailing
+        // bytes in VNDB graph").
+        if mmap.len() != expected {
+            return Err(VaneError::corrupt(if mmap.len() < expected {
+                "file truncated"
+            } else {
+                "file longer than its header declares"
+            }));
         }
 
         let ids_offset = HEADER_SIZE;
