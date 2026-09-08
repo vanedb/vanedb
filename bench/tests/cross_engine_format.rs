@@ -148,3 +148,143 @@ fn rust_reads_cpp_with_metric(metric: u32, name: &str) {
     }
     let _ = std::fs::remove_file(&file);
 }
+
+/// Both engines must reject exactly the same corrupt files.
+///
+/// A shared format is only shared if its readers agree on what is valid.
+/// Cross-loading proves they agree on *good* files; nothing proved they agree
+/// on bad ones, and they did not: both carried a one-sided `file_size <
+/// expected` check that accepted a header understating the geometry, and
+/// fixing one engine without the other would have been a silent divergence —
+/// a file one engine reads and the other refuses.
+///
+/// The sweep covers every single-bit flip in the 32-byte header plus a sample
+/// of payload bits, so it also pins what the format deliberately does *not*
+/// catch: with no checksum, a flipped payload bit is valid to both engines,
+/// and a metric flip that lands on another defined metric is a valid file.
+/// `DiskIndex::open`'s Integrity section says exactly this; the counts here
+/// are what make that statement checkable.
+#[test]
+fn both_engines_accept_and_reject_exactly_the_same_files() {
+    let (ids, vectors) = workload();
+    let dir = std::env::temp_dir().join(format!("vanedb-agree-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let good = dir.join("good.vndb");
+    let c_good = CString::new(good.to_str().unwrap()).unwrap();
+    // SAFETY: buffers outlive the call and the lengths match `ids`/`vectors`.
+    assert_eq!(
+        unsafe {
+            ffi::vanedb_rs_disk_build(c_good.as_ptr(), DIM, 0, ids.as_ptr(), vectors.as_ptr(), N)
+        },
+        0
+    );
+    let original = std::fs::read(&good).unwrap();
+
+    // Header bits, then a few payload bits, then the two length edges.
+    let mut cases: Vec<(String, Vec<u8>)> = Vec::new();
+    for byte in (0..32usize).chain([32, 40, 80, 100]) {
+        for bit in 0..8u32 {
+            let mut bytes = original.clone();
+            bytes[byte] ^= 1 << bit;
+            cases.push((format!("flip_{byte}_{bit}"), bytes));
+        }
+    }
+    let mut longer = original.clone();
+    longer.push(0);
+    cases.push(("trailing_byte".into(), longer));
+    cases.push((
+        "truncated_byte".into(),
+        original[..original.len() - 1].to_vec(),
+    ));
+    cases.push(("pristine".into(), original.clone()));
+
+    let mut disagreements = Vec::new();
+    let mut verdict = std::collections::HashMap::new();
+    for (name, bytes) in &cases {
+        let path = dir.join(format!("{name}.vndb"));
+        std::fs::write(&path, bytes).unwrap();
+        let c_path = CString::new(path.to_str().unwrap()).unwrap();
+
+        // SAFETY: this test owns the file and never mutates it while mapped.
+        let rust_ok = unsafe { vanedb::DiskIndex::open(&path) }.is_ok();
+        // SAFETY: same file; the handle is freed before the next iteration.
+        let cpp_handle = unsafe { ffi::vanedb_cpp_disk_open(c_path.as_ptr()) };
+        let cpp_ok = !cpp_handle.is_null();
+        if cpp_ok {
+            // SAFETY: non-null handle from the matching constructor.
+            unsafe { ffi::vanedb_cpp_disk_free(cpp_handle) };
+        }
+
+        if rust_ok != cpp_ok {
+            disagreements.push(format!("{name}: rust={rust_ok} cpp={cpp_ok}"));
+        }
+        verdict.insert(name.clone(), rust_ok);
+        let _ = std::fs::remove_file(&path);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // The claim this test exists for.
+    assert!(
+        disagreements.is_empty(),
+        "the engines disagree on {} of {} files: {disagreements:?}",
+        disagreements.len(),
+        cases.len()
+    );
+
+    // What the readers must reject: every bit of magic, version, dim and
+    // num_vectors, and the reserved word. `dim` and `num_vectors` are the
+    // fields the payload length is derived from, so a flip there makes the
+    // header disagree with the file in one direction or the other -- which is
+    // exactly what a one-sided length check missed.
+    let structural = (0..8usize).chain(8..24).chain(28..32);
+    for byte in structural {
+        for bit in 0..8u32 {
+            let name = format!("flip_{byte}_{bit}");
+            assert!(
+                !verdict[&name],
+                "{name} changes the file's shape and must be rejected by both engines"
+            );
+        }
+    }
+
+    // The metric field is the one header byte where a flip can produce a
+    // structurally valid file: 0 -> 1 and 0 -> 2 are other defined metrics.
+    // Nothing in the format records which one was intended, so both engines
+    // accept them and answer with a different distance function.
+    assert!(verdict["flip_24_0"], "L2 -> Cosine is a valid file");
+    assert!(verdict["flip_24_1"], "L2 -> Dot is a valid file");
+    for bit in 2..8u32 {
+        assert!(
+            !verdict[&format!("flip_24_{bit}")],
+            "an undefined metric value must be rejected"
+        );
+    }
+
+    // Both length edges, which is the equality check itself.
+    assert!(verdict["pristine"]);
+    assert!(
+        !verdict["truncated_byte"],
+        "a byte short of its declared geometry"
+    );
+    assert!(
+        !verdict["trailing_byte"],
+        "a byte past its declared geometry -- the direction `<` missed"
+    );
+
+    // And what the format deliberately does not protect: it carries no
+    // checksum, so at least one payload flip is a valid file to both engines.
+    // `DiskIndex::open`'s Integrity section says so; this keeps that honest
+    // rather than letting the doc drift into promising more than it delivers.
+    let payload_accepted = [32usize, 40, 80, 100]
+        .iter()
+        .flat_map(|byte| (0..8u32).map(move |bit| format!("flip_{byte}_{bit}")))
+        .filter(|name| verdict[name])
+        .count();
+    assert!(
+        payload_accepted > 0,
+        "no payload flip was accepted -- if the format gained a checksum, \
+         the Integrity section in disk.rs must be updated to say so"
+    );
+}
