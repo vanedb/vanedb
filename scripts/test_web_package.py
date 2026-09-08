@@ -18,11 +18,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
     parser.add_argument("browser", choices=["chrome", "firefox", "webkit"])
+    parser.add_argument(
+        "--entry",
+        default="package/vanedb_wasm.js",
+        help="module path inside the extracted archive. The two-tarball web "
+             "package puts it at the root; the merged npm package, which "
+             "serves both runtimes from one name, puts it under web/.",
+    )
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="vanedb-web-") as temporary:
         with tarfile.open(args.archive) as archive:
             archive.extractall(temporary, filter="data")
-        shutil.copy2(ROOT / "vanedb-wasm/tests/packaged.html", Path(temporary) / "index.html")
+        page = (ROOT / "vanedb-wasm/tests/packaged.html").read_text()
+        default = "./package/vanedb_wasm.js"
+        wanted = f"./{args.entry}"
+        if wanted != default:
+            if default not in page:
+                raise SystemExit(f"packaged.html no longer imports {default}")
+            page = page.replace(default, wanted)
+        (Path(temporary) / "index.html").write_text(page)
         with ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=temporary)) as server:
             worker = Thread(target=server.serve_forever, daemon=True)
             worker.start()

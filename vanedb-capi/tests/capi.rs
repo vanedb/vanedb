@@ -1083,11 +1083,17 @@ fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
 /// *success* to a C caller — survived the whole suite, as did routing
 /// `InvalidK` to `VANEDB_RS_IO`.
 ///
-/// Two of those six are not reachable through this ABI at all: it derives a
-/// batch's vector count as `n * dim` rather than accepting a length, so a
-/// caller cannot present a mismatched batch or a wrong-width vector. Those
-/// codes exist because `code_for` maps every `VaneError` variant; the header
-/// records which a C caller can actually see.
+/// Three of the sixteen cannot be produced through this ABI at all.
+/// `DIMENSION_MISMATCH` and `BATCH_LENGTH_MISMATCH` are unreachable because
+/// the ABI derives a batch's vector count as `n * dim` rather than accepting a
+/// length, so a caller cannot present a mismatched batch or a wrong-width
+/// vector. `BACKEND` is unreachable because `VaneError::backend` is only
+/// constructed under `gpu-metal`, which `vanedb-capi` does not enable. They
+/// exist because `code_for` maps every `VaneError` variant.
+///
+/// An earlier version of this comment said "two", omitted `BACKEND`, and
+/// claimed the header records which codes a C caller can see. It does not —
+/// the header documents all sixteen alike.
 #[test]
 fn every_reachable_error_code_is_actually_produced() {
     unsafe {
@@ -1180,6 +1186,25 @@ fn every_reachable_error_code_is_actually_produced() {
             "writing onto a directory is an Io failure, got {code}"
         );
         let _ = std::fs::remove_dir_all(&dir);
+
+        // NOT_FOUND: reachable from four entry points and previously asserted
+        // by nothing, in the test named for producing every reachable code.
+        assert_eq!(vanedb_capi::vanedb_rs_store_remove(&*store, 4_242), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_NOT_FOUND,
+            "removing an absent id must report NotFound"
+        );
+        let mut out = [0.0f32; 3];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_get(&*store, 4_242, out.as_mut_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_NOT_FOUND,
+            "reading an absent id must report NotFound"
+        );
 
         // NonFiniteValue through the batch path, with a correctly sized buffer:
         // this ABI computes the vector count as `n * dim`, so a short buffer is

@@ -96,22 +96,13 @@ fn declared_versions() -> Vec<(&'static str, String)> {
         .to_string();
     sites.push(("vanedb-capi/cbindgen.toml VANEDB_RS_VERSION", macro_version));
 
-    // The npm package's version is copied from the wasm crate's manifest by
-    // `scripts/build_npm_package.py`. That manifest is already listed above,
-    // so this pins the copy rather than the source: the publish workflow's tag
-    // check reads `vanedb-wasm/Cargo.toml`, and a package assembled from a
-    // different value would publish under a version no tag matches.
-    let assembled = repo_root().join("target/npm/vanedb-wasm/package.json");
-    if assembled.exists() {
-        let text = std::fs::read_to_string(&assembled).expect("read assembled package.json");
-        let version = text
-            .lines()
-            .find_map(|l| l.trim().strip_prefix("\"version\": \""))
-            .and_then(|v| v.split('"').next())
-            .expect("assembled package.json declares a version")
-            .to_string();
-        sites.push(("target/npm/vanedb-wasm/package.json", version));
-    }
+    // The npm package's version is not listed here. It is copied from
+    // vanedb-wasm/Cargo.toml by `scripts/build_npm_package.py`, and that
+    // manifest is already checked above — so the copy is pinned at its source.
+    // An earlier version read `target/npm/vanedb-wasm/package.json` behind an
+    // `if exists()`, which nothing in a bench test run produces: the branch was
+    // dead in every context it executed in, which is the shape of test this
+    // release has spent its time removing.
 
     // Doxygen renders this on the generated C++ docs. A free-form string, so
     // it can spell a prerelease and must match in full; it read "0.1.0"

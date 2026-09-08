@@ -284,13 +284,38 @@ fn upper_layers_are_connected_and_links_are_well_formed() {
 /// `CLAUDE.md` requires that all corruption checks be kept. A check nothing
 /// exercises alone is one that can be deleted silently.
 ///
-/// Two clauses stay unpinnable, and the reason is worth recording so the next
-/// reader does not chase them. Deleting `dim == 0` or `m < 2` does not make a
-/// malformed file load: `dim = 0` still trips `count > body.len() / row_bytes`,
-/// and `m = 1` still trips the per-layer degree cap, because a file built with
-/// a larger `M` carries degrees the smaller cap rejects. Those mutants survive
-/// with the *behaviour unchanged*, which is defence in depth rather than an
-/// unexercised guard. The cases below still cover them, just not in isolation.
+/// An earlier version of this test claimed six clauses were isolated and two
+/// were "unpinnable". A QA review deleted each clause and found only two of the
+/// eight actually pinned, and that the stated reason was wrong as well: a
+/// `dim = 0` fixture is not caught by `count > body.len() / row_bytes` — on
+/// that fixture the quotient is 20 against a count of 6 — but by the later
+/// "invalid graph degree" check. The conclusion was right by accident.
+///
+/// The cause was asserting only `Corrupt { .. }`, which cannot tell which
+/// check fired. This guard emits one distinct message, so asserting that
+/// message is what makes a case isolate its clause: a fixture that trips a
+/// *different* check now fails instead of passing for the wrong reason.
+///
+/// With that, deleting a clause individually shows five of the eight pinned:
+/// `dim == 0`, `max_elements > MAX_ELEMENTS`, `m < 2`,
+/// `ef_construction == 0`, and `count > body.len() / row_bytes`.
+///
+/// The other three are shadowed *within the same chain*, and no fixture can
+/// separate them:
+///
+/// - `count > MAX_ELEMENTS` cannot be violated without also exceeding
+///   `max_elements`, because `max_elements > MAX_ELEMENTS` is itself rejected.
+/// - `max_elements == 0` implies `count > max_elements` for any non-empty
+///   graph, and an empty one has nothing to validate.
+/// - `count > max_elements` needs a count above the capacity but within the
+///   rows the body holds, and the writer sizes the body from the capacity, so
+///   that window is empty.
+///
+/// Deleting any of the three leaves the behaviour unchanged — every file they
+/// would have rejected is still rejected by the clause that shadows them. That
+/// is redundancy, not an unexercised guard, and stating it precisely is the
+/// point: the previous version of this comment named the wrong two clauses and
+/// gave a reason that measurement disproved.
 #[test]
 fn every_header_guard_clause_rejects_on_its_own() {
     let good = {
@@ -326,13 +351,22 @@ fn every_header_guard_clause_rejects_on_its_own() {
 
     // Offsets from conformance/graph/README.md. Each case moves exactly one
     // field, to a value that violates exactly one clause.
-    let cases: [(&str, usize, u64); 6] = [
+    // The fixture is dim 4, count 6, max_elements (capacity) 16, m 4,
+    // ef_construction 16, and its body holds 12 rows at 40 bytes each. Each
+    // value below violates exactly the clause it names and nothing else.
+    // Mirrors `MAX_ELEMENTS` in vanedb/src/approx/mod.rs.
+    const MAX_ELEMENTS: u64 = 100_000_000;
+    let cases: [(&str, usize, u64); 8] = [
         ("dim_zero", 16, 0),
-        ("count_over_max_elements", 24, 9),
+        ("count_over_max_elements_const", 24, MAX_ELEMENTS + 1),
         ("max_elements_zero", 32, 0),
+        ("max_elements_over_const", 32, MAX_ELEMENTS + 1),
+        // 17 exceeds the capacity of 16 without exceeding the constant.
+        ("count_over_max_elements", 24, 17),
         ("m_below_two", 40, 1),
         ("ef_construction_zero", 48, 0),
-        ("count_beyond_body", 24, 1_000),
+        // 14 fits within the capacity of 16 but not the 12 rows the body holds.
+        ("count_beyond_body", 24, 14),
     ];
     for (name, offset, value) in cases {
         let mut bytes = good.clone();
@@ -341,9 +375,13 @@ fn every_header_guard_clause_rejects_on_its_own() {
         let err = ApproxIndex::load(&path)
             .err()
             .unwrap_or_else(|| panic!("{name}: a header violating this clause must be rejected"));
+        // The exact message, not merely `Corrupt`. This guard is the only
+        // producer of it, so matching it proves the clause under test fired
+        // rather than a later check catching the same fixture by accident.
         assert!(
-            matches!(err, vanedb::VaneError::Corrupt { .. }),
-            "{name}: expected Corrupt, got {err:?}"
+            matches!(&err, vanedb::VaneError::Corrupt { detail }
+                     if detail.contains("invalid graph dimensions or parameters")),
+            "{name}: expected the header guard to reject this, got {err:?}"
         );
     }
     let _ = fs::remove_dir_all(&dir);

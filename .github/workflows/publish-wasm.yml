@@ -113,12 +113,32 @@ jobs:
       - name: Assemble the package
         run: python3 scripts/build_npm_package.py
 
+      # Re-run the consumer check on this runner's artifact. `verify` tested a
+      # tarball built on a different machine; without this the thing published
+      # is not the thing that was checked.
+      - name: Consume it as an installed dependency
+        run: python3 scripts/check_npm_package.py
+
       # npm 11.5.1+ performs the OIDC exchange itself when the workflow has
       # `id-token: write` and a trusted publisher is configured for the
       # package. `--provenance` records the attestation.
       - name: Update npm
         run: npm install -g npm@latest
 
+      # A prerelease must not take `latest`. `vanedb-wasm-v0.2.0-rc.1` passes
+      # the version check above, and without an explicit dist-tag every
+      # `npm install vanedb-wasm` would resolve to it.
+      - name: Choose the dist-tag
+        id: disttag
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#vanedb-wasm-v}"
+          if [[ "$version" == *-* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
         working-directory: target/npm/vanedb-wasm

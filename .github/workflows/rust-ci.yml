@@ -314,6 +314,20 @@ jobs:
           for browser in chrome firefox webkit; do
             python3 scripts/test_web_package.py target/wasm-artifacts/web/*.tgz "$browser"
           done
+      # The merged npm package is what gets published; without this it was
+      # built and consumed only inside the release workflow, so a break in it
+      # would surface at publish time rather than on the PR that caused it.
+      - name: Build and consume the merged npm package
+        run: |
+          python3 scripts/build_npm_package.py
+          python3 scripts/check_npm_package.py
+      - name: Test the merged package's browser half in Chrome, Firefox and WebKit
+        run: |
+          npm pack target/npm/vanedb-wasm --pack-destination target/npm --ignore-scripts
+          for browser in chrome firefox webkit; do
+            python3 scripts/test_web_package.py target/npm/vanedb-wasm-*.tgz "$browser" \
+              --entry package/web/vanedb_wasm.js
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: vanedb-wasm-packages
