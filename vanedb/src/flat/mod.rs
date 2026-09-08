@@ -197,8 +197,8 @@ impl FlatIndex {
     /// Number of vectors stored.
     ///
     /// The same count as [`len`](Self::len). Both spellings exist so a program
-    /// is not tied to one engine: `size` is what the C ABI, the wasm bindings
-    /// and vanedb-cpp expose (#85).
+    /// is not tied to one engine: `size` is what the C++ engine and the wasm
+    /// bindings expose (#85). The C ABI spells it `vanedb_rs_store_len`.
     pub fn size(&self) -> usize {
         self.len()
     }

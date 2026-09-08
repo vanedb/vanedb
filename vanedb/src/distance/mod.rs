@@ -23,7 +23,14 @@ pub mod scalar;
 pub enum Metric {
     /// Squared Euclidean distance
     L2,
-    /// Cosine distance (1 - cosine similarity)
+    /// Cosine distance (1 - cosine similarity).
+    ///
+    /// A zero vector has no direction, so the angle to it is undefined. This
+    /// crate reports 1.0 — the maximum distance — whenever either norm is zero
+    /// or overflows to a non-finite value, including a zero vector's distance
+    /// to itself. Ranking it as maximally distant keeps it out of results
+    /// rather than making it a NaN that sorts unpredictably. Both engines
+    /// share this policy.
     Cosine,
     /// Negative dot product (higher similarity = lower distance).
     ///

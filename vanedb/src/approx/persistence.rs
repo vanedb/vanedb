@@ -76,7 +76,13 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
 }
 
 impl ApproxIndex {
-    /// Writes a shared VNDB v2 graph to `path`, preserving stored slots and links.
+    /// Writes a shared VNDB v2 graph to `path`, preserving stored slots and
+    /// links.
+    ///
+    /// The current `ef_search` is written too and comes back from
+    /// [`load`](Self::load), so a tuned index can be shipped as one file rather
+    /// than a file plus a configuration note. Tombstoned slots are written as
+    /// well; compact first if the file should not carry them.
     ///
     /// Rust and C++ readers support this format. Older readers do not. To
     /// migrate a legacy Rust graph, load it and save to a new path.
