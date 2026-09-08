@@ -659,3 +659,269 @@ fn null_data_with_a_nonzero_count_is_rejected_but_empty_batches_are_not() {
         vanedb_capi::vanedb_rs_index_free(index);
     }
 }
+
+// ---------------------------------------------------------------------------
+// ef_search = 0, the error channel, and the accessors a loaded handle needs.
+
+/// `ef_search` is a required argument with no documented default, so `0` is the
+/// idiom a C caller reaches for to mean "use whatever the index is set to".
+/// It used to flow into `SearchParams::ef_search(0)` and get clamped to `k` —
+/// for k=10 a beam 5x narrower than the index's own default, returning
+/// plausible results at silently degraded recall. The parallel C++ ABI treats
+/// the same call as an error and returns no results. Both ABIs are called
+/// through one uniform FFI (`bench/src/ffi.rs`), so they must agree.
+#[test]
+fn zero_ef_search_means_the_indexs_own_setting() {
+    unsafe {
+        let handle = vanedb_capi::vanedb_rs_index_new(1, 0, 64, 4, 32, 7);
+        assert!(!handle.is_null());
+        let mut index = Box::from_raw(handle);
+        for id in 0..40u64 {
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_add(&mut *index, id, [id as f32].as_ptr()),
+                0
+            );
+        }
+        index.set_ef_search(40);
+
+        let query = [0.0f32];
+        let mut ids = [0u64; 10];
+        let mut distances = [0.0f32; 10];
+        let n = vanedb_capi::vanedb_rs_index_search(
+            &mut *index,
+            query.as_ptr(),
+            10,
+            0,
+            ids.as_mut_ptr(),
+            distances.as_mut_ptr(),
+        );
+        assert_eq!(n, 10, "0 must not be an error, as it is in the C++ ABI");
+        assert_eq!(
+            index.get_ef_search(),
+            40,
+            "resolving 0 must not mutate the handle"
+        );
+
+        // At ef = 40 over 40 one-dimensional points the answer is exact, which
+        // a beam clamped to k = 10 does not reach reliably. Asserting the
+        // contents, not just the count, is what distinguishes the two.
+        let mut expected: Vec<u64> = (0..10).collect();
+        let mut got = ids.to_vec();
+        got.sort_unstable();
+        expected.sort_unstable();
+        assert_eq!(got, expected, "0 must search at the stored ef_search");
+    }
+}
+
+/// Every status function returned a bare `1` for a duplicate id, a dimension
+/// mismatch, a corrupt file and an I/O failure alike, and searches returned `0`
+/// results for both "empty" and "your query had a NaN in it". A caller could
+/// not implement the branching the core error type is designed for — retry on
+/// Io, abort on Corrupt, skip on DuplicateId.
+#[test]
+fn failures_are_reported_through_the_error_channel() {
+    unsafe {
+        let handle = vanedb_capi::vanedb_rs_store_new(3, 0);
+        assert!(!handle.is_null());
+        let mut store = Box::from_raw(handle);
+
+        let vector = [1.0f32, 2.0, 3.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, vector.as_ptr()),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_OK,
+            "success must clear the previous error"
+        );
+
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, vector.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_DUPLICATE_ID
+        );
+
+        let nonfinite = [f32::NAN, 0.0, 0.0];
+        let mut ids = [0u64; 4];
+        let mut distances = [0.0f32; 4];
+        let n = vanedb_capi::vanedb_rs_store_search(
+            &mut *store,
+            nonfinite.as_ptr(),
+            4,
+            ids.as_mut_ptr(),
+            distances.as_mut_ptr(),
+        );
+        assert_eq!(n, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_NON_FINITE_VALUE,
+            "a failed search must be distinguishable from an empty one"
+        );
+
+        // The same zero return, with nothing wrong: an empty store.
+        let empty = vanedb_capi::vanedb_rs_store_new(3, 0);
+        let mut empty = Box::from_raw(empty);
+        let n = vanedb_capi::vanedb_rs_store_search(
+            &mut *empty,
+            vector.as_ptr(),
+            4,
+            ids.as_mut_ptr(),
+            distances.as_mut_ptr(),
+        );
+        assert_eq!(n, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_OK,
+            "an empty store is not a failure"
+        );
+
+        // A null handle is the ABI's own misuse code, not a core error.
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(std::ptr::null_mut(), 2, vector.as_ptr()),
+            1
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_NULL_ARGUMENT
+        );
+    }
+}
+
+/// A constructor returning null carries no code of its own, so the enum is the
+/// only way to tell "bad metric" from "allocation refused".
+#[test]
+fn a_null_returning_constructor_records_why() {
+    unsafe {
+        assert!(vanedb_capi::vanedb_rs_store_new(3, 99).is_null());
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_INVALID_PARAMETER
+        );
+
+        let missing = std::ffi::CString::new("/nonexistent/vanedb/nope.vndb").unwrap();
+        assert!(vanedb_capi::vanedb_rs_index_load(missing.as_ptr()).is_null());
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_FILE_NOT_FOUND,
+            "absent and corrupt must be separable: one is worth retrying"
+        );
+    }
+}
+
+/// The enum cannot carry `Corrupt`'s detail string, which is the part that says
+/// *what* was wrong with the file.
+#[test]
+fn the_error_message_carries_the_detail_the_code_cannot() {
+    unsafe {
+        let dir = std::env::temp_dir().join(format!("vanedb-capi-msg-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("garbage.vndb");
+        std::fs::write(&path, b"not a vndb file at all").unwrap();
+        let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
+
+        assert!(vanedb_capi::vanedb_rs_index_load(c_path.as_ptr()).is_null());
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_CORRUPT
+        );
+        let message = std::ffi::CStr::from_ptr(vanedb_capi::vanedb_rs_last_error_message())
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            message.contains("magic"),
+            "message must name the failure, got {message:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// A caller who loaded a file they did not write has no other way to learn the
+/// graph geometry they are searching. The core exposes these for exactly that
+/// reason; the C ABI is the surface where a header is vendored and a missing
+/// accessor is hardest to add later.
+#[test]
+fn a_loaded_handle_reports_the_geometry_it_was_built_with() {
+    unsafe {
+        let handle = vanedb_capi::vanedb_rs_index_new(4, 1, 512, 6, 48, 1234);
+        assert!(!handle.is_null());
+        let index = Box::from_raw(handle);
+        assert_eq!(vanedb_capi::vanedb_rs_index_m(&*index), 6);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(&*index), 48);
+        assert_eq!(vanedb_capi::vanedb_rs_index_seed(&*index), 1234);
+        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(&*index), 512);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(&*index), 50);
+        index.set_ef_search(120);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(&*index), 120);
+
+        // Null is the documented no-handle case for every accessor.
+        assert_eq!(vanedb_capi::vanedb_rs_index_m(std::ptr::null()), 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_ef_construction(std::ptr::null()),
+            0
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_seed(std::ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(std::ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(std::ptr::null()), 0);
+    }
+}
+
+/// `get` and `get_vector` are the same operation under two names so a program
+/// is not tied to one index type (#85). The core carries both; this ABI offered
+/// `_store_get` and `_index_get_vector` and nothing else, so swapping index
+/// type meant renaming call sites.
+#[test]
+fn both_spellings_of_the_read_exist_on_every_handle() {
+    unsafe {
+        let handle = vanedb_capi::vanedb_rs_index_new(2, 0, 16, 4, 16, 1);
+        assert!(!handle.is_null());
+        let mut index = Box::from_raw(handle);
+        let vector = [3.0f32, 4.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(&mut *index, 9, vector.as_ptr()),
+            0
+        );
+
+        let mut through_get = [0.0f32; 2];
+        let mut through_get_vector = [0.0f32; 2];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_get(&*index, 9, through_get.as_mut_ptr()),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_get_vector(&*index, 9, through_get_vector.as_mut_ptr()),
+            0
+        );
+        assert_eq!(through_get, vector);
+        assert_eq!(through_get, through_get_vector);
+
+        let store = vanedb_capi::vanedb_rs_store_new(2, 0);
+        let mut store = Box::from_raw(store);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 9, vector.as_ptr()),
+            0
+        );
+        let mut from_store = [0.0f32; 2];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_get_vector(&*store, 9, from_store.as_mut_ptr()),
+            0
+        );
+        assert_eq!(from_store, vector);
+    }
+}
+
+/// A consumer cannot otherwise check that the shared object it loaded matches
+/// the header it compiled against.
+#[test]
+fn the_library_reports_its_own_version() {
+    unsafe {
+        let version = std::ffi::CStr::from_ptr(vanedb_capi::vanedb_rs_version())
+            .to_str()
+            .unwrap();
+        assert_eq!(version, env!("CARGO_PKG_VERSION"));
+    }
+}

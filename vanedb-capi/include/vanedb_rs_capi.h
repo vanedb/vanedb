@@ -19,21 +19,158 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
 #define VANEDB_RS_COSINE 1u
 #define VANEDB_RS_DOT    2u
 
-/* Error convention: constructors return NULL, status functions return 0 on
+/* Stability: this header tracks a 0.x library. During 0.x the ABI may change
+ * in a minor release; call vanedb_rs_version() to check the shared object
+ * matches the header you compiled against.
+ *
+ * Error convention: constructors return NULL, status functions return 0 on
  * success and non-zero on failure, and searches return the number of results
- * written (0 on failure, indistinguishable from an empty store).
+ * written -- where 0 alone cannot distinguish a failure from an empty store.
+ * After any call, vanedb_rs_last_error() gives the reason as a VANEDB_RS_*
+ * code and vanedb_rs_last_error_message() the detail. Both are thread-local
+ * and are reset by the next call on the same thread. Branch on the code:
+ * VANEDB_RS_IO is worth retrying, VANEDB_RS_CORRUPT is not, and
+ * VANEDB_RS_FILE_NOT_FOUND means build it instead. Treat an unrecognized
+ * code as a failure: VaneError gains variants in minor releases.
  *
  * Stored vectors and search queries must contain only finite values; adds and
  * disk builds fail with a non-zero return, searches with a zero count.
+ *
+ * vanedb_rs_index_search takes ef_search per call and does not mutate the
+ * handle. Pass 0 to search at the handle's own setting, which
+ * vanedb_rs_index_ef_search reports; any other value overrides it for that
+ * one call. Note that vanedb_cpp_index_search rejects 0 rather than
+ * resolving it.
  *
  * vanedb_rs_dot_product returns the raw inner product (+a.b), while a search
  * under VANEDB_RS_DOT ranks by its negation (-a.b, lower is nearer). This
  * matches vanedb_cpp_dot_product. */
 
 
+/**
+ * Success.
+ */
+#define VANEDB_RS_OK 0
+
+/**
+ * A required handle, buffer or path argument was null. This ABI's own misuse
+ * code: it has no `VaneError` counterpart because the call never reached the
+ * core.
+ */
+#define VANEDB_RS_NULL_ARGUMENT 1
+
+/**
+ * The vector's length does not match the handle's dimension.
+ */
+#define VANEDB_RS_DIMENSION_MISMATCH 2
+
+/**
+ * A batch's id count and vector count disagree.
+ */
+#define VANEDB_RS_BATCH_LENGTH_MISMATCH 3
+
+/**
+ * A dimension of zero was requested.
+ */
+#define VANEDB_RS_ZERO_DIMENSION 4
+
+/**
+ * No vector is stored under that id.
+ */
+#define VANEDB_RS_NOT_FOUND 5
+
+/**
+ * That id is already stored. Retrying will not help; upsert instead.
+ */
+#define VANEDB_RS_DUPLICATE_ID 6
+
+/**
+ * `k` was zero.
+ */
+#define VANEDB_RS_INVALID_K 7
+
+/**
+ * A vector or query contained a NaN or an infinity.
+ */
+#define VANEDB_RS_NON_FINITE_VALUE 8
+
+/**
+ * A construction parameter was out of range — including a metric value this
+ * ABI does not define.
+ */
+#define VANEDB_RS_INVALID_PARAMETER 9
+
+/**
+ * The file does not exist. Distinct from `CORRUPT`: building it is sensible.
+ */
+#define VANEDB_RS_FILE_NOT_FOUND 10
+
+/**
+ * The file exists but its bytes are wrong. Retrying will not help.
+ */
+#define VANEDB_RS_CORRUPT 11
+
+/**
+ * An I/O failure. Retrying may help.
+ */
+#define VANEDB_RS_IO 12
+
+/**
+ * A compute backend was unavailable.
+ */
+#define VANEDB_RS_BACKEND 13
+
+/**
+ * A panic was caught at the boundary. A bug in the engine; report it.
+ */
+#define VANEDB_RS_PANIC 14
+
+/**
+ * A `VaneError` variant added after this header was generated. `VaneError` is
+ * `#[non_exhaustive]`, so a caller built against an older header must treat
+ * any unrecognized code as a failure rather than as success.
+ */
+#define VANEDB_RS_UNKNOWN 15
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
+
+/**
+ * The code from the calling thread's most recent `vanedb_rs_*` call, or
+ * `VANEDB_RS_OK` if it succeeded.
+ *
+ * The status functions' `1` and the searches' `0` cannot say *why*, and a
+ * search returning `0` is otherwise indistinguishable from an empty store.
+ * This is what a caller branches on: retry an `IO`, abort a `CORRUPT`, skip a
+ * `DUPLICATE_ID`. It is thread-local, so a value set on one thread is never
+ * observed on another, and reading it does not clear it.
+ *
+ * This function does not itself count as a call: it leaves the code in place.
+ */
+uint32_t vanedb_rs_last_error(void);
+
+/**
+ * The message for the calling thread's most recent failure, NUL-terminated
+ * and never null (the empty string after a success).
+ *
+ * This carries the detail the code cannot — which field mismatched, what was
+ * wrong with the file. The pointer is owned by the library and is invalidated
+ * by the next `vanedb_rs_*` call on this thread; copy it to keep it.
+ *
+ * # Safety
+ * The returned pointer must not be freed by the caller, and must not be used
+ * after another `vanedb_rs_*` call on the same thread.
+ */
+const char *vanedb_rs_last_error_message(void);
+
+/**
+ * This library's version, as a NUL-terminated static string.
+ *
+ * A consumer cannot otherwise check that the shared object it loaded matches
+ * the header it compiled against.
+ */
+const char *vanedb_rs_version(void);
 
 /**
  * # Safety
@@ -380,6 +517,90 @@ bool vanedb_rs_disk_contains(const vanedb_rs_disk *d, uint64_t id);
  * have room for `vanedb_rs_disk_dimension(d)` floats.
  */
 int32_t vanedb_rs_disk_get(const vanedb_rs_disk *d, uint64_t id, float *out);
+
+/**
+ * Reads the vector stored under `id` into `out`, which must have room for
+ * `dim` floats. Returns 0, or 1 if absent.
+ *
+ * The same operation as `vanedb_rs_index_get_vector`, under the spelling the
+ * store and disk handles use. Both exist so swapping index type does not mean
+ * renaming call sites (#85).
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `out` must
+ * point to at least `dim` writable `f32`s.
+ */
+int32_t vanedb_rs_index_get(const vanedb_rs_index *h, uint64_t id, float *out);
+
+/**
+ * The same operation as `vanedb_rs_store_get`, under the spelling the graph
+ * handle uses (#85).
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new` (or null); `out` must
+ * point to at least `dim` writable `f32`s.
+ */
+int32_t vanedb_rs_store_get_vector(const vanedb_rs_store *s, uint64_t id, float *out);
+
+/**
+ * The same operation as `vanedb_rs_disk_get`, under the spelling the graph
+ * handle uses (#85).
+ *
+ * # Safety
+ * `d` must be a live handle from `vanedb_rs_disk_open` (or null); `out` must
+ * point to at least `dim` writable `f32`s.
+ */
+int32_t vanedb_rs_disk_get_vector(const vanedb_rs_disk *d, uint64_t id, float *out);
+
+/**
+ * The graph's `M`, or 0 for a null handle.
+ *
+ * A handle from `vanedb_rs_index_load` read this from the file, and a caller
+ * who did not build it has no other way to know what graph they are searching.
+ * The same argument covers `ef_construction`, `seed` and `capacity`.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uintptr_t vanedb_rs_index_m(const vanedb_rs_index *h);
+
+/**
+ * The graph's `ef_construction`, or 0 for a null handle.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uintptr_t vanedb_rs_index_ef_construction(const vanedb_rs_index *h);
+
+/**
+ * The seed the graph was built with, or 0 for a null handle.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uint64_t vanedb_rs_index_seed(const vanedb_rs_index *h);
+
+/**
+ * The capacity the graph was built with, or 0 for a null handle.
+ *
+ * This is the build-time hint, not a limit: the index grows past it, so this
+ * may be smaller than `vanedb_rs_index_len`.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uintptr_t vanedb_rs_index_capacity(const vanedb_rs_index *h);
+
+/**
+ * The handle's stored `ef_search` — the beam a search gets when it passes 0.
+ *
+ * There was previously no way to read it back, so a caller could not tell what
+ * a `0` would resolve to.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+ */
+uintptr_t vanedb_rs_index_ef_search(const vanedb_rs_index *h);
 
 #ifdef __cplusplus
 }  // extern "C"
