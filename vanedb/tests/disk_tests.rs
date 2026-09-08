@@ -129,3 +129,66 @@ fn atomic_replacement_preserves_an_open_mapping() {
     drop((old, new));
     std::fs::remove_file(path).unwrap();
 }
+
+/// `is_empty` and the vector addressing arithmetic, which a mutation sweep
+/// found unasserted.
+///
+/// Four survivors lived here: `is_empty` could return a constant `true` or
+/// `false`, its `==` could become `!=`, and `get_vec`'s offset could compute
+/// `dim + 4` instead of `dim * 4`. The last is the store's core addressing —
+/// it survives because slot 0 is at offset 0 under either arithmetic, so a
+/// test that only reads the first vector cannot see it. Reading a later slot,
+/// with a dimension where the two disagree, is what exposes it.
+#[test]
+fn is_empty_and_vector_addressing_are_pinned() {
+    let dir = std::env::temp_dir().join(format!("vanedb-addressing-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+
+    // An empty store: is_empty must be true and len zero together.
+    let empty_path = dir.join("empty.vndb");
+    DiskIndexBuilder::new(3, Metric::L2)
+        .unwrap()
+        .save(&empty_path)
+        .unwrap();
+    // SAFETY: this test owns the file and never modifies it while mapped.
+    let empty = unsafe { DiskIndex::open(&empty_path) }.unwrap();
+    assert!(empty.is_empty());
+    assert_eq!(empty.len(), 0);
+
+    // A populated store: is_empty must be false, and every slot must read back
+    // exactly what was written. `dim = 5` is chosen so `dim * 4 = 20` and
+    // `dim + 4 = 9` disagree, and the vectors are distinct per slot so a
+    // misaddressed read cannot coincide with the right answer.
+    let dim = 5usize;
+    let path = dir.join("full.vndb");
+    let mut builder = DiskIndexBuilder::new(dim, Metric::L2).unwrap();
+    let rows: Vec<(u64, Vec<f32>)> = (0..8u64)
+        .map(|id| {
+            let base = (id as f32 + 1.0) * 100.0;
+            (id, (0..dim).map(|d| base + d as f32).collect())
+        })
+        .collect();
+    for (id, vector) in &rows {
+        builder.add(*id, vector).unwrap();
+    }
+    builder.save(&path).unwrap();
+
+    // SAFETY: same.
+    let index = unsafe { DiskIndex::open(&path) }.unwrap();
+    assert!(!index.is_empty());
+    assert_eq!(index.len(), rows.len());
+    for (id, vector) in &rows {
+        assert_eq!(
+            index.get(*id).unwrap().as_ref(),
+            vector.as_slice(),
+            "slot {id} read back the wrong bytes"
+        );
+    }
+    // And through search, which reaches the same addressing by another route.
+    let hits = index.search(&rows[6].1, 1).unwrap();
+    assert_eq!(hits[0].id, 6);
+    assert!(hits[0].distance.abs() < 1e-6);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
