@@ -71,4 +71,42 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     assert.equal(index.contains(max), false);
     index.free();
 }
+// The delete lifecycle, through the generated JS rather than through Rust.
+// `remove` shipped without any way to observe or reclaim what it left behind,
+// which in a browser is the runtime where that matters most.
+{
+    const index = new ApproxIndex(1, 'l2', 16, 4, 16);
+    for (let i = 0; i < 8; i += 1) index.add(BigInt(i), Float32Array.from([i]));
+    assert.equal(index.tombstones(), 0);
+    index.remove(3n);
+    index.remove(5n);
+    assert.equal(index.size(), 6);
+    assert.equal(index.tombstones(), 2);
+    index.compact();
+    assert.equal(index.tombstones(), 0);
+    assert.equal(index.size(), 6);
+    for (const id of [0n, 1n, 2n, 4n, 6n, 7n]) assert.equal(index.contains(id), true);
+    assert.equal(index.contains(3n), false);
+
+    // A stored vector was unreadable from ApproxIndex under either spelling.
+    index.add(100n, Float32Array.from([42]));
+    assert.deepEqual([...index.get_vector(100n)], [42]);
+    assert.deepEqual([...index.get(100n)], [42]);
+    assert.throws(() => index.get_vector(999n), /not found/);
+    index.free();
+}
+
+// The seed was hardcoded, so construction could not be reproduced from JS.
+// It stays optional: omitting it must keep the previous default of 42.
+{
+    const defaulted = new ApproxIndex(2, 'l2', 16, 4, 16);
+    assert.equal(defaulted.seed(), 42n);
+    const seeded = new ApproxIndex(2, 'l2', 16, 4, 16, 1234);
+    assert.equal(seeded.seed(), 1234n);
+    assert.equal(seeded.m(), 4);
+    assert.equal(seeded.ef_construction(), 16);
+    defaulted.free();
+    seeded.free();
+}
+
 console.log('Generated JavaScript bindings: passed');

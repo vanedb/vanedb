@@ -34,7 +34,7 @@ fn test_vector_store_search() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_basic() {
-    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0).unwrap();
+    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
     idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(idx.size(), 2);
@@ -43,7 +43,7 @@ fn test_hnsw_basic() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_search() {
-    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0).unwrap();
+    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
     idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
 
@@ -84,7 +84,7 @@ fn test_store_add_batch() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_add_batch() {
-    let index = WasmIndex::new(2.0, "l2", 100.0, 16.0, 200.0).unwrap();
+    let index = WasmIndex::new(2.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
     let ids = [10u64, 20];
     let flat = [0.0f32, 0.0, 1.0, 1.0];
     index.add_batch(&ids, &flat).unwrap();
@@ -112,7 +112,7 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
 
 #[wasm_bindgen_test]
 fn hnsw_search_round_trips_ids_beyond_f32_precision() {
-    let index = WasmIndex::new(2.0, "l2", 16.0, 16.0, 100.0).unwrap();
+    let index = WasmIndex::new(2.0, "l2", 16.0, 16.0, 100.0, None).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
         index.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
@@ -132,7 +132,7 @@ fn test_non_finite_vectors_and_queries_are_rejected() {
         store.add(2u64.into(), &[0.0, 0.0]).unwrap();
         assert!(store.search(&[value, 0.0], 1.0).is_err());
 
-        let index = WasmIndex::new(2.0, "l2", 4.0, 2.0, 10.0).unwrap();
+        let index = WasmIndex::new(2.0, "l2", 4.0, 2.0, 10.0, None).unwrap();
         assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(index.size(), 0);
     }
@@ -146,7 +146,7 @@ fn every_metric_round_trips_and_is_reportable() {
     for name in ["l2", "cosine", "dot"] {
         let store = WasmStore::new(2.0, name).unwrap();
         assert_eq!(store.metric(), name);
-        let index = WasmIndex::new(2.0, name, 16.0, 4.0, 40.0).unwrap();
+        let index = WasmIndex::new(2.0, name, 16.0, 4.0, 40.0, None).unwrap();
         assert_eq!(index.metric(), name);
         // Round-trips through the constructor it names.
         assert!(WasmStore::new(2.0, &store.metric()).is_ok());
@@ -163,4 +163,68 @@ fn dot_ranks_by_largest_inner_product() {
     let ids = hits.ids();
     assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
     assert_eq!(ids[2], 3);
+}
+
+/// `remove` shipped without `tombstones` or `compact`, so a browser app that
+/// churns entries — the workload an embedded vector DB exists for — grew
+/// without bound in the most memory-constrained runtime this project targets,
+/// with no API to measure or reclaim it.
+#[wasm_bindgen_test]
+fn a_deleted_entry_can_be_measured_and_reclaimed() {
+    let index = WasmIndex::new(1.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    for id in 0..8u64 {
+        index.add(id.into(), &[id as f32]).unwrap();
+    }
+    assert_eq!(index.tombstones(), 0);
+
+    index.remove(3u64.into()).unwrap();
+    index.remove(5u64.into()).unwrap();
+    assert_eq!(index.size(), 6);
+    assert_eq!(index.tombstones(), 2, "a deletion must be observable");
+
+    index.compact().unwrap();
+    assert_eq!(index.tombstones(), 0, "compaction must reclaim the slots");
+    assert_eq!(index.size(), 6, "compaction must keep the live set");
+    for id in [0u64, 1, 2, 4, 6, 7] {
+        assert!(index.contains(id.into()).unwrap(), "{id} was live");
+    }
+    assert!(!index.contains(3u64.into()).unwrap());
+}
+
+/// A JS caller could not read a stored vector back from `ApproxIndex` at all —
+/// `FlatIndex` had `get`, this had neither spelling — while the README claimed
+/// wasm supports "lookup methods".
+#[wasm_bindgen_test]
+fn a_stored_vector_can_be_read_back() {
+    let index = WasmIndex::new(3.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    index.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
+    assert_eq!(index.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
+    assert_eq!(index.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
+    assert!(index.get_vector(99u64.into()).is_err());
+}
+
+/// The seed was hardcoded to 42, so reproducible graph construction was
+/// impossible from JS. Omitting it must keep the previous default.
+#[wasm_bindgen_test]
+fn the_construction_seed_is_settable_and_defaults_as_before() {
+    let defaulted = WasmIndex::new(2.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    assert_eq!(defaulted.seed(), 42);
+
+    let seeded = WasmIndex::new(2.0, "l2", 16.0, 4.0, 16.0, Some(1234.0)).unwrap();
+    assert_eq!(seeded.seed(), 1234);
+    assert_eq!(seeded.m(), 4);
+    assert_eq!(seeded.ef_construction(), 16);
+    assert_eq!(seeded.capacity(), 16);
+}
+
+/// Every other mutator takes `&self`; `remove` alone took `&mut self`, which in
+/// wasm-bindgen means a JS caller holding any other borrow of the object gets
+/// "recursive use of an object detected" instead of a deletion.
+#[wasm_bindgen_test]
+fn remove_does_not_require_an_exclusive_borrow() {
+    let index = WasmIndex::new(1.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    index.add(1u64.into(), &[1.0]).unwrap();
+    let shared = &index;
+    shared.remove(1u64.into()).unwrap();
+    assert_eq!(shared.size(), 0);
 }

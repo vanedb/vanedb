@@ -3,7 +3,7 @@
 Search vectors inside Node.js or a browser using the Rust engine compiled to
 WebAssembly. Bring your own embeddings. This package provides exact
 `FlatIndex` and approximate `ApproxIndex` search; it has no disk mapping,
-persistence, upsert or compaction API.
+persistence or upsert API.
 
 CI produces separate Node.js and browser npm tarballs in the
 `vanedb-wasm-packages` artifact of a successful

@@ -127,8 +127,8 @@ if file size matters.
 | JavaScript / WebAssembly | Flat, Approx | `"cosine"` string; `SearchResults` with `ids` and `distances` arrays |
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
-WebAssembly currently supports add, batch add, search, lookup methods, and
-remove; it does not expose persistence, upsert, or compaction. A single id is a
+WebAssembly currently supports add, batch add, search, lookup methods, remove,
+`tombstones` and `compact`; it does not expose persistence or upsert. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
 `wasm-pack build vanedb-wasm --target web --release --locked` after installing
