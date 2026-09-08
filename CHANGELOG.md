@@ -21,6 +21,14 @@ section records what it contains rather than what changed.
 - `ApproxIndex::load` multiplied file-controlled values without checking, so a
   497-byte file could wrap the product to zero and load with absurd
   parameters, or panic on a path documented to return an error.
+- `DiskIndex::open` checked only that the file was not *shorter* than its
+  header declared. The expected length is derived from that same header, so a
+  header understating the geometry moved the goalpost instead of tripping the
+  guard: one flipped bit in `dim` read the payload at the wrong stride and
+  `get` returned a vector straddling two stored records. Both engines now
+  require exact equality, and both bound `dim` independently so an empty store
+  cannot declare an unaddressable dimension. The format carries no checksum, so
+  `DiskIndex::open` documents what remains undetectable.
 - `DiskIndex::open` accepted files with duplicate ids, after which `size`
   disagreed with lookups, `get` returned a row the id did not name, and a
   single search could return one id twice. Both engines now reject them.
