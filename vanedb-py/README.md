@@ -14,7 +14,7 @@ kept in the repository for reference and local testing, and are not published.
 Requires Python 3.11 or newer.
 
 ```sh
-python -m pip install vanedb==0.1.0rc1
+python -m pip install vanedb==0.1.0rc2
 ```
 
 The version is pinned because pip does not select a prerelease unless asked;
