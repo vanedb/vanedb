@@ -40,6 +40,17 @@ TARGETS = {
         "published": [r"pip install vanedb\b"],
         "checkout_only": [r"pip install \./vanedb-py", r"do not assume a published"],
     },
+    # `scripts/build_npm_package.py` copies this file into the tarball and
+    # npmjs.com renders it. An earlier version of this script asserted no
+    # packaged README was tied to a wasm tag; the live page for
+    # `@vanedb/wasm@0.1.0` was already saying "Nothing is published yet",
+    # which is the exact defect this gate exists to stop.
+    "vanedb-wasm-v": {
+        "readme": "vanedb-wasm/README.md",
+        "registry": "npm",
+        "published": [r"npm install @vanedb/wasm", r"npm i @vanedb/wasm"],
+        "checkout_only": [r"Nothing is published yet"],
+    },
 }
 
 

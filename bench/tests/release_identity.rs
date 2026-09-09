@@ -162,8 +162,11 @@ fn core_only_sites() -> Vec<(&'static str, String)> {
 fn every_declared_version_agrees() {
     let sites = declared_versions();
     let core_only = core_only_sites();
+    // The floor is the real count, not a number below it: at >= 8 two
+    // extractors could be deleted and this canary would still pass, which is
+    // the silent drift it exists to catch.
     assert!(
-        sites.len() + core_only.len() >= 8,
+        sites.len() + core_only.len() >= 10,
         "only {} version sites found; the extractor is probably broken",
         sites.len() + core_only.len()
     );
