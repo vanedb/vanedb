@@ -122,6 +122,12 @@ jobs:
       # npm 11.5.1+ performs the OIDC exchange itself when the workflow has
       # `id-token: write` and a trusted publisher is configured for the
       # package. `--provenance` records the attestation.
+      #
+      # That configuration lives on the package's own settings page and cannot
+      # be created before the package exists — npm has no equivalent of PyPI's
+      # pending publisher. So the first version is published by hand with a
+      # token and this job takes over from the second onwards, the same
+      # bootstrap crates.io requires.
       - name: Update npm
         run: npm install -g npm@latest
 
