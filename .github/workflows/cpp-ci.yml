@@ -114,16 +114,22 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # `apt-get install doxygen` is normally 12s, but one main run (34380434702)
+    # spent 494s in it and finished 1.7 min short of the old 10-minute cap —
+    # a mirror stall away from failing `Required CI Gate` on a job whose actual
+    # work takes under a second.
+    timeout-minutes: 20
 
     steps:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+    # No graphviz: cpp/Doxyfile sets HAVE_DOT = NO, so dot is never invoked.
+    # CLASS_DIAGRAMS = YES uses Doxygen's built-in renderer, not graphviz.
     - name: Install Doxygen
       run: |
         sudo apt-get update
-        sudo apt-get install -y doxygen graphviz
+        sudo apt-get install -y --no-install-recommends doxygen
 
     - name: Generate documentation
       run: doxygen Doxyfile

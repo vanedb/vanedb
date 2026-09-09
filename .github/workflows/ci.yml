@@ -6,6 +6,14 @@ on:
   pull_request:
     branches: [main]
 
+# A newer push to the same PR makes the in-flight run's verdict obsolete, and
+# this workflow fans out to ~53 jobs, so leaving it running costs ~80 job-
+# minutes and queues behind the run that will actually be read. Pushes to main
+# are never cancelled: each main commit keeps its own recorded verdict.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # This workflow always runs. Component workflows are selected after checkout,
 # and the final job is the only required branch-protection check.
 permissions:
@@ -17,6 +25,7 @@ jobs:
   changes:
     name: Detect affected components
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
       cpp: ${{ steps.filter.outputs.cpp }}
@@ -61,6 +70,7 @@ jobs:
   workflow-lint:
     name: Workflow lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install actionlint
@@ -132,6 +142,7 @@ jobs:
     if: ${{ always() }}
     needs: [changes, workflow-lint, rust, cpp, integration]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Verify every affected component passed
         shell: bash
