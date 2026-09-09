@@ -317,6 +317,16 @@ jobs:
       # The merged npm package is what gets published; without this it was
       # built and consumed only inside the release workflow, so a break in it
       # would surface at publish time rather than on the PR that caused it.
+      # The ctypes example is the C ABI's Python-facing documentation, and a
+      # broken example is worse than none because it is what a reader copies.
+      # The unit tests check its signatures statically; this runs it against a
+      # real library, which they deliberately do not (an earlier version tried
+      # and silently skipped when the cdylib was absent).
+      - name: Run the C ABI ctypes example
+        run: |
+          cargo build -p vanedb-capi --release --locked
+          python3 vanedb-capi/examples/ctypes_quickstart.py \
+            target/release/libvanedb_capi.so
       - name: Build and consume the merged npm package
         run: |
           python3 scripts/build_npm_package.py
