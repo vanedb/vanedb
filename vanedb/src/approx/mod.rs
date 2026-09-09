@@ -728,8 +728,10 @@ impl ApproxIndex {
     /// Beam search on a single graph layer.
     /// Returns results sorted by distance ascending.
     ///
-    /// `total` is the number of live nodes (== `inner.count`) and bounds the
-    /// thread-local visited bitmap. Caller must guarantee `entry < total`.
+    /// `total` is the slot count (`inner.count`), tombstones included, and
+    /// bounds the thread-local visited bitmap — a tombstoned node still has
+    /// links to traverse. It is not the live count; `len` is that.
+    /// Caller must guarantee `entry < total`.
     #[allow(clippy::too_many_arguments)]
     fn search_layer(
         vectors: &ChunkedVectors,

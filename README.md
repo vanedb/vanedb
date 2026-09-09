@@ -220,6 +220,7 @@ Release tags are scoped to each distribution:
 |---|---|
 | `vanedb-crate-vX.Y.Z` | the `vanedb` crate to crates.io |
 | `vanedb-vX.Y.Z` | the `vanedb` wheels to PyPI |
+| `vanedb-wasm-vX.Y.Z` | the `@vanedb/wasm` package to npm |
 
 Separate tags allow each distribution to be verified and published independently.
 The C++ reference is not published to PyPI. See the [changelog](CHANGELOG.md)

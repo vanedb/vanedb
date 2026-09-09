@@ -66,7 +66,28 @@ fn main() -> ExitCode {
 
     let w = workloads::generate(99, dim, n, queries);
     let q = &w.queries[0..dim];
+    // This file is rewritten whole, so anything a reader needs beside these
+    // numbers has to be emitted here or it is gone after the next run. The
+    // hand-added banner that used to carry this warning was destroyed exactly
+    // that way, by someone verifying the regeneration command.
     let mut md = String::from("# VaneDB Benchmark Results\n\n");
+    // Emitted here, not hand-added to RESULTS.md: this file is rewritten whole,
+    // so a caveat living in it is gone after the next run. The banner that used
+    // to carry this warning was destroyed exactly that way, by someone
+    // verifying the regeneration command.
+    for line in [
+        "> **Meaningless off dedicated hardware.** This file is regenerated whole",
+        "> by `cargo run --release --manifest-path bench/Cargo.toml --bin report`,",
+        "> which replaces every line below *and* this warning. A run on a machine",
+        "> that is also compiling is not a measurement: this repo's rule is",
+        "> interleaved A-B-A runs on a quiet machine before any claim. The",
+        "> canonical table is [the criterion snapshot in",
+        "> `README.md`](README.md#headline-snapshot).",
+        "",
+    ] {
+        md.push_str(line);
+        md.push('\n');
+    }
     md.push_str(&format!(
         "Engines: vanedb-cpp (CMake Release) and vanedb (Rust), monorepo {}.\n",
         env!("VANEDB_MONOREPO_REV"),

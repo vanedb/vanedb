@@ -33,7 +33,9 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  * written -- where 0 alone cannot distinguish a failure from an empty store.
  * After any call, vanedb_rs_last_error() gives the reason as a VANEDB_RS_*
  * code and vanedb_rs_last_error_message() the detail. Both are thread-local
- * and are reset by the next call on the same thread; the message pointer is
+ * and are reset by the next call on the same thread -- except the *_free
+ * functions, which preserve them so the ordinary C path of fail, clean up,
+ * then report does not lose the reason. The message pointer is
  * also freed when its thread exits, so copy the bytes before handing them to
  * another thread. Branch on the code:
  * VANEDB_RS_IO is worth retrying, VANEDB_RS_CORRUPT is not, and

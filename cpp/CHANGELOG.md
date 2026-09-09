@@ -28,7 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reserves roughly 4 GB from an 80-byte header.
 - PyPI upload for the supplementary `vanedb-cpp` distribution is manual-only
   while the generic x86-64 CPU baseline remains unresolved (#39). GitHub
-  releases continue to build and retain wheel artifacts.
+  releases do not retain a wheel artifact for it either (#100). CI still
+  builds one per OS and Python version and runs the suite against it; no
+  workflow uploads it.
 - **BREAKING: Project renamed from QuiverDB to VaneDB.** Pre-1.0, so no
   on-disk break — HNSW index files written with the old name still load
   (the `0x51565244` "QVRD" magic is retained for backward compat). What
@@ -39,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preprocessor macros injected by callers (e.g. `-DQUIVER_CUDA_ENABLED`)
     → `-DVANE_CUDA_ENABLED`
   - Logging macros (`QUIVERDB_LOG_*` / `QUIVERDB_LOG_LEVEL_*`) → `VANEDB_LOG_*`
-  - Repository: `github.com/tsvet01/quiverdb` → `github.com/tsvet01/vanedb`
+  - Repository: `github.com/tsvet01/quiverdb` → `github.com/vanedb/vanedb`
     (GitHub redirects the old URL).
 
 ### Added
@@ -85,12 +87,11 @@ this section carries the core's release state too.
 - GPU acceleration: Metal (Apple Silicon). CUDA (NVIDIA) is experimental —
   kernel source only, not wired into the build
   - Persistent buffer API for zero-copy repeated queries
-  - 3.9x speedup at 500k vectors
 - In-memory FlatIndex with k-NN brute-force search
 - HNSW index for approximate nearest neighbor search
   - Configurable M, ef_construction, ef_search parameters
   - Binary serialization (save/load)
-- Memory-mapped FlatIndex for large datasets
+- `DiskIndex`, a memory-mapped store for large datasets
   - Zero-copy file access
   - Atomic save operations
 - Python bindings via pybind11
@@ -107,6 +108,8 @@ this section carries the core's release state too.
   - Code coverage reporting
 
 ### Performance
-- 3.8x speedup with ARM NEON vs scalar (768d vectors)
-- ~100ns L2 distance per operation (768d, Apple Silicon)
-- Sub-millisecond search latency for 10k vectors
+- SIMD distance kernels (NEON, AVX2, scalar reference) with runtime dispatch.
+  Figures are deliberately not quoted here: they were undated and unsourced,
+  and this repo treats a benchmark as meaningful only on dedicated hardware
+  with interleaved A-B-A runs. See [`bench/README.md`](../bench/README.md),
+  which dates its snapshot and names the machine.
