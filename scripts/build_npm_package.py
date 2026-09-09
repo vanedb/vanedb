@@ -79,6 +79,13 @@ def build(target: str, out: str) -> Path:
     return CRATE / out
 
 
+def npm_repository_url(repository):
+    """Cargo's plain https URL in the form npm stores without rewriting it."""
+    url = repository["url"] if isinstance(repository, dict) else repository
+    url = url.removeprefix("git+").removesuffix(".git")
+    return f"git+{url}.git"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     # `target/npm/vanedb-wasm` is a filesystem path, not the package name.
@@ -158,7 +165,14 @@ def main() -> None:
         "version": generated["version"],
         "description": generated["description"],
         "license": generated["license"],
-        "repository": generated["repository"],
+        # npm's canonical form is `git+<https url>.git`; anything else is
+        # silently rewritten at publish time, which means the metadata on the
+        # registry is npm's guess rather than what we wrote. Cargo's field is a
+        # plain https URL, so normalise it here rather than duplicating it.
+        "repository": {
+            "type": "git",
+            "url": npm_repository_url(generated["repository"]),
+        },
         "keywords": ["vector", "search", "embeddings", "wasm", "hnsw", "database"],
         "homepage": "https://github.com/vanedb/vanedb#readme",
         "type": "module",
