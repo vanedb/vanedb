@@ -202,8 +202,8 @@ namespace vanedb::detail::scalar {
   // usable direction is 1.0 away from everything, including itself, and
   // there are three ways to have none: a zero vector, a squared norm that
   // overflowed float, and one that *underflowed* it, which needs every
-  // component small enough that its square reaches zero. ../conformance's
-  // README states the bound for both engines; the 1e-25 rows of
+  // component small enough that its square reaches zero. conformance/README.md
+  // states the bound for both engines; the 1e-25 rows of
   // cosine_scale_invariance.tsv pin the case here.
   float denom = sqrtf(na) * sqrtf(nb);
   if (!(denom > 0.0f && std::isfinite(denom))) return 1.0f;

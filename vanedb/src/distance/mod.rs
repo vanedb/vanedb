@@ -48,7 +48,8 @@ pub enum Metric {
     ///   component is enough to keep it usable — and such a vector is then 1.0
     ///   from everything, itself included: a plausible-looking input with no
     ///   warning attached. Rescale before indexing if your embeddings live
-    ///   down there. `conformance/cosine_scale_invariance.tsv` pins both ends.
+    ///   down there. `vanedb/tests/fixtures/conformance/cosine_scale_invariance.tsv`
+    ///   pins both ends.
     Cosine,
     /// Negative dot product (higher similarity = lower distance).
     ///
