@@ -99,6 +99,14 @@ jobs:
           python -m pip install --constraint .github/requirements-release.txt PyYAML
           python .github/scripts/check_wheel_matrix.py
 
+      # `check_release_readmes.py` otherwise runs for the first time in its life
+      # during an irreversible publish. These cases are the rewordings a review
+      # used to defeat its first version, and the correct install forms that
+      # version wrongly rejected.
+      - name: Release script tests
+        shell: bash
+        run: python3 scripts/test_release_scripts.py
+
   rust:
     name: Rust component
     needs: changes
