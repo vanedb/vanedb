@@ -15,7 +15,10 @@
 use std::fs;
 use std::path::PathBuf;
 
-use vanedb::{ApproxIndex, DiskIndexBuilder, Metric, VaneError};
+use vanedb::{ApproxIndex, Metric, VaneError};
+
+#[cfg(feature = "disk")]
+use vanedb::DiskIndexBuilder;
 
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("vanedb-io-{}-{name}", std::process::id()));
@@ -41,13 +44,16 @@ fn saving_under_a_missing_directory_reports_io_not_corruption() {
     );
     assert!(err.to_string().contains("create"), "{err}");
 
-    let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
-    builder.add(1, &[1.0, 0.0]).unwrap();
-    let err = builder.save(&nowhere).unwrap_err();
-    assert!(
-        matches!(err, VaneError::Io { .. } | VaneError::FileNotFound { .. }),
-        "disk save under a missing parent must be an io error, got {err:?}"
-    );
+    #[cfg(feature = "disk")]
+    {
+        let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+        builder.add(1, &[1.0, 0.0]).unwrap();
+        let err = builder.save(&nowhere).unwrap_err();
+        assert!(
+            matches!(err, VaneError::Io { .. } | VaneError::FileNotFound { .. }),
+            "disk save under a missing parent must be an io error, got {err:?}"
+        );
+    }
 
     let _ = fs::remove_dir_all(&dir);
 }
@@ -145,9 +151,12 @@ fn a_successful_save_leaves_no_temporary_behind() {
     index.add(1, &[1.0, 0.0]).unwrap();
     index.save(dir.join("graph.vndb")).unwrap();
 
-    let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
-    builder.add(1, &[1.0, 0.0]).unwrap();
-    builder.save(dir.join("store.vndb")).unwrap();
+    #[cfg(feature = "disk")]
+    {
+        let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+        builder.add(1, &[1.0, 0.0]).unwrap();
+        builder.save(dir.join("store.vndb")).unwrap();
+    }
 
     let leftovers: Vec<String> = fs::read_dir(&dir)
         .unwrap()

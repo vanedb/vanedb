@@ -81,6 +81,21 @@ section records what it contains rather than what changed.
 
 ### Added
 
+- **A search-correctness suite that does not use the engine as its own
+  reference.** `disk_tests` compared `DiskIndex` to `FlatIndex` and
+  `approx_tests` measured recall against `FlatIndex`, which left the exact
+  index — the thing every other cross-check trusts — checked by nothing. A
+  systematic ordering or distance error there would have satisfied all of
+  them. `tests/search_correctness.rs` computes the ranking in `f64` from the
+  metric definitions, shares no code with `vanedb::distance`, and holds
+  `FlatIndex`, `DiskIndex` and the graph to it across three metrics and twelve
+  dimensions chosen to straddle the AVX2 and NEON tail boundaries. Also pins
+  ascending-id tie-breaking on genuinely tied vectors, and that a graph search
+  with a corpus-wide beam returns the exact answer.
+- Python batch extraction is held to the same reference across Fortran-order,
+  transposed, column-strided and reversed-row numpy inputs. The existing
+  non-contiguous test used a row-strided slice, whose rows are still
+  contiguous — the one layout that cannot expose a transposed read.
 - **A real error channel in the C ABI.** Every status function used to return a
   bare `1` for a dimension mismatch, a duplicate id, a corrupt file, an I/O
   failure and a caught panic alike, and a search returning `0` results could
@@ -164,6 +179,12 @@ section records what it contains rather than what changed.
 - `.gitignore` covers the root `.venv/` the Python guides tell you to create,
   so following the documented workflow leaves nothing for `git add -A` to
   sweep in.
+- `cargo test -p vanedb` on the **default** feature set did not compile:
+  `debug_impls`, `io_error_paths` and `public_surface` imported
+  `DiskIndexBuilder` unconditionally, and every CI leg passes `--features
+  disk`, so nothing built it. `cargo check` cannot see this — it does not
+  build test targets. The imports are gated and CI now runs the default
+  feature set.
 
 ### Roadmap
 

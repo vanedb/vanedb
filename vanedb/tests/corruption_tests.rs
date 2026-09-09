@@ -15,6 +15,10 @@ const HNSW_MAGIC: u32 = u32::from_le_bytes(*b"HNSW");
 /// Must match `disk::MAGIC`. Written as bytes rather than a hex literal so it
 /// cannot be transcribed byte-reversed — a wrong magic makes every header test
 /// below reject on magic without reaching the guard it names.
+///
+/// Only the `disk` tests read it, so without that feature it is dead code and
+/// `clippy -D warnings` refuses the build.
+#[cfg(feature = "disk")]
 const DISK_MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const HNSW_VERSION: u32 = 2;
 

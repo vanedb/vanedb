@@ -11,7 +11,10 @@
 //! statistic: the string is what a Python or C caller sees, and a `{}`
 //! placeholder naming a field that was renamed still compiles.
 
-use vanedb::{ApproxIndex, DiskIndexBuilder, FlatIndex, Metric, VaneError};
+use vanedb::{ApproxIndex, FlatIndex, Metric, VaneError};
+
+#[cfg(feature = "disk")]
+use vanedb::DiskIndexBuilder;
 
 /// `get` and `get_vector` are the same read under two names, for the same
 /// reason `size`/`len` are (#85). The pair existed on `ApproxIndex` in Rust
@@ -74,15 +77,18 @@ fn both_spellings_of_the_count_agree_on_every_type() {
     assert_eq!(approx.size(), approx.len());
     assert!(!approx.is_empty());
 
-    let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
-    assert_eq!(builder.size(), 0);
-    assert_eq!(builder.len(), 0);
-    assert!(builder.is_empty());
-    assert_eq!(builder.dimension(), 2);
-    builder.add(1, &[1.0, 0.0]).unwrap();
-    assert_eq!(builder.size(), builder.len());
-    assert_eq!(builder.size(), 1);
-    assert!(!builder.is_empty());
+    #[cfg(feature = "disk")]
+    {
+        let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+        assert_eq!(builder.size(), 0);
+        assert_eq!(builder.len(), 0);
+        assert!(builder.is_empty());
+        assert_eq!(builder.dimension(), 2);
+        builder.add(1, &[1.0, 0.0]).unwrap();
+        assert_eq!(builder.size(), builder.len());
+        assert_eq!(builder.size(), 1);
+        assert!(!builder.is_empty());
+    }
 }
 
 /// Every `Display` arm, rendered. These strings cross the FFI boundary as the

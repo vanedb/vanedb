@@ -1,7 +1,10 @@
 //! `.unwrap_err()` and `#[derive(Debug)]` on a user struct both need `Debug`
 //! on the public types, and neither compiled before these impls existed.
 
-use vanedb::{ApproxIndex, DiskIndexBuilder, FlatIndex, Metric};
+use vanedb::{ApproxIndex, FlatIndex, Metric};
+
+#[cfg(feature = "disk")]
+use vanedb::DiskIndexBuilder;
 
 #[test]
 fn unwrap_err_compiles_against_the_public_types() {
@@ -45,6 +48,9 @@ fn debug_shows_identity_not_contents() {
         "contents leaked into Debug: {shown}"
     );
 
-    let builder = DiskIndexBuilder::new(4, Metric::L2).unwrap();
-    assert!(format!("{builder:?}").contains("DiskIndexBuilder"));
+    #[cfg(feature = "disk")]
+    {
+        let builder = DiskIndexBuilder::new(4, Metric::L2).unwrap();
+        assert!(format!("{builder:?}").contains("DiskIndexBuilder"));
+    }
 }
