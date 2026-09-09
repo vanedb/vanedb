@@ -153,6 +153,14 @@ impl FlatIndex {
         Ok(inner.data[start..start + self.dim].to_vec())
     }
 
+    /// The vector stored under `id`. Same as [`get`](Self::get), which is the
+    /// spelling `DiskIndex` uses; both exist so a program is not tied to one
+    /// index type (#85). The Python and C bindings already carried both
+    /// spellings on every index — this is the Rust half of that promise.
+    pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
+        self.get(id)
+    }
+
     /// Removes the vector stored under `id`.
     pub fn remove(&self, id: u64) -> Result<()> {
         let mut inner = self.inner.write();

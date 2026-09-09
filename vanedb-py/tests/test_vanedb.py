@@ -318,3 +318,65 @@ def test_dot_ranks_by_largest_inner_product():
     ids = [i for i, _ in index.search([1.0, 0.0], 3)]
     assert ids[0] == 2, "Dot must rank the largest inner product first"
     assert ids[-1] == 3
+
+
+# --- Paths ---
+
+
+def test_every_path_argument_accepts_os_pathlike(tmp_path):
+    """`pathlib.Path` is how modern Python spells a path.
+
+    Every path argument took `&str`, so `index.save(Path(...))` raised
+    `TypeError: 'PosixPath' object is not an instance of 'str'` — and the
+    guide's own example had to wrap the path in `str()` to work. The four
+    entry points now take `PathBuf`, which PyO3 fills from `str` or anything
+    implementing `os.fspath`.
+    """
+    graph = tmp_path / "graph.vndb"
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    index.add_batch([1, 2], [[1.0, 0.0], [0.0, 1.0]])
+    index.save(graph)
+    assert graph.is_file()
+    assert len(vanedb.ApproxIndex.load(graph)) == 2
+
+    corpus = tmp_path / "corpus.vndb"
+    builder = vanedb.DiskIndexBuilder(2, vanedb.Metric.L2)
+    builder.add(1, [1.0, 0.0])
+    builder.save(corpus)
+    assert len(vanedb.DiskIndex.open(corpus)) == 1
+
+
+def test_paths_accept_any_fspath_object(tmp_path):
+    """Not only `pathlib.Path`: the protocol is `os.fspath`, so a caller's own
+    path-like wrapper works too."""
+
+    class Wrapper:
+        def __init__(self, path):
+            self._path = path
+
+        def __fspath__(self):
+            return str(self._path)
+
+    graph = tmp_path / "graph.vndb"
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    index.add(1, [1.0, 0.0])
+    index.save(Wrapper(graph))
+    assert len(vanedb.ApproxIndex.load(Wrapper(graph))) == 1
+
+
+def test_a_path_that_is_not_a_path_is_a_typeerror(tmp_path):
+    """A non-path stays a `TypeError`; accepting `os.PathLike` must not make
+    every object a path."""
+    index = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    with pytest.raises(TypeError):
+        index.save(42)
+    with pytest.raises(TypeError):
+        vanedb.ApproxIndex.load(42)
+
+
+def test_a_missing_pathlib_path_still_raises_filenotfounderror(tmp_path):
+    """The exception mapping must not depend on how the path was spelled."""
+    with pytest.raises(FileNotFoundError):
+        vanedb.ApproxIndex.load(tmp_path / "absent.vndb")
+    with pytest.raises(FileNotFoundError):
+        vanedb.DiskIndex.open(tmp_path / "absent.vndb")

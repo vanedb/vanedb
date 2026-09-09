@@ -2,10 +2,16 @@
 //! single-accumulator FMA loop is latency-bound rather than throughput-bound.
 //!
 //! Every function here requires AVX2 and FMA; callers reach them through
-//! [`distance_fn`](super::distance_fn), which checks at runtime.
+//! [`distance_fn`](crate::distance::distance_fn), which checks at runtime.
 //!
 //! Each compares `a.len().min(b.len())` elements, matching
-//! [`scalar`](super::scalar); the lengths themselves need not agree.
+//! [`scalar`](crate::distance::scalar); the lengths themselves need not agree.
+
+// `crate::`, not `super::`: this module carries an outer `///` line written in
+// `distance/mod.rs` as well as these `//!` lines, and rustdoc resolves the
+// merged doc in the outer fragment's scope — where `super` is the crate root,
+// not `distance`. Both links were dead, and only on x86-64, which is where
+// docs.rs builds and where nothing local looked.
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;

@@ -22,6 +22,15 @@ jobs:
           components: clippy, rustfmt
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --exclude vanedb-py --all-targets --features disk --locked -- -D warnings
+      # Every test leg below passes `--features disk`, so the default feature
+      # set was never built at all — and three test files imported
+      # `DiskIndexBuilder` unconditionally, which meant a plain
+      # `cargo test -p vanedb` did not compile. `cargo check` did not catch it:
+      # it does not build the test targets.
+      - name: Tests compile, lint and pass on the default feature set
+        run: |
+          cargo clippy -p vanedb --all-targets --locked -- -D warnings
+          cargo test -p vanedb --locked
       # build.rs regenerates the C header into the source tree. An ABI change
       # plus a forgotten header commit would ship a header that lies about the
       # ABI, and consumers vendor that file by hand.
@@ -29,6 +38,26 @@ jobs:
         run: |
           cargo build -p vanedb-capi --locked
           git diff --exit-code -- vanedb-capi/include
+
+  docs:
+    name: Rustdoc (docs.rs configuration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      # Nothing built the documentation, so nothing could see a link that only
+      # breaks in one build. Two dead links sat in the AVX2 module docs, which
+      # exist solely on x86-64 — and every local check ran on macOS ARM64,
+      # where the module is cfg'd away. docs.rs builds on x86-64, so the
+      # crate's own front page would have shipped them.
+      #
+      # Features match `[package.metadata.docs.rs]` in vanedb/Cargo.toml: this
+      # job is the published page, not a second opinion about it.
+      - run: cargo doc -p vanedb --features disk --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
 
   check-macos:
     name: Check & Lint (macOS, gpu-metal)

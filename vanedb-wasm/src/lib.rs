@@ -139,8 +139,17 @@ impl WasmStore {
         Ok(WasmSearchResults::from(results))
     }
 
+    /// The vector stored under `id`, as a `Float32Array`.
     pub fn get(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
         self.inner.get(one_id(id)?).map_err(to_jserr)
+    }
+
+    /// The same operation as `get`, under the spelling `ApproxIndex` also
+    /// accepts. Both exist on both index types so a program is not tied to one
+    /// (#85) — `ApproxIndex` had the pair and `FlatIndex` only `get`, so the
+    /// one swap the pair exists for was the one that broke.
+    pub fn get_vector(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+        self.get(id)
     }
 
     pub fn remove(&self, id: BigInt) -> Result<(), JsError> {

@@ -70,7 +70,6 @@ fn documented_methods_exist() {
         "dimension",
         "metric",
         "contains",
-        "get_vector",
         "set_ef_search",
         "get_ef_search",
     ];

@@ -24,6 +24,11 @@ vanedb-py/python/vanedb/*.dylib
 !vanedb/tests/fixtures/**/*.bin
 !conformance/**/*.bin
 
+# The virtual environment the guides and CLAUDE.md tell you to create at the
+# repository root for the Python bindings. Following the documented workflow
+# must not leave something `git add -A` would commit.
+/.venv/
+
 # Swept in by `git add -A` and never intentional: stray shell redirects,
 # and per-developer editor configuration.
 /0

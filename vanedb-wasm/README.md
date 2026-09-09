@@ -91,8 +91,8 @@ back with `m()`, `ef_construction()`, `capacity()` and `seed()`. Set
 `index.ef_search` to trade search speed for recall.
 For exact search use `new FlatIndex(dimension, metric)`. It has the same
 surface minus the graph parameters: `add`, `add_batch`, `search`, `get`,
-`remove`, `contains`, `size()`, `metric()` and `dimension()`. The module also
-exports `version()`.
+`get_vector`, `remove`, `contains`, `size()`, `metric()` and `dimension()`. The
+module also exports `version()`.
 
 `ApproxIndex` supports the full delete lifecycle. `remove(id)` tombstones a
 vector: it stops appearing in results immediately, but keeps its graph links,
@@ -100,7 +100,7 @@ which may be the only route between live neighbourhoods. `tombstones()` counts
 what that has cost and `compact()` reclaims it — worth calling when churn has
 accumulated, since a browser is the most memory-constrained runtime this crate
 targets. `get(id)` and `get_vector(id)` read a stored vector back; both
-spellings exist so a program is not tied to one index type.
+spellings exist on both index types so a program is not tied to one.
 
 Not available in WebAssembly: persistence (`save`/`load`), disk mapping, and
 `upsert`.

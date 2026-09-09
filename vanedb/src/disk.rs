@@ -461,6 +461,14 @@ impl DiskIndex {
         Ok(Cow::Borrowed(self.get_vec(idx)))
     }
 
+    /// The vector stored under `id`. Same as [`get`](Self::get), which is the
+    /// spelling `FlatIndex` uses; both exist so a program is not tied to one
+    /// index type (#85). The Python and C bindings already carried both
+    /// spellings on every index — this is the Rust half of that promise.
+    pub fn get_vector(&self, id: u64) -> Result<Cow<'_, [f32]>> {
+        self.get(id)
+    }
+
     /// The `k` nearest vectors to `query`, nearest first.
     ///
     /// Returns fewer than `k` results when the file holds fewer vectors.

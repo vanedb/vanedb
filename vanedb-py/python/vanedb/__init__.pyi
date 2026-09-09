@@ -5,6 +5,7 @@ editor and a type checker see. `tests/test_type_stubs.py` asserts they match
 the runtime module, because a stub that drifts is worse than no stub.
 """
 
+import os
 from typing import Any, TypeAlias
 
 __version__: str
@@ -24,6 +25,9 @@ BatchLike: TypeAlias = Any
 #: A 1-D uint64 or int64 buffer, or a sequence of ints. Negative ids raise
 #: ValueError.
 IdsLike: TypeAlias = Any
+
+#: A filesystem path: `str` or any `os.PathLike`, `pathlib.Path` included.
+PathLike: TypeAlias = str | os.PathLike[str]
 
 class Metric:
     """Distance metric for vector comparison."""
@@ -109,9 +113,9 @@ class ApproxIndex:
         *,
         ef_search: int | None = ...,
     ) -> list[tuple[int, float]]: ...
-    def save(self, path: str) -> None: ...
+    def save(self, path: PathLike) -> None: ...
     @staticmethod
-    def load(path: str) -> ApproxIndex:
+    def load(path: PathLike) -> ApproxIndex:
         """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""
 
 class DiskIndexBuilder:
@@ -123,7 +127,7 @@ class DiskIndexBuilder:
     def size(self) -> int: ...
     def __len__(self) -> int: ...
     def add(self, id: int, vector: VectorLike) -> None: ...
-    def save(self, path: str) -> None: ...
+    def save(self, path: PathLike) -> None: ...
 
 class DiskIndex:
     """Memory-mapped exact k-NN. Open with DiskIndex.open; not constructible.
@@ -149,5 +153,5 @@ class DiskIndex:
     def contains(self, id: int) -> bool: ...
     def search(self, query: VectorLike, k: int) -> list[tuple[int, float]]: ...
     @staticmethod
-    def open(path: str) -> DiskIndex:
+    def open(path: PathLike) -> DiskIndex:
         """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""

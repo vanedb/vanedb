@@ -98,3 +98,75 @@ fn cosine_returns_one_when_norms_overflow_rather_than_nan() {
     assert!(got.is_finite(), "expected a finite distance, got {got}");
     assert!((got - 1.0).abs() <= TOLERANCE, "expected 1.0, got {got}");
 }
+
+/// The underflow end of the "no usable direction" rule is a property of the
+/// whole vector, not of any one component.
+///
+/// The rustdoc quotes a per-component bound (`2^-75`, about 2.6e-23) because
+/// that is where a single square reaches zero. It would be easy to read that
+/// as "a small component poisons the vector", which is not what the kernel
+/// does: the norm is a sum, so one ordinary component keeps it usable no
+/// matter how small the rest are. Both directions are asserted here, because
+/// prose is what drifted last time.
+///
+/// The magnitudes are deep inside each region rather than at the boundary.
+/// The exact boundary depends on subnormal handling — flush-to-zero would
+/// move it — and the rule under test holds either way.
+#[test]
+fn cosine_underflows_only_when_every_component_is_below_the_bound() {
+    let cosine = distance_fn(Metric::Cosine);
+
+    // Every component far below the bound: no usable direction, so 1.0 even
+    // against itself. This is the case `cosine_scale_invariance.tsv` pins.
+    for all_tiny in [vec![1e-30f32, 1e-30], vec![1e-30; 128], vec![1e-30, 1e-24]] {
+        assert!(
+            (cosine(&all_tiny, &all_tiny) - 1.0).abs() <= TOLERANCE,
+            "a vector with every component under the bound must be 1.0 from \
+             itself, got {}",
+            cosine(&all_tiny, &all_tiny)
+        );
+    }
+
+    // One ordinary component is enough. A vector that is mostly negligible is
+    // still a direction, and must behave like one.
+    for mut mixed in [vec![1e-30f32; 128], vec![1e-30f32, 1e-30]] {
+        mixed[0] = 1.0;
+        assert!(
+            cosine(&mixed, &mixed).abs() <= TOLERANCE,
+            "one ordinary component must keep the norm usable, got {}",
+            cosine(&mixed, &mixed)
+        );
+        // And it still ranks against an unrelated vector rather than
+        // collapsing to the degenerate answer.
+        let mut other = vec![0.0f32; mixed.len()];
+        other[0] = -1.0;
+        assert!(
+            (cosine(&mixed, &other) - 2.0).abs() <= TOLERANCE,
+            "an anti-parallel pair must be 2.0 apart, got {}",
+            cosine(&mixed, &other)
+        );
+    }
+}
+
+/// The overflow end is a property of the norm too, and the many-component case
+/// is the one a per-component reading misses.
+#[test]
+fn cosine_overflows_on_the_norm_not_on_any_single_component() {
+    let cosine = distance_fn(Metric::Cosine);
+    // 1e19 is below sqrt(f32::MAX) (~1.845e19), so no single square overflows
+    // — but 128 of them sum past f32::MAX, and the vector has no usable
+    // direction after all.
+    let many = vec![1e19f32; 128];
+    assert!(
+        (cosine(&many, &many) - 1.0).abs() <= TOLERANCE,
+        "a norm that overflows only in the sum must still be 1.0, got {}",
+        cosine(&many, &many)
+    );
+    // The same magnitude in a short vector keeps its direction.
+    let few = vec![1e19f32, 0.0];
+    assert!(
+        cosine(&few, &few).abs() <= TOLERANCE,
+        "a component under the bound must not be treated as an overflow, got {}",
+        cosine(&few, &few)
+    );
+}

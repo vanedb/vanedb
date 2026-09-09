@@ -163,3 +163,70 @@ def test_hnsw_add_batch_grows_past_the_capacity_hint():
     index = vanedb.ApproxIndex(2, capacity=3)
     index.add_batch(np.arange(8), np.ones((8, 2), dtype=np.float32))
     assert len(index) == 8
+
+
+# --- The corpus must survive an awkward memory layout ---
+
+
+def _numpy_ranking(vectors, ids, query, k):
+    """Ground truth in float64, ties by ascending id, computed here."""
+    v = np.asarray(vectors, dtype=np.float64)
+    q = np.asarray(query, dtype=np.float64)
+    d = ((v - q) ** 2).sum(axis=1)
+    order = sorted(range(len(ids)), key=lambda i: (d[i], ids[i]))
+    return [ids[i] for i in order[:k]]
+
+
+@pytest.mark.parametrize(
+    "layout",
+    ["c_contiguous", "fortran", "transposed", "column_strided", "reversed_rows"],
+)
+def test_search_ranking_survives_every_buffer_layout(layout):
+    """A batch read at the wrong stride stores a transposed corpus, and every
+    later search silently answers from the wrong vectors.
+
+    `test_store_add_batch_noncontiguous_slice` above takes `vecs[::2]`, which
+    is row-strided and therefore still has each row contiguous — the layout
+    that cannot expose a transposition. These do: Fortran order and a
+    transposed view are column-major, so reading them as C-contiguous returns a
+    different corpus that is the same size and full of the same numbers.
+
+    The judge is numpy in float64, not another vanedb index, so the check does
+    not depend on the extraction path it is testing.
+    """
+    rng = np.random.default_rng(90909)
+    base = rng.standard_normal((40, 6)).astype(np.float32)
+    if layout == "c_contiguous":
+        vecs = np.ascontiguousarray(base)
+    elif layout == "fortran":
+        vecs = np.asfortranarray(base)
+    elif layout == "transposed":
+        vecs = rng.standard_normal((6, 40)).astype(np.float32).T
+    elif layout == "column_strided":
+        vecs = rng.standard_normal((40, 12)).astype(np.float32)[:, ::2]
+    else:
+        vecs = np.ascontiguousarray(base)[::-1]
+    assert vecs.shape == (40, 6)
+
+    ids = [i * 3 + 1 for i in range(40)]
+    store = vanedb.FlatIndex(6, vanedb.Metric.L2)
+    store.add_batch(ids, vecs)
+
+    # Every stored vector is the row the caller passed, not a column of it.
+    for i, want in zip(ids, vecs):
+        assert store.get(i) == pytest.approx(want.tolist()), f"{layout}: row {i}"
+
+    query = rng.standard_normal(6).astype(np.float32)
+    got = [i for i, _ in store.search(query, 10)]
+    assert got == _numpy_ranking(vecs, ids, query, 10), layout
+
+
+def test_a_transposed_batch_is_not_silently_accepted_at_the_wrong_shape():
+    """The shape check must read the buffer's own shape, not infer one from
+    the element count. A (6, 40) array holds exactly as many floats as the
+    (40, 6) the index wants."""
+    wrong = np.zeros((6, 40), dtype=np.float32)
+    store = vanedb.FlatIndex(6, vanedb.Metric.L2)
+    with pytest.raises(ValueError):
+        store.add_batch(list(range(6)), wrong)
+    assert len(store) == 0

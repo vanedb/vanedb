@@ -1,12 +1,23 @@
-# Shared cosine cases. Cosine distance depends only on direction, so `expected`
-# is identical at every scale. Each row builds two 2-D vectors from `scale`:
+# Shared cosine cases. Each row builds two 2-D vectors from `scale`:
 #   identical    a = ( s, 2s)   b = ( s, 2s)   -> 0.0
 #   opposite     a = ( s, 2s)   b = (-s,-2s)   -> 2.0
 #   orthogonal   a = ( s,  0)   b = ( 0,  s)   -> 1.0
 #   zero         a = ( 0,  0)   b = ( s, 2s)   -> 1.0  (a has no direction)
-# Scales stay inside the f32 normal range at both ends so the cases test the
-# distance policy rather than subnormal arithmetic.
+#
+# Cosine distance depends only on direction, so `expected` is the same at every
+# scale the arithmetic can represent. The scales from 1e-18 to 1e18 stay inside
+# the f32 normal range at both ends and pin that invariance.
+#
+# The 1e-25 rows pin the other end: the "no usable direction" rule is decided
+# by the *computed* squared norm, and every square underflows f32 to zero once
+# each component is below roughly 2.6e-23 (2^-75). Both components here are, so
+# the norm is zero. Such a vector is neither zero nor overflowing,
+# yet both engines report 1.0 — including against itself. That is a real answer
+# a caller can get from finite, ordinary-looking input, so it is pinned here
+# rather than left to whichever engine changes first.
 # scale	relation	expected
+1e-25	identical	1.0
+1e-25	opposite	1.0
 1e-18	identical	0.0
 1e-18	opposite	2.0
 1e-18	orthogonal	1.0

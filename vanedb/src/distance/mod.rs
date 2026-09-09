@@ -26,11 +26,29 @@ pub enum Metric {
     /// Cosine distance (1 - cosine similarity).
     ///
     /// A zero vector has no direction, so the angle to it is undefined. This
-    /// crate reports 1.0 — the maximum distance — whenever either norm is zero
-    /// or overflows to a non-finite value, including a zero vector's distance
-    /// to itself. Ranking it as maximally distant keeps it out of results
-    /// rather than making it a NaN that sorts unpredictably. Both engines
-    /// share this policy.
+    /// crate reports 1.0 — the maximum distance — whenever either *computed*
+    /// squared norm is zero or is not finite, including a zero vector's
+    /// distance to itself. Ranking it as maximally distant keeps it out of
+    /// results rather than making it a NaN that sorts unpredictably. Both
+    /// engines share this policy.
+    ///
+    /// "Computed" is load-bearing at both ends of the range, and neither end
+    /// is an error:
+    ///
+    /// - **Overflow.** A vector whose magnitude reaches roughly 1.8e19
+    ///   (`sqrt(f32::MAX)`) has a squared norm past `f32::MAX`, so the norm is
+    ///   infinite. It is the norm that decides, not any one component: 128
+    ///   components of 1e19 each are individually under the bound and still
+    ///   sum past it.
+    /// - **Underflow.** A component below roughly 2.6e-23 (`2^-75`) squares to
+    ///   zero — not `sqrt(f32::MIN_POSITIVE_SUBNORMAL)` ≈ 3.7e-23, because
+    ///   round-to-nearest rounds a square in `[2^-150, 2^-149)` *up* to the
+    ///   minimum subnormal rather than down to zero. The norm reaches zero
+    ///   only when *every* component is under that bound — one ordinary
+    ///   component is enough to keep it usable — and such a vector is then 1.0
+    ///   from everything, itself included: a plausible-looking input with no
+    ///   warning attached. Rescale before indexing if your embeddings live
+    ///   down there. `conformance/cosine_scale_invariance.tsv` pins both ends.
     Cosine,
     /// Negative dot product (higher similarity = lower distance).
     ///
@@ -38,6 +56,13 @@ pub enum Metric {
     /// than a shorter one pointing the same way,
     /// so a vector need not be its own nearest neighbour. Normalise, or keep
     /// magnitudes comparable, if you want similarity-search semantics.
+    ///
+    /// Magnitudes large enough to overflow the inner product give a distance
+    /// of negative infinity, and the shared result order places every
+    /// non-finite distance *after* the finite ones — so an overflowing pair
+    /// ranks last rather than first. Both engines do this deliberately: a
+    /// saturated score carries no ranking information, and letting it win
+    /// would put an arbitrary vector at the top of every result set.
     Dot,
 }
 
