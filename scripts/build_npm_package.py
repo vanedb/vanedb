@@ -158,6 +158,19 @@ def main() -> None:
     for doc in ("README.md", "LICENSE"):
         shutil.copy2(CRATE / doc, out / doc)
 
+    # The `./vanedb_wasm_bg.wasm` export names the web copy. wasm-pack emits
+    # one per target and they have always been identical, but "always been" is
+    # not a guarantee: if they ever diverge, that export would hand Node
+    # consumers the browser module.
+    node_wasm = (out / "node/vanedb_wasm_bg.wasm").read_bytes()
+    web_wasm = (out / "web/vanedb_wasm_bg.wasm").read_bytes()
+    if node_wasm != web_wasm:
+        raise SystemExit(
+            "the node and web wasm modules differ, so a single "
+            "`./vanedb_wasm_bg.wasm` export would be wrong for one of them; "
+            "make the export conditional before shipping this"
+        )
+
     generated = json.loads((node_dir / "package.json").read_text())
     package = {
         # Scoped, so a future native binding can take `@vanedb/node` without
@@ -192,6 +205,12 @@ def main() -> None:
                 "browser": "./web/index.js",
                 "default": "./web/index.js",
             },
+            # A bundler that wants to inline the module cannot reach a path the
+            # exports map does not name, so without this a consumer has to
+            # vendor a copy of the .wasm out of the package by hand. The two
+            # builds emit byte-identical modules -- asserted below, so this one
+            # path cannot silently become wrong for one of them.
+            "./vanedb_wasm_bg.wasm": "./web/vanedb_wasm_bg.wasm",
             "./package.json": "./package.json",
         },
         "main": "./node/index.cjs",
