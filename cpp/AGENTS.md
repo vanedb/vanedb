@@ -45,15 +45,12 @@ passing, but that is a constraint on changes rather than a sync obligation.
   a manual check, not coverage.
 
 ### Performance
-Numbers belong in [`bench/README.md`](../bench/README.md), which dates them and
-names the machine. Three undated speedup figures sat here with no source and no
-run behind them; this repo's rule is that a benchmark is meaningful only on
-dedicated hardware, verified with interleaved A-B-A runs.
+CPU figures: [`bench/README.md`](../bench/README.md), which dates its snapshot
+and names the machine. There is no published Metal figure, and no CI job
+measures one.
 
 ## Structure
-Read `cpp/src/core/`. A copy of the tree lived here; the equivalent copy in
-`cpp/docs/GUIDE.md` rotted, naming three headers that no longer exist.
-~1,920 lines of core code total (excluding the uninstalled `.cuh`).
+Read `cpp/src/core/`.
 
 ## Build
 ```bash
@@ -76,8 +73,9 @@ Run these commands from the repository root.
 - Coverage: Codecov
 
 ## API
-`cpp/src/core/{flat_index,approx_index,disk_index}.h` and `gpu/`. The usage
-examples in `cpp/README.md` are the ones kept in step with the code.
+`cpp/src/core/{flat_index,approx_index,disk_index}.h` and `gpu/` declare it.
+`cpp/README.md` carries usage examples; nothing checks them against the
+headers, so read the headers when it matters.
 
 
 ## Maintenance Posture

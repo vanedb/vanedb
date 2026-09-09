@@ -1228,3 +1228,44 @@ fn every_reachable_error_code_is_actually_produced() {
         assert!(!vanedb_capi::vanedb_rs_store_contains(&*store, 7));
     }
 }
+
+/// The header promises `last_error` is "reset by the next call ... except the
+/// `*_free` functions, which preserve them". That exception is the whole reason
+/// `guard_preserving` exists: the ordinary C path is fail, clean up, then
+/// report, and routing a free through `guard` would clear the reason between
+/// the failure and the report. Nothing asserted it, so a free quietly moved
+/// onto `guard` would ship a header that lies to C callers with a green suite.
+#[test]
+fn a_free_preserves_the_error_a_caller_is_about_to_report() {
+    unsafe {
+        let store = vanedb_capi::vanedb_rs_store_new(2, 0) // L2
+            ;
+        assert!(!store.is_null());
+        let v = [1.0f32, 0.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
+            1,
+            "a duplicate id must fail"
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_DUPLICATE_ID
+        );
+
+        vanedb_capi::vanedb_rs_store_free(store);
+
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_DUPLICATE_ID,
+            "the free must not clear the code the caller is about to report"
+        );
+        assert!(
+            !vanedb_capi::vanedb_rs_last_error_message().is_null(),
+            "nor the message"
+        );
+    }
+}

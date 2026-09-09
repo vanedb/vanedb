@@ -252,9 +252,6 @@ Supported ABIs: `arm64-v8a` (ARM NEON), `x86_64` (AVX2).
 `disk_index.h`, the distance kernels, and `gpu/`. `cpp/tests/`,
 `cpp/benchmarks/` and `cpp/python/` are what their names say.
 
-A copy of the tree used to sit here and named three headers that had not
-existed since the rename. Read the directory instead; it cannot go stale.
-
 ---
 
 ## CI/CD Pipeline
@@ -269,6 +266,8 @@ existed since the rename. Read the directory instead; it cannot go stale.
 | ios-build | macOS | iOS arm64 build |
 | android-build | Linux | Android arm64-v8a |
 | android-x86_64-build | Linux | Android x86_64 |
+| c-api | Linux, macOS, Windows | C ABI build and acceptance |
+| docs | Linux | Doxygen |
 
 ---
 
