@@ -9,8 +9,9 @@
 # the f32 normal range at both ends and pin that invariance.
 #
 # The 1e-25 rows pin the other end: the "no usable direction" rule is decided
-# by the *computed* squared norm, and below roughly 2.6e-23 per component every
-# square underflows f32 to zero. Such a vector is neither zero nor overflowing,
+# by the *computed* squared norm, and every square underflows f32 to zero once
+# each component is below roughly 2.6e-23 (2^-75). Both components here are, so
+# the norm is zero. Such a vector is neither zero nor overflowing,
 # yet both engines report 1.0 — including against itself. That is a real answer
 # a caller can get from finite, ordinary-looking input, so it is pinned here
 # rather than left to whichever engine changes first.

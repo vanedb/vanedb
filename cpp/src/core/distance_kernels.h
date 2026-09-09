@@ -201,10 +201,10 @@ namespace vanedb::detail::scalar {
   // denominator in range for both tiny and huge vectors. A vector with no
   // usable direction is 1.0 away from everything, including itself, and
   // there are three ways to have none: a zero vector, a squared norm that
-  // overflowed float, and a squared norm that *underflowed* it — components
-  // below roughly 2.6e-23 square to zero, so an ordinary-looking tiny vector
-  // lands here too. The 1e-25 rows of cosine_scale_invariance.tsv pin that
-  // last case in both engines.
+  // overflowed float, and a squared norm that *underflowed* it — a component
+  // below roughly 2.6e-23 squares to zero, so a vector whose components are
+  // all below it has a zero norm and lands here. The 1e-25 rows of
+  // cosine_scale_invariance.tsv pin that last case in both engines.
   float denom = sqrtf(na) * sqrtf(nb);
   if (!(denom > 0.0f && std::isfinite(denom))) return 1.0f;
   float sim = dot / denom;

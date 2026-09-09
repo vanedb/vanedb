@@ -35,14 +35,18 @@ pub enum Metric {
     /// "Computed" is load-bearing at both ends of the range, and neither end
     /// is an error:
     ///
-    /// - **Overflow.** A norm from roughly 1.8e19 up (`sqrt(f32::MAX)`) squares past `f32::MAX`,
-    ///   so the norm is infinite.
-    /// - **Underflow.** Components below roughly 2.6e-23 (`2^-75`) square to
+    /// - **Overflow.** A vector whose magnitude reaches roughly 1.8e19
+    ///   (`sqrt(f32::MAX)`) has a squared norm past `f32::MAX`, so the norm is
+    ///   infinite. It is the norm that decides, not any one component: 128
+    ///   components of 1e19 each are individually under the bound and still
+    ///   sum past it.
+    /// - **Underflow.** A component below roughly 2.6e-23 (`2^-75`) squares to
     ///   zero — not `sqrt(f32::MIN_POSITIVE_SUBNORMAL)` ≈ 3.7e-23, because
     ///   round-to-nearest rounds a square in `[2^-150, 2^-149)` *up* to the
-    ///   minimum subnormal rather than down to zero. So
-    ///   the norm is zero even though the vector is not. Such a vector is 1.0
-    ///   from everything, itself included — a plausible-looking input with no
+    ///   minimum subnormal rather than down to zero. The norm reaches zero
+    ///   only when *every* component is under that bound — one ordinary
+    ///   component is enough to keep it usable — and such a vector is then 1.0
+    ///   from everything, itself included: a plausible-looking input with no
     ///   warning attached. Rescale before indexing if your embeddings live
     ///   down there. `conformance/cosine_scale_invariance.tsv` pins both ends.
     Cosine,
