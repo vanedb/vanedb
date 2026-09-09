@@ -61,6 +61,11 @@ jobs:
             exit 1
           fi
 
+      - name: Packaged README carries the published-install form
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-wasm-v')
+        shell: bash
+        run: python3 scripts/check_release_readmes.py "$GITHUB_REF_NAME"
+
       - name: Assemble the package
         run: python3 scripts/build_npm_package.py
 
