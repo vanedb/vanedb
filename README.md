@@ -2,14 +2,10 @@
 
 Embeddable vector database for edge AI.
 
-The Rust engine in [`vanedb/`](vanedb) is the one that ships. A header-only
-C++ engine in [`cpp/`](cpp) is kept as reference code and as the other arm of
-a cross-engine benchmark; it is frozen, and features are not ported to it.
-
 Bring your own embeddings: VaneDB stores and searches vectors; it does not
-generate them. VaneDB stores only `(u64 id, vector)` pairs. There is no metadata or
-payload storage and no filtered search, so keep your own id-to-document
-mapping alongside it. This checkout is pre-release.
+generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
+storage and no filtered search — so keep your own id-to-document mapping
+alongside it. This checkout is pre-release.
 
 ## Quick start
 
@@ -213,8 +209,10 @@ This does not guarantee identical future graph topology after insertions.
 | [`bench/`](bench) | Reproducible cross-engine benchmark harness |
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
-Rust is the shipping engine. C++ source tests and shared disk-format fixtures
-keep the reference implementation useful for the benchmark comparison.
+The Rust engine in [`vanedb/`](vanedb) is the one that ships. The header-only
+C++ engine in [`cpp/`](cpp) is frozen reference code and the other arm of the
+cross-engine benchmark; features are not ported to it, and its source tests and
+shared disk-format fixtures are what keep the comparison honest.
 
 Release tags are scoped to each distribution:
 

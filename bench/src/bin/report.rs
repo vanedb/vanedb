@@ -92,6 +92,20 @@ fn main() -> ExitCode {
         Measure against exact search on your own vectors and queries before choosing \
         graph parameters.\n\n",
     );
+    // A single-seed recall difference is noise, and this caveat has to live in
+    // the generator rather than beside the number: a previous hand-written
+    // banner carrying it was destroyed by the next run of this binary, which
+    // rewrites the whole file.
+    md.push_str(
+        "**A recall difference between the engines at one seed is not a result.** \
+        Each engine builds one graph and scores it, so the line below is a single \
+        sample. Swept over 100 construction seeds per engine on this workload the \
+        means were 0.6927 (Rust, sd 0.0055) and 0.6924 (C++, sd 0.0052) — a true \
+        difference of +0.0003, 95% CI [-0.0012, +0.0018], p = 0.69. A gap of 0.011 \
+        between the two lines below therefore sits far outside what the seed \
+        explains. Sweep the randomness and publish an interval before quoting a \
+        recall difference.\n\n",
+    );
     md.push_str("| Op | C++ (ns/call) | Rust (ns/call) | ratio (rs/cpp) |\n|---|---:|---:|---:|\n");
 
     unsafe {

@@ -67,20 +67,18 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
 The Python publisher is repository `vanedb/vanedb`, workflow `publish-rust.yml`,
 with environment `pypi` (or `testpypi` for an explicitly requested rehearsal).
 PyPI supports a [pending publisher for a new project](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
-On September 7, 2026, signed-in inspection confirmed an existing pending
-publisher for project `vanedb`, repository `vanedb/vanedb` and workflow
-`publish-rust.yml`. It currently permits any GitHub environment. Restrict it
-to `pypi` and verify the saved configuration before publication; do not create
-a duplicate publisher. The GitHub environment's existence alone does not prove
-that PyPI trusts it.
+Restrict the publisher to the `pypi` environment and verify the saved
+configuration; do not create a duplicate. PyPI has no edit — remove the loose
+entry before adding the strict one, because it accepts a token if *any*
+configured publisher matches, so leaving both changes nothing. The GitHub
+environment's existence alone does not prove that PyPI trusts it.
 
 The Rust publisher uses `publish-crate.yml` and environment `crates-io`.
 The [crates.io prerequisites](https://crates.io/docs/trusted-publishing)
 require an initial manual publication before configuring trusted publishing.
-On September 7, inspection confirmed the owner signed in as `tsvet01`, with
-no email address configured. Add an owner-approved email and complete its
-verification before arranging initial publication and the trusted publisher.
-Do not create a duplicate account or assume sign-in alone enables publishing.
+An owner-approved, verified email is required before publication is possible
+at all. Do not create a duplicate account or assume sign-in alone enables
+publishing.
 If bootstrap publication is needed, use the approved version and commit with a
 scoped token through Cargo's credential mechanism; never put credentials in
 release notes, shell history or logs. Configure the trusted publisher

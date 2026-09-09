@@ -11,7 +11,7 @@ use parking_lot::RwLock;
 
 use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
-use crate::validation::validate_finite;
+use crate::validation::{validate_finite, validate_query, validate_vector};
 
 /// Exact k-nearest-neighbour search over vectors held in memory.
 ///
@@ -90,13 +90,7 @@ impl FlatIndex {
     /// Fails if `id` is taken, if the length differs from the store's
     /// dimension, or if any component is not finite.
     pub fn add(&self, id: u64, vector: &[f32]) -> Result<()> {
-        if vector.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: vector.len(),
-            });
-        }
-        validate_finite(vector, "vector")?;
+        validate_vector(vector, self.dim)?;
         let mut inner = self.inner.write();
         if inner.id_to_index.contains_key(&id) {
             return Err(VaneError::DuplicateId { id });
@@ -230,16 +224,7 @@ impl FlatIndex {
     ///
     /// Returns fewer than `k` results when the store holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        if query.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: query.len(),
-            });
-        }
-        validate_finite(query, "query")?;
-        if k == 0 {
-            return Err(VaneError::InvalidK);
-        }
+        validate_query(query, self.dim, k)?;
         let inner = self.inner.read();
         let n = inner.ids.len();
         if n == 0 {

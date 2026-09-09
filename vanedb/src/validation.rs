@@ -11,6 +11,41 @@ pub(crate) fn validate_finite(values: &[f32], input: &'static str) -> Result<()>
     }
 }
 
+/// The query preamble every search shares: dimension, then finiteness, then
+/// `k`.
+///
+/// The *order* is cross-engine observable and pinned by conformance — a
+/// non-finite query of the wrong length must report the mismatch, not the
+/// non-finite value. It was stated independently in three search paths, and a
+/// fourth index type would have made a fourth copy.
+#[inline]
+pub(crate) fn validate_query(query: &[f32], dim: usize, k: usize) -> Result<()> {
+    validate_dimension(query, dim)?;
+    validate_finite(query, "query")?;
+    if k == 0 {
+        return Err(VaneError::InvalidK);
+    }
+    Ok(())
+}
+
+/// The add preamble: dimension, then finiteness. Four copies before this.
+#[inline]
+pub(crate) fn validate_vector(vector: &[f32], dim: usize) -> Result<()> {
+    validate_dimension(vector, dim)?;
+    validate_finite(vector, "vector")
+}
+
+#[inline]
+fn validate_dimension(values: &[f32], dim: usize) -> Result<()> {
+    if values.len() != dim {
+        return Err(VaneError::DimensionMismatch {
+            expected: dim,
+            got: values.len(),
+        });
+    }
+    Ok(())
+}
+
 /// Total distance order used by every top-k path: finite values first,
 /// then infinities, then NaNs ordered by `f32::total_cmp`.
 #[inline]

@@ -16,15 +16,16 @@ npm install /path/to/nodejs/vanedb-wasm-<version>-nodejs.tgz
 ```
 
 Then use `const { ApproxIndex } = require('vanedb-wasm')` in your application.
-For a browser, extract `web/vanedb-wasm-<version>-web.tgz` and serve its `package/`
-directory over HTTP. The browser example below works with the import changed
-to `./package/vanedb_wasm.js`.
+For a browser, extract `web/vanedb-wasm-<version>-web.tgz` and serve its
+`package/` directory over HTTP. The browser example below works with the import
+changed to `./package/vanedb_wasm.js`.
 
-Each tarball has a `.tgz.sha256` checksum sidecar. The target suffix distinguishes
-the downloadable assets; both retain the JavaScript package name `vanedb-wasm`.
-
-To build from source, install Rust, the `wasm32-unknown-unknown` target, and
-`wasm-pack`. Node.js is needed for the Node example. Run from the repository root:
+Each tarball has a `.tgz.sha256` checksum sidecar. **These two are the
+per-target development tarballs, and they import as `vanedb-wasm`** — the
+unscoped name wasm-pack gives its own output. The package published to npm is
+different: it merges both targets under `@vanedb/wasm`, described next. If you
+installed from npm, use that specifier; if you downloaded a `.tgz` from a
+release, use this one.
 
 The 0.1.0 release publishes **`@vanedb/wasm`** to npm — one package serving
 both runtimes through conditional `exports`, so the same source works either
@@ -39,7 +40,11 @@ await init();          // no-op under Node, loads the module in a browser
 const index = new FlatIndex(3, 'l2');
 ```
 
-`require('@vanedb/wasm')` works too. To build from a checkout instead:
+`require('@vanedb/wasm')` works too.
+
+To build from source instead, install Rust, the `wasm32-unknown-unknown`
+target, and `wasm-pack`; Node.js is needed for the Node example. Run from the
+repository root:
 
 ```sh
 rustup target add wasm32-unknown-unknown

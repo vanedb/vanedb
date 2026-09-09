@@ -11,7 +11,7 @@ use memmap2::Mmap;
 use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
 use crate::flat::SearchResult;
-use crate::validation::validate_finite;
+use crate::validation::{validate_query, validate_vector};
 
 /// Literal `VNDB` as the first four bytes on disk, matching the contract in
 /// `conformance/README.md` and the C++ engine's `DiskIndex::MAGIC`. Built from
@@ -130,13 +130,7 @@ impl DiskIndexBuilder {
     /// Fails if `id` is taken, if the length differs from `dim`, or if any
     /// component is not finite.
     pub fn add(&mut self, id: u64, vector: &[f32]) -> Result<()> {
-        if vector.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: vector.len(),
-            });
-        }
-        validate_finite(vector, "vector")?;
+        validate_vector(vector, self.dim)?;
         if self.id_set.contains(&id) {
             return Err(VaneError::DuplicateId { id });
         }
@@ -479,16 +473,7 @@ impl DiskIndex {
     ///
     /// Returns fewer than `k` results when the file holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
-        if query.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: query.len(),
-            });
-        }
-        validate_finite(query, "query")?;
-        if k == 0 {
-            return Err(VaneError::InvalidK);
-        }
+        validate_query(query, self.dim, k)?;
 
         // Monomorphized per-metric scan + top-k selection instead of a full
         // sort through the dist_fn pointer — same treatment as

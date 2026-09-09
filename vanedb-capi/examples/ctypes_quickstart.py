@@ -21,8 +21,11 @@ import ctypes
 import sys
 from pathlib import Path
 
+# Metric values, from vanedb_rs_capi.h. COSINE and DOT are unused here but
+# named so the mapping is visible.
 L2, COSINE, DOT = 0, 1, 2
-OK, NULL_ARGUMENT, NOT_FOUND, DUPLICATE_ID = 0, 1, 5, 6
+# The VANEDB_RS_* codes this example asserts on. The full set is in the header.
+OK, NOT_FOUND, DUPLICATE_ID = 0, 5, 6
 
 
 def bind(lib: ctypes.CDLL) -> None:
@@ -107,7 +110,7 @@ def main() -> int:
 
         k = 2
         ids = (ctypes.c_uint64 * k)()
-        distances = floats(*([0.0] * k)) if k == dim else (ctypes.c_float * k)()
+        distances = (ctypes.c_float * k)()
         found = lib.vanedb_rs_store_search(store, floats(1.0, 0.0, 0.0), k, ids, distances)
         assert lib.vanedb_rs_last_error() == OK, "a real failure would set a code"
         print("nearest:", [(ids[i], round(distances[i], 4)) for i in range(found)])
