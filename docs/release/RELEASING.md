@@ -122,8 +122,22 @@ changes to a version dependency, which would make crates.io a hard prerequisite.
   and the published package carries an attestation naming this workflow and
   commit. A trusted publisher must be configured on npmjs.com for
   `@vanedb/wasm` first, which requires owning the `vanedb` npm organisation or
-  user scope. Unlike crates.io, npm needs no bootstrap publish. Scoped
-  packages default to private, which is why the publish step passes
+  user scope.
+
+  **npm needs a bootstrap publish, exactly like crates.io.** Trusted
+  publishing is configured per package, at
+  `npmjs.com → Packages → @vanedb/wasm → Settings → Trusted publishing`, and
+  that page cannot exist until the package does. npm has no equivalent of
+  PyPI's pending publisher. So the first version is published manually with a
+  granular access token, the trusted publisher is configured afterwards, and
+  the token is revoked. As with crates.io, the bootstrap version carries no
+  provenance attestation; every later version does.
+
+  Do not also push `vanedb-wasm-v<version>` for a bootstrapped version — the
+  tagged workflow would attempt the same version against a registry that
+  rejects re-uploads.
+
+  Scoped packages default to private, which is why the publish step passes
   `--access public`.
 - C library archives come from the
   approved commit's CI artifacts. Attach the C archives with their runtime
