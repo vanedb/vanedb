@@ -102,12 +102,12 @@ fn cosine_returns_one_when_norms_overflow_rather_than_nan() {
 /// The underflow end of the "no usable direction" rule is a property of the
 /// whole vector, not of any one component.
 ///
-/// The rustdoc quotes a per-component bound (`2^-75`, about 2.6e-23) because
-/// that is where a single square reaches zero. It would be easy to read that
-/// as "a small component poisons the vector", which is not what the kernel
-/// does: the norm is a sum, so one ordinary component keeps it usable no
-/// matter how small the rest are. Both directions are asserted here, because
-/// prose is what drifted last time.
+/// `Metric::Cosine` quotes a per-component bound, because that is where a
+/// single square reaches zero. It would be easy to read that as "a small
+/// component poisons the vector", which is not what the kernel does: the norm
+/// is a sum, so one ordinary component keeps it usable no matter how small the
+/// rest are. Both directions are asserted here, because prose is what drifted
+/// last time.
 ///
 /// The magnitudes are deep inside each region rather than at the boundary.
 /// The exact boundary depends on subnormal handling — flush-to-zero would

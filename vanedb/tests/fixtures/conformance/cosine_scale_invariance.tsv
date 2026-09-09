@@ -4,17 +4,10 @@
 #   orthogonal   a = ( s,  0)   b = ( 0,  s)   -> 1.0
 #   zero         a = ( 0,  0)   b = ( s, 2s)   -> 1.0  (a has no direction)
 #
-# Cosine distance depends only on direction, so `expected` is the same at every
-# scale the arithmetic can represent. The scales from 1e-18 to 1e18 stay inside
-# the f32 normal range at both ends and pin that invariance.
-#
-# The 1e-25 rows pin the other end: the "no usable direction" rule is decided
-# by the *computed* squared norm, and every square underflows f32 to zero once
-# each component is below roughly 2.6e-23 (2^-75). Both components here are, so
-# the norm is zero. Such a vector is neither zero nor overflowing,
-# yet both engines report 1.0 — including against itself. That is a real answer
-# a caller can get from finite, ordinary-looking input, so it is pinned here
-# rather than left to whichever engine changes first.
+# The 1e-18 … 1e18 rows pin scale invariance; the 1e-25 rows pin the underflow
+# end, where every square reaches zero and the vector has no usable direction.
+# `conformance/README.md` states the rule and the bound — once, so a corrected
+# figure does not have to be chased through the fixtures as well.
 # scale	relation	expected
 1e-25	identical	1.0
 1e-25	opposite	1.0

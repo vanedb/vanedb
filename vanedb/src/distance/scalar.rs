@@ -35,11 +35,12 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     //
     // Policy, shared with vanedb-cpp: a vector with no usable direction is
     // 1.0 away from everything, including itself. Three ways to have none —
-    // a zero vector, a squared norm that overflowed f32, and a squared norm
-    // that *underflowed* it (a component under ~2.6e-23 squares to zero, and
-    // a vector whose components are all under it therefore has a zero norm --
-    // one ordinary component keeps the norm usable). Finite inputs never
-    // yield NaN.
+    // a zero vector, a squared norm that overflowed f32, and one that
+    // *underflowed* it, which needs every component small enough that its
+    // square reaches zero. Finite inputs never yield NaN. `Metric::Cosine`
+    // carries the bound and the rounding behind it; it is not repeated here,
+    // because the figure was wrong once and had to be chased through six
+    // files.
     // Multiplying the roots rather than rooting the product keeps the
     // denominator in range for both tiny and huge vectors.
     let denom = norm_a.sqrt() * norm_b.sqrt();
