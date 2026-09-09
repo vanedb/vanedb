@@ -147,7 +147,10 @@ def main() -> None:
 
     generated = json.loads((node_dir / "package.json").read_text())
     package = {
-        "name": "vanedb-wasm",
+        # Scoped, so a future native binding can take `@vanedb/node` without
+        # competing with this one for a bare name. `--access public` in the
+        # publish workflow is required: npm defaults scoped packages private.
+        "name": "@vanedb/wasm",
         "version": generated["version"],
         "description": generated["description"],
         "license": generated["license"],

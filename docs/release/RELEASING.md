@@ -112,15 +112,19 @@ changes to a version dependency, which would make crates.io a hard prerequisite.
   protected `crates-io` job. If 0.1.0 is the manual bootstrap publication,
   do not also trigger this tag's upload of the same version; use the crate-tag
   workflow for later versions after configuring its publisher.
-- WebAssembly uses tag `vanedb-wasm-v0.1.0`. `scripts/build_npm_package.py`
-  merges the two wasm-pack targets into one `vanedb-wasm` package with
-  conditional `exports`, and `scripts/check_npm_package.py` installs the packed
+- WebAssembly uses tag `vanedb-wasm-v0.1.0` — the tag names the crate; the
+  published package is **`@vanedb/wasm`**. `scripts/build_npm_package.py`
+  merges the two wasm-pack targets into that one package with conditional
+  `exports`, and `scripts/check_npm_package.py` installs the packed
   tarball into a throwaway project and imports it through the public specifier
   in both ESM and CommonJS before the protected `npm` publication job. npm uses
   OIDC trusted publishing with `--provenance`, so no long-lived token is stored
   and the published package carries an attestation naming this workflow and
-  commit. A trusted publisher must be configured on npmjs.com for the package
-  first; unlike crates.io, npm does not require a bootstrap publish.
+  commit. A trusted publisher must be configured on npmjs.com for
+  `@vanedb/wasm` first, which requires owning the `vanedb` npm organisation or
+  user scope. Unlike crates.io, npm needs no bootstrap publish. Scoped
+  packages default to private, which is why the publish step passes
+  `--access public`.
 - C library archives come from the
   approved commit's CI artifacts. Attach the C archives with their runtime
   compatibility metadata, and `vanedb-wasm-0.1.0-nodejs.tgz` and
