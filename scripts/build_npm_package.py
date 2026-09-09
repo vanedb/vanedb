@@ -12,7 +12,7 @@ different APIs. This adds a small wrapper so `init()` exists in both — a
 no-op on Node, the real loader in a browser — and the same source works
 either way:
 
-    import init, { FlatIndex } from 'vanedb-wasm';
+    import init, { FlatIndex } from '@vanedb/wasm';
     await init();                  // no-op on Node
     const index = new FlatIndex(3, 'l2');
 """
@@ -38,7 +38,7 @@ module.exports = Object.assign({}, bindings, {
 """
 
 # Node, `import`. An ESM file re-exporting a CommonJS module cannot rely on
-# Node's named-export detection — `import { ApproxIndex } from 'vanedb-wasm'`
+# Node's named-export detection — `import { ApproxIndex } from '@vanedb/wasm'`
 # fails with "Named export not found" when the CJS module assigns its exports
 # dynamically, which wasm-pack's output does. Each name is therefore re-bound
 # explicitly, and the list is generated from the build rather than hand-written
@@ -81,6 +81,10 @@ def build(target: str, out: str) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    # `target/npm/vanedb-wasm` is a filesystem path, not the package name.
+    # Both workflows glob `target/npm/vanedb-wasm-*.tgz`, which keeps matching
+    # because `npm pack` flattens a scope: `@vanedb/wasm` packs to
+    # `vanedb-wasm-0.1.0.tgz`. Do not "fix" either to look scoped.
     parser.add_argument("--output", type=Path, default=ROOT / "target/npm/vanedb-wasm")
     parser.add_argument("--skip-build", action="store_true",
                         help="reuse existing pkg/ and pkg-web/ directories")

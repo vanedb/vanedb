@@ -133,7 +133,7 @@ jobs:
 
       # A prerelease must not take `latest`. `vanedb-wasm-v0.2.0-rc.1` passes
       # the version check above, and without an explicit dist-tag every
-      # `npm install vanedb-wasm` would resolve to it.
+      # `npm install @vanedb/wasm` would resolve to it.
       - name: Choose the dist-tag
         id: disttag
         shell: bash

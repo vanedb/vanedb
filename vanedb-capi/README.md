@@ -99,7 +99,8 @@ Use `c_void_p` rather than `c_char_p` for `vanedb_rs_last_error_message`:
 convenient but conceals the lifetime — the pointer is valid only until the next
 `vanedb_rs_*` call on that thread, or until the thread exits.
 
-[`examples/ctypes_quickstart.py`](examples/ctypes_quickstart.py) is a complete
+[`examples/ctypes_quickstart.py`](https://github.com/vanedb/vanedb/blob/main/vanedb-capi/examples/ctypes_quickstart.py)
+is a complete
 working consumer; CI runs it against a built library on every change.
 
 `vanedb_rs_version()` returns the library's version so a consumer can check the

@@ -234,6 +234,29 @@ jobs:
           use_oidc: true
           verbose: true
 
+  capi-consumers:
+    name: C ABI consumers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      # The ctypes example is the C ABI's Python-facing documentation, and a
+      # broken example is worse than none because it is what a reader copies.
+      # Its unit tests check the signatures statically; this runs it against a
+      # real library, which they deliberately do not — an earlier version of
+      # that test tried and silently skipped when the cdylib was absent.
+      #
+      # Its own job, not the WASM one: a C ABI regression should not be
+      # reported as a WASM failure.
+      - name: Run the ctypes example against a built library
+        run: |
+          cargo build -p vanedb-capi --release --locked
+          python3 vanedb-capi/examples/ctypes_quickstart.py \
+            target/release/libvanedb_capi.so
+
   sanitize:
     name: AddressSanitizer (unsafe paths)
     runs-on: ubuntu-latest
@@ -317,16 +340,6 @@ jobs:
       # The merged npm package is what gets published; without this it was
       # built and consumed only inside the release workflow, so a break in it
       # would surface at publish time rather than on the PR that caused it.
-      # The ctypes example is the C ABI's Python-facing documentation, and a
-      # broken example is worse than none because it is what a reader copies.
-      # The unit tests check its signatures statically; this runs it against a
-      # real library, which they deliberately do not (an earlier version tried
-      # and silently skipped when the cdylib was absent).
-      - name: Run the C ABI ctypes example
-        run: |
-          cargo build -p vanedb-capi --release --locked
-          python3 vanedb-capi/examples/ctypes_quickstart.py \
-            target/release/libvanedb_capi.so
       - name: Build and consume the merged npm package
         run: |
           python3 scripts/build_npm_package.py
