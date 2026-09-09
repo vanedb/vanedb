@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Combined dim*num_vectors overflow test
 
 ### Fixed
+- A persisted negative level multiplier made the next insertion fail. The
+  loader now retains the multiplier derived from `M`, matching Rust, and a
+  regression covers negative, infinite and NaN stored values. Recorded here
+  because it was previously only in a superseded release record.
 - `DiskIndex` accepted a file whose header understated its geometry. The
   expected length is computed from the header, so `file_size_ < expected` could
   not catch a header claiming a smaller `dim` or `count` than the file holds;

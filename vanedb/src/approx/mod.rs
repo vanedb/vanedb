@@ -12,7 +12,7 @@ use rand::SeedableRng;
 use crate::distance::{distance_fn, DistanceFn, Metric};
 use crate::error::{Result, VaneError};
 use crate::flat::SearchResult;
-use crate::validation::{compare_distances, validate_finite};
+use crate::validation::{compare_distances, validate_finite, validate_query, validate_vector};
 use storage::ChunkedVectors;
 
 /// Upper bound on how many sibling-array slots a capacity hint pre-reserves.
@@ -317,13 +317,7 @@ impl ApproxIndex {
     /// [`compact`](Self::compact). At the 100 million stored-slot limit, this
     /// returns an error and leaves the existing entry unchanged.
     pub fn upsert(&self, id: u64, vector: &[f32]) -> Result<()> {
-        if vector.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: vector.len(),
-            });
-        }
-        validate_finite(vector, "vector")?;
+        validate_vector(vector, self.dim)?;
 
         let mut inner = self.inner.write();
         check_slot_growth(inner.count, 1)?;
@@ -451,13 +445,7 @@ impl ApproxIndex {
     /// Returns an error at 100 million stored slots, including tombstones.
     /// Call [`compact`](Self::compact) to reclaim deleted slots.
     pub fn add(&self, id: u64, vector: &[f32]) -> Result<()> {
-        if vector.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: vector.len(),
-            });
-        }
-        validate_finite(vector, "vector")?;
+        validate_vector(vector, self.dim)?;
 
         let mut inner = self.inner.write();
 
@@ -663,16 +651,7 @@ impl ApproxIndex {
         k: usize,
         params: &SearchParams<'_>,
     ) -> Result<Vec<SearchResult>> {
-        if query.len() != self.dim {
-            return Err(VaneError::DimensionMismatch {
-                expected: self.dim,
-                got: query.len(),
-            });
-        }
-        validate_finite(query, "query")?;
-        if k == 0 {
-            return Err(VaneError::InvalidK);
-        }
+        validate_query(query, self.dim, k)?;
         let inner = self.inner.read();
         if inner.count == 0 {
             return Ok(Vec::new());

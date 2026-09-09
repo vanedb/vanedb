@@ -47,4 +47,9 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           critcmp main pr >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          critcmp main pr --threshold 5
+          # No second, filtered invocation. `--threshold` hides rows below the
+          # percentage; it does not fail on them, so `critcmp ... --threshold 5`
+          # exits 0 for a 50% regression and its output is a strict subset of
+          # the table already written above. This job reports; it does not gate.
+          # An assertion here would also contradict the project's own rule that
+          # a shared runner's timings are not evidence.

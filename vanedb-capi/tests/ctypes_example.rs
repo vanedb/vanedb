@@ -16,6 +16,17 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Drop `#` comments. Python has no block comments, and this example contains
+/// no `#` inside a string literal, so dropping from the first `#` on each line
+/// is sufficient and keeps the scan honest.
+fn strip_comments(source: &str) -> String {
+    source
+        .lines()
+        .map(|line| line.split('#').next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn example() -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/ctypes_quickstart.py");
     std::fs::read_to_string(&path).expect("the ctypes example must exist")
@@ -23,7 +34,15 @@ fn example() -> String {
 
 /// Collect `lib.<name>` occurrences, split by whether they are a binding
 /// (`lib.x.restype = ...`) or a call (`lib.x(...)`).
+///
+/// Comments are stripped first. Without that, commenting out a binding while
+/// leaving its call passes every check here *and* the CI run — the truncated
+/// return happened to be a small `size_t` — and a comment merely mentioning
+/// the message accessor could shadow a real `c_char_p` binding from the
+/// `c_void_p` check below. Both were found by mutating this example.
 fn bound_and_called(source: &str) -> (HashSet<String>, HashSet<String>) {
+    let source = strip_comments(source);
+    let source = source.as_str();
     let (mut bound, mut called) = (HashSet::new(), HashSet::new());
     for (index, _) in source.match_indices("lib.") {
         let rest = &source[index + 4..];
@@ -83,9 +102,10 @@ fn the_ctypes_example_declares_argtypes_for_everything_it_binds() {
 #[test]
 fn the_error_message_is_read_as_a_raw_pointer() {
     let source = example();
-    let line = source
+    let stripped = strip_comments(&source);
+    let line = stripped
         .lines()
-        .find(|l| l.contains("vanedb_rs_last_error_message.restype"))
+        .find(|l| l.contains("vanedb_rs_last_error_message.restype ="))
         .expect("the example must bind the message accessor");
     assert!(
         line.contains("c_void_p"),

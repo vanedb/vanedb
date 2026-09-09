@@ -1,9 +1,11 @@
 //! The approved scope, as data.
 //!
-//! `docs/superpowers/specs/2026-05-28-vanedb-bench-design.md` lists the
-//! operations this harness must measure. The implementation plan quietly
-//! covered a third of them while its self-review claimed the scope was
-//! complete (#63), so the claim is now checked mechanically rather than
+//! The design that vanedb#63 approved lists the operations this harness must
+//! measure. (Its spec file did not survive the monorepo migration; the scope
+//! it fixed is the `SCOPE` table below, which is now the record.) The
+//! implementation plan quietly covered a third of them while its self-review
+//! claimed the scope was complete, so the claim is now checked mechanically
+//! rather than
 //! asserted in prose.
 
 /// Criterion group names. The benches build their group names from these, so
