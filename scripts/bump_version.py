@@ -56,6 +56,13 @@ def unchecked_sites(paths):
     return sorted(p for p in paths if p not in identity)
 
 
+# Semver core plus an optional prerelease. `v0.1.0`, ` 0.1.0` and
+# `0.1.0+build5` were all accepted before this, and wrote nine files each --
+# `v0.1.0` producing `VERSION_MAJOR = v0;` -- before unrelated tooling
+# eventually rejected them.
+VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$")
+
+
 def core_of(version):
     return version.split("-", 1)[0]
 
@@ -69,21 +76,33 @@ def bump(version):
         print("add them to the test, or a wrong value here ships unnoticed.")
         return 1
 
+    if not VERSION.match(version):
+        print(f"{version!r} is not a version: expected MAJOR.MINOR.PATCH with an "
+              f"optional -prerelease, e.g. 0.1.0 or 0.1.0-rc.1")
+        return 1
+
     major, minor, patch = core_of(version).split(".")
     replacement = {"full": version, "core": core_of(version),
                    "major": major, "minor": minor, "patch": patch}
 
+    # Pass one: plan, and fail before anything is written.
+    planned = []
     for path, pattern, kind in SITES:
         file = ROOT / path
-        text = file.read_text()
+        text = file.read_text(encoding="utf-8")
         matches = list(re.finditer(pattern, text))
         if len(matches) != 1:
             print(f"{path}: {pattern!r} matched {len(matches)} times, expected 1")
+            print("nothing was written; the tree is unchanged.")
             return 1
-        span = matches[0].span(1)
-        new = replacement[kind]
-        print(f"  {matches[0].group(1):>12} -> {new:<12} {path}  ({kind})")
-        file.write_text(text[: span[0]] + new + text[span[1] :])
+        planned.append((file, path, text, matches[0], kind))
+
+    # Pass two: write.
+    for file, path, text, match, kind in planned:
+        span, new = match.span(1), replacement[kind]
+        print(f"  {match.group(1):>12} -> {new:<12} {path}  ({kind})")
+        file.write_text(text[: span[0]] + new + text[span[1] :],
+                        encoding="utf-8", newline="")
     return 0
 
 

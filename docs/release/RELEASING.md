@@ -120,10 +120,15 @@ installing from source never resolves `vanedb` from crates.io. Verify with
 changes to a version dependency, which would make crates.io a hard prerequisite.
 
 Every tag below is written `v<version>`; substitute the version being
-released. Each publish job first runs `scripts/check_release_readmes.py`, which
-refuses a tag whose packaged README still describes the checkout — that file is
-inside the artifact and is what the registry renders, and no registry here
-permits a re-upload.
+released. All three publish workflows first run
+`scripts/check_release_readmes.py`, which refuses a tag whose packaged README
+still describes the checkout — that file is inside the artifact and is what the
+registry renders, and no registry here permits a re-upload. It matches prose,
+so it is a tripwire rather than a proof: it catches the pre-publication README
+being left in place, which is the mistake that has actually happened, and it
+cannot certify that a rewritten one is honest. Run it locally before pushing a
+tag, so a false positive costs a minute rather than a deleted tag and a PR
+through protected main.
 
 - Python uses tag `vanedb-v<version>`; its workflow builds and validates the
   wheels and source distribution before the protected `pypi` publication job.
