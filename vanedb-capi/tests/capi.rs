@@ -1238,16 +1238,12 @@ fn every_reachable_error_code_is_actually_produced() {
 #[test]
 fn a_free_preserves_the_error_a_caller_is_about_to_report() {
     unsafe {
-        let store = vanedb_capi::vanedb_rs_store_new(2, 0) // L2
-            ;
+        let store = vanedb_capi::vanedb_rs_store_new(2, 0); // L2
         assert!(!store.is_null());
         let v = [1.0f32, 0.0];
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(store, 1, v.as_ptr()), 0);
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
-            0
-        );
-        assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
+            vanedb_capi::vanedb_rs_store_add(store, 1, v.as_ptr()),
             1,
             "a duplicate id must fail"
         );
