@@ -142,7 +142,10 @@ already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 ## Performance work
 
 - CI's performance workflow prints a critcmp table of the PR against main into
-  the step summary. It **reports, it does not gate**: nothing in that workflow
+  the step summary. It runs only when the diff touches `vanedb/**` or the
+  workspace manifests — `vanedb` has no path dependencies, so on any other diff
+  it would spend ten minutes comparing two identical binaries.
+  It **reports, it does not gate**: nothing in that workflow
   fails on a regression, and it is a shared runner, so it should not. Read it
   as a hint about where to look, never as evidence. (It previously ran a second
   `critcmp --threshold 5`, which reads like an assertion and is not — the flag

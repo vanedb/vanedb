@@ -3,6 +3,21 @@ name: Benchmark
 on:
   pull_request:
     branches: [main]
+    # This job benchmarks `-p vanedb` twice — once per side — for ~10 minutes.
+    # `vanedb` has no path dependencies, so a diff that touches none of these
+    # compares two identical binaries: the table is pure runner noise, and it
+    # queues ahead of the CI run that does gate the merge. `Required CI Gate`
+    # is the only required check, so skipping this leaves nothing blocked.
+    paths:
+      - 'vanedb/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/bench.yml'
+
+# A newer push supersedes the comparison in flight; nothing reads the old table.
+concurrency:
+  group: bench-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 # Least privilege: checks out and benchmarks code, writes only to the step summary.
 permissions:
@@ -15,6 +30,9 @@ jobs:
   benchmark:
     name: Performance Regression Check
     runs-on: ubuntu-latest
+    # Observed 9.5-13.7 min over the last 25 runs. Without this the default is
+    # six hours, so a bench that never converges holds a runner all afternoon.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

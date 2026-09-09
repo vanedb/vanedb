@@ -10,6 +10,11 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
+# A review of a superseded commit is a review of code that no longer exists.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
     # Dependabot and fork PRs cannot access the OAuth secret. Skip them instead
@@ -18,6 +23,7 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
