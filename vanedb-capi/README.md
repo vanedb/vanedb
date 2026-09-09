@@ -83,6 +83,25 @@ handle's own setting, which `vanedb_rs_index_ef_search()` reports. Note that
 `vanedb_cpp_index_search` rejects `0` rather than resolving it — the two ABIs
 are otherwise callable through one uniform FFI.
 
+### Calling from Python with ctypes
+
+Declare `restype` and `argtypes` for **every** function before calling it.
+ctypes defaults an undeclared return to a C `int`, which truncates a 64-bit
+pointer to 32 bits; the next dereference reads a garbage address and the
+process dies with SIGSEGV and no Python traceback, because the fault happens
+inside libffi. A crash whose stack reads `PyCFuncPtr_call` →
+`_ctypes_callproc` → `ffi_call` is almost always a missing `restype` rather
+than a fault in this library. Undeclared pointer *arguments* truncate the same
+way on the way in.
+
+Use `c_void_p` rather than `c_char_p` for `vanedb_rs_last_error_message`:
+`c_char_p` copies the bytes into a Python object at the boundary, which is
+convenient but conceals the lifetime — the pointer is valid only until the next
+`vanedb_rs_*` call on that thread, or until the thread exits.
+
+[`examples/ctypes_quickstart.py`](examples/ctypes_quickstart.py) is a complete
+working consumer; CI runs it against a built library on every change.
+
 `vanedb_rs_version()` returns the library's version so a consumer can check the
 shared object matches the header it compiled against. This is a 0.x ABI: it may
 change in a minor release. See the
