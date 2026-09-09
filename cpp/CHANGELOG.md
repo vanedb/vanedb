@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reserves roughly 4 GB from an 80-byte header.
 - PyPI upload for the supplementary `vanedb-cpp` distribution is manual-only
   while the generic x86-64 CPU baseline remains unresolved (#39). GitHub
-  releases continue to build and retain wheel artifacts.
+  releases do not build or retain a wheel artifact for it either (#100); no
+  workflow uploads one.
 - **BREAKING: Project renamed from QuiverDB to VaneDB.** Pre-1.0, so no
   on-disk break — HNSW index files written with the old name still load
   (the `0x51565244` "QVRD" magic is retained for backward compat). What
@@ -39,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Preprocessor macros injected by callers (e.g. `-DQUIVER_CUDA_ENABLED`)
     → `-DVANE_CUDA_ENABLED`
   - Logging macros (`QUIVERDB_LOG_*` / `QUIVERDB_LOG_LEVEL_*`) → `VANEDB_LOG_*`
-  - Repository: `github.com/tsvet01/quiverdb` → `github.com/tsvet01/vanedb`
+  - Repository: `github.com/tsvet01/quiverdb` → `github.com/vanedb/vanedb`
     (GitHub redirects the old URL).
 
 ### Added
@@ -90,7 +91,7 @@ this section carries the core's release state too.
 - HNSW index for approximate nearest neighbor search
   - Configurable M, ef_construction, ef_search parameters
   - Binary serialization (save/load)
-- Memory-mapped FlatIndex for large datasets
+- `DiskIndex`, a memory-mapped store for large datasets
   - Zero-copy file access
   - Atomic save operations
 - Python bindings via pybind11

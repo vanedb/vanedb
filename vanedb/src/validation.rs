@@ -14,9 +14,10 @@ pub(crate) fn validate_finite(values: &[f32], input: &'static str) -> Result<()>
 /// The query preamble every search shares: dimension, then finiteness, then
 /// `k`.
 ///
-/// The *order* is cross-engine observable and pinned by conformance — a
-/// non-finite query of the wrong length must report the mismatch, not the
-/// non-finite value. It was stated independently in three search paths, and a
+/// The *order* is cross-engine observable — a non-finite query of the wrong
+/// length must report the mismatch, not the non-finite value. No fixture pins
+/// it: `non_finite_vectors.tsv` varies the value and not the length, so the
+/// two engines agree here by construction rather than by contract. It was stated independently in three search paths, and a
 /// fourth index type would have made a fourth copy.
 #[inline]
 pub(crate) fn validate_query(query: &[f32], dim: usize, k: usize) -> Result<()> {

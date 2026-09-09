@@ -248,20 +248,12 @@ Supported ABIs: `arm64-v8a` (ARM NEON), `x86_64` (AVX2).
 
 ## Architecture
 
-```
-vanedb/
-├── src/core/
-│   ├── distance.h          # SIMD distance functions
-│   ├── vector_store.h      # Thread-safe brute-force store
-│   ├── hnsw_index.h        # HNSW approximate search
-│   ├── mmap_vector_store.h # Memory-mapped store
-│   └── gpu/
-│       ├── metal_distance.h # Metal compute shaders
-│       └── cuda_distance.cuh # CUDA kernels
-├── tests/                   # C++ and Python tests
-├── benchmarks/              # Google Benchmark suite
-└── python/                  # pybind11 bindings
-```
+`cpp/src/core/` holds the engine: `flat_index.h`, `approx_index.h` and
+`disk_index.h`, the distance kernels, and `gpu/`. `cpp/tests/`,
+`cpp/benchmarks/` and `cpp/python/` are what their names say.
+
+A copy of the tree used to sit here and named three headers that had not
+existed since the rename. Read the directory instead; it cannot go stale.
 
 ---
 
@@ -275,7 +267,8 @@ vanedb/
 | coverage | Linux | Code coverage + Codecov |
 | linux-arm64 | Linux ARM64 (Native) | ARM NEON validation |
 | ios-build | macOS | iOS arm64 build |
-| android-build | Linux | Android arm64-v8a + x86_64 |
+| android-build | Linux | Android arm64-v8a |
+| android-x86_64-build | Linux | Android x86_64 |
 
 ---
 

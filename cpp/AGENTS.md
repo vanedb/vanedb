@@ -45,31 +45,14 @@ passing, but that is a constraint on changes rather than a sync obligation.
   a manual check, not coverage.
 
 ### Performance
-- CPU SIMD: 3.8x speedup vs scalar (768d)
-- L2 distance: ~100ns (768d, Apple Silicon)
-- GPU: 3.9x speedup at 500k vectors (persistent buffers)
+Numbers belong in [`bench/README.md`](../bench/README.md), which dates them and
+names the machine. Three undated speedup figures sat here with no source and no
+run behind them; this repo's rule is that a benchmark is meaningful only on
+dedicated hardware, verified with interleaved A-B-A runs.
 
 ## Structure
-```
-src/core/
-├── distance.h            # Metric entry points
-├── distance_kernels.h    # NEON/AVX2/scalar kernels
-├── distance_runtime.h    # Runtime ISA dispatch
-├── distance_strategy.h   # Per-index metric binding
-├── cpu_features.h        # CPUID / xgetbv detection
-├── flat_index.h          # Brute-force k-NN
-├── approx_index.h        # HNSW approximate NN
-├── disk_index.h          # Memory-mapped store
-├── validation.h          # Shared input and size checks
-├── version.h             # VERSION_STRING and components
-├── detail/
-│   ├── file_utils.h      # fsync/rename durability helpers
-│   └── graph_format.h    # VNDB v2 graph reader
-└── gpu/
-    ├── gpu_distance.h    # Backend selection
-    ├── metal_distance.h  # Metal compute (off by default)
-    └── cuda_distance.cuh # EXPERIMENTAL: unwired, not built, not installed
-```
+Read `cpp/src/core/`. A copy of the tree lived here; the equivalent copy in
+`cpp/docs/GUIDE.md` rotted, naming three headers that no longer exist.
 ~1,920 lines of core code total (excluding the uninstalled `.cuh`).
 
 ## Build
@@ -93,34 +76,9 @@ Run these commands from the repository root.
 - Coverage: Codecov
 
 ## API
-```cpp
-// Distance
-float d = vanedb::l2_sq(a, b, dim);
+`cpp/src/core/{flat_index,approx_index,disk_index}.h` and `gpu/`. The usage
+examples in `cpp/README.md` are the ones kept in step with the code.
 
-// FlatIndex
-vanedb::FlatIndex store(768, vanedb::Metric::COSINE);
-store.add(id, vec);
-auto results = store.search(query, k);
-
-// ApproxIndex
-vanedb::ApproxIndex idx(768, vanedb::Metric::COSINE, 100000);
-idx.add(id, vec);
-idx.save("index.bin");
-
-// GPU (Metal)
-auto& gpu = vanedb::gpu::MetalCompute::get();
-auto buf = gpu.upload(vectors, n, dim);
-auto dists = gpu.search(query, buf, dim, n, vanedb::gpu::MetalMetric::L2);
-```
-
-## Demo: Obsidian Semantic Search
-
-A working semantic search tool built on VaneDB demonstrating real-world usage:
-```bash
-python3 search.py index ~/path/to/vault   # ApproxIndex notes
-python3 search.py find "your query"       # Search
-python3 search.py interactive             # REPL mode
-```
 
 ## Maintenance Posture
 

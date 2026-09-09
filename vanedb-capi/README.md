@@ -69,8 +69,9 @@ the `*_free` functions, which deliberately preserve them so the ordinary C
 path of fail, clean up, then report does not lose the reason. The message
 pointer is also freed when its thread exits. Branch on the
 code rather than the return value: `VANEDB_RS_IO` is worth retrying,
-`VANEDB_RS_CORRUPT` is not, and `VANEDB_RS_FILE_NOT_FOUND` means build the file
-instead. Treat an unrecognized code as a failure; the set grows in minor
+`VANEDB_RS_CORRUPT` is not, and `VANEDB_RS_FILE_NOT_FOUND` on a load means
+build the file instead — while on a save it means the destination directory
+does not exist. Treat an unrecognized code as a failure; the set grows in minor
 releases.
 
 Allocate output buffers for at least `k` IDs and distances. Free each handle
