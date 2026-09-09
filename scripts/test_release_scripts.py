@@ -46,6 +46,21 @@ CASES = [
     (PY, "The C++ bindings install with `pip install vanedb-cpp`.",
      False, "vanedb-cpp is a different package"),
 
+    # --- each fails on ONE pattern only, so deleting that pattern turns the
+    # --- suite red. Without these, a review found two patterns that could be
+    # --- removed with 13/13 still passing, because every other fixture also
+    # --- failed the positive install-line requirement.
+    (WASM, "npm install @vanedb/wasm\n\nNothing is published yet.",
+     False, "isolates 'nothing is published': the install line is present"),
+    (CRATE, 'Run `cargo add vanedb@0.1.0-rc.1`.\n\nOr `vanedb = { path = "../vanedb" }`.',
+     False, "isolates the crate forbidden list: the install line is present"),
+    (PY, "pip install vanedb\n\nThere is no release yet on PyPI.",
+     False, "isolates the registry-qualified no-release pattern"),
+    (PY, "pip install vanedb\n\nThese instructions do not assume a published release.",
+     False, "isolates 'do not assume a published': the install line is present"),
+    (CRATE, 'Add `vanedb = "0.1.0-rc.1"` to your dependencies.',
+     True, "isolates the plain version-requirement published form"),
+
     # --- legitimate prose a broad class wrongly rejected ---
     (PY, "pip install vanedb\n\nThe C++ bindings are kept for reference and are not published.",
      True, "a true statement about another package"),

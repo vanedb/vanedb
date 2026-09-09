@@ -25,17 +25,18 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # disarmed it silently. This is a class, deliberately broad -- a false positive
 # costs a re-tag, a false negative is permanent on a registry page.
 UNPUBLISHED = [
-    # Publication-specific phrasings only. Bare "not published" / "not
-    # available" match legitimate prose about other things -- the Python README
-    # says the C++ bindings "are not published" (true, different package) and
-    # the wasm README says features "are not available in WebAssembly" (an API
-    # limit). Both are correct sentences a broad class would reject.
-    r"not (?:yet )?(?:on|published to|available on) (?:crates\.io|PyPI|npm)",
+    # Deliberately short. The positive requirement below does the work: the
+    # README that shipped to npm saying "Nothing is published yet" had no
+    # install line at all, and that is what a missing install line looks like.
+    # These add a second signal for the case where someone adds the install
+    # line but leaves the disclaimer beside it. Every extra pattern here is
+    # also a new way to reject a true sentence -- "vanedb-capi is not published
+    # to crates.io" is correct prose about a sibling package -- so patterns
+    # must name a registry or be unambiguous on their own.
+    r"not (?:yet |currently )?(?:on|published to|available on) (?:crates\.io|PyPI|npm)",
     r"nothing is published",
-    r"no (?:release|published version) (?:yet|on)",
     r"do not assume a published",
-    r"until (?:then|it is published|release)",
-    r"is not published (?:yet|to)",
+    r"no (?:release|published version|package)(?: yet)? (?:on|to|in) (?:crates\.io|PyPI|npm)",
 ]
 
 # `(?![-\w])` so `vanedb` does not match inside `vanedb-capi` or `vanedb-cpp`,

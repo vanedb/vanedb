@@ -46,7 +46,8 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    This is a property of the registries, not a project policy.
 
 5. **Before designating the final candidate**, put the published-install form
-   into `vanedb/README.md` and `vanedb-py/README.md`. `vanedb/Cargo.toml`
+   into `vanedb/README.md`, `vanedb-py/README.md` and `vanedb-wasm/README.md`.
+   `vanedb/Cargo.toml`
    declares `readme = "README.md"`, so that file is inside the `.crate` and is
    what crates.io renders; `vanedb-py/pyproject.toml` does the same, making its
    README the core-metadata description of all 28 wheels and the sdist, and the
@@ -89,6 +90,11 @@ and leaving it live defeats the reason for using OIDC everywhere else.
 Do not also push `vanedb-crate-v<version>` for a version published by
 bootstrap: the tagged workflow would attempt the same version and fail against
 a registry that never allows a re-upload.
+
+Run `python3 scripts/check_release_readmes.py vanedb-crate-v<version>` by hand
+before a bootstrap publish. The tagged workflows run it for you; a bootstrap
+does not go through one, and a hand publish outside every workflow is exactly
+the act that put "Nothing is published yet" on the npm page.
 
 **Bootstrap a prerelease, not the release.** The version you bootstrap is spent
 by hand — no reviewer gate, no OIDC, no provenance — so it should not be the
