@@ -123,3 +123,38 @@ TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
                       "Corrupted file: count * dimension overflow");
   std::filesystem::remove(path);
 }
+
+// A header alone decides what the constructor allocates: `checked_persisted_sizes`
+// ran the overflow checks and then `max_elements * dimension` floats were
+// reserved before a byte of payload was read. Overflow was the only bound, so a
+// product that merely happened to fit in `size_t` — 1e6 x 1e8 is 1e14 floats,
+// 400 TB — was accepted and handed straight to `resize`.
+//
+// For v1/v2 nothing loadable is lost: those store `max_elements * dimension`
+// floats, `read_vec` already refuses more than MAX_VEC_SIZE, and the loader
+// requires the array it read to equal that product. Legacy v3 stores only
+// `count * dimension` and is re-expanded afterwards, so the cap does narrow v3
+// -- deliberately, and documented at the check itself.
+TEST_CASE("HNSW load caps header-declared allocation before reserving it",
+          "[conformance][index][sizes][persistence]") {
+  const size_t cap = vanedb::detail::MAX_VEC_SIZE;
+  SECTION("a capacity above the cap") {
+    const auto path = std::filesystem::path("test_hnsw_cap_elements.bin");
+    write_header(path, Case{"cap_elements", 2, cap + 1, 2, ""});
+    REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
+                        "Corrupted file: declared size exceeds the element cap");
+    std::filesystem::remove(path);
+  }
+
+  // Neither section can isolate the `max_el` clause: `dimension == 0` is
+  // rejected earlier, so `vector_count >= max_el` and the product clause fires
+  // whenever the capacity one does. The `max_el` clause is kept for parity with
+  // Rust's MAX_ELEMENTS, not because an input can single it out.
+  SECTION("a capacity within the cap but a product above it") {
+    const auto path = std::filesystem::path("test_hnsw_cap_product.bin");
+    write_header(path, Case{"cap_product", 2, cap, 2, ""});
+    REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
+                        "Corrupted file: declared size exceeds the element cap");
+    std::filesystem::remove(path);
+  }
+}

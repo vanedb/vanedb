@@ -203,13 +203,20 @@ jobs:
           toolchain: stable
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
       - name: Build and run C consumer acceptance
+        # Runs on windows-latest too, where the default shell is pwsh: it does
+        # not stop on a native non-zero exit, so a failed build would leave
+        # only ctest's status -- and ctest exits 0 when it finds no tests.
+        shell: bash
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
         run: |
           cargo build -p vanedb-capi --release --locked
           cmake -S vanedb-capi/examples -B target/c-example -DCMAKE_BUILD_TYPE=Release
           cmake --build target/c-example --config Release
-          ctest --test-dir target/c-example --build-config Release --output-on-failure
+          # ctest exits 0 when it finds no tests, so a broken add_test
+          # registration would report green -- the hazard named above,
+          # one line down.
+          ctest --test-dir target/c-example --build-config Release --output-on-failure --no-tests=error
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.14'

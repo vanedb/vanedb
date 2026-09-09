@@ -13,8 +13,8 @@ using namespace std::chrono;
 
 bool approx(float a, float b, float eps = 1e-4f) { return std::abs(a - b) < eps; }
 
-void test_correctness() {
-  if (!gpu::metal_available()) { std::cout << "Metal: SKIP\n"; return; }
+bool test_correctness() {
+  if (!gpu::metal_available()) { std::cout << "Metal: SKIP\n"; return true; }
   constexpr size_t D = 128, N = 1000;
   std::mt19937 g(42);
   std::uniform_real_distribution<float> u(-1, 1);
@@ -25,23 +25,24 @@ void test_correctness() {
   auto r = gpu::MetalCompute::get().l2(q.data(), v.data(), D, N);
   for (size_t i = 0; i < N; ++i) {
     float cpu = l2_sq(q.data(), v.data() + i * D, D);
-    if (!approx(r[i], cpu)) { std::cout << "L2 FAIL\n"; return; }
+    if (!approx(r[i], cpu)) { std::cout << "L2 FAIL\n"; return false; }
   }
   std::cout << "L2: PASS\n";
 
   r = gpu::MetalCompute::get().cos(q.data(), v.data(), D, N);
   for (size_t i = 0; i < N; ++i) {
     float cpu = cosine_distance(q.data(), v.data() + i * D, D);
-    if (!approx(r[i], cpu, 1e-3f)) { std::cout << "Cosine FAIL\n"; return; }
+    if (!approx(r[i], cpu, 1e-3f)) { std::cout << "Cosine FAIL\n"; return false; }
   }
   std::cout << "Cosine: PASS\n";
 
   r = gpu::MetalCompute::get().dot(q.data(), v.data(), D, N);
   for (size_t i = 0; i < N; ++i) {
     float cpu = -dot_product(q.data(), v.data() + i * D, D);
-    if (!approx(r[i], cpu)) { std::cout << "Dot FAIL\n"; return; }
+    if (!approx(r[i], cpu)) { std::cout << "Dot FAIL\n"; return false; }
   }
   std::cout << "Dot: PASS\n";
+  return true;
 }
 
 void bench_persistent() {
@@ -91,7 +92,20 @@ void bench_persistent() {
 int main() {
   std::cout << "VaneDB Metal GPU Tests\n========================\n";
   std::cout << "Metal: " << (gpu::metal_available() ? "YES" : "NO") << "\n\n";
-  test_correctness();
+  // Every mismatch used to print FAIL and return, and main returned 0 anyway,
+  // so a wrong GPU result exited successfully. Nothing registers this binary
+  // with ctest either -- it needs a Metal device -- so the exit status is the
+  // only signal a human running it by hand ever gets.
+  if (!gpu::metal_available()) {
+    // Distinct from both PASS and FAIL: 77 is the conventional "skipped" code.
+    // Returning 0 here made "no GPU on this machine" look like "the GPU agrees".
+    std::cout << "SKIPPED: no Metal device\n";
+    return 77;
+  }
+  if (!test_correctness()) {
+    std::cout << "\nGPU correctness FAILED\n";
+    return 1;
+  }
   bench_persistent();
   return 0;
 }

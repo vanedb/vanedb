@@ -160,8 +160,12 @@ impl ApproxIndex {
         }
         // A file declares max_elements; load re-expands every array to it. Cap
         // it so a few hundred bytes cannot request terabytes. vanedb-cpp caps
-        // every deserialized array the same way (MAX_VEC_SIZE in
-        // src/core/index.h).
+        // every array a file declares the same way, against the same 100
+        // million bound (`MAX_VEC_SIZE` in `cpp/src/core/approx_index.h`).
+        // That was not true when this comment was first written: the C++ cap
+        // reached only the arrays read through `read_vec`, while its legacy
+        // loader pre-allocated `max_elements * dimension` straight from the
+        // header with overflow as its only bound.
         if data.max_elements > MAX_ELEMENTS {
             return Err(VaneError::corrupt(format!(
                 "corrupted file: max_elements {} exceeds the {MAX_ELEMENTS} limit",

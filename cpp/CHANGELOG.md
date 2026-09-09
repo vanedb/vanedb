@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Legacy HNSW load now caps the size a header may declare.** `load()`
+  pre-allocated `max_elements * dimension` before reading any payload, with
+  overflow as its only bound, so an 80-byte header could request terabytes.
+  Both `max_elements` and that product are now capped at `MAX_VEC_SIZE`
+  (100,000,000), matching the bound Rust and the VNDB v2 reader already apply.
+
+  This qualifies the backward-compatibility note below. v1/v2 files are
+  unaffected — `read_vec` already refused arrays above the cap, and the loader
+  requires the array it read to equal the product. A **v3** file stores only
+  `count * dimension` and is re-expanded to capacity afterwards, so a sparse v3
+  file whose `capacity * dimension` exceeds the cap loaded before and does not
+  now: 200,000 slots at dimension 768 is enough. `save` has written VNDB v2
+  since before any release and this package has never been published, so such a
+  file can only come from a self-built tree. Re-save it with an older build to
+  get a VNDB v2 file, which has no such limit.
+
+  The cap is a mitigation, not an elimination: at it, the constructor still
+  reserves roughly 4 GB from an 80-byte header.
 - PyPI upload for the supplementary `vanedb-cpp` distribution is manual-only
   while the generic x86-64 CPU baseline remains unresolved (#39). GitHub
   releases continue to build and retain wheel artifacts.
@@ -78,7 +96,7 @@ this section carries the core's release state too.
 - Python bindings via pybind11
   - NumPy array support
   - All index types and distance metrics
-- Comprehensive test suite (38 C++ tests, 28 Python tests)
+- C++ and Python test suites, run by `ctest` and pytest
 - Google Benchmark performance tests
 - Multi-platform CI/CD (Linux, macOS, Windows, iOS, Android)
   - GCC, Clang, MSVC compilers

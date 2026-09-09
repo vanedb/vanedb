@@ -328,6 +328,27 @@ public:
     // file header. Passing the products into the private constructor keeps the
     // checks ahead of allocation and avoids recomputing them unchecked.
     const DerivedSizes sizes = checked_persisted_sizes(dim, max_el, M);
+    // Unlike load_vndb, this path pre-allocates the whole product in the
+    // constructor before a byte of payload is read, and overflow was its only
+    // bound -- a header declaring 1e6 x 1e8 fits in size_t and asks for 400 TB.
+    //
+    // The `max_el` clause narrows nothing: it is exactly where Rust caps the
+    // same field (MAX_ELEMENTS, 100 million, approx/mod.rs).
+    //
+    // The product clause does narrow the accept set, for legacy v3 only, and
+    // that is deliberate. v1/v2 store `max_el * dim` floats and read_vec
+    // already refuses more than MAX_VEC_SIZE, so no v1/v2 file that could have
+    // loaded is lost. A v3 file stores only `cnt * dim` and is re-expanded to
+    // capacity afterwards, so a sparse v3 header -- 200,000 slots at dim 768,
+    // one vector live -- did load before this check and does not now. The trade
+    // is taken because `save` has written VNDB v2 since before any release,
+    // vanedb-cpp has never been published, and 0.1.0 is the first release: no
+    // such file exists outside someone's own build tree.
+    //
+    // This is a mitigation, not an elimination. At the cap the constructor
+    // still reserves roughly 4 GB from an 80-byte header.
+    if (max_el > detail::MAX_VEC_SIZE || sizes.vector_count > detail::MAX_VEC_SIZE)
+      throw std::runtime_error("Corrupted file: declared size exceeds the element cap");
 
     size_t cnt, ep_val;
     int max_level_val;

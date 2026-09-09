@@ -35,10 +35,14 @@ passing, but that is a constraint on changes rather than a sync obligation.
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
 
 ### Test Coverage
-- 82 C++ test cases, 95 registered ctest tests
-- 28 Python tests
-- 3 GPU tests (Metal)
+- `ctest --test-dir cpp/build` is the count that matters; it is not recorded
+  here because every number written down here has gone stale within days.
+- Python bindings are covered by `cpp/tests/test_python_bindings.py`.
 - Sanitizers: ASan + UBSan clean
+- **Not covered:** the Metal path. `test_metal_distance` is built only under
+  `-DVANEDB_BUILD_METAL=ON` (default OFF), is never registered with ctest
+  because it needs a real Metal device, and so runs in no CI job. Treat it as
+  a manual check, not coverage.
 
 ### Performance
 - CPU SIMD: 3.8x speedup vs scalar (768d)

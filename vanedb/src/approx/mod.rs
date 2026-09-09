@@ -21,7 +21,7 @@ use storage::ChunkedVectors;
 const RESERVE_CAP: usize = 1 << 20;
 
 /// Largest number of vectors this engine will accept, from a builder hint or
-/// from a file. Mirrors `MAX_VEC_SIZE` in vanedb-cpp `src/core/index.h`.
+/// from a file. Mirrors `MAX_VEC_SIZE` in vanedb-cpp `cpp/src/core/approx_index.h`.
 ///
 /// Storage grows on demand, so this is not an allocation bound. It rejects
 /// values that can only be a mistake -- a capacity of `usize::MAX / 4096` is
@@ -52,7 +52,7 @@ mod storage;
 // a thread (monotonic epoch keeps cross-index marks distinct) and is
 // retained across calls so we pay the allocation cost at most once.
 //
-// Mirrors the optimization in vanedb-cpp src/core/index.h.
+// Mirrors the optimization in vanedb-cpp cpp/src/core/approx_index.h.
 thread_local! {
     static VISITED: RefCell<VisitedBuffer> = const { RefCell::new(VisitedBuffer::new()) };
 }
