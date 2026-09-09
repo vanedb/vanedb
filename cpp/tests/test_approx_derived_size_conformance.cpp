@@ -9,7 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
-#include <thread>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -131,16 +131,15 @@ TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
 // product that merely happened to fit in `size_t` — 1e6 x 1e8 is 1e14 floats,
 // 400 TB — was accepted and handed straight to `resize`.
 //
-// Nothing legitimate is lost by capping it. `read_vec` already refuses to read
-// more than MAX_VEC_SIZE elements into any array, and the loader then requires
-// the array it read to equal this exact product, so a file above the cap could
-// never have finished loading. The cap only moves the rejection to before the
-// allocation instead of after it.
+// For v1/v2 nothing loadable is lost: those store `max_elements * dimension`
+// floats, `read_vec` already refuses more than MAX_VEC_SIZE, and the loader
+// requires the array it read to equal that product. Legacy v3 stores only
+// `count * dimension` and is re-expanded afterwards, so the cap does narrow v3
+// -- deliberately, and documented at the check itself.
 TEST_CASE("HNSW load caps header-declared allocation before reserving it",
           "[conformance][index][sizes][persistence]") {
   const size_t cap = vanedb::detail::MAX_VEC_SIZE;
-  const auto pid = std::to_string(
-      static_cast<long long>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
+  const auto pid = std::to_string(static_cast<long long>(::getpid()));
 
   SECTION("max_elements alone above the cap") {
     const auto path = std::filesystem::path("test_hnsw_cap_elements_" + pid + ".bin");

@@ -203,6 +203,10 @@ jobs:
           toolchain: stable
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
       - name: Build and run C consumer acceptance
+        # Runs on windows-latest too, where the default shell is pwsh: it does
+        # not stop on a native non-zero exit, so a failed build would leave
+        # only ctest's status -- and ctest exits 0 when it finds no tests.
+        shell: bash
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
         run: |
