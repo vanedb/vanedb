@@ -84,11 +84,15 @@ fn declared_versions() -> Vec<(&'static str, String)> {
     // silently — the same failure mode as the two sites above. `build.rs` now
     // stamps the crate version over a placeholder, which makes drift
     // impossible at the source; read the header, because that is the artifact a
-    // consumer actually compiles against. Note `bench` path-depends on
-    // vanedb-capi, so a change to `src/lib.rs`, `cbindgen.toml` or the crate
-    // version regenerates this file before the test reads it; otherwise it is
-    // the committed bytes. `rust-ci.yml` diffs the regenerated header against
-    // the committed one separately.
+    // consumer actually compiles against.
+    //
+    // Be clear about what this site is worth in CI: `bench` path-depends on
+    // vanedb-capi and `integration-ci.yml` runs without a cargo cache, so
+    // build.rs always regenerates this header from `CARGO_PKG_VERSION` before
+    // the test reads it. There it is a restatement of `vanedb-capi/Cargo.toml`,
+    // already checked above. It has teeth locally, against committed bytes; the
+    // real guard on the committed header is `rust-ci.yml`'s regenerate-and-
+    // `git diff --exit-code` step.
     let header = read("vanedb-capi/include/vanedb_rs_capi.h");
     let macro_version = header
         .lines()

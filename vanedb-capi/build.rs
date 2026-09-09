@@ -30,8 +30,8 @@ fn main() {
     std::fs::write(&out, stamped).expect("failed to write the stamped header");
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
-    // Without this, a version bump alone does not re-run the build script, and
-    // the stamped header keeps the previous version -- the drift the stamping
-    // exists to prevent, just one step further back.
+    // Belt and braces. Cargo's fingerprint already includes the package id, so
+    // a version bump re-runs this script on its own -- an earlier comment here
+    // claimed otherwise and was wrong. This makes the dependency explicit.
     println!("cargo:rerun-if-env-changed=CARGO_PKG_VERSION");
 }

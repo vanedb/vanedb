@@ -393,7 +393,10 @@ jobs:
         # disk_index.h, which is what a mobile consumer actually links.
         binary="$(find build-ios -name 'semantic_search_example' -type f -print -quit)"
         test -n "$binary"
-        file "$binary" | grep -q 'arm64'
+        # `file` prints "Mach-O 64-bit executable arm64" for a macOS arm64
+        # binary too, and this runner is arm64 -- so that could not tell a real
+        # iOS build from a host build. The load command can.
+        vtool -show-build "$binary" | grep -q 'platform IOS'
         test -n "$(find build-ios -name 'libvanedb_cpp_capi.a' -print -quit)"
 
   android-build:

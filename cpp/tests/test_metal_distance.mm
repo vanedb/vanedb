@@ -96,11 +96,16 @@ int main() {
   // so a wrong GPU result exited successfully. Nothing registers this binary
   // with ctest either -- it needs a Metal device -- so the exit status is the
   // only signal a human running it by hand ever gets.
-  const bool correct = test_correctness();
-  bench_persistent();
-  if (!correct) {
+  if (!gpu::metal_available()) {
+    // Distinct from both PASS and FAIL: 77 is the conventional "skipped" code.
+    // Returning 0 here made "no GPU on this machine" look like "the GPU agrees".
+    std::cout << "SKIPPED: no Metal device\n";
+    return 77;
+  }
+  if (!test_correctness()) {
     std::cout << "\nGPU correctness FAILED\n";
     return 1;
   }
+  bench_persistent();
   return 0;
 }

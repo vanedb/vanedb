@@ -9,7 +9,6 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -139,18 +138,20 @@ TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
 TEST_CASE("HNSW load caps header-declared allocation before reserving it",
           "[conformance][index][sizes][persistence]") {
   const size_t cap = vanedb::detail::MAX_VEC_SIZE;
-  const auto pid = std::to_string(static_cast<long long>(::getpid()));
-
-  SECTION("max_elements alone above the cap") {
-    const auto path = std::filesystem::path("test_hnsw_cap_elements_" + pid + ".bin");
+  SECTION("a capacity above the cap") {
+    const auto path = std::filesystem::path("test_hnsw_cap_elements.bin");
     write_header(path, Case{"cap_elements", 2, cap + 1, 2, ""});
     REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
                         "Corrupted file: declared size exceeds the element cap");
     std::filesystem::remove(path);
   }
 
-  SECTION("max_elements within the cap but the product above it") {
-    const auto path = std::filesystem::path("test_hnsw_cap_product_" + pid + ".bin");
+  // Neither section can isolate the `max_el` clause: `dimension == 0` is
+  // rejected earlier, so `vector_count >= max_el` and the product clause fires
+  // whenever the capacity one does. The `max_el` clause is kept for parity with
+  // Rust's MAX_ELEMENTS, not because an input can single it out.
+  SECTION("a capacity within the cap but a product above it") {
+    const auto path = std::filesystem::path("test_hnsw_cap_product.bin");
     write_header(path, Case{"cap_product", 2, cap, 2, ""});
     REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
                         "Corrupted file: declared size exceeds the element cap");
