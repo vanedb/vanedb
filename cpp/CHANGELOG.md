@@ -78,7 +78,7 @@ this section carries the core's release state too.
 - Python bindings via pybind11
   - NumPy array support
   - All index types and distance metrics
-- Comprehensive test suite (38 C++ tests, 28 Python tests)
+- C++ and Python test suites, run by `ctest` and pytest
 - Google Benchmark performance tests
 - Multi-platform CI/CD (Linux, macOS, Windows, iOS, Android)
   - GCC, Clang, MSVC compilers
