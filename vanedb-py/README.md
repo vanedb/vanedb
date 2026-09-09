@@ -11,18 +11,17 @@ kept in the repository for reference and local testing, and are not published.
 
 ## Installation
 
-Requires Python 3.11 or newer. To build this checkout, also install a Rust
-toolchain. From the repository root, create and activate a virtual environment:
+Requires Python 3.11 or newer.
 
 ```sh
-python -m venv .venv
-# macOS/Linux: source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install ./vanedb-py
+python -m pip install vanedb==0.1.0rc1
 ```
 
-These instructions install the checkout and do not assume a published 0.1.0
-release. Python lists work without additional dependencies. NumPy is optional; its arrays
+The version is pinned because pip does not select a prerelease unless asked;
+drop the pin once 0.1.0 is out. Building from a checkout is described in the
+[repository](https://github.com/vanedb/vanedb/tree/main/vanedb-py).
+
+Python lists work without additional dependencies. NumPy is optional; its arrays
 can also be used for vector and batch inputs.
 
 ## Quick start
