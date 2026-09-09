@@ -11,7 +11,7 @@ VaneDB stores only `(u64, vector)` pairs. There is no metadata or payload
 storage and no filtered search; keep your own id-to-document mapping
 alongside it. Supply your own embeddings — VaneDB does not generate them.
 
-Add it with `cargo add vanedb@0.1.0-rc.1`. The version is pinned because a
+Add it with `cargo add vanedb@0.1.0-rc.2`. The version is pinned because a
 plain `cargo add vanedb` excludes prereleases and currently resolves to
 nothing; drop the pin once 0.1.0 is out. From a source checkout, run
 `cargo run -p vanedb --example quickstart --locked` at the repository root.
@@ -70,7 +70,7 @@ Metal compute requires macOS 10.14 or newer and a usable Metal device. Enable
 `gpu-metal` explicitly in your application's dependency:
 
 ```toml
-vanedb = { version = "0.1.0-rc.1", features = ["gpu-metal"] }
+vanedb = { version = "0.1.0-rc.2", features = ["gpu-metal"] }
 ```
 
 This exposes `MetalCompute` for manually uploaded vectors and distance scans.

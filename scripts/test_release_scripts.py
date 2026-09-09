@@ -70,8 +70,37 @@ CASES = [
 ]
 
 
+PIN_CASES = [
+    # (prefix, text, version, should_be_ready, why)
+    ("vanedb-crate-v", "cargo add vanedb@0.1.0-rc.2", "0.1.0-rc.2", True,
+     "a pin naming the version being published"),
+    ("vanedb-crate-v", "cargo add vanedb@0.1.0-rc.1", "0.1.0-rc.2", False,
+     "a pin left over from the previous release candidate"),
+    ("vanedb-crate-v", 'vanedb = { version = "0.1.0-rc.1", features = ["disk"] }',
+     "0.1.0-rc.2", False, "a stale pin in the features table form"),
+    ("vanedb-v", "pip install vanedb==0.1.0rc2", "0.1.0-rc.2", True,
+     "pip spells the same version differently and must be accepted"),
+    ("vanedb-v", "pip install vanedb==0.1.0rc1", "0.1.0-rc.2", False,
+     "a stale pip pin"),
+    ("vanedb-crate-v", "cargo add vanedb", "0.1.0-rc.2", True,
+     "an unpinned line has nothing to check"),
+]
+
+
+def check_pins(failures):
+    from check_release_readmes import TARGETS, problems_in
+    for prefix, text, version, should_be_ready, why in PIN_CASES:
+        problems = problems_in(TARGETS[prefix], text, prefix, version)
+        ready = not problems
+        if ready != should_be_ready:
+            failures.append(
+                f"pin case: expected {'ready' if should_be_ready else 'NOT ready'} "
+                f"({why})\n    text: {text!r}\n    problems: {problems}")
+
+
 def main():
     failures = []
+    check_pins(failures)
     for target, text, should_be_ready, why in CASES:
         problems = problems_in(target, text)
         ready = not problems
@@ -82,7 +111,8 @@ def main():
             )
     for failure in failures:
         print(f"FAIL {failure}")
-    print(f"{len(CASES) - len(failures)}/{len(CASES)} release-README cases pass")
+    total = len(CASES) + len(PIN_CASES)
+    print(f"{total - len(failures)}/{total} release-README cases pass")
     return 1 if failures else 0
 
 
