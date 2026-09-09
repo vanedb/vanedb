@@ -48,6 +48,10 @@ jobs:
                   raise SystemExit(f"tag expects {expected}, crate version is {version}")
           print(f"validated vanedb {version}")
           PY
+      - name: Packaged README carries the published-install form
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-crate-v')
+        shell: bash
+        run: python3 scripts/check_release_readmes.py "$GITHUB_REF_NAME"
       - name: Require release tag to be on main
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-crate-v')
         shell: bash

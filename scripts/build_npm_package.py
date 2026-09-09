@@ -82,6 +82,8 @@ def build(target: str, out: str) -> Path:
 def npm_repository_url(repository):
     """Cargo's plain https URL in the form npm stores without rewriting it."""
     url = repository["url"] if isinstance(repository, dict) else repository
+    if not url:
+        raise SystemExit("wasm-pack emitted an empty repository url")
     url = url.removeprefix("git+").removesuffix(".git")
     return f"git+{url}.git"
 
