@@ -40,10 +40,13 @@ pub enum Metric {
     ///   infinite. It is the norm that decides, not any one component: 128
     ///   components of 1e19 each are individually under the bound and still
     ///   sum past it.
-    /// - **Underflow.** A component below roughly 2.6e-23 (`2^-75`) squares to
-    ///   zero — not `sqrt(f32::MIN_POSITIVE_SUBNORMAL)` ≈ 3.7e-23, because
-    ///   round-to-nearest rounds a square in `[2^-150, 2^-149)` *up* to the
-    ///   minimum subnormal rather than down to zero. The norm reaches zero
+    /// - **Underflow.** A component at or below roughly 2.6e-23 (`2^-75`)
+    ///   squares to zero — not `sqrt(f32::MIN_POSITIVE_SUBNORMAL)` ≈ 3.7e-23,
+    ///   because round-to-nearest rounds a square in `(2^-150, 2^-149)` *up* to
+    ///   the minimum subnormal rather than down to zero. The interval is open
+    ///   at the bottom: `(2^-75)^2` is exactly `2^-150`, the midpoint between
+    ///   zero and that subnormal, and a tie rounds to the even significand,
+    ///   which is zero. The norm reaches zero
     ///   only when *every* component is under that bound — one ordinary
     ///   component is enough to keep it usable — and such a vector is then 1.0
     ///   from everything, itself included: a plausible-looking input with no

@@ -40,7 +40,9 @@ three ways in:
   The norm decides, not any one component: 128 components of 1e19 are each
   under the bound and still sum past it;
 - a squared norm that underflows `f32` to zero, which needs *every* component
-  below roughly 2.6e-23 (`2^-75`) — one ordinary component keeps the norm
+  at or below roughly 2.6e-23 (`2^-75`) — the bound is inclusive because
+  `(2^-75)^2` is exactly `2^-150`, the midpoint between zero and the smallest
+  subnormal, and a tie rounds to the even significand, which is zero — one ordinary component keeps the norm
   usable. Such a vector is neither zero nor overflowing, and it is the case
   a caller is most likely to hit without noticing: the input looks ordinary
   and finite, and the answer is silently `1.0` — including against itself.

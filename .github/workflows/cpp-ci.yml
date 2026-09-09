@@ -90,9 +90,16 @@ jobs:
       shell: pwsh
       run: |
         cd build
-        .\${{ matrix.build_type }}\bench_distance.exe --benchmark_min_time=0.05s --benchmark_filter=BM_L2/768 --benchmark_format=json > bench_distance.json
-        .\${{ matrix.build_type }}\bench_vector_store.exe --benchmark_min_time=0.05s --benchmark_filter=BM_VectorStore_Search_L2/100 --benchmark_format=json > bench_vector_store.json
-        .\${{ matrix.build_type }}\bench_hnsw_index.exe --benchmark_min_time=0.05s --benchmark_filter=BM_HNSW_Search/100 --benchmark_format=json > bench_hnsw_index.json
+        # pwsh does not stop on a native command's non-zero exit, so a crash in
+        # any but the last benchmark used to leave the step green.
+        $ErrorActionPreference = 'Stop'
+        foreach ($b in @(
+          @('bench_distance', 'BM_L2/768'),
+          @('bench_vector_store', 'BM_VectorStore_Search_L2/100'),
+          @('bench_hnsw_index', 'BM_HNSW_Search/100'))) {
+          & ".\${{ matrix.build_type }}\$($b[0]).exe" --benchmark_min_time=0.05s --benchmark_filter=$($b[1]) --benchmark_format=json > "$($b[0]).json"
+          if ($LASTEXITCODE -ne 0) { throw "$($b[0]) exited $LASTEXITCODE" }
+        }
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -100,6 +107,9 @@ jobs:
         name: benchmarks-${{ matrix.os }}-${{ matrix.compiler }}
         path: cpp/build/bench_*.json
         retention-days: 90
+        # Every other upload in this repo sets this; without it a crashed
+        # benchmark that wrote no JSON uploads nothing and still passes.
+        if-no-files-found: error
 
   docs:
     name: Documentation
@@ -361,7 +371,7 @@ jobs:
           -DVANEDB_BUILD_TESTS=OFF \
           -DVANEDB_BUILD_BENCHMARKS=OFF \
           -DVANEDB_BUILD_PYTHON=OFF \
-          -DVANEDB_BUILD_EXAMPLES=OFF \
+          -DVANEDB_BUILD_EXAMPLES=ON \
           -GXcode
 
     - name: Build for iOS
@@ -370,8 +380,12 @@ jobs:
 
     - name: Verify iOS build
       run: |
-        echo "iOS arm64 build completed successfully"
-        ls -la build-ios/Release* 2>/dev/null || echo "Header-only library verified"
+        # `echo` plus `ls || echo` cannot fail, so this step used to pass even
+        # when nothing was compiled -- which was always, because every target
+        # was disabled and the library is INTERFACE-only. Assert the example
+        # binary the build now produces actually exists.
+        set -euo pipefail
+        test -n "$(find build-ios -name 'semantic_search_example' -type f -print -quit)"
 
   android-build:
     name: Android (arm64-v8a)
@@ -401,17 +415,19 @@ jobs:
           -DVANEDB_BUILD_TESTS=OFF \
           -DVANEDB_BUILD_BENCHMARKS=OFF \
           -DVANEDB_BUILD_PYTHON=OFF \
-          -DVANEDB_BUILD_EXAMPLES=OFF
+          -DVANEDB_BUILD_EXAMPLES=ON
 
     - name: Build for Android
       run: |
         cmake --build build-android --config Release --parallel
 
-    - name: Verify Android binary
+    - name: Verify Android arm64-v8a binary
       run: |
-        # Check that the build completed for Android ARM64
-        file build-android/libvanedb* 2>/dev/null || echo "Header-only library - checking compilation succeeded"
-        echo "Android arm64-v8a build completed successfully"
+        # Same as iOS: the old body could not fail. Assert a real arm64 binary.
+        set -euo pipefail
+        binary="$(find build-android -name 'semantic_search_example' -type f -print -quit)"
+        test -n "$binary"
+        file "$binary" | grep -q 'ARM aarch64'
 
   android-x86_64-build:
     name: Android (x86_64)
@@ -441,7 +457,7 @@ jobs:
           -DVANEDB_BUILD_TESTS=OFF \
           -DVANEDB_BUILD_BENCHMARKS=OFF \
           -DVANEDB_BUILD_PYTHON=OFF \
-          -DVANEDB_BUILD_EXAMPLES=OFF
+          -DVANEDB_BUILD_EXAMPLES=ON
 
     - name: Build for Android x86_64
       run: |
@@ -449,7 +465,11 @@ jobs:
 
     - name: Verify Android x86_64 binary
       run: |
-        echo "Android x86_64 build completed successfully"
+        # The old body was a bare echo: it asserted nothing at all.
+        set -euo pipefail
+        binary="$(find build-android-x86_64 -name 'semantic_search_example' -type f -print -quit)"
+        test -n "$binary"
+        file "$binary" | grep -q 'x86-64'
 
   c-api:
     name: C API (extern "C") - ${{ matrix.os }}

@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -122,4 +123,38 @@ TEST_CASE("HNSW load rejects live-vector size overflow before allocation",
   REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
                       "Corrupted file: count * dimension overflow");
   std::filesystem::remove(path);
+}
+
+// A header alone decides what the constructor allocates: `checked_persisted_sizes`
+// ran the overflow checks and then `max_elements * dimension` floats were
+// reserved before a byte of payload was read. Overflow was the only bound, so a
+// product that merely happened to fit in `size_t` — 1e6 x 1e8 is 1e14 floats,
+// 400 TB — was accepted and handed straight to `resize`.
+//
+// Nothing legitimate is lost by capping it. `read_vec` already refuses to read
+// more than MAX_VEC_SIZE elements into any array, and the loader then requires
+// the array it read to equal this exact product, so a file above the cap could
+// never have finished loading. The cap only moves the rejection to before the
+// allocation instead of after it.
+TEST_CASE("HNSW load caps header-declared allocation before reserving it",
+          "[conformance][index][sizes][persistence]") {
+  const size_t cap = vanedb::detail::MAX_VEC_SIZE;
+  const auto pid = std::to_string(
+      static_cast<long long>(std::hash<std::thread::id>{}(std::this_thread::get_id())));
+
+  SECTION("max_elements alone above the cap") {
+    const auto path = std::filesystem::path("test_hnsw_cap_elements_" + pid + ".bin");
+    write_header(path, Case{"cap_elements", 2, cap + 1, 2, ""});
+    REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
+                        "Corrupted file: declared size exceeds the element cap");
+    std::filesystem::remove(path);
+  }
+
+  SECTION("max_elements within the cap but the product above it") {
+    const auto path = std::filesystem::path("test_hnsw_cap_product_" + pid + ".bin");
+    write_header(path, Case{"cap_product", 2, cap, 2, ""});
+    REQUIRE_THROWS_WITH(vanedb::ApproxIndex::load(path.string()),
+                        "Corrupted file: declared size exceeds the element cap");
+    std::filesystem::remove(path);
+  }
 }

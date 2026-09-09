@@ -79,22 +79,27 @@ fn declared_versions() -> Vec<(&'static str, String)> {
     sites.push(("cpp/src/core/version.h VERSION_STRING", string));
 
     // `VANEDB_RS_VERSION` in the generated C header, so a consumer can compare
-    // it against `vanedb_rs_version()` at runtime. cbindgen cannot compute it,
-    // so it is a literal in the emitted preamble and drifts silently without
-    // this check — the same failure mode as the two sites above.
-    let preamble = read("vanedb-capi/cbindgen.toml");
-    let macro_version = preamble
+    // it against `vanedb_rs_version()` at runtime. cbindgen copies its preamble
+    // verbatim, so this used to be a literal in `cbindgen.toml` that drifted
+    // silently — the same failure mode as the two sites above. `build.rs` now
+    // stamps the crate version over a placeholder, which makes drift
+    // impossible at the source; read the committed header, because that is the
+    // artifact a consumer actually compiles against.
+    let header = read("vanedb-capi/include/vanedb_rs_capi.h");
+    let macro_version = header
         .lines()
         .find_map(|l| {
             l.split_once("#define VANEDB_RS_VERSION ")?
                 .1
-                .split('\\')
+                .split('"')
                 .nth(1)
         })
-        .and_then(|v| v.strip_prefix('"'))
-        .expect("cbindgen.toml defines VANEDB_RS_VERSION")
+        .expect("the generated header defines VANEDB_RS_VERSION")
         .to_string();
-    sites.push(("vanedb-capi/cbindgen.toml VANEDB_RS_VERSION", macro_version));
+    sites.push((
+        "vanedb-capi/include/vanedb_rs_capi.h VANEDB_RS_VERSION",
+        macro_version,
+    ));
 
     // The npm package's version is not listed here. It is copied from
     // vanedb-wasm/Cargo.toml by `scripts/build_npm_package.py`, and that

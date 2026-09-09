@@ -328,6 +328,16 @@ public:
     // file header. Passing the products into the private constructor keeps the
     // checks ahead of allocation and avoids recomputing them unchecked.
     const DerivedSizes sizes = checked_persisted_sizes(dim, max_el, M);
+    // Unlike load_vndb, this path pre-allocates the whole product in the
+    // constructor before a byte of payload is read, and overflow was its only
+    // bound -- a header declaring 1e6 x 1e8 fits in size_t and asks for 400 TB.
+    // Cap it where every other file-declared array is already capped: read_vec
+    // refuses to read more than MAX_VEC_SIZE elements, and the checks below
+    // require the array it read to equal this exact product, so nothing above
+    // the cap could ever have finished loading. This only moves the rejection
+    // ahead of the allocation.
+    if (max_el > detail::MAX_VEC_SIZE || sizes.vector_count > detail::MAX_VEC_SIZE)
+      throw std::runtime_error("Corrupted file: declared size exceeds the element cap");
 
     size_t cnt, ep_val;
     int max_level_val;
