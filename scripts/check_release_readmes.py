@@ -45,7 +45,7 @@ NAME = r"(?![-\w])"
 
 TARGETS = {
     "vanedb-crate-v": {
-        "readme": "vanedb/README.md",
+        "readmes": ["vanedb/README.md"],
         "registry": "crates.io",
         # `cargo add`, a plain version requirement, or the table form a crate
         # with features needs. The table form was rejected by the first version.
@@ -57,16 +57,19 @@ TARGETS = {
         "forbidden": [r"path\s*=\s*[\"'][^\"']*vanedb"],
     },
     "vanedb-v": {
-        "readme": "vanedb-py/README.md",
+        "readmes": ["vanedb-py/README.md"],
         "registry": "PyPI",
         "published": [rf"pip install (?:--upgrade )?[\"']?vanedb{NAME}"],
         "forbidden": [r"pip install \.", r"pip install [^\s\"']*/"],
     },
     # Packaged by `scripts/build_npm_package.py` and rendered by npmjs.com.
     "vanedb-wasm-v": {
-        "readme": "vanedb-wasm/README.md",
+        "readmes": ["vanedb-wasm/README.md", "npm/vanedb/README.md"],
         "registry": "npm",
-        "published": [r"npm (?:install|i) @vanedb/wasm"],
+        # Both packages ship on this tag: the scoped one and the unscoped
+        # alias. `{NAME}` keeps `npm install vanedb` from being satisfied by
+        # `npm install vanedb-something-else`.
+        "published": [r"npm (?:install|i) @vanedb/wasm", rf"npm (?:install|i) vanedb{NAME}"],
         "forbidden": [],
     },
 }
@@ -99,19 +102,23 @@ def check(tag):
         print(f"{tag}: no packaged README is tied to this tag; nothing to check")
         return 0
 
-    problems = problems_in(target, (ROOT / target["readme"]).read_text(encoding="utf-8"))
-    if problems:
-        print(f"{target['readme']} is not ready to ship to {target['registry']}:")
-        for problem in problems:
-            print(f"  - {problem}")
+    failed = False
+    for readme in target["readmes"]:
+        problems = problems_in(target, (ROOT / readme).read_text(encoding="utf-8"))
+        if problems:
+            failed = True
+            print(f"{readme} is not ready to ship to {target['registry']}:")
+            for problem in problems:
+                print(f"  - {problem}")
+        else:
+            print(f"{readme}: carries the published-install form for {target['registry']}")
+    if failed:
         print(
-            f"\nThis file is packaged into the artifact and rendered on "
+            f"\nThese files are packaged into the artifact and rendered on "
             f"{target['registry']}, which does not permit a re-upload. See "
             f"RELEASING.md step 5."
         )
         return 1
-
-    print(f"{target['readme']}: carries the published-install form for {target['registry']}")
     return 0
 
 

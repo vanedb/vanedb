@@ -61,6 +61,12 @@ CASES = [
     (CRATE, 'Add `vanedb = "0.1.0-rc.1"` to your dependencies.',
      True, "isolates the plain version-requirement published form"),
 
+    # --- the unscoped alias ships on the same tag as the scoped package ---
+    (WASM, "npm install vanedb\n\nRe-exports @vanedb/wasm.",
+     True, "the alias README's own install line must satisfy the npm target"),
+    (WASM, "npm install vanedb-cli", False,
+     "a different unscoped package must not satisfy it"),
+
     # --- legitimate prose a broad class wrongly rejected ---
     (PY, "pip install vanedb\n\nThe C++ bindings are kept for reference and are not published.",
      True, "a true statement about another package"),

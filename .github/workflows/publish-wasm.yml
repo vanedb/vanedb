@@ -72,6 +72,16 @@ jobs:
       - name: Consume it as an installed dependency
         run: python3 scripts/check_npm_package.py
 
+      # The unscoped `vanedb` alias ships on this tag too: npm's scoped and
+      # unscoped namespaces are separate, so the org reserves `@vanedb/*` and
+      # leaves the bare word open. It depends on `@vanedb/wasm` at an exact
+      # version, so the two must publish together or the dependency dangles.
+      - name: Assemble the unscoped alias
+        run: python3 scripts/build_npm_alias.py
+
+      - name: Consume the alias as an installed dependency
+        run: python3 scripts/check_npm_alias.py
+
       - name: Pack for inspection
         run: |
           npm pack target/npm/vanedb-wasm --pack-destination target/npm --ignore-scripts
@@ -124,6 +134,16 @@ jobs:
       - name: Consume it as an installed dependency
         run: python3 scripts/check_npm_package.py
 
+      # The unscoped `vanedb` alias ships on this tag too: npm's scoped and
+      # unscoped namespaces are separate, so the org reserves `@vanedb/*` and
+      # leaves the bare word open. It depends on `@vanedb/wasm` at an exact
+      # version, so the two must publish together or the dependency dangles.
+      - name: Assemble the unscoped alias
+        run: python3 scripts/build_npm_alias.py
+
+      - name: Consume the alias as an installed dependency
+        run: python3 scripts/check_npm_alias.py
+
       # npm 11.5.1+ performs the OIDC exchange itself when the workflow has
       # `id-token: write` and a trusted publisher is configured for the
       # package. `--provenance` records the attestation.
@@ -150,6 +170,12 @@ jobs:
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish
+      # Scoped first: the alias pins it by exact version, so publishing the
+      # alias first would leave a version whose dependency does not resolve.
+      - name: Publish @vanedb/wasm
         run: npm publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
         working-directory: target/npm/vanedb-wasm
+
+      - name: Publish vanedb
+        run: npm publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
+        working-directory: target/npm/vanedb
