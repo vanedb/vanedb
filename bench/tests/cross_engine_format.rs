@@ -144,7 +144,13 @@ fn rust_reads_cpp_with_metric(metric: u32, name: &str) {
         ffi::vanedb_rs_disk_free(rs);
 
         assert_eq!(n_cpp, n_rs, "result counts differ");
-        agree(&cpp_ids, &cpp_d, &rs_ids, &rs_d, "cpp -> rust");
+        agree(
+            &cpp_ids,
+            &cpp_d,
+            &rs_ids,
+            &rs_d,
+            format!("cpp -> rust ({name})").as_str(),
+        );
     }
     let _ = std::fs::remove_file(&file);
 }

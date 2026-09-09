@@ -141,8 +141,12 @@ already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 
 ## Performance work
 
-- CI's performance workflow compares criterion baselines against main with
-  critcmp. It catches obvious regressions but is noisy like any shared runner.
+- CI's performance workflow prints a critcmp table of the PR against main into
+  the step summary. It **reports, it does not gate**: nothing in that workflow
+  fails on a regression, and it is a shared runner, so it should not. Read it
+  as a hint about where to look, never as evidence. (It previously ran a second
+  `critcmp --threshold 5`, which reads like an assertion and is not — the flag
+  hides rows below the percentage rather than failing on them.)
 - Local noise floor is ~3%; fsync-heavy benches (save paths) can spike ~18% with
   no code change. Never believe a single-run delta: verify with interleaved
   A-B-A(-B) runs before claiming a regression or a win.
