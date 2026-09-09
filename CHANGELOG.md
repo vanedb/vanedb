@@ -164,7 +164,7 @@ section records what it contains rather than what changed.
   negative or out-of-range integer sizes and seeds consistently raise `ValueError`.
 - The cosine "no usable direction" rule is documented and pinned at *both*
   ends. It is decided by the computed squared norm, so a vector whose
-  components are below roughly 3.7e-23 squares to a zero norm and is reported
+  components are below roughly 2.6e-23 squares to a zero norm and is reported
   1.0 from everything, itself included — neither zero nor overflowing, and
   previously described nowhere. Both engines already behaved this way;
   `cosine_scale_invariance.tsv` now has rows that keep them from diverging.

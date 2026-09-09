@@ -36,9 +36,9 @@ distance. The rule is decided by the *computed* squared norm, so there are
 three ways in:
 
 - a zero vector;
-- a squared norm that overflows `f32` (components from roughly 1e19 up);
+- a squared norm that overflows `f32` (norm from roughly 1.8e19 up);
 - a squared norm that underflows `f32` to zero (components below roughly
-  3.7e-23). Such a vector is neither zero nor overflowing, and it is the case
+  2.6e-23). Such a vector is neither zero nor overflowing, and it is the case
   a caller is most likely to hit without noticing: the input looks ordinary
   and finite, and the answer is silently `1.0` — including against itself.
 

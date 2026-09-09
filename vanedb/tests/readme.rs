@@ -48,7 +48,6 @@ fn documented_methods_exist() {
         "add",
         "add_batch",
         "get",
-        "get_vector",
         "remove",
         "contains",
         "len",
@@ -71,7 +70,6 @@ fn documented_methods_exist() {
         "dimension",
         "metric",
         "contains",
-        "get_vector",
         "set_ef_search",
         "get_ef_search",
     ];
@@ -79,7 +77,6 @@ fn documented_methods_exist() {
         "open",
         "search",
         "get",
-        "get_vector",
         "contains",
         "size",
         "dimension",

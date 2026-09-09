@@ -202,7 +202,7 @@ namespace vanedb::detail::scalar {
   // usable direction is 1.0 away from everything, including itself, and
   // there are three ways to have none: a zero vector, a squared norm that
   // overflowed float, and a squared norm that *underflowed* it — components
-  // below roughly 3.7e-23 square to zero, so an ordinary-looking tiny vector
+  // below roughly 2.6e-23 square to zero, so an ordinary-looking tiny vector
   // lands here too. The 1e-25 rows of cosine_scale_invariance.tsv pin that
   // last case in both engines.
   float denom = sqrtf(na) * sqrtf(nb);

@@ -36,7 +36,7 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     // Policy, shared with vanedb-cpp: a vector with no usable direction is
     // 1.0 away from everything, including itself. Three ways to have none —
     // a zero vector, a squared norm that overflowed f32, and a squared norm
-    // that *underflowed* it (components under ~3.7e-23 square to zero, so a
+    // that *underflowed* it (components under ~2.6e-23 square to zero, so a
     // perfectly ordinary tiny vector lands here too). Finite inputs never
     // yield NaN.
     // Multiplying the roots rather than rooting the product keeps the

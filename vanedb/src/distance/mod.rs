@@ -35,9 +35,12 @@ pub enum Metric {
     /// "Computed" is load-bearing at both ends of the range, and neither end
     /// is an error:
     ///
-    /// - **Overflow.** Components around 1e19 and up square past `f32::MAX`,
+    /// - **Overflow.** A norm from roughly 1.8e19 up (`sqrt(f32::MAX)`) squares past `f32::MAX`,
     ///   so the norm is infinite.
-    /// - **Underflow.** Components below roughly 3.7e-23 square to zero, so
+    /// - **Underflow.** Components below roughly 2.6e-23 (`2^-75`) square to
+    ///   zero — not `sqrt(f32::MIN_POSITIVE_SUBNORMAL)` ≈ 3.7e-23, because
+    ///   round-to-nearest rounds a square in `[2^-150, 2^-149)` *up* to the
+    ///   minimum subnormal rather than down to zero. So
     ///   the norm is zero even though the vector is not. Such a vector is 1.0
     ///   from everything, itself included — a plausible-looking input with no
     ///   warning attached. Rescale before indexing if your embeddings live
