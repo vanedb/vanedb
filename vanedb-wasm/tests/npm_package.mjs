@@ -19,7 +19,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
-const esm = await import('vanedb-wasm');
+const esm = await import('@vanedb/wasm');
 await esm.default();                       // no-op on Node; real loader in a browser
 
 assert.equal(typeof esm.version(), 'string', 'version() must be callable');
@@ -53,7 +53,7 @@ index.free();
 // The same package through require(), which resolves a different entry point
 // under the `node` + `require` condition.
 const require = createRequire(import.meta.url);
-const cjs = require('vanedb-wasm');
+const cjs = require('@vanedb/wasm');
 for (const name of ['FlatIndex', 'ApproxIndex', 'SearchResults', 'version']) {
   assert.ok(cjs[name], `${name} must also be reachable via require()`);
 }
