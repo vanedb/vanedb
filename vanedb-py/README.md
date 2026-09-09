@@ -54,11 +54,15 @@ assert hits == [(101, 0.0)]
 
 # Save and reload the index without rebuilding it.
 with TemporaryDirectory() as directory:
-    path = str(Path(directory) / "index.bin")
+    path = Path(directory) / "index.bin"
     index.save(path)
     restored = ApproxIndex.load(path)
     assert restored.search(query, 1) == hits
 ```
+
+Every path argument — `ApproxIndex.save`/`load`, `DiskIndexBuilder.save` and
+`DiskIndex.open` — takes a `str` or any `os.PathLike`, so a `pathlib.Path`
+needs no `str()` around it.
 
 Supported metrics are `Metric.L2` (squared Euclidean distance),
 `Metric.COSINE`, and `Metric.DOT` (negative dot product).

@@ -26,11 +26,22 @@ pub enum Metric {
     /// Cosine distance (1 - cosine similarity).
     ///
     /// A zero vector has no direction, so the angle to it is undefined. This
-    /// crate reports 1.0 — the maximum distance — whenever either norm is zero
-    /// or overflows to a non-finite value, including a zero vector's distance
-    /// to itself. Ranking it as maximally distant keeps it out of results
-    /// rather than making it a NaN that sorts unpredictably. Both engines
-    /// share this policy.
+    /// crate reports 1.0 — the maximum distance — whenever either *computed*
+    /// squared norm is zero or is not finite, including a zero vector's
+    /// distance to itself. Ranking it as maximally distant keeps it out of
+    /// results rather than making it a NaN that sorts unpredictably. Both
+    /// engines share this policy.
+    ///
+    /// "Computed" is load-bearing at both ends of the range, and neither end
+    /// is an error:
+    ///
+    /// - **Overflow.** Components around 1e19 and up square past `f32::MAX`,
+    ///   so the norm is infinite.
+    /// - **Underflow.** Components below roughly 3.7e-23 square to zero, so
+    ///   the norm is zero even though the vector is not. Such a vector is 1.0
+    ///   from everything, itself included — a plausible-looking input with no
+    ///   warning attached. Rescale before indexing if your embeddings live
+    ///   down there. `conformance/cosine_scale_invariance.tsv` pins both ends.
     Cosine,
     /// Negative dot product (higher similarity = lower distance).
     ///
@@ -38,6 +49,13 @@ pub enum Metric {
     /// than a shorter one pointing the same way,
     /// so a vector need not be its own nearest neighbour. Normalise, or keep
     /// magnitudes comparable, if you want similarity-search semantics.
+    ///
+    /// Magnitudes large enough to overflow the inner product give a distance
+    /// of negative infinity, and the shared result order places every
+    /// non-finite distance *after* the finite ones — so an overflowing pair
+    /// ranks last rather than first. Both engines do this deliberately: a
+    /// saturated score carries no ranking information, and letting it win
+    /// would put an arbitrary vector at the top of every result set.
     Dot,
 }
 

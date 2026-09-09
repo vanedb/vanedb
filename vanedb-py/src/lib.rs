@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{
     PyFileNotFoundError, PyKeyError, PyOSError, PyOverflowError, PyTypeError, PyValueError,
@@ -438,13 +440,16 @@ impl PyIndex {
         py.detach(|| self.inner.contains(id))
     }
 
-    fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
-        py.detach(|| self.inner.save(path)).map_err(to_pyerr)
+    /// Writes the graph to `path`, which may be a `str` or any `os.PathLike`
+    /// — `pathlib.Path` included.
+    fn save(&self, py: Python<'_>, path: PathBuf) -> PyResult<()> {
+        py.detach(|| self.inner.save(&path)).map_err(to_pyerr)
     }
 
+    /// Reads a graph written by `save`. Accepts the same path types.
     #[staticmethod]
-    fn load(py: Python<'_>, path: &str) -> PyResult<Self> {
-        let inner = py.detach(|| ApproxIndex::load(path)).map_err(to_pyerr)?;
+    fn load(py: Python<'_>, path: PathBuf) -> PyResult<Self> {
+        let inner = py.detach(|| ApproxIndex::load(&path)).map_err(to_pyerr)?;
         Ok(Self { inner })
     }
 
@@ -592,9 +597,11 @@ impl PyDiskStoreBuilder {
     }
 
     /// Writes the store to `path`, atomically: built beside the destination
-    /// and renamed in after an fsync.
-    fn save(&self, py: Python<'_>, path: &str) -> PyResult<()> {
-        py.detach(|| self.inner.read().save(path)).map_err(to_pyerr)
+    /// and renamed in after an fsync. `path` may be a `str` or any
+    /// `os.PathLike` — `pathlib.Path` included.
+    fn save(&self, py: Python<'_>, path: PathBuf) -> PyResult<()> {
+        py.detach(|| self.inner.read().save(&path))
+            .map_err(to_pyerr)
     }
 
     fn __len__(&self, py: Python<'_>) -> usize {
@@ -625,17 +632,19 @@ impl PyDiskStore {
     /// Validates the header and every stored value, so this is linear in the
     /// corpus rather than a constant-cost mapping.
     ///
+    /// `path` may be a `str` or any `os.PathLike` — `pathlib.Path` included.
+    ///
     /// The caller must keep the underlying file's contents and length unchanged,
     /// in every process, from before this call until the index is released.
     /// In-place writes or truncation can cause undefined behavior or crash the
     /// process. `DiskIndexBuilder.save` safely replaces the file atomically,
     /// leaving existing mappings intact.
     #[staticmethod]
-    fn open(py: Python<'_>, path: &str) -> PyResult<Self> {
+    fn open(py: Python<'_>, path: PathBuf) -> PyResult<Self> {
         // SAFETY: the Python caller must uphold the external file immutability
         // requirement documented above; the binding cannot enforce it.
         let inner = py
-            .detach(|| unsafe { DiskIndex::open(path) })
+            .detach(|| unsafe { DiskIndex::open(&path) })
             .map_err(to_pyerr)?;
         Ok(Self { inner })
     }

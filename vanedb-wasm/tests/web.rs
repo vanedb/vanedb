@@ -203,6 +203,18 @@ fn a_stored_vector_can_be_read_back() {
     assert!(index.get_vector(99u64.into()).is_err());
 }
 
+/// Both read spellings exist on both index types (#85). `ApproxIndex` had the
+/// pair and `FlatIndex` only `get`, so a program written against the graph
+/// index broke on the one swap the pair exists to make painless.
+#[wasm_bindgen_test]
+fn both_read_spellings_exist_on_the_exact_index_too() {
+    let store = WasmStore::new(3.0, "l2").unwrap();
+    store.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
+    assert_eq!(store.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
+    assert_eq!(store.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
+    assert!(store.get_vector(99u64.into()).is_err());
+}
+
 /// The seed was hardcoded to 42, so reproducible graph construction was
 /// impossible from JS. Omitting it must keep the previous default.
 #[wasm_bindgen_test]

@@ -62,11 +62,22 @@ section records what it contains rather than what changed.
   query alone. Assigning to the shared property was the only way to raise
   recall for one query, and searches release the GIL, so the mutation was
   visible to concurrent threads — the same defect already fixed in the C ABI.
-- Python exposes `get`/`get_vector` on every index type, and `m`,
-  `ef_construction` and `seed` on `ApproxIndex`, matching the Rust core.
+- Python exposes `m`, `ef_construction` and `seed` on `ApproxIndex`, matching
+  the Rust core.
+- `get` and `get_vector` now name the same read on **every** index type in
+  every binding. Python and the C ABI already carried both spellings
+  everywhere; Rust and WebAssembly had the pair on `ApproxIndex` only, so the
+  one migration the pair exists to make painless — a graph index swapped for
+  an exact one — was the one that stopped compiling. Adds
+  `FlatIndex::get_vector` and `DiskIndex::get_vector` in Rust and
+  `FlatIndex.get_vector` in WebAssembly.
 - `FlatIndex::size`, `DiskIndex::len`/`is_empty`, `DiskIndexBuilder::len`/
   `is_empty` and `ApproxIndex::get` added, so the count and read spellings
   match across index types.
+- **Python path arguments accept `os.PathLike`.** `ApproxIndex.save`/`load`,
+  `DiskIndexBuilder.save` and `DiskIndex.open` took `str` only, so passing a
+  `pathlib.Path` — the ordinary way to spell a path in modern Python — raised
+  `TypeError`, and the guide's own example had to wrap it in `str()`.
 
 ### Added
 
@@ -136,6 +147,23 @@ section records what it contains rather than what changed.
   resources; tiny-value calculations use CPU kernels to preserve rankings.
 - Both disk loaders reject nonzero reserved VNDB v1 header bytes. Python
   negative or out-of-range integer sizes and seeds consistently raise `ValueError`.
+- The cosine "no usable direction" rule is documented and pinned at *both*
+  ends. It is decided by the computed squared norm, so a vector whose
+  components are below roughly 3.7e-23 squares to a zero norm and is reported
+  1.0 from everything, itself included — neither zero nor overflowing, and
+  previously described nowhere. Both engines already behaved this way;
+  `cosine_scale_invariance.tsv` now has rows that keep them from diverging.
+- `Metric::Dot` documents that an inner product large enough to overflow gives
+  a distance of negative infinity, which the shared result order ranks *last*
+  rather than first.
+- Two dead intra-doc links in the AVX2 module. That module is compiled only on
+  x86-64, and every local verification ran on macOS ARM64 where it is cfg'd
+  away — so the links were broken on exactly the target docs.rs builds, and
+  nothing in CI built the documentation at all. `cargo doc` now runs in CI in
+  the docs.rs configuration with warnings denied.
+- `.gitignore` covers the root `.venv/` the Python guides tell you to create,
+  so following the documented workflow leaves nothing for `git add -A` to
+  sweep in.
 
 ### Roadmap
 

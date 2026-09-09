@@ -30,6 +30,26 @@ jobs:
           cargo build -p vanedb-capi --locked
           git diff --exit-code -- vanedb-capi/include
 
+  docs:
+    name: Rustdoc (docs.rs configuration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      # Nothing built the documentation, so nothing could see a link that only
+      # breaks in one build. Two dead links sat in the AVX2 module docs, which
+      # exist solely on x86-64 — and every local check ran on macOS ARM64,
+      # where the module is cfg'd away. docs.rs builds on x86-64, so the
+      # crate's own front page would have shipped them.
+      #
+      # Features match `[package.metadata.docs.rs]` in vanedb/Cargo.toml: this
+      # job is the published page, not a second opinion about it.
+      - run: cargo doc -p vanedb --features disk --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
   check-macos:
     name: Check & Lint (macOS, gpu-metal)
     runs-on: macos-latest

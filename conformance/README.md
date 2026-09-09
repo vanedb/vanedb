@@ -30,13 +30,23 @@ rather than `sqrt(norm_a * norm_b)`: the product grows with the fourth power of
 magnitude, which would classify ordinary small vectors as zero and
 overflowed to infinity for large ones.
 
-A vector with no usable direction — a zero vector, or one whose squared norm
-overflows `f32` — is defined to be `1.0` away from everything, including
-itself. Finite inputs therefore never produce a non-finite cosine distance.
+A vector with no usable direction is defined to be `1.0` away from everything,
+including itself. Finite inputs therefore never produce a non-finite cosine
+distance. The rule is decided by the *computed* squared norm, so there are
+three ways in:
+
+- a zero vector;
+- a squared norm that overflows `f32` (components from roughly 1e19 up);
+- a squared norm that underflows `f32` to zero (components below roughly
+  3.7e-23). Such a vector is neither zero nor overflowing, and it is the case
+  a caller is most likely to hit without noticing: the input looks ordinary
+  and finite, and the answer is silently `1.0` — including against itself.
 
 `cosine_scale_invariance.tsv` pins these cases for both engines and is consumed
 by `vanedb/tests/cosine_conformance.rs` and
-`cpp/tests/test_cosine_conformance.cpp`.
+`cpp/tests/test_cosine_conformance.cpp`. Its 1e-18 … 1e18 rows pin the
+invariance, and its 1e-25 rows pin the underflow end so a change in one engine
+cannot quietly diverge from the other.
 
 ## Persisted identity
 

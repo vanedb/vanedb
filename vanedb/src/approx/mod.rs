@@ -263,6 +263,12 @@ impl ApproxIndex {
     /// this succeeds. It exists so a known-size bulk load can avoid growth
     /// pauses. The persistence format limits the graph to 100 million stored
     /// slots, including tombstones; compact deleted slots to reclaim room.
+    ///
+    /// On an index from [`load`](Self::load) this is the file's recorded
+    /// capacity, which [`save`](Self::save) raises to the stored slot count
+    /// when the index outgrew its hint — the format requires
+    /// `count <= capacity`. So a save-and-load of a grown index reports the
+    /// count rather than the original hint. Nothing else observes the value.
     pub fn capacity(&self) -> usize {
         self.max_elements
     }

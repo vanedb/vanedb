@@ -13,6 +13,45 @@
 
 use vanedb::{ApproxIndex, DiskIndexBuilder, FlatIndex, Metric, VaneError};
 
+/// `get` and `get_vector` are the same read under two names, for the same
+/// reason `size`/`len` are (#85). The pair existed on `ApproxIndex` in Rust
+/// and on every type in the Python and C bindings, but not on Rust's
+/// `FlatIndex` or `DiskIndex` — so the one migration the pair exists to make
+/// painless, `ApproxIndex` to an exact index, was the one that stopped
+/// compiling.
+#[test]
+fn both_spellings_of_the_read_agree_on_every_type() {
+    let flat = FlatIndex::new(2, Metric::L2).unwrap();
+    flat.add(1, &[1.0, 0.0]).unwrap();
+    assert_eq!(flat.get(1).unwrap(), flat.get_vector(1).unwrap());
+    assert!(matches!(
+        flat.get_vector(2),
+        Err(VaneError::NotFound { id: 2 })
+    ));
+
+    let approx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+    approx.add(1, &[1.0, 0.0]).unwrap();
+    assert_eq!(approx.get(1).unwrap(), approx.get_vector(1).unwrap());
+
+    #[cfg(feature = "disk")]
+    {
+        let path =
+            std::env::temp_dir().join(format!("vanedb-read-spellings-{}.vndb", std::process::id()));
+        let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+        builder.add(1, &[1.0, 0.0]).unwrap();
+        builder.save(&path).unwrap();
+        // SAFETY: this test does not modify the file while it is mapped.
+        let disk = unsafe { vanedb::DiskIndex::open(&path) }.unwrap();
+        assert_eq!(disk.get(1).unwrap(), disk.get_vector(1).unwrap());
+        assert!(matches!(
+            disk.get_vector(2),
+            Err(VaneError::NotFound { id: 2 })
+        ));
+        drop(disk);
+        std::fs::remove_file(&path).ok();
+    }
+}
+
 /// `size` and `len` are the same count under two names so a program is not
 /// tied to one engine (#85). Both spellings must agree on every type, and on
 /// every type `is_empty` must agree with them.

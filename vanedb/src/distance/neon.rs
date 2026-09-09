@@ -56,8 +56,9 @@ pub fn l2_squared(a: &[f32], b: &[f32]) -> f32 {
 
 #[cfg(target_arch = "aarch64")]
 /// Cosine distance, `1 - cos(a, b)`, clamped to `[0, 2]`. Returns `1.0`
-/// when a norm is zero or overflows to infinity, so a degenerate input
-/// ranks as orthogonal rather than as NaN.
+/// when a computed squared norm is zero — including by underflow — or
+/// overflows to infinity, so a degenerate input ranks as orthogonal rather
+/// than as NaN. See [`Metric::Cosine`](crate::Metric::Cosine).
 pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     let n = a.len().min(b.len());
     let mut i = 0;
