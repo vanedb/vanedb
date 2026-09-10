@@ -12,10 +12,10 @@ constexpr int VERSION_MAJOR = 0;
 /// Minor version number
 constexpr int VERSION_MINOR = 1;
 /// Patch version number
-constexpr int VERSION_PATCH = 0;
+constexpr int VERSION_PATCH = 1;
 
 /// Full version string
-constexpr const char* VERSION_STRING = "0.1.0";
+constexpr const char* VERSION_STRING = "0.1.1";
 
 /**
  * @brief Returns the version as a single integer for comparison.
