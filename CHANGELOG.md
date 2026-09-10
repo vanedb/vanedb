@@ -129,6 +129,10 @@ the fixes made during prerelease verification.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
+- WebAssembly `ApproxIndex` adds `upsert` and an optional per-query search beam
+  width. A rejected replacement keeps the existing vector, and a query's beam
+  override leaves the index default unchanged. Python uses `len(index)` or
+  truth testing for emptiness; WebAssembly uses `index.size()`.
 - Python `Metric` supports pickling and hashing. Index objects reject pickling:
   save an `ApproxIndex`, build a file with `DiskIndexBuilder`, or rebuild a
   `FlatIndex` from its source vectors.

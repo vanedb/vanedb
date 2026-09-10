@@ -55,8 +55,7 @@ the index grows past it. `m` and `ef_construction` control graph construction.
 them back with `m()`, `ef_construction()`, `capacity()` and `seed()`. Set
 `index.ef_search` to trade search speed for recall.
 
-`new FlatIndex(dimension, metric)` — exact search, same surface minus the graph
-parameters.
+`new FlatIndex(dimension, metric)` — exact search with the shared methods below.
 
 Both provide `add`, `add_batch`, `search`, `get`, `get_vector`, `remove`,
 `contains`, `size()`, `metric()` and `dimension()`. Both spellings of the read
@@ -73,8 +72,17 @@ memory-constrained runtime this package targets.
 `FlatIndex.remove(id)` removes the entry immediately and makes its slot reusable;
 allocated memory can remain reserved. It has no tombstones or `compact()` method.
 
-Persistence (`save`/`load`), disk mapping and `upsert` are not available in
-WebAssembly.
+`ApproxIndex.upsert(id, vector)` replaces a vector in one operation, inserting
+it if absent. Invalid input leaves the existing vector unchanged. Each replaced
+slot becomes a tombstone, so repeated replacements grow storage until `compact()`.
+
+`ApproxIndex.search(query, k, ef_search?)` accepts a beam override for that query
+and leaves `index.ef_search` unchanged. The effective beam is at least `k`.
+For example, `index.search(query, 10, 64)` uses a beam of 64; omitting the third
+argument uses the index default. Measure recall and latency on your own data
+when choosing the beam. `FlatIndex.search(query, k)` has no beam parameter.
+
+Persistence (`save`/`load`) and disk mapping are not exposed by this package.
 
 ## Values
 
