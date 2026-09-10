@@ -7,10 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 1.0.0, breaking changes may land in a minor release.
 
-## [0.1.0] - Unreleased
+## [0.1.1] - Unreleased
 
-The planned first release. There is no earlier version to diff against, so this
-section records what it contains rather than what changed.
+The first supported stable release. This section records its functionality and
+the fixes made during prerelease verification.
 
 ### Security
 
@@ -129,9 +129,9 @@ section records what it contains rather than what changed.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
-- Python `Metric` pickles, so a worker pool can be handed one. The index types
-  still refuse, at `dumps` rather than at `loads`: an index belongs in a
-  `.vndb` file, and bytes no unpickler will accept are worse than an error.
+- Python `Metric` supports pickling and hashing. Index objects reject pickling:
+  save an `ApproxIndex`, build a file with `DiskIndexBuilder`, or rebuild a
+  `FlatIndex` from its source vectors.
 
 ### Changed
 

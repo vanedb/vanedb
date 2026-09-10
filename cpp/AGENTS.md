@@ -21,7 +21,7 @@ vectors and disk fixtures live in `../vanedb/tests/fixtures/conformance/`, with
 their contract in `../conformance/`, and those must keep
 passing, but that is a constraint on changes rather than a sync obligation.
 
-## Current Status: v0.1.0, frozen
+## Current Status: v0.1.1, frozen
 
 ### Features
 | Feature | Status |

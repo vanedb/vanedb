@@ -215,24 +215,12 @@ enum PyMetric {
 
 #[pymethods]
 impl PyMetric {
-    /// Pickle by name, the way `enum.Enum` does.
-    ///
-    /// A worker pool pickles its arguments, and PyO3 gives a `#[pyclass]` no
-    /// `__reduce__`: protocols 2 and up refused at `dumps`, while 0 and 1 fell
-    /// back to `copyreg._reconstructor` and *succeeded*, emitting a blob that
-    /// recorded no variant at all and failed only at `loads`. The variants are
-    /// singletons, so naming one rebuilds the identical object.
-    ///
-    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
-    /// renames above rather than the Rust ones.
-    /// `#[pyclass(eq)]` sets `__hash__ = None`, so the enum could not be a dict
-    /// key, live in a set, or reach `functools.lru_cache` -- all ordinary uses
-    /// for a metric. The discriminant is the only consistent choice, because
-    /// `eq_int` makes `Metric.L2 == 0` true and equal objects must hash alike.
+    /// Equal metrics and integers share a hash, so either can be a dict key.
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
+    /// Restore the named singleton when unpickling, using Python-visible names.
     fn __reduce__<'py>(
         &self,
         py: Python<'py>,

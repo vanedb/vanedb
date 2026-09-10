@@ -32,10 +32,13 @@ def test_version():
 
     # Against the distribution metadata, not a literal — see the note in
     # vanedb-py/tests/test_vanedb.py.
-    assert Version(vanedb_cpp.__version__) == Version(version("vanedb-cpp"))
-    assert vanedb_cpp.VERSION_MAJOR == 0
-    assert vanedb_cpp.VERSION_MINOR == 1
-    assert vanedb_cpp.VERSION_PATCH == 0
+    installed = Version(version("vanedb-cpp"))
+    assert Version(vanedb_cpp.__version__) == installed
+    assert (
+        vanedb_cpp.VERSION_MAJOR,
+        vanedb_cpp.VERSION_MINOR,
+        vanedb_cpp.VERSION_PATCH,
+    ) == installed.release
 
 
 def test_simd_backend():
@@ -782,6 +785,8 @@ def test_metric_pickles_at_every_protocol():
             getattr(vanedb_cpp.Metric, n)
             for n in ("L2", "COSINE", "DOT")
         ]
+        # pybind11 accepts unnamed enum values too; pickle must preserve them.
+        metrics.extend(vanedb_cpp.Metric(n) for n in (-1, 3, 42))
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             for metric in metrics:
                 restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
@@ -794,4 +799,3 @@ def test_metric_pickles_at_every_protocol():
     assert result.returncode == 0, (
         f"pickling a Metric exited {result.returncode}\n{result.stderr}"
     )
-

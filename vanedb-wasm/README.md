@@ -70,8 +70,8 @@ keeps its graph links, which may be the only route between live
 neighbourhoods. `tombstones()` counts what that has cost and `compact()`
 reclaims it — worth calling once churn accumulates, since a browser is the most
 memory-constrained runtime this package targets.
-`FlatIndex.remove(id)` reclaims the entry immediately and has no tombstones or
-`compact()` method.
+`FlatIndex.remove(id)` removes the entry immediately and makes its slot reusable;
+allocated memory can remain reserved. It has no tombstones or `compact()` method.
 
 Persistence (`save`/`load`), disk mapping and `upsert` are not available in
 WebAssembly.
