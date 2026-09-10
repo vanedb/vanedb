@@ -316,7 +316,7 @@ install(TARGETS vanedb EXPORT vanedb-targets)
 # `*.cuh` is deliberately not installed: cuda_distance.cuh is unwired and
 # untested (see the EXPERIMENTAL note above), and installing it advertises a
 # capability that does not exist. The Rust engine deleted its CUDA stub before
-# 0.1.0 on the same reasoning — shipping a stub spends the option permanently.
+# 0.1.1 on the same reasoning — shipping a stub spends the option permanently.
 install(DIRECTORY src/core/ DESTINATION include/vanedb FILES_MATCHING PATTERN "*.h")
 install(EXPORT vanedb-targets FILE vanedb-config.cmake DESTINATION lib/cmake/vanedb)
 

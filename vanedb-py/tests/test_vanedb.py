@@ -405,8 +405,6 @@ def test_batch_id_conversion_preserves_the_first_error(index_type):
 
 def test_classes_report_their_module():
     """Exported types identify their importable module in introspection and repr."""
-    import vanedb
-
     for cls in (
         vanedb.Metric,
         vanedb.FlatIndex,

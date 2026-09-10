@@ -62,7 +62,7 @@ with itself here (`FlatIndex.get` and `DiskIndex.get` return `None`,
 `ApproxIndex.get_vector` throws), so there is no single convention on that side
 to match.
 
-The first stable release retains this behavior because the Rust core has no
+The first release retains this behavior because the Rust core has no
 `Option`-returning accessor to bind, `get`/`get_vector` are the cross-engine
 spelling settled in #85, and `contains` is already the non-raising probe. The
 choice of `KeyError` makes the mismatch more conspicuous rather than

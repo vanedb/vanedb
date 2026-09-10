@@ -124,9 +124,33 @@ def check_pins(failures):
                 f"({why})\n    text: {text!r}\n    problems: {problems}")
 
 
+def check_pin_check_needs_both_arguments(failures):
+    """The pin scan runs only when a prefix *and* a version are known.
+
+    A malformed tag equal to a bare prefix yields an empty version, and
+    relaxing the guard to `prefix or version` lets the scan run with it. Every
+    pin then fails to satisfy `""`, so a correct README is reported as carrying
+    a stale pin — a spurious refusal to tag, from the check that exists to make
+    tagging safe. No other case reaches this: the pin cases always supply both
+    arguments and the rest supply neither.
+    """
+    from check_release_readmes import TARGETS, problems_in
+
+    target = TARGETS["vanedb-crate-v"]
+    text = "Add it with `cargo add vanedb@0.1.1`.\n"
+    for prefix, version in (("vanedb-crate-v", ""), (None, "0.1.1")):
+        problems = problems_in(target, text, prefix, version)
+        if problems:
+            failures.append(
+                "half-specified tag: expected no pin scan with "
+                f"prefix={prefix!r} version={version!r}, got {problems}"
+            )
+
+
 def main():
     failures = []
     check_pins(failures)
+    check_pin_check_needs_both_arguments(failures)
     for target, text, should_be_ready, why in CASES:
         problems = problems_in(target, text)
         ready = not problems
@@ -137,7 +161,7 @@ def main():
             )
     for failure in failures:
         print(f"FAIL {failure}")
-    total = len(CASES) + len(PIN_CASES)
+    total = len(CASES) + len(PIN_CASES) + 2
     print(f"{total - len(failures)}/{total} release-README cases pass")
     return 1 if failures else 0
 

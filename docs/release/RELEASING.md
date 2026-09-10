@@ -109,7 +109,7 @@ imply it was defective.
 
 npm is the counter-example already on the shelf. `@vanedb/wasm@0.1.0` was
 bootstrapped by hand, so it carries no attestation, and npm never frees a used
-version. The stable release is therefore `0.1.1` across all three registries,
+version. The first release is therefore `0.1.1` across all three registries,
 from one approved source commit.
 
 ## Publish the approved release

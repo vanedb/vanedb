@@ -154,6 +154,20 @@ comparisons await the dedicated-hardware rerun described above.
   SIMD at compile time while Rust detects it at runtime, so without those flags
   the harness would compare Rust-AVX2 against C++-scalar.
 
+## Recall is a single sample, not a measurement
+
+`RESULTS.md` reports `ApproxIndex` recall@10 from one graph per engine at
+seed 7. That is not enough to compare engines, and the file it appears in is
+rewritten whole by the generator, so this note lives here instead.
+
+Swept over 100 construction seeds per engine on the dim=128, n=10000, k=10
+workload (2026-09, Apple M4 Pro), the means are 0.6927 (Rust, sd 0.0055) and
+0.6924 (C++, sd 0.0052): a difference of +0.0003, 95% CI [-0.0012, +0.0018],
+p = 0.69 — a draw. Seed 7 happens to land Rust +1.3 sd and C++ -0.7 sd, so the
+single-sample gap of roughly 0.011 sits about 14 standard errors outside that
+interval. Read the recall line as an illustration, not a result, until the
+sweep the latency rows already get reaches the quality metric too.
+
 ## License
 
 MIT

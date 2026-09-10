@@ -342,7 +342,7 @@ public:
     // capacity afterwards, so a sparse v3 header -- 200,000 slots at dim 768,
     // one vector live -- did load before this check and does not now. The trade
     // is taken because `save` has written VNDB v2 since before any release,
-    // vanedb-cpp has never been published, and 0.1.0 is the first release: no
+    // vanedb-cpp has never been published, and 0.1.1 is the first release: no
     // such file exists outside someone's own build tree.
     //
     // This is a mitigation, not an elimination. At the cap the constructor

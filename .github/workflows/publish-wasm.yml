@@ -78,6 +78,16 @@ jobs:
       - name: Consume the release tarball as an installed dependency
         run: python3 scripts/check_npm_package.py target/npm/*.tgz
 
+      # The publish job is gated off in every rehearsal, so `npm publish` has
+      # never executed until the run that cannot be undone. A dry run here
+      # exercises the same command against the same tarball, without a
+      # registry credential and without publishing.
+      - name: Dry-run the publish command
+        run: |
+          cd target/npm
+          tarball=$(awk '{ print $2 }' SHA256SUMS)
+          npm publish "$tarball" --ignore-scripts --access public --dry-run
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vanedb-wasm-npm
@@ -116,10 +126,24 @@ jobs:
           path: release
 
       - name: Verify the approved tarball
+        id: approved
         run: |
           cd release
+          # `sha256sum --check` verifies the files SHA256SUMS lists and says
+          # nothing about files it does not. An extra tarball would therefore
+          # pass, and `npm publish ./*.tgz` would glob it first and publish
+          # bytes nothing verified. Require exactly one, and publish it by the
+          # name the manifest gives rather than by a glob.
+          count=$(find . -maxdepth 1 -name '*.tgz' | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "expected exactly one tarball in the artifact, found $count" >&2
+            exit 1
+          fi
           sha256sum --check SHA256SUMS
-          python3 ../scripts/check_npm_package.py ./*.tgz
+          tarball=$(awk '{ print $2 }' SHA256SUMS)
+          test -f "$tarball"
+          python3 ../scripts/check_npm_package.py "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
       # npm 11.5.1+ performs the OIDC exchange itself when the workflow has
       # `id-token: write` and a trusted publisher is configured for the
@@ -148,5 +172,5 @@ jobs:
           fi
 
       - name: Publish
-        run: npm publish ./*.tgz --ignore-scripts --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
+        run: npm publish "${{ steps.approved.outputs.tarball }}" --ignore-scripts --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
         working-directory: release

@@ -7,10 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 1.0.0, breaking changes may land in a minor release.
 
-## [0.1.1] - Unreleased
+## [0.1.1] - 2026-09-10
 
-The first supported stable release. This section records its functionality and
-the fixes made during prerelease verification.
+The first supported release. It is a 0.x release: as stated above, APIs and
+persistence formats may still change in a minor release. This section records
+its functionality and the fixes made during prerelease verification.
 
 ### Security
 
@@ -37,7 +38,7 @@ the fixes made during prerelease verification.
 - GitHub Actions are pinned to commits; Rust CI checks dependency advisories,
   licences, bans and sources with `cargo-deny`.
 
-### Changed — public API before the stable release
+### Changed — public API before the first release
 
 - `SearchResult` is `#[non_exhaustive]`, so a field can be added later without
   a major version. `PartialEq`/`Ord` stay defined over `(id, distance)`.
@@ -129,6 +130,10 @@ the fixes made during prerelease verification.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
+- A getting-started guide for embedding providers
+  ([`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)), covering local Ollama
+  and hosted OpenAI, the document/query prefixes Nomic requires, and storing
+  the ids alongside your own documents.
 - WebAssembly `ApproxIndex` gains `upsert` and a per-query beam width, closing
   the last two gaps against the other bindings. `upsert` is one operation where
   `remove` then `add` is two, and those two can fail between the halves and

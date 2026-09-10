@@ -134,7 +134,7 @@ per-query beam override as `search(query, k, ef_search)`, leaving the
 `ef_search` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
-`wasm-pack build vanedb-wasm --target web --release --locked --out-dir pkg-web`
+`wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked`
 after installing `wasm-pack` and the `wasm32-unknown-unknown` Rust target. The
 `--out-dir` matters: the Node target also defaults to `pkg/`, and whichever
 build runs second silently overwrites the first. The generated directory
