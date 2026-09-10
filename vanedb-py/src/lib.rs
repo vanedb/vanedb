@@ -225,6 +225,14 @@ impl PyMetric {
     ///
     /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
     /// renames above rather than the Rust ones.
+    /// `#[pyclass(eq)]` sets `__hash__ = None`, so the enum could not be a dict
+    /// key, live in a set, or reach `functools.lru_cache` -- all ordinary uses
+    /// for a metric. The discriminant is the only consistent choice, because
+    /// `eq_int` makes `Metric.L2 == 0` true and equal objects must hash alike.
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
     fn __reduce__<'py>(
         &self,
         py: Python<'py>,

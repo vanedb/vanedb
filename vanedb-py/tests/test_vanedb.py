@@ -432,7 +432,14 @@ def test_metric_survives_a_pickle_round_trip():
     `loads` failed. That is the worse of the two failures, because by then the
     bytes have been written somewhere.
     """
-    metrics = (vanedb.Metric.L2, vanedb.Metric.COSINE, vanedb.Metric.DOT)
+    # Enumerated, not listed: a fourth variant would arrive with a hand-written
+    # name in `__reduce__`, and a hardcoded tuple here would not pickle it.
+    metrics = [
+        getattr(vanedb.Metric, name)
+        for name in dir(vanedb.Metric)
+        if not name.startswith("_")
+    ]
+    assert len(metrics) == 3, f"expected three metrics, found {metrics}"
     for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
         for metric in metrics:
             restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
@@ -448,9 +455,11 @@ def test_metric_survives_a_pickle_round_trip():
 def test_indexes_refuse_to_pickle_at_dump_time():
     """An index holds vectors that belong in a `.vndb` file, not in a pickle.
 
-    Refusing is right; refusing *early* is the part worth pinning. A `dumps`
-    that succeeds and hands back bytes no `loads` will ever accept is a silent
-    corruption dressed as a working call.
+    This was already true before `Metric` gained `__reduce__`, so it closes no
+    gap -- it is a tripwire, and `Metric` is why one is worth having. Naming
+    that type's module made protocols 0 and 1 start *succeeding*, handing back
+    bytes no `loads` would accept. Anything that later gives these types a
+    reduce path, or state PyO3 can pickle for them, has to be deliberate.
     """
     index = vanedb.FlatIndex(2, vanedb.Metric.L2)
     approx = vanedb.ApproxIndex(2, vanedb.Metric.L2)
@@ -458,3 +467,19 @@ def test_indexes_refuse_to_pickle_at_dump_time():
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             with pytest.raises(TypeError):
                 pickle.dumps(obj, protocol=protocol)
+
+
+def test_metric_works_as_a_dict_key():
+    """`#[pyclass(eq)]` sets `__hash__ = None`, which bars the obvious uses.
+
+    A metric is the natural key for a dict of per-metric indexes or a cache,
+    and `functools.lru_cache` on any function taking one needs it too. The hash
+    has to agree with `eq_int`: `Metric.L2 == 0` is true, so the two must hash
+    alike or a dict holding both contradicts `==`.
+    """
+    metrics = (vanedb.Metric.L2, vanedb.Metric.COSINE, vanedb.Metric.DOT)
+    assert len(set(metrics)) == 3
+    assert {vanedb.Metric.COSINE: "cos"}[vanedb.Metric.COSINE] == "cos"
+    for value, metric in enumerate(metrics):
+        assert hash(metric) == hash(value), f"{metric!r} must hash as {value}"
+
