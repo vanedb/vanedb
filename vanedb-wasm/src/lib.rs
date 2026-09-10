@@ -84,6 +84,20 @@ fn metric_name(m: Metric) -> &'static str {
     }
 }
 
+/// A non-string `metric` used to trap inside wasm-bindgen's string
+/// marshalling with `RuntimeError: memory access out of bounds` -- an opaque VM
+/// fault where every other bad argument to these constructors throws a
+/// descriptive `Error`. Taking a `JsValue` and checking it here keeps the
+/// failure in JavaScript.
+fn metric_from_value(metric: &JsValue) -> Result<Metric, JsError> {
+    match metric.as_string() {
+        Some(name) => parse_metric(&name),
+        None => Err(JsError::new(
+            "metric must be a string: 'l2', 'cosine', or 'dot'",
+        )),
+    }
+}
+
 fn parse_metric(metric: &str) -> Result<Metric, JsError> {
     match metric {
         "l2" | "L2" => Ok(Metric::L2),
@@ -111,8 +125,8 @@ pub struct WasmStore {
 #[wasm_bindgen(js_class = FlatIndex)]
 impl WasmStore {
     #[wasm_bindgen(constructor)]
-    pub fn new(dim: f64, metric: &str) -> Result<WasmStore, JsError> {
-        let m = parse_metric(metric)?;
+    pub fn new(dim: f64, metric: &JsValue) -> Result<WasmStore, JsError> {
+        let m = metric_from_value(metric)?;
         let inner = FlatIndex::new(count(dim, "dimension")?, m).map_err(to_jserr)?;
         Ok(Self { inner })
     }
@@ -218,13 +232,13 @@ impl WasmIndex {
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: f64,
-        metric: &str,
+        metric: &JsValue,
         capacity: f64,
         m: f64,
         ef_construction: f64,
         seed: Option<f64>,
     ) -> Result<WasmIndex, JsError> {
-        let met = parse_metric(metric)?;
+        let met = metric_from_value(metric)?;
         // Ids beyond 2^53 are not exactly representable as f64, so a seed
         // arrives through the same numeric gate as every other count rather
         // than being cast silently.

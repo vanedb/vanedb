@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - Unreleased
 
-This version tracks the core crate, which has not been released. RELEASING.md
+This version tracks the core crate. RELEASING.md
 requires the C++ manifest, header and CMake version to match the core, so
 this section carries the core's release state too.
 

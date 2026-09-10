@@ -5,7 +5,7 @@ Embeddable vector database for edge AI.
 Bring your own embeddings: VaneDB stores and searches vectors; it does not
 generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
 storage and no filtered search — so keep your own id-to-document mapping
-alongside it. This checkout is pre-release.
+alongside it.
 
 ## Quick start
 
@@ -59,7 +59,6 @@ print(hits)
 ```
 
 See the [Python guide](vanedb-py/README.md) for exact search and saving an index.
-These instructions use the checkout; they do not assume a published 0.1.0 package.
 
 Vector arguments accept any buffer-protocol object (numpy `float32` arrays,
 `array.array`, memoryviews) as well as plain Python lists. `add_batch` is

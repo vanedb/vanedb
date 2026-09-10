@@ -84,6 +84,12 @@ PIN_CASES = [
      "a stale pip pin"),
     ("vanedb-crate-v", "cargo add vanedb", "0.1.0-rc.2", True,
      "an unpinned line has nothing to check"),
+    ("vanedb-crate-v", 'vanedb = { version = "0.1", features = ["gpu-metal"] }',
+     "0.1.0", True, "a caret range the published version satisfies is not a stale pin"),
+    ("vanedb-crate-v", 'vanedb = { version = "0.1", features = ["gpu-metal"] }',
+     "0.1.0-rc.2", False, "a bare range does not resolve to a prerelease, so it is wrong then"),
+    ("vanedb-crate-v", 'vanedb = "0.2"', "0.1.0", False,
+     "a range the published version does not satisfy"),
 ]
 
 

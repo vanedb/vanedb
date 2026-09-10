@@ -14,12 +14,8 @@ kept in the repository for reference and local testing, and are not published.
 Requires Python 3.11 or newer.
 
 ```sh
-python -m pip install vanedb==0.1.0rc2
+python -m pip install vanedb
 ```
-
-The version is pinned because pip does not select a prerelease unless asked;
-drop the pin once 0.1.0 is out. Building from a checkout is described in the
-[repository](https://github.com/vanedb/vanedb/tree/main/vanedb-py).
 
 Python lists work without additional dependencies. NumPy is optional; its arrays
 can also be used for vector and batch inputs.

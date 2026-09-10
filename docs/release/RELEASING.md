@@ -115,10 +115,11 @@ other two registries.
 ## Publish the approved release
 
 Publication requires explicit maintainer authorization after verification.
-Merge the approved candidate through the protected-main PR process. Both tag
-workflows reject release commits that are not on main.
+Merge the approved candidate through the protected-main PR process. All three
+tag workflows reject release commits that are not on main.
 
-The two registries can be published in either order. `vanedb-py` depends on the
+The three registries can be published in any order, with one ordering
+constraint recorded below for npm. `vanedb-py` depends on the
 core by path (`vanedb = { path = "../vanedb" }`) and maturin vendors that source
 into the sdist — `vanedb-<version>/vanedb/src/lib.rs` is inside the tarball — so
 installing from source never resolves `vanedb` from crates.io. Verify with

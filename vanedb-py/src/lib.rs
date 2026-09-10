@@ -201,7 +201,7 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 /// which are imported in this file. It is an implementation detail: the names
 /// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
 /// import-line change.
-#[pyclass(name = "Metric", eq, eq_int, from_py_object)]
+#[pyclass(module = "vanedb", name = "Metric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 enum PyMetric {
     L2 = 0,
@@ -235,7 +235,7 @@ impl From<PyMetric> for Metric {
 }
 
 /// Brute-force vector store with thread-safe k-NN search.
-#[pyclass(name = "FlatIndex")]
+#[pyclass(module = "vanedb", name = "FlatIndex")]
 struct PyStore {
     inner: FlatIndex,
 }
@@ -338,7 +338,7 @@ impl PyStore {
 }
 
 /// HNSW approximate nearest-neighbor index.
-#[pyclass(name = "ApproxIndex")]
+#[pyclass(module = "vanedb", name = "ApproxIndex")]
 struct PyIndex {
     inner: ApproxIndex,
 }
@@ -558,7 +558,7 @@ impl PyIndex {
 
 /// Builds a `DiskIndex` file. Vectors are held in memory until `save`; the
 /// memory saving is on the reading side.
-#[pyclass(name = "DiskIndexBuilder")]
+#[pyclass(module = "vanedb", name = "DiskIndexBuilder")]
 struct PyDiskStoreBuilder {
     // The core builder takes `&mut self`, which PyO3 turns into a runtime
     // borrow. That was safe only because the GIL serialised every call —
@@ -620,7 +620,7 @@ impl PyDiskStoreBuilder {
 
 /// Exact search over a memory-mapped file. Read-only; build one with
 /// `DiskIndexBuilder`.
-#[pyclass(name = "DiskIndex")]
+#[pyclass(module = "vanedb", name = "DiskIndex")]
 struct PyDiskStore {
     inner: DiskIndex,
 }
