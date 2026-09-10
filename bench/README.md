@@ -154,19 +154,18 @@ comparisons await the dedicated-hardware rerun described above.
   SIMD at compile time while Rust detects it at runtime, so without those flags
   the harness would compare Rust-AVX2 against C++-scalar.
 
-## Recall is a single sample, not a measurement
+## Recall needs repeated construction seeds
 
 `RESULTS.md` reports `ApproxIndex` recall@10 from one graph per engine at
-seed 7. That is not enough to compare engines, and the file it appears in is
-rewritten whole by the generator, so this note lives here instead.
+seed 7. That observation does not establish a recall advantage. The generator
+rewrites the results file, so the evaluation guidance lives here.
 
-Swept over 100 construction seeds per engine on the dim=128, n=10000, k=10
-workload (2026-09, Apple M4 Pro), the means are 0.6927 (Rust, sd 0.0055) and
-0.6924 (C++, sd 0.0052): a difference of +0.0003, 95% CI [-0.0012, +0.0018],
-p = 0.69 — a draw. Seed 7 happens to land Rust +1.3 sd and C++ -0.7 sd, so the
-single-sample gap of roughly 0.011 sits about 14 standard errors outside that
-interval. Read the recall line as an illustration, not a result, until the
-sweep the latency rows already get reaches the quality metric too.
+Repeat construction across seeds using the same vectors, queries and exact
+neighbours. Record the engine revisions, workload, per-seed recall and
+uncertainty in the mean difference. A confidence interval for that mean is
+not an expected range for an individual graph's result. Apply any seed-sweep
+conclusion only to the revisions and workload actually measured; a small or
+statistically unresolved difference does not establish engine equivalence.
 
 ## License
 

@@ -13,7 +13,7 @@
 > it whole. Any caveat a reader needs beside these numbers belongs in
 > `bench/src/bin/report.rs`, not here — a longer version of this banner was
 > hand-added and would have been silently deleted by the next run. The
-> recall seed-sweep statistics it carried live in [`bench/README.md`](README.md#recall-is-a-single-sample-not-a-measurement), which
+> recall evaluation guidance lives in [`bench/README.md`](README.md#recall-needs-repeated-construction-seeds), which
 > regeneration does not touch.
 
 Engines: vanedb-cpp (CMake Release) and vanedb (Rust), monorepo 80066a2.
@@ -31,7 +31,7 @@ Criterion is canonical; see the README table. This bin times l2_sq in batches of
 
 ApproxIndex recall@10: C++ 0.689, Rust 0.700
 
-**The recall line is a single sample and the difference is noise.** Both
+**One seed does not establish a recall advantage.** Both
 engines build one graph at seed 7 and score it; there is no seed sweep.
-The 100-seed sweep, which finds a draw, is in [`bench/README.md`](README.md#recall-is-a-single-sample-not-a-measurement) — kept there
-because this file is rewritten whole and would lose it.
+Repeat across construction seeds before drawing a comparison; see
+[`bench/README.md`](README.md#recall-needs-repeated-construction-seeds).

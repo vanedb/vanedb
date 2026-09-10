@@ -97,8 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Earlier development
 
-Nothing here was published: these entries record how the engine was built
-before 0.1.1, which is the first release of any package. The C++ manifest,
+These entries record development of the unpublished C++ reference engine
+before 0.1.1. The C++ manifest,
 header and CMake version track the core crate because RELEASING.md requires
 them to match, not because this package is published — it is not.
 

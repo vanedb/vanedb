@@ -83,8 +83,8 @@ fn main() -> ExitCode {
         "> interleaved A-B-A runs on a quiet machine before any claim. The",
         "> canonical table is [the criterion snapshot in",
         "> `README.md`](README.md). The recall line below is one graph per",
-        "> engine at one seed; [`README.md`](README.md#recall-is-a-single-sample-not-a-measurement)",
-        "> carries the seed sweep that says whether the difference is real.",
+        "> engine at one seed; [`README.md`](README.md#recall-needs-repeated-construction-seeds)",
+        "> explains how to compare recall across construction seeds.",
         "",
     ] {
         md.push_str(line);

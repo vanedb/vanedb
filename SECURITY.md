@@ -2,9 +2,10 @@
 
 ## Supported versions
 
-0.1.1 is the first published release of the Rust crate, the Python package and
-the WebAssembly package, and is the supported version. Report issues against it
-or against `main`, and include the package version or commit. Earlier `0.1.0-rc`
+Support targets the 0.1.1 release line of the Rust crate, Python package and
+WebAssembly package. Before publication, report issues against `main` or the
+current release candidate and include the commit. For a published package,
+include its installed version. Earlier `0.1.0-rc`
 prereleases and the npm `0.1.0` bootstrap are historical and not supported.
 
 During 0.x, fixes land in a new minor or patch release rather than being
