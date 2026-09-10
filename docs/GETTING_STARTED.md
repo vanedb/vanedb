@@ -124,11 +124,11 @@ Install VaneDB, if you have not already. From a checkout of this repository:
 python -m pip install ./vanedb-py     # needs a Rust toolchain to build
 ```
 
-Or, from PyPI — the version is pinned because pip skips prereleases unless
-asked:
+Or, from PyPI — `--pre` is needed because VaneDB is still a prerelease and pip
+skips those unless asked. Drop it once 0.1.0 is out:
 
 ```sh
-python -m pip install vanedb==0.1.0rc1
+python -m pip install --pre vanedb
 ```
 
 Save this as `search.py`, with your `embed()` from step 2 pasted where marked,
@@ -237,7 +237,7 @@ language.
 Run in order; each step has an observable result.
 
 1. Install VaneDB (`python -m pip install ./vanedb-py` from a checkout, or
-   `python -m pip install vanedb==0.1.0rc1`) → `import vanedb` succeeds.
+   `python -m pip install --pre vanedb`) → `import vanedb` succeeds.
 2. Provider reachable:
    - Ollama: `ollama pull nomic-embed-text`, then the `curl` in step 2 returns
      JSON containing `embeddings`.
