@@ -1,7 +1,7 @@
 use js_sys::BigInt;
 use wasm_bindgen::prelude::*;
 
-use vanedb::approx::ApproxIndex;
+use vanedb::approx::{ApproxIndex, SearchParams};
 use vanedb::distance::Metric;
 use vanedb::flat::{FlatIndex, SearchResult};
 
@@ -212,6 +212,17 @@ impl WasmIndex {
         self.inner.remove(one_id(id)?).map_err(to_jserr)
     }
 
+    /// Replaces the vector stored under `id`, inserting it if absent.
+    ///
+    /// One locked operation rather than `remove` then `add`. Those two can
+    /// fail between the halves and leave the id deleted, and any reader
+    /// running against the same memory sees a window where it is missing;
+    /// this has neither. A replaced slot is tombstoned like any other
+    /// removal, so `tombstones` counts it and `compact` reclaims it.
+    pub fn upsert(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
+        self.inner.upsert(one_id(id)?, vector).map_err(to_jserr)
+    }
+
     /// How many removed slots the graph still carries.
     ///
     /// A browser is the most memory-constrained runtime this crate targets, and
@@ -276,8 +287,26 @@ impl WasmIndex {
     /// parallel by index. Ids are never narrowed to `f32`: values at or above
     /// 2^24 are not exactly representable, so distinct records collided and
     /// callers could act on the wrong record (#39).
-    pub fn search(&self, query: &[f32], k: f64) -> Result<WasmSearchResults, JsError> {
-        let results = self.inner.search(query, count(k, "k")?).map_err(to_jserr)?;
+    /// `ef_search` widens the beam for this query alone and leaves the index's
+    /// own setting untouched. The property is shared state, so raising it to
+    /// rescue one hard query silently pays for it on every later one; this is
+    /// the way to spend that cost once. Below `k` it is raised to `k`, since
+    /// fewer candidates than results is meaningless.
+    pub fn search(
+        &self,
+        query: &[f32],
+        k: f64,
+        ef_search: Option<f64>,
+    ) -> Result<WasmSearchResults, JsError> {
+        let k = count(k, "k")?;
+        let results = match ef_search {
+            Some(ef) => {
+                let params = SearchParams::new().ef_search(count(ef, "ef_search")?);
+                self.inner.search_with(query, k, &params)
+            }
+            None => self.inner.search(query, k),
+        }
+        .map_err(to_jserr)?;
         Ok(WasmSearchResults::from(results))
     }
 

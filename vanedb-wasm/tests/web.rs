@@ -48,7 +48,7 @@ fn test_hnsw_search() {
     idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
 
-    let hits = idx.search(&[0.0, 0.0, 0.0], 1.0).unwrap();
+    let hits = idx.search(&[0.0, 0.0, 0.0], 1.0, None).unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
 
@@ -90,7 +90,7 @@ fn test_hnsw_add_batch() {
     let flat = [0.0f32, 0.0, 1.0, 1.0];
     index.add_batch(&ids, &flat).unwrap();
     assert_eq!(index.size(), 2);
-    let results = index.search(&[0.1, 0.1], 1.0).unwrap();
+    let results = index.search(&[0.1, 0.1], 1.0, None).unwrap();
     assert_eq!(results.ids()[0], 10);
 }
 
@@ -117,7 +117,7 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
     for (i, id) in PRECISION_IDS.iter().enumerate() {
         index.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
-    let mut got = index.search(&[0.0, 0.0], 4.0).unwrap().ids();
+    let mut got = index.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
     got.sort_unstable();
     let mut want = PRECISION_IDS.to_vec();
     want.sort_unstable();
@@ -265,4 +265,66 @@ fn a_non_string_metric_is_rejected_not_trapped() {
     }
     // A string that is not a metric stays a metric error, not a type error.
     assert!(WasmStore::new(2.0, &JsValue::from_str("nope")).is_err());
+}
+
+/// `upsert` is one locked operation where `remove` then `add` is two.
+///
+/// wasm shipped without it while Rust, Python and the C ABI had it, and the
+/// README stated the omission without a reason. There is none: persistence is
+/// absent because a browser has no filesystem, but this is pure in-memory
+/// state, and `add` and `remove` were already exposed.
+#[wasm_bindgen_test]
+fn upsert_replaces_in_place_and_inserts_when_absent() {
+    let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
+    index.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
+
+    index.upsert(1u64.into(), &[5.0, 5.0, 5.0]).unwrap();
+    assert_eq!(index.size(), 1, "replacing must not grow the index");
+    assert_eq!(index.get(1u64.into()).unwrap(), vec![5.0, 5.0, 5.0]);
+    assert_eq!(index.tombstones(), 1, "the replaced slot is tombstoned");
+
+    index.upsert(2u64.into(), &[1.0, 1.0, 1.0]).unwrap();
+    assert_eq!(index.size(), 2, "an absent id is inserted, not refused");
+
+    // The property that makes this worth having over remove-then-add: a
+    // rejected upsert leaves the entry alone, where the two-call form can
+    // fail after the removal and lose it.
+    assert!(index.upsert(1u64.into(), &[1.0, 1.0]).is_err());
+    assert!(
+        index.contains(1u64.into()).unwrap(),
+        "a failed upsert must not delete"
+    );
+    assert_eq!(index.get(1u64.into()).unwrap(), vec![5.0, 5.0, 5.0]);
+}
+
+/// A beam width for one query, leaving the index's own setting alone.
+///
+/// `ef_search` is a property, so the only way to widen a single hard query was
+/// to raise it, search, and lower it again -- three calls, and every search in
+/// between pays. Rust, Python and the C ABI all take it per call.
+#[wasm_bindgen_test]
+fn per_query_ef_search_leaves_the_shared_setting_alone() {
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 200.0, 4.0, 8.0, Some(7.0)).unwrap();
+    for i in 0..60u64 {
+        let x = i as f32;
+        index.add(i.into(), &[x, x]).unwrap();
+    }
+    index.set_ef_search(1.0).unwrap();
+
+    let widened = index.search(&[0.0, 0.0], 5.0, Some(64.0)).unwrap();
+    assert_eq!(
+        widened.ids(),
+        vec![0, 1, 2, 3, 4],
+        "a beam wider than the corpus must return the exact answer"
+    );
+    assert_eq!(
+        index.ef_search(),
+        1,
+        "a per-query width must not write to the shared property"
+    );
+
+    // Omitting it falls back to that property, and it is validated like `k`.
+    assert_eq!(index.search(&[0.0, 0.0], 5.0, None).unwrap().length(), 5);
+    assert!(index.search(&[0.0, 0.0], 5.0, Some(-1.0)).is_err());
+    assert!(index.search(&[0.0, 0.0], 5.0, Some(f64::NAN)).is_err());
 }
