@@ -72,7 +72,35 @@ TARGETS = {
 }
 
 
-def problems_in(target, text):
+# Versions a README may pin, per target. A pin is only honest if it names the
+# version being published: a form check alone let `cargo add vanedb@0.1.0-rc.1`
+# ship on the crates.io page for 0.1.0-rc.2, which no registry lets you correct.
+PINS = {
+    "vanedb-crate-v": [r"cargo add vanedb@(\S+)", r'vanedb\s*=\s*"([^"]+)"',
+                       r'version\s*=\s*"([^"]+)"'],
+    "vanedb-v": [r"pip install (?:--upgrade )?vanedb==(\S+)"],
+    "vanedb-wasm-v": [r"npm (?:install|i) @vanedb/wasm@(\S+)"],
+}
+
+
+def pep440(version):
+    """`0.1.0-rc.2` as pip spells it: `0.1.0rc2`."""
+    return version.replace("-rc.", "rc").replace("-alpha.", "a").replace("-beta.", "b")
+
+
+def wrong_pins(prefix, text, version):
+    """Pins in `text` naming something other than `version`."""
+    accepted = {version, pep440(version)}
+    wrong = []
+    for pattern in PINS.get(prefix, []):
+        for match in re.finditer(pattern, text):
+            pinned = match.group(1).strip("`'\".,;:)]}")
+            if pinned not in accepted:
+                wrong.append((" ".join(match.group(0).split()), pinned))
+    return wrong
+
+
+def problems_in(target, text, prefix=None, version=None):
     """Why `text` is not ready to ship for `target`; empty means ready.
 
     Split out so the tests can drive it with fixtures instead of the real
@@ -90,6 +118,11 @@ def problems_in(target, text):
         if match:
             problems.append(f"still says the package is unpublished: {match.group(0)!r}")
 
+    if prefix and version:
+        for line, pinned in wrong_pins(prefix, text, version):
+            problems.append(
+                f"pins {pinned!r} but this tag publishes {version!r}: {line!r}")
+
     return problems
 
 
@@ -99,7 +132,9 @@ def check(tag):
         print(f"{tag}: no packaged README is tied to this tag; nothing to check")
         return 0
 
-    problems = problems_in(target, (ROOT / target["readme"]).read_text(encoding="utf-8"))
+    prefix = next(p for p in TARGETS if tag.startswith(p))
+    problems = problems_in(target, (ROOT / target["readme"]).read_text(encoding="utf-8"),
+                           prefix, tag[len(prefix):])
     if problems:
         print(f"{target['readme']} is not ready to ship to {target['registry']}:")
         for problem in problems:
