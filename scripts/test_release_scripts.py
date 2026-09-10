@@ -90,6 +90,9 @@ PIN_CASES = [
      "0.1.0-rc.2", False, "a bare range does not resolve to a prerelease, so it is wrong then"),
     ("vanedb-crate-v", 'vanedb = "0.2"', "0.1.0", False,
      "a range the published version does not satisfy"),
+    ("vanedb-crate-v", 'vanedb = "0.1"', "0.10.0", False,
+     "0.1 must not match 0.10.0 -- the minor boundary, which two surviving "
+     "mutants of satisfied_by both crossed"),
 ]
 
 

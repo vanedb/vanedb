@@ -125,7 +125,10 @@ pub struct WasmStore {
 #[wasm_bindgen(js_class = FlatIndex)]
 impl WasmStore {
     #[wasm_bindgen(constructor)]
-    pub fn new(dim: f64, metric: &JsValue) -> Result<WasmStore, JsError> {
+    pub fn new(
+        dim: f64,
+        #[wasm_bindgen(unchecked_param_type = "string")] metric: &JsValue,
+    ) -> Result<WasmStore, JsError> {
         let m = metric_from_value(metric)?;
         let inner = FlatIndex::new(count(dim, "dimension")?, m).map_err(to_jserr)?;
         Ok(Self { inner })
@@ -232,7 +235,7 @@ impl WasmIndex {
     #[wasm_bindgen(constructor)]
     pub fn new(
         dim: f64,
-        metric: &JsValue,
+        #[wasm_bindgen(unchecked_param_type = "string")] metric: &JsValue,
         capacity: f64,
         m: f64,
         ef_construction: f64,

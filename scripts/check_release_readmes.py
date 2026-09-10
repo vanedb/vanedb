@@ -89,7 +89,12 @@ def pep440(version):
 
 
 def satisfied_by(pinned, version):
-    """Does `version` satisfy the requirement `pinned` names?
+    """Does `pinned` name this release, or a range prefix of it?
+
+    Not full semver: Cargo reads `vanedb = "0.1.0"` as a caret range that 0.1.5
+    also satisfies, and this rejects that. It errs toward refusing a tag, which
+    costs a re-tag, rather than passing a README that names another release,
+    which is permanent.
 
     Exact spellings first, then the caret-range forms a README legitimately
     uses: `vanedb = "0.1"` is a requirement that 0.1.0 satisfies, not a pin

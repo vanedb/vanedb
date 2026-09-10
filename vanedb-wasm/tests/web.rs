@@ -242,3 +242,27 @@ fn remove_does_not_require_an_exclusive_borrow() {
     shared.remove(1u64.into()).unwrap();
     assert_eq!(shared.size(), 0);
 }
+
+/// A non-string `metric` used to trap inside wasm-bindgen's string marshalling
+/// with `RuntimeError: memory access out of bounds`, an opaque VM fault where
+/// every other bad constructor argument throws a descriptive error. Nothing
+/// covered it: the suite passed on the trapping build, because every test
+/// passes a string. Reverting the check would leave it green.
+#[wasm_bindgen_test]
+fn a_non_string_metric_is_rejected_not_trapped() {
+    for value in [
+        JsValue::from_f64(5.0),
+        JsValue::from_bool(true),
+        JsValue::NULL,
+        JsValue::UNDEFINED,
+        JsValue::from(js_sys::Array::new()),
+        JsValue::from(js_sys::Object::new()),
+    ] {
+        let store = WasmStore::new(2.0, &value);
+        assert!(store.is_err(), "{value:?} was accepted as a metric");
+        let index = WasmIndex::new(2.0, &value, 16.0, 4.0, 40.0, None);
+        assert!(index.is_err(), "{value:?} was accepted as a metric");
+    }
+    // A string that is not a metric stays a metric error, not a type error.
+    assert!(WasmStore::new(2.0, &JsValue::from_str("nope")).is_err());
+}

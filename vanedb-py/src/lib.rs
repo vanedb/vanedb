@@ -201,6 +201,10 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 /// which are imported in this file. It is an implementation detail: the names
 /// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
 /// import-line change.
+// `module` is what makes `__module__` and the class and instance reprs say
+// `vanedb` rather than `builtins`. It does not make these types picklable:
+// PyO3 gives them no `__reduce__`, so `pickle.dumps(Metric.L2)` still raises
+// `TypeError`, with the type named correctly now instead of as a builtin.
 #[pyclass(module = "vanedb", name = "Metric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 enum PyMetric {
