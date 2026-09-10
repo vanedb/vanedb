@@ -128,8 +128,8 @@ if file size matters.
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
-`upsert`, `tombstones` and `compact` on `ApproxIndex`; it does not expose
-persistence, which would need a filesystem. Approximate search accepts a
+`upsert`, `tombstones` and `compact` on `ApproxIndex`; persistence is not exposed.
+Approximate search accepts a
 per-query beam override as `search(query, k, ef_search)`, leaving the
 `ef_search` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
