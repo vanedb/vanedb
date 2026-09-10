@@ -118,17 +118,17 @@ billed per token.
 
 ## 3. Search something
 
-Install VaneDB, if you have not already. From a checkout of this repository:
+Install VaneDB, if you have not already:
 
 ```sh
-python -m pip install ./vanedb-py     # needs a Rust toolchain to build
+python -m pip install vanedb
 ```
 
-Or, from PyPI — `--pre` is needed because VaneDB is still a prerelease and pip
-skips those unless asked. Drop it once 0.1.0 is out:
+From a checkout of this repository instead, which needs a Rust toolchain to
+build:
 
 ```sh
-python -m pip install --pre vanedb
+python -m pip install ./vanedb-py
 ```
 
 Save this as `search.py`, with your `embed()` from step 2 pasted where marked,
@@ -236,8 +236,8 @@ language.
 
 Run in order; each step has an observable result.
 
-1. Install VaneDB (`python -m pip install ./vanedb-py` from a checkout, or
-   `python -m pip install --pre vanedb`) → `import vanedb` succeeds.
+1. `python -m pip install vanedb` (or `python -m pip install ./vanedb-py` from a
+   checkout) → `import vanedb` succeeds.
 2. Provider reachable:
    - Ollama: `ollama pull nomic-embed-text`, then the `curl` in step 2 returns
      JSON containing `embeddings`.
@@ -254,6 +254,7 @@ Run in order; each step has an observable result.
 
 | Symptom | Cause and fix |
 |---|---|
+| `pip install vanedb` finds no matching distribution | Only a prerelease is published so far. Add `--pre`, or install from a checkout. |
 | `ConnectionRefusedError` on port 11434 | Ollama is not running. Start it: `ollama serve`. |
 | Ollama returns `model ... not found` | `ollama pull nomic-embed-text` first. |
 | `401` from OpenAI | `OPENAI_API_KEY` is unset, mistyped, or has no credit. |
