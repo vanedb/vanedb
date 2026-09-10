@@ -129,6 +129,13 @@ section records what it contains rather than what changed.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
+- WebAssembly gains `upsert` and a per-query beam width, closing the last two
+  gaps against the other bindings. `upsert` is one operation where `remove`
+  then `add` is two, and those two can fail between the halves and leave the id
+  deleted. The beam width applies to a single `search` and leaves
+  `ef_search` alone, so rescuing one hard query no longer charges every later
+  one. `is_empty` is deliberately not ported: `len(index)` and `index.size`
+  are what those languages already say.
 - Python `Metric` pickles, so a worker pool can be handed one. The index types
   still refuse, at `dumps` rather than at `loads`: an index belongs in a
   `.vndb` file, and bytes no unpickler will accept are worse than an error.
