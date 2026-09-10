@@ -1,5 +1,7 @@
 import vanedb
+import copy
 import os
+import pickle
 import sys
 import tempfile
 
@@ -380,3 +382,92 @@ def test_a_missing_pathlib_path_still_raises_filenotfounderror(tmp_path):
         vanedb.ApproxIndex.load(tmp_path / "absent.vndb")
     with pytest.raises(FileNotFoundError):
         vanedb.DiskIndex.open(tmp_path / "absent.vndb")
+
+
+def test_classes_report_their_module():
+    """`#[pyclass(module = "vanedb")]` on every exported type.
+
+    Without it PyO3 reports `builtins`, so `repr()` reads
+    `<builtins.FlatIndex object ...>` and every error message names a builtin.
+    Removing the attribute left the whole suite green, which is why this exists.
+
+    Naming the module is also what lets `Metric` pickle, since pickle resolves a
+    class by importing the module it claims: necessary, but not sufficient
+    without the `__reduce__` the tests below cover. This one asserts the naming.
+    """
+    for cls in (
+        vanedb.Metric,
+        vanedb.FlatIndex,
+        vanedb.ApproxIndex,
+        vanedb.DiskIndex,
+        vanedb.DiskIndexBuilder,
+    ):
+        assert cls.__module__ == "vanedb", f"{cls.__name__} says {cls.__module__}"
+        assert "vanedb." in repr(cls), repr(cls)
+
+    index = vanedb.FlatIndex(2, vanedb.Metric.L2)
+    assert repr(index).startswith("<vanedb.FlatIndex"), repr(index)
+
+
+def test_metric_survives_a_pickle_round_trip():
+    """`Metric` must cross a process boundary; the index types must not pretend to.
+
+    A worker pool pickles its arguments, so a metric that cannot be pickled
+    fails at the boundary rather than in the code that chose it. Protocols 0
+    and 1 pickle a class by name, which is what naming the module fixed -- and
+    fixing it moved the failure rather than removing it: `dumps` began
+    succeeding, emitting a blob that recorded no variant at all, and only
+    `loads` failed. That is the worse of the two failures, because by then the
+    bytes have been written somewhere.
+    """
+    # Enumerated, not listed: a fourth variant would arrive with a hand-written
+    # name in `__reduce__`, and a hardcoded tuple here would not pickle it.
+    metrics = [
+        getattr(vanedb.Metric, name)
+        for name in dir(vanedb.Metric)
+        if not name.startswith("_")
+    ]
+    assert len(metrics) == 3, f"expected three metrics, found {metrics}"
+    for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+        for metric in metrics:
+            restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
+            # The variants are singletons, so identity is the real contract:
+            # equality alone would pass for a blob that lost the variant and
+            # rebuilt L2, which is exactly the bug that shipped the empty blob.
+            assert restored is metric, f"protocol {protocol} lost {metric!r}"
+    for metric in metrics:
+        assert copy.deepcopy(metric) is metric
+        assert copy.copy(metric) is metric
+
+
+def test_indexes_refuse_to_pickle_at_dump_time():
+    """An index holds vectors that belong in a `.vndb` file, not in a pickle.
+
+    This was already true before `Metric` gained `__reduce__`, so it closes no
+    gap -- it is a tripwire, and `Metric` is why one is worth having. Naming
+    that type's module made protocols 0 and 1 start *succeeding*, handing back
+    bytes no `loads` would accept. Anything that later gives these types a
+    reduce path, or state PyO3 can pickle for them, has to be deliberate.
+    """
+    index = vanedb.FlatIndex(2, vanedb.Metric.L2)
+    approx = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    for obj in (index, approx):
+        for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+            with pytest.raises(TypeError):
+                pickle.dumps(obj, protocol=protocol)
+
+
+def test_metric_works_as_a_dict_key():
+    """`#[pyclass(eq)]` sets `__hash__ = None`, which bars the obvious uses.
+
+    A metric is the natural key for a dict of per-metric indexes or a cache,
+    and `functools.lru_cache` on any function taking one needs it too. The hash
+    has to agree with `eq_int`: `Metric.L2 == 0` is true, so the two must hash
+    alike or a dict holding both contradicts `==`.
+    """
+    metrics = (vanedb.Metric.L2, vanedb.Metric.COSINE, vanedb.Metric.DOT)
+    assert len(set(metrics)) == 3
+    assert {vanedb.Metric.COSINE: "cos"}[vanedb.Metric.COSINE] == "cos"
+    for value, metric in enumerate(metrics):
+        assert hash(metric) == hash(value), f"{metric!r} must hash as {value}"
+

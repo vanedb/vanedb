@@ -1,4 +1,5 @@
 use vanedb_wasm::*;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
 #[wasm_bindgen_test]
@@ -10,7 +11,7 @@ fn test_version() {
 
 #[wasm_bindgen_test]
 fn test_vector_store_basic() {
-    let store = WasmStore::new(3.0, "l2").unwrap();
+    let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
     store.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
     store.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(store.size(), 2);
@@ -21,7 +22,7 @@ fn test_vector_store_basic() {
 
 #[wasm_bindgen_test]
 fn test_vector_store_search() {
-    let store = WasmStore::new(2.0, "l2").unwrap();
+    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
     store.add(1u64.into(), &[0.0, 0.0]).unwrap();
     store.add(2u64.into(), &[1.0, 0.0]).unwrap();
     store.add(3u64.into(), &[10.0, 10.0]).unwrap();
@@ -34,7 +35,7 @@ fn test_vector_store_search() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_basic() {
-    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
+    let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
     idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(idx.size(), 2);
@@ -43,7 +44,7 @@ fn test_hnsw_basic() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_search() {
-    let idx = WasmIndex::new(3.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
+    let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
     idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
 
@@ -53,7 +54,7 @@ fn test_hnsw_search() {
 
 #[wasm_bindgen_test]
 fn test_cosine_metric() {
-    let store = WasmStore::new(2.0, "cosine").unwrap();
+    let store = WasmStore::new(2.0, &JsValue::from_str("cosine")).unwrap();
     store.add(1u64.into(), &[1.0, 0.0]).unwrap();
     store.add(2u64.into(), &[0.0, 1.0]).unwrap();
     let hits = store.search(&[0.9, 0.1], 1.0).unwrap();
@@ -62,13 +63,13 @@ fn test_cosine_metric() {
 
 #[wasm_bindgen_test]
 fn test_invalid_metric() {
-    let result = WasmStore::new(3.0, "invalid");
+    let result = WasmStore::new(3.0, &JsValue::from_str("invalid"));
     assert!(result.is_err());
 }
 
 #[wasm_bindgen_test]
 fn test_store_add_batch() {
-    let store = WasmStore::new(2.0, "l2").unwrap();
+    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
     let ids = [1u64, 2, 3];
     let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
     store.add_batch(&ids, &flat).unwrap();
@@ -84,7 +85,7 @@ fn test_store_add_batch() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_add_batch() {
-    let index = WasmIndex::new(2.0, "l2", 100.0, 16.0, 200.0, None).unwrap();
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
     let ids = [10u64, 20];
     let flat = [0.0f32, 0.0, 1.0, 1.0];
     index.add_batch(&ids, &flat).unwrap();
@@ -99,7 +100,7 @@ const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
 
 #[wasm_bindgen_test]
 fn store_search_round_trips_ids_beyond_f32_precision() {
-    let store = WasmStore::new(2.0, "l2").unwrap();
+    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
         store.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
@@ -112,7 +113,7 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
 
 #[wasm_bindgen_test]
 fn hnsw_search_round_trips_ids_beyond_f32_precision() {
-    let index = WasmIndex::new(2.0, "l2", 16.0, 16.0, 100.0, None).unwrap();
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 16.0, 100.0, None).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
         index.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
@@ -126,13 +127,13 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
 #[wasm_bindgen_test]
 fn test_non_finite_vectors_and_queries_are_rejected() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-        let store = WasmStore::new(2.0, "l2").unwrap();
+        let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
         assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(store.size(), 0);
         store.add(2u64.into(), &[0.0, 0.0]).unwrap();
         assert!(store.search(&[value, 0.0], 1.0).is_err());
 
-        let index = WasmIndex::new(2.0, "l2", 4.0, 2.0, 10.0, None).unwrap();
+        let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 4.0, 2.0, 10.0, None).unwrap();
         assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(index.size(), 0);
     }
@@ -144,18 +145,18 @@ fn every_metric_round_trips_and_is_reportable() {
     // was built with. The reported spelling is the one the constructor takes,
     // so it can be fed straight back.
     for name in ["l2", "cosine", "dot"] {
-        let store = WasmStore::new(2.0, name).unwrap();
+        let store = WasmStore::new(2.0, &JsValue::from_str(name)).unwrap();
         assert_eq!(store.metric(), name);
-        let index = WasmIndex::new(2.0, name, 16.0, 4.0, 40.0, None).unwrap();
+        let index = WasmIndex::new(2.0, &JsValue::from_str(name), 16.0, 4.0, 40.0, None).unwrap();
         assert_eq!(index.metric(), name);
         // Round-trips through the constructor it names.
-        assert!(WasmStore::new(2.0, &store.metric()).is_ok());
+        assert!(WasmStore::new(2.0, &JsValue::from_str(&store.metric())).is_ok());
     }
 }
 
 #[wasm_bindgen_test]
 fn dot_ranks_by_largest_inner_product() {
-    let store = WasmStore::new(2.0, "dot").unwrap();
+    let store = WasmStore::new(2.0, &JsValue::from_str("dot")).unwrap();
     store.add(1u64.into(), &[1.0, 0.0]).unwrap();
     store.add(2u64.into(), &[4.0, 0.0]).unwrap();
     store.add(3u64.into(), &[0.0, 1.0]).unwrap();
@@ -171,7 +172,7 @@ fn dot_ranks_by_largest_inner_product() {
 /// with no API to measure or reclaim it.
 #[wasm_bindgen_test]
 fn a_deleted_entry_can_be_measured_and_reclaimed() {
-    let index = WasmIndex::new(1.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     for id in 0..8u64 {
         index.add(id.into(), &[id as f32]).unwrap();
     }
@@ -196,7 +197,7 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
 /// wasm supports "lookup methods".
 #[wasm_bindgen_test]
 fn a_stored_vector_can_be_read_back() {
-    let index = WasmIndex::new(3.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     index.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
     assert_eq!(index.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
     assert_eq!(index.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
@@ -208,7 +209,7 @@ fn a_stored_vector_can_be_read_back() {
 /// index broke on the one swap the pair exists to make painless.
 #[wasm_bindgen_test]
 fn both_read_spellings_exist_on_the_exact_index_too() {
-    let store = WasmStore::new(3.0, "l2").unwrap();
+    let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
     store.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
     assert_eq!(store.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
     assert_eq!(store.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
@@ -219,10 +220,11 @@ fn both_read_spellings_exist_on_the_exact_index_too() {
 /// impossible from JS. Omitting it must keep the previous default.
 #[wasm_bindgen_test]
 fn the_construction_seed_is_settable_and_defaults_as_before() {
-    let defaulted = WasmIndex::new(2.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    let defaulted = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     assert_eq!(defaulted.seed(), 42);
 
-    let seeded = WasmIndex::new(2.0, "l2", 16.0, 4.0, 16.0, Some(1234.0)).unwrap();
+    let seeded =
+        WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, Some(1234.0)).unwrap();
     assert_eq!(seeded.seed(), 1234);
     assert_eq!(seeded.m(), 4);
     assert_eq!(seeded.ef_construction(), 16);
@@ -234,9 +236,33 @@ fn the_construction_seed_is_settable_and_defaults_as_before() {
 /// "recursive use of an object detected" instead of a deletion.
 #[wasm_bindgen_test]
 fn remove_does_not_require_an_exclusive_borrow() {
-    let index = WasmIndex::new(1.0, "l2", 16.0, 4.0, 16.0, None).unwrap();
+    let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     index.add(1u64.into(), &[1.0]).unwrap();
     let shared = &index;
     shared.remove(1u64.into()).unwrap();
     assert_eq!(shared.size(), 0);
+}
+
+/// A non-string `metric` used to trap inside wasm-bindgen's string marshalling
+/// with `RuntimeError: memory access out of bounds`, an opaque VM fault where
+/// every other bad constructor argument throws a descriptive error. Nothing
+/// covered it: the suite passed on the trapping build, because every test
+/// passes a string. Reverting the check would leave it green.
+#[wasm_bindgen_test]
+fn a_non_string_metric_is_rejected_not_trapped() {
+    for value in [
+        JsValue::from_f64(5.0),
+        JsValue::from_bool(true),
+        JsValue::NULL,
+        JsValue::UNDEFINED,
+        JsValue::from(js_sys::Array::new()),
+        JsValue::from(js_sys::Object::new()),
+    ] {
+        let store = WasmStore::new(2.0, &value);
+        assert!(store.is_err(), "{value:?} was accepted as a metric");
+        let index = WasmIndex::new(2.0, &value, 16.0, 4.0, 40.0, None);
+        assert!(index.is_err(), "{value:?} was accepted as a metric");
+    }
+    // A string that is not a metric stays a metric error, not a type error.
+    assert!(WasmStore::new(2.0, &JsValue::from_str("nope")).is_err());
 }

@@ -56,6 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Combined dim*num_vectors overflow test
 
 ### Fixed
+- **Pickling a `Metric` aborted the interpreter.** pybind11 gives an enum
+  `__getstate__`, which serves protocol 2 and up; protocols 0 and 1
+  reconstruct through `copyreg._reconstructor`, which calls `object.__new__`
+  on a pybind11 type. That throws a C++ exception with no Python translation,
+  so the process died on SIGABRT instead of raising. `Metric` now reduces by
+  name, giving every protocol one path. The test runs out-of-process, because
+  an in-process one would have taken the whole session down with it — which is
+  why nothing caught this.
 - A persisted negative level multiplier made the next insertion fail. The
   loader now retains the multiplier derived from `M`, matching Rust, and a
   regression covers negative, infinite and NaN stored values. Recorded here
@@ -75,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - Unreleased
 
-This version tracks the core crate, which has not been released. RELEASING.md
+This version tracks the core crate. RELEASING.md
 requires the C++ manifest, header and CMake version to match the core, so
 this section carries the core's release state too.
 

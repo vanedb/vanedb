@@ -5,21 +5,18 @@ Embeddable vector database for edge AI.
 Bring your own embeddings: VaneDB stores and searches vectors; it does not
 generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
 storage and no filtered search — so keep your own id-to-document mapping
-alongside it. This checkout is pre-release.
+alongside it.
 
 ## Quick start
 
 ### Rust
 
-With a Rust toolchain installed, run the example from this repository's root:
-
 ```sh
-cargo run -p vanedb --example quickstart --locked
+cargo add vanedb                     # add --features disk for disk indexes
 ```
 
-For a local application, add `vanedb = { path = "/path/to/vanedb/vanedb" }`
-to its Cargo dependencies. Add `features = ["disk"]` when using disk indexes.
-The complete example is:
+To run this example from a checkout instead:
+`cargo run -p vanedb --example quickstart --locked`.
 
 ```rust
 use vanedb::{ApproxIndex, Metric};
@@ -38,14 +35,10 @@ fn main() -> Result<(), vanedb::VaneError> {
 
 ### Python
 
-Requires Python 3.11 or newer and a Rust toolchain to build from source.
-From the repository root, create and activate a virtual environment, then install:
+Requires Python 3.11 or newer.
 
 ```sh
-python -m venv .venv
-# macOS/Linux: source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install ./vanedb-py
+python -m pip install vanedb
 ```
 
 ```python
@@ -59,7 +52,6 @@ print(hits)
 ```
 
 See the [Python guide](vanedb-py/README.md) for exact search and saving an index.
-These instructions use the checkout; they do not assume a published 0.1.0 package.
 
 Vector arguments accept any buffer-protocol object (numpy `float32` arrays,
 `array.array`, memoryviews) as well as plain Python lists. `add_batch` is

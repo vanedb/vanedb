@@ -18,14 +18,11 @@ Complete documentation for VaneDB - the embeddable vector database for edge AI.
 
 ## Performance
 
-| Metric | Value | Platform |
-|--------|-------|----------|
-| L2 Distance (768d) | ~100ns | Apple Silicon |
-| Dot Product (768d) | ~95ns | Apple Silicon |
-| Cosine Distance (768d) | ~115ns | Apple Silicon |
-| SIMD Speedup | 3.8x vs scalar | ARM NEON |
-| GPU Speedup | 3.9x at 500K vectors | Metal |
-| Throughput | 10M+ ops/sec | M-series Mac |
+Numbers live in [`bench/README.md`](../../bench/README.md), which dates its
+snapshot and names the machine. A table here previously quoted ~100 ns for L2
+at 768 dimensions where that snapshot measures 37.3 ns, and carried GPU and
+throughput figures with no run behind them at all. This repo treats a benchmark
+as meaningful only on dedicated hardware, verified with interleaved A-B-A runs.
 
 ---
 

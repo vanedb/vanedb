@@ -84,6 +84,32 @@ PIN_CASES = [
      "a stale pip pin"),
     ("vanedb-crate-v", "cargo add vanedb", "0.1.0-rc.2", True,
      "an unpinned line has nothing to check"),
+    ("vanedb-crate-v", 'vanedb = { version = "0.1", features = ["gpu-metal"] }',
+     "0.1.0", True, "a caret range the published version satisfies is not a stale pin"),
+    ("vanedb-crate-v", 'vanedb = { version = "0.1", features = ["gpu-metal"] }',
+     "0.1.0-rc.2", False, "a bare range does not resolve to a prerelease, so it is wrong then"),
+    ("vanedb-crate-v", 'vanedb = "0.2"', "0.1.0", False,
+     "a range the published version does not satisfy"),
+    ("vanedb-crate-v", 'vanedb = "0.1"', "0.10.0", False,
+     "0.1 must not match 0.10.0 -- the minor boundary, which two surviving "
+     "mutants of satisfied_by both crossed"),
+    ("vanedb-crate-v", 'vanedb = "1"', "0.1.0", False,
+     "a range must be a PREFIX of the version, not a substring of it: '1.' "
+     "occurs inside '0.1.0', so relaxing startswith to `in` accepts a README "
+     "pinning a 1.x that does not exist"),
+    # Nothing has ever cut an alpha or a beta, so pep440's two other clauses
+    # were dead-but-armed: their first exercise would have been an irreversible
+    # publish, which is the failure this file exists to prevent.
+    ("vanedb-v", "pip install vanedb==0.1.0a1", "0.1.0-alpha.1", True,
+     "pip spells an alpha suffix `a`"),
+    ("vanedb-v", "pip install vanedb==0.1.0b3", "0.1.0-beta.3", True,
+     "pip spells a beta suffix `b`"),
+    ("vanedb-v", "pip install vanedb==0.1.0a1", "0.1.0-beta.1", False,
+     "an alpha pin does not name a beta release -- swapping pep440's two "
+     "letters passed every other case"),
+    ("vanedb-crate-v", "Run `cargo add vanedb@0.1.0-rc.2`.", "0.1.0-rc.2", True,
+     "a pin closing a backtick and a sentence: the trailing punctuation is "
+     "stripped from the capture, or a correct README is refused"),
 ]
 
 

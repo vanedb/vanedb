@@ -99,11 +99,10 @@ the act that put "Nothing is published yet" on the npm page.
 **Bootstrap a prerelease, not the release.** The version you bootstrap is spent
 by hand — no reviewer gate, no OIDC, no provenance — so it should not be the
 version people install. `0.1.0-rc.1` reserves the name, and `0.1.0` then goes
-out through the tagged workflow like every release after it. Prereleases are
-excluded from Cargo's default requirements, so `vanedb = "0.1"` never resolves
-to the bootstrap; the flip side is that during the window when the bootstrap is
-the only published version, `cargo add vanedb` resolves to nothing. Keep that
-window short. Leave the bootstrap version published rather than yanking it: it
+out through the tagged workflow like every release after it. `cargo add vanedb` and
+`pip install vanedb` both resolve to the prerelease during the window, so the
+install commands in the guides keep working; a hand-written `vanedb = "0.1"`
+does not, which is why no README carries one. Leave the bootstrap version published rather than yanking it: it
 is the provenance record of how the name was claimed, and yanking it would
 imply it was defective.
 
@@ -115,10 +114,10 @@ other two registries.
 ## Publish the approved release
 
 Publication requires explicit maintainer authorization after verification.
-Merge the approved candidate through the protected-main PR process. Both tag
-workflows reject release commits that are not on main.
+Merge the approved candidate through the protected-main PR process. All three
+tag workflows reject release commits that are not on main.
 
-The two registries can be published in either order. `vanedb-py` depends on the
+The three registries can be published in any order. `vanedb-py` depends on the
 core by path (`vanedb = { path = "../vanedb" }`) and maturin vendors that source
 into the sdist — `vanedb-<version>/vanedb/src/lib.rs` is inside the tarball — so
 installing from source never resolves `vanedb` from crates.io. Verify with
@@ -178,8 +177,10 @@ through protected main.
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
 the downloadable C and WebAssembly assets match the approved checksums. Only
-then add the verified registry commands and release links to the **git-only**
-user guides: the root `README.md`, `cpp/`, and the organisation profile. That
+then add the release links and verified checksums to the **git-only** user
+guides: the root `README.md`, `cpp/`, and the organisation profile. Their
+unpinned install commands do not wait on this step — they resolve to the
+prerelease meanwhile, as above — but anything naming a released version does. That
 step cannot reach `vanedb/README.md` or `vanedb-py/README.md` — those are
 already inside the published artifacts by this point. See step 5.
 

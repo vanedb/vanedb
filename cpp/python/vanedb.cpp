@@ -62,9 +62,24 @@ PYBIND11_MODULE(vanedb_cpp, m) {
         .value("L2", Metric::L2)
         .value("COSINE", Metric::COSINE)
         .value("DOT", Metric::DOT)
+        // Pickle by name, so every protocol takes one path.
+        //
+        // pybind11 gives an enum `__getstate__`, which serves protocol 2 and
+        // up. Protocols 0 and 1 instead reconstruct through
+        // `copyreg._reconstructor`, which calls `object.__new__` on a
+        // pybind11 type; that throws a C++ exception with no Python
+        // translation, so the interpreter aborts on SIGABRT rather than
+        // raising. Nothing caught it because an in-process test would have
+        // taken the whole session down with it.
+        .def("__reduce__", [](const Metric &self) {
+            const char *name = self == Metric::COSINE ? "COSINE"
+                             : self == Metric::DOT    ? "DOT"
+                                                      : "L2";
+            return py::make_tuple(
+                py::module_::import("builtins").attr("getattr"),
+                py::make_tuple(py::cast(self).get_type(), name));
+        })
         ;
-
-    // Deprecated alias for backward compatibility.
 
     // Bind ApproxIndex class
     py::class_<ApproxIndex>(m, "ApproxIndex")
