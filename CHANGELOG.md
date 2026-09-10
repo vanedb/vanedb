@@ -134,8 +134,10 @@ section records what it contains rather than what changed.
   then `add` is two, and those two can fail between the halves and leave the id
   deleted. The beam width applies to a single `search` and leaves
   `ef_search` alone, so rescuing one hard query no longer charges every later
-  one. `is_empty` is deliberately not ported: `len(index)` and `index.size`
-  are what those languages already say.
+  one. `is_empty` is deliberately not ported (#182): Python already says
+  `len(index)` and JavaScript `index.size() === 0`, and it is absent from the C
+  ABI and the C++ engine too, so adding it to two of five surfaces would buy
+  no uniformity.
 - Python `Metric` pickles, so a worker pool can be handed one. The index types
   still refuse, at `dumps` rather than at `loads`: an index belongs in a
   `.vndb` file, and bytes no unpickler will accept are worse than an error.
