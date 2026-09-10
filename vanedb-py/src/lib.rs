@@ -174,9 +174,6 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
     // Fall back element-wise through the same converter the single-id
     // methods use, so a list and a numpy array report identically: negative
     // and out-of-range ids are ValueError, never OverflowError.
-    if let Ok(ids) = obj.extract::<Vec<u64>>() {
-        return Ok(ids);
-    }
     let items = obj.try_iter()?;
     let mut ids = Vec::new();
     for item in items {

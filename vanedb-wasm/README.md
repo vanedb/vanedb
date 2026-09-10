@@ -25,8 +25,26 @@ hits.free();
 index.free();
 ```
 
-`require('@vanedb/wasm')` works too. In a browser, serve your page over HTTP
-and use the same import — `init()` fetches the wasm module.
+`require('@vanedb/wasm')` works too. Browser bundlers can resolve the same
+import using the package's browser export. For a page without a bundler,
+serve the project over HTTP and use the installed module's relative URL:
+
+```html
+<script type="module">
+  import init, { FlatIndex } from './node_modules/@vanedb/wasm/web/index.js';
+  await init();
+  const index = new FlatIndex(3, 'cosine');
+  index.add(101n, new Float32Array([1, 0, 0]));
+  const hits = index.search(new Float32Array([1, 0, 0]), 1);
+  console.log(hits.ids[0]); // 101n
+  hits.free();
+  index.free();
+</script>
+```
+
+Keep the `web/` directory's JavaScript and `.wasm` files together so `init()`
+can fetch the module. Browsers cannot resolve bare npm names without a bundler
+or an import map.
 
 ## Indexes
 
@@ -47,11 +65,13 @@ exist so a program is not tied to one index type. The module also exports
 
 ## Deleting
 
-`remove(id)` tombstones a vector: it stops appearing in results immediately but
+On `ApproxIndex`, `remove(id)` tombstones a vector: it stops appearing in results immediately but
 keeps its graph links, which may be the only route between live
 neighbourhoods. `tombstones()` counts what that has cost and `compact()`
 reclaims it — worth calling once churn accumulates, since a browser is the most
 memory-constrained runtime this package targets.
+`FlatIndex.remove(id)` reclaims the entry immediately and has no tombstones or
+`compact()` method.
 
 Persistence (`save`/`load`), disk mapping and `upsert` are not available in
 WebAssembly.

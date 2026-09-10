@@ -24,8 +24,8 @@ your text ──► embedding model ──► [0.12, -0.44, ...] ──► VaneD
 If you have no opinion: use **Ollama**. It is free, your text never leaves the
 machine, and the same setup serves every project afterwards. Choose
 sentence-transformers instead if you want no server at all and only a `pip
-install`; choose OpenAI if you want the strongest quality with nothing running
-locally and accept sending your text to a third party.
+install`; choose OpenAI if you prefer a hosted API and accept sending your text
+to a third party. Compare retrieval quality on your own documents and queries.
 
 Other providers work the same way — Cohere, Voyage AI, Google Gemini, Mistral,
 Jina, and any model on Hugging Face. All of them take text and return a list of
@@ -36,11 +36,10 @@ script below.
 
 ### Ollama
 
-Install it (macOS/Linux; on Windows download the installer from
-<https://ollama.com/download>):
+Install Ollama using the [installer for your platform](https://ollama.com/download),
+start it, then download the model:
 
 ```sh
-curl -fsSL https://ollama.com/install.sh | sh
 ollama pull nomic-embed-text
 ```
 
@@ -57,20 +56,25 @@ The `embed()` function, using only the standard library:
 import json
 import urllib.request
 
-def embed(texts):
+def embed(texts, *, query=False):
     """texts: list[str] -> list[list[float]]"""
-    body = json.dumps({"model": "nomic-embed-text", "input": texts}).encode()
+    prefix = "search_query: " if query else "search_document: "
+    body = json.dumps({
+        "model": "nomic-embed-text", "input": [prefix + text for text in texts],
+        "truncate": False,
+    }).encode()
     request = urllib.request.Request(
         "http://localhost:11434/api/embed",
         body,
         {"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request) as response:
+    with urllib.request.urlopen(request, timeout=120) as response:
         return json.load(response)["embeddings"]
 ```
 
-Larger, slower alternative on the same setup: `ollama pull mxbai-embed-large`
-(1024 dimensions).
+Nomic requires different [document and query prefixes](https://huggingface.co/nomic-ai/nomic-embed-text-v1).
+The function adds them for you. Split long documents into chunks that fit the
+model's input limit; `truncate=False` makes oversized inputs fail visibly.
 
 ### sentence-transformers
 
@@ -86,7 +90,7 @@ from sentence_transformers import SentenceTransformer
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
-def embed(texts):
+def embed(texts, *, query=False):
     """texts: list[str] -> list[list[float]]"""
     return model.encode(texts).tolist()
 ```
@@ -105,7 +109,7 @@ from openai import OpenAI
 
 client = OpenAI()  # reads OPENAI_API_KEY from the environment
 
-def embed(texts):
+def embed(texts, *, query=False):
     """texts: list[str] -> list[list[float]]"""
     response = client.embeddings.create(
         model="text-embedding-3-small", input=texts
@@ -115,6 +119,9 @@ def embed(texts):
 
 Never paste the key into a file you commit. Your text is sent to OpenAI and
 billed per token.
+See the [embedding API reference](https://developers.openai.com/api/reference/python/resources/embeddings/methods/create)
+for input limits. The optional `query` argument keeps these examples interchangeable;
+this model and MiniLM use the same encoding call for documents and queries.
 
 ## 3. Search something
 
@@ -158,15 +165,14 @@ index = FlatIndex(len(vectors[0]), Metric.COSINE)
 index.add_batch(range(len(documents)), vectors)
 
 query = "how do I search text without running a server?"
-[query_vector] = embed([query])
+[query_vector] = embed([query], query=True)
 
 print(f"query: {query}\n")
 for doc_id, distance in index.search(query_vector, 3):
     print(f"{distance:.3f}  {documents[doc_id]}")
 ```
 
-Expected shape of the output — smaller distance means closer, and the first two
-lines should be the two VaneDB sentences, not the cat:
+Illustrative output — smaller distance means closer:
 
 ```
 query: how do I search text without running a server?
@@ -176,7 +182,8 @@ query: how do I search text without running a server?
 0.703  Embeddings turn text into lists of numbers.
 ```
 
-The exact numbers depend on the model. The order is what matters.
+Distances and order depend on the model. Inspect whether the retrieved sentences
+answer the query; this small example is a connectivity check, not a quality benchmark.
 
 ## 4. Five rules that prevent most problems
 
@@ -185,8 +192,8 @@ The exact numbers depend on the model. The order is what matters.
    fail.
 2. **Dimension must match the model.** `FlatIndex(768, ...)` fed 1536 numbers
    raises an error. Take the dimension from `len(vectors[0])`.
-3. **Use `Metric.COSINE` for text embeddings.** It is what text models are
-   trained for. `L2` and `DOT` exist for other data.
+3. **Use the metric recommended by your model.** Cosine is suitable for the
+   examples here. Other embedding models may call for dot product or L2.
 4. **VaneDB stores only `(id, vector)`.** No text, no metadata, no filters. Keep
    your own id-to-document mapping — a dict, a JSON file, a SQLite table — and
    save it alongside the index.
@@ -196,9 +203,9 @@ The exact numbers depend on the model. The order is what matters.
 ## 5. When the corpus grows
 
 `FlatIndex` compares the query against every stored vector. That is exact and
-fine for thousands of documents. Past roughly ten thousand, switch to
-`ApproxIndex`, which searches a graph instead — much faster, and occasionally
-misses a true neighbour. It is also the index that can be saved and reloaded, so
+useful as a correctness baseline. If measured latency becomes too high, try
+`ApproxIndex`, which searches a graph and can miss a true neighbour. Measure
+latency and recall on your own data. It can also be saved and reloaded, so
 you embed once instead of on every start:
 
 ```python
@@ -245,20 +252,20 @@ Run in order; each step has an observable result.
    - sentence-transformers: `python -c "import sentence_transformers"` succeeds.
 3. `len(embed(["a", "b"])) == 2` and every row has the same length.
 4. Build the index with `len(vectors[0])` as the dimension and `Metric.COSINE`.
-5. Pass condition for step 3's script: the top hit for the VaneDB-flavoured
-   query is one of the two VaneDB sentences. If it is the cat sentence, the
-   query and the documents were embedded with different models, or `embed()`
-   returned rows in a different order than it was given.
+5. The script returns three stored ids with finite, ascending distances.
+   For relevance, inspect the retrieved text and compare against queries with
+   known answers. Unexpected ranking can reflect model quality as well as
+   mismatched models, missing prefixes or reordered embedding rows.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| `pip install vanedb` finds no matching distribution | Only a prerelease is published so far. Add `--pre`, or install from a checkout. |
+| `pip install vanedb` finds no matching distribution | Check Python 3.11+ and the [supported platforms](../README.md). Upgrade pip or build from a checkout with Rust installed. |
 | `ConnectionRefusedError` on port 11434 | Ollama is not running. Start it: `ollama serve`. |
 | Ollama returns `model ... not found` | `ollama pull nomic-embed-text` first. |
-| `401` from OpenAI | `OPENAI_API_KEY` is unset, mistyped, or has no credit. |
+| `401` from OpenAI | Check `OPENAI_API_KEY` and project access. For quota or billing errors, check the API account's limits. |
 | VaneDB raises a dimension error | The index dimension does not match the model's output length. Rebuild the index with `len(vectors[0])`. |
 | First embedding call takes many seconds | The model is being loaded or downloaded. Subsequent calls are fast. |
-| Results are unrelated to the query | Documents and query were embedded with different models, or the metric is not `COSINE`. |
+| Results are unrelated to the query | Check model identity, query/document prefixes, row ordering and the model's recommended metric; then evaluate the model on your data. |
 | `KeyError: 'embeddings'` from Ollama | The older `/api/embeddings` endpoint returns `embedding` (singular) for a single `prompt`. Use `/api/embed` with `input` as shown. |

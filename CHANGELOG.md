@@ -37,7 +37,7 @@ section records what it contains rather than what changed.
 - GitHub Actions are pinned to commits; Rust CI checks dependency advisories,
   licences, bans and sources with `cargo-deny`.
 
-### Changed — public API, before anything is published
+### Changed — public API before the stable release
 
 - `SearchResult` is `#[non_exhaustive]`, so a field can be added later without
   a major version. `PartialEq`/`Ord` stay defined over `(id, distance)`.

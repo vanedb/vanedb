@@ -384,17 +384,27 @@ def test_a_missing_pathlib_path_still_raises_filenotfounderror(tmp_path):
         vanedb.DiskIndex.open(tmp_path / "absent.vndb")
 
 
+@pytest.mark.parametrize("index_type", [vanedb.FlatIndex, vanedb.ApproxIndex])
+def test_batch_id_conversion_preserves_the_first_error(index_type):
+    class FailingId:
+        calls = 0
+
+        def __index__(self):
+            self.calls += 1
+            if self.calls == 1:
+                raise ValueError("id conversion failed")
+            return 42
+
+    index = index_type(1, vanedb.Metric.L2)
+    value = FailingId()
+    with pytest.raises(ValueError, match="id conversion failed"):
+        index.add_batch([value], [[1.0]])
+    assert value.calls == 1
+    assert len(index) == 0
+
+
 def test_classes_report_their_module():
-    """`#[pyclass(module = "vanedb")]` on every exported type.
-
-    Without it PyO3 reports `builtins`, so `repr()` reads
-    `<builtins.FlatIndex object ...>` and every error message names a builtin.
-    Removing the attribute left the whole suite green, which is why this exists.
-
-    It does not make these types picklable: PyO3 gives them no `__reduce__`, so
-    `pickle.dumps(Metric.L2)` still raises. `module` is necessary for that and
-    not sufficient, and this asserts only what it actually buys.
-    """
+    """Exported types identify their importable module in introspection and repr."""
     import vanedb
 
     for cls in (
@@ -448,4 +458,3 @@ def test_indexes_refuse_to_pickle_at_dump_time():
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             with pytest.raises(TypeError):
                 pickle.dumps(obj, protocol=protocol)
-

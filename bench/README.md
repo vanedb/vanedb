@@ -131,9 +131,8 @@ hardware.
 Any save-path comparison requires both engines to use the same durability
 primitive; otherwise the faster row is only the weaker guarantee.
 
-Rust leads the largest scan after moving both brute-force paths to a bounded
-top-k heap (vanedb#32). The remaining honest gaps are on write paths and are
-diagnosed rather than mysterious.
+Rust's brute-force paths use a bounded top-k heap (vanedb#32). Search performance
+comparisons await the dedicated-hardware rerun described above.
 
 ## Measurement policy
 

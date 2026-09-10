@@ -1,7 +1,7 @@
 # Doxyfile for VaneDB
 
 PROJECT_NAME           = "VaneDB"
-PROJECT_NUMBER         = "0.1.0-rc.2"
+PROJECT_NUMBER         = "0.1.0"
 PROJECT_BRIEF          = "Embeddable vector database for edge AI"
 OUTPUT_DIRECTORY       = docs
 

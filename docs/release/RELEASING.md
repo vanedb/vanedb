@@ -24,8 +24,10 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
 4. Dispatch publication-disabled rehearsals **from a branch, never a tag**:
 
    ```sh
-   gh workflow run publish-crate.yml --ref main
-   gh workflow run publish-rust.yml --ref main -f publish_testpypi=false
+   candidate_branch=review/0.1.0-signoff # branch containing the reviewed commit
+   gh workflow run publish-crate.yml --ref "$candidate_branch"
+   gh workflow run publish-rust.yml --ref "$candidate_branch" -f publish_testpypi=false
+   gh workflow run publish-wasm.yml --ref "$candidate_branch"
    ```
 
    The publish jobs test `github.event_name == 'push'`, so a dispatch cannot
@@ -56,9 +58,8 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    time 0.1.0 is the newest release, both registry pages would tell a visitor
    nothing is published while they are standing on the published package.
 
-   Every other guide is git-only and is corrected after publication (#122).
-   Make this edit in the release commit itself, not earlier — until the tag,
-   the checkout instructions are the true ones.
+   Align git-only guides in the release PR as well. Keep the readiness record
+   explicit about verification and publication status.
 
 6. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
@@ -153,6 +154,10 @@ through protected main.
   commit. A trusted publisher must be configured on npmjs.com for
   `@vanedb/wasm` first, which requires owning the `vanedb` npm organisation or
   user scope.
+
+  The verifier packs and tests one tarball. The protected publisher downloads
+  that tarball, verifies its checksum, reruns the installed consumer and
+  publishes the same bytes. It does not rebuild the package.
 
   **npm needs a bootstrap publish, exactly like crates.io.** Trusted
   publishing is configured per package, at
