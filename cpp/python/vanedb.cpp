@@ -62,13 +62,40 @@ PYBIND11_MODULE(vanedb_cpp, m) {
         .value("L2", Metric::L2)
         .value("COSINE", Metric::COSINE)
         .value("DOT", Metric::DOT)
-        // Reconstruct through the enum constructor at every pickle protocol.
-        // This avoids the legacy object.__new__ abort and preserves unnamed
-        // integer values, which pybind11 permits the constructor to accept.
+        // Pickle through the constructor, so every protocol takes one path.
+        //
+        // pybind11 gives an enum `__getstate__`, which serves protocol 2 and
+        // up. Protocols 0 and 1 instead reconstruct through
+        // `copyreg._reconstructor`, which calls `object.__new__` on a
+        // pybind11 type; that throws a C++ exception with no Python
+        // translation, so the interpreter aborts on SIGABRT rather than
+        // raising. Nothing caught it because an in-process test would have
+        // taken the whole session down with it.
+        //
+        // Reconstruct from the value, not the name. pybind11 lets an enum hold
+        // an integer no value names -- `Metric(7)` reprs as `<Metric.???: 7>`
+        // -- and reducing by name has to pick some named fallback for those.
+        // That is not merely lossy: `FlatIndex(3, Metric(7))` rejects the
+        // invalid value, so by-name turned an inert-but-invalid metric into a
+        // *valid* L2 the engine accepts and computes wrong distances with.
+        //
+        // Committing to the discriminant costs nothing new. It is already
+        // public API on this type (`int(Metric.L2)`, `Metric(0)`), it is the C
+        // ABI's metric parameter and the VNDB on-disk metric field, and it is
+        // what CPython's own `enum` reduces to.
+        //
+        // One consequence to know: the result is equal to, but not the same
+        // object as, the class member. `Metric(1) is Metric.COSINE` was already
+        // false before this, so `is` was never sound here -- but note the
+        // sibling `vanedb` package pickles by name and *does* preserve
+        // identity. Compare metrics with `==`, which both packages honour.
+        //
+        // `py::type::of(handle)` is the runtime overload on purpose: the
+        // template form `py::type::of<Metric>()` fails to compile for an enum,
+        // because `py::enum_` does not use the generic type caster.
         .def("__reduce__", [](const Metric &self) {
-            return py::make_tuple(
-                py::type::of(py::cast(self)),
-                py::make_tuple(static_cast<int>(self)));
+            return py::make_tuple(py::type::of(py::cast(self)),
+                                  py::make_tuple(static_cast<int>(self)));
         })
         ;
 

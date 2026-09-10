@@ -82,11 +82,12 @@ searchable. Building one still buffers its vectors in memory until `save`.
 `ApproxIndex` walks an HNSW graph and can miss a true neighbour. `ef_search` trades recall against speed
 per query; `m` and `ef_construction` set the graph's quality at build time.
 
-For a Rust query with its own recall setting, construct
+Every binding can set that beam per query, leaving the index's own default
+alone so concurrent callers can choose different widths. In Rust, construct
 `let params = vanedb::SearchParams::new().ef_search(100);` and call
-`index.search_with(&query, 10, &params)`. These options leave the index's default
-unchanged, so concurrent callers can choose different beam widths. The effective
-beam is at least `k`; ordinary `search` uses the index's defaults.
+`index.search_with(&query, 10, &params)`; Python takes `ef_search=` on `search`,
+WebAssembly a third argument, and the C ABI a parameter. The effective beam is
+at least `k`; ordinary `search` uses the index's defaults.
 
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
 Python bindings; wasm takes it as a required string argument. Results come back
@@ -127,9 +128,10 @@ if file size matters.
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
-`upsert`, `tombstones` and `compact` on `ApproxIndex`; persistence is not exposed.
-Approximate search accepts a per-query beam override as `search(query, k, ef_search)`,
-leaving the `ef_search` property unchanged. A single id is a
+`upsert`, `tombstones` and `compact` on `ApproxIndex`; it does not expose
+persistence, which would need a filesystem. Approximate search accepts a
+per-query beam override as `search(query, k, ef_search)`, leaving the
+`ef_search` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
 `wasm-pack build vanedb-wasm --target web --release --locked --out-dir pkg-web`

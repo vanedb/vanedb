@@ -778,6 +778,7 @@ def test_metric_pickles_at_every_protocol():
     """
     script = textwrap.dedent(
         """
+        import copy
         import pickle
         import vanedb_cpp
 
@@ -785,13 +786,35 @@ def test_metric_pickles_at_every_protocol():
             getattr(vanedb_cpp.Metric, n)
             for n in ("L2", "COSINE", "DOT")
         ]
-        # pybind11 accepts unnamed enum values too; pickle must preserve them.
-        metrics.extend(vanedb_cpp.Metric(n) for n in (-1, 3, 42))
+        # These appended cases are what give the test teeth. The three named
+        # values round-trip correctly even under a by-name reduce, so a test
+        # without an unnamed one passes the implementation that corrupts them.
+        # (pybind11 compares enums by underlying value, so `==` alone catches
+        # it once the case exists; the int() assertion below is belt-and-braces
+        # against a future __eq__, not the thing doing the work.)
+        metrics.extend(vanedb_cpp.Metric(n) for n in (-1, 3, 7, 42))
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             for metric in metrics:
                 restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
                 assert restored == metric, (protocol, metric, restored)
                 assert int(restored) == int(metric), (protocol, metric, restored)
+
+        # copy and deepcopy route through __reduce_ex__ to the same __reduce__,
+        # so they are covered by construction -- but nothing pinned that, and a
+        # future __copy__ or protocol-specific __reduce_ex__ could diverge them
+        # from pickle silently.
+        for metric in metrics:
+            for clone in (copy.copy(metric), copy.deepcopy(metric)):
+                assert clone == metric and int(clone) == int(metric), metric
+
+        # The contract is equality and value, not identity: reconstruction
+        # calls the constructor, and `Metric(1) is Metric.COSINE` is false in
+        # pybind11 regardless of pickling. These are the operations that must
+        # keep working, and they are what callers should use.
+        restored = pickle.loads(pickle.dumps(vanedb_cpp.Metric.COSINE))
+        assert restored == vanedb_cpp.Metric.COSINE
+        assert {vanedb_cpp.Metric.COSINE: "cos"}[restored] == "cos"
+        assert restored in (vanedb_cpp.Metric.L2, vanedb_cpp.Metric.COSINE)
         """
     )
     result = subprocess.run(
@@ -800,3 +823,4 @@ def test_metric_pickles_at_every_protocol():
     assert result.returncode == 0, (
         f"pickling a Metric exited {result.returncode}\n{result.stderr}"
     )
+

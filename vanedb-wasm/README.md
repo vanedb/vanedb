@@ -73,14 +73,21 @@ memory-constrained runtime this package targets.
 allocated memory can remain reserved. It has no tombstones or `compact()` method.
 
 `ApproxIndex.upsert(id, vector)` replaces a vector in one operation, inserting
-it if absent. Invalid input leaves the existing vector unchanged. Each replaced
-slot becomes a tombstone, so repeated replacements grow storage until `compact()`.
+it if the id is absent. It is not `remove` then `add`: those can fail between
+the halves and leave the id deleted, and invalid input here leaves the existing
+vector unchanged. Each replaced slot becomes a tombstone, so repeated
+replacements grow storage until `compact()`.
 
-`ApproxIndex.search(query, k, ef_search?)` accepts a beam override for that query
-and leaves `index.ef_search` unchanged. The effective beam is at least `k`.
-For example, `index.search(query, 10, 64)` uses a beam of 64; omitting the third
-argument uses the index default. Measure recall and latency on your own data
-when choosing the beam. `FlatIndex.search(query, k)` has no beam parameter.
+`ApproxIndex.search` takes an optional beam width — `search(query, k, 64)` —
+that applies to that query alone and leaves `index.ef_search` untouched. Use it
+to spend extra recall on one hard query without paying for it on every later
+one. A width below `k` is raised to `k`, so `0` is the narrowest legal override
+rather than a request to use the index's setting — omit the argument for that.
+Measure recall and latency on your own data when choosing one.
+
+Neither exists on `FlatIndex`, which is exact and has no beam. JavaScript
+ignores surplus arguments, so `flatIndex.search(query, k, 64)` runs without
+complaint and the width does nothing.
 
 Persistence (`save`/`load`) and disk mapping are not exposed by this package.
 
