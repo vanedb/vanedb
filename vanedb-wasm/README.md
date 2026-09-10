@@ -53,13 +53,19 @@ neighbourhoods. `tombstones()` counts what that has cost and `compact()`
 reclaims it — worth calling once churn accumulates, since a browser is the most
 memory-constrained runtime this package targets.
 
-`upsert(id, vector)` replaces a vector in one operation, inserting it if the id
-is absent. It is not `remove` then `add`: those can fail between the halves and
-leave the id deleted.
+`ApproxIndex.upsert(id, vector)` replaces a vector in one operation, inserting
+it if the id is absent. It is not `remove` then `add`: those can fail between
+the halves and leave the id deleted.
 
-`search` takes an optional beam width — `search(query, k, 64)` — that applies to
-that query alone and leaves `index.ef_search` untouched. Use it to spend extra
-recall on one hard query without paying for it on every later one.
+`ApproxIndex.search` takes an optional beam width — `search(query, k, 64)` —
+that applies to that query alone and leaves `index.ef_search` untouched. Use it
+to spend extra recall on one hard query without paying for it on every later
+one. A width below `k` is raised to `k`, so `0` is the narrowest legal override
+rather than a request to use the index's setting — omit the argument for that.
+
+Neither exists on `FlatIndex`, which is exact and has no beam. JavaScript
+ignores surplus arguments, so `flatIndex.search(query, k, 64)` runs without
+complaint and the width does nothing.
 
 Persistence (`save`/`load`) and disk mapping are not available in WebAssembly:
 there is no filesystem to map.

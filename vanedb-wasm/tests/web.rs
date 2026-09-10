@@ -299,23 +299,62 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
 
 /// A beam width for one query, leaving the index's own setting alone.
 ///
-/// `ef_search` is a property, so the only way to widen a single hard query was
-/// to raise it, search, and lower it again -- three calls, and every search in
-/// between pays. Rust, Python and the C ABI all take it per call.
+/// The fixture matters more than the assertions. An earlier version used 60
+/// collinear points, where even the narrowest legal beam returns the exact
+/// answer -- so widened and un-widened searches gave identical ids and the
+/// test passed with the parameter wired to nothing. A review proved it by
+/// replacing `search_with` with `search`: all 22 tests stayed green. Recall
+/// has to actually differ for this to detect anything.
 #[wasm_bindgen_test]
-fn per_query_ef_search_leaves_the_shared_setting_alone() {
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 200.0, 4.0, 8.0, Some(7.0)).unwrap();
-    for i in 0..60u64 {
-        let x = i as f32;
-        index.add(i.into(), &[x, x]).unwrap();
-    }
+fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
+    const N: usize = 2000;
+    const DIM: usize = 32;
+    const K: usize = 10;
+
+    // A deterministic LCG: a fixed fixture without pulling in a dependency.
+    let mut state = 0x2545_f491_4f6c_dd1d_u64;
+    let mut next = || {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        ((state >> 33) as f32 / (1u32 << 31) as f32) - 0.5
+    };
+    let vectors: Vec<f32> = (0..N * DIM).map(|_| next()).collect();
+
+    // A sparse graph (m=4, ef_construction=8) over random high-dimensional
+    // vectors is where a narrow beam genuinely misses: the adversarial case
+    // for a proximity graph, which is the point.
+    let index = WasmIndex::new(
+        DIM as f64,
+        &JsValue::from_str("l2"),
+        N as f64,
+        4.0,
+        8.0,
+        Some(7.0),
+    )
+    .unwrap();
+    let ids: Vec<u64> = (0..N as u64).collect();
+    index.add_batch(&ids, &vectors).unwrap();
     index.set_ef_search(1.0).unwrap();
 
-    let widened = index.search(&[0.0, 0.0], 5.0, Some(64.0)).unwrap();
-    assert_eq!(
-        widened.ids(),
-        vec![0, 1, 2, 3, 4],
-        "a beam wider than the corpus must return the exact answer"
+    let query = &vectors[..DIM];
+    let mut exact: Vec<(u64, f32)> = (0..N)
+        .map(|i| {
+            let v = &vectors[i * DIM..(i + 1) * DIM];
+            let d: f32 = query.iter().zip(v).map(|(a, b)| (a - b) * (a - b)).sum();
+            (i as u64, d)
+        })
+        .collect();
+    exact.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap().then(a.0.cmp(&b.0)));
+    let truth: Vec<u64> = exact[..K].iter().map(|(id, _)| *id).collect();
+    let found = |hits: Vec<u64>| hits.iter().filter(|id| truth.contains(id)).count();
+
+    let narrow = found(index.search(query, K as f64, None).unwrap().ids());
+    let widened = found(index.search(query, K as f64, Some(400.0)).unwrap().ids());
+    assert!(
+        widened > narrow,
+        "a wider beam must find more true neighbours: narrow {narrow}/{K}, widened \
+         {widened}/{K} — equal means the argument never reached search_with"
     );
     assert_eq!(
         index.ef_search(),
@@ -324,7 +363,9 @@ fn per_query_ef_search_leaves_the_shared_setting_alone() {
     );
 
     // Omitting it falls back to that property, and it is validated like `k`.
-    assert_eq!(index.search(&[0.0, 0.0], 5.0, None).unwrap().length(), 5);
-    assert!(index.search(&[0.0, 0.0], 5.0, Some(-1.0)).is_err());
-    assert!(index.search(&[0.0, 0.0], 5.0, Some(f64::NAN)).is_err());
+    assert_eq!(index.search(query, 5.0, None).unwrap().length(), 5);
+    assert!(index.search(query, 5.0, Some(-1.0)).is_err());
+    assert!(index.search(query, 5.0, Some(f64::NAN)).is_err());
+    // 0 is the narrowest legal override, raised to `k` — not a fallback.
+    assert_eq!(index.search(query, 5.0, Some(0.0)).unwrap().length(), 5);
 }
