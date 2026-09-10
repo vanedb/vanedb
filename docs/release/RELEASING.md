@@ -1,8 +1,8 @@
 # Preparing and publishing VaneDB
 
-The [readiness record](0.1.0-readiness.md) is the release checklist. A version
+The [readiness record](0.1.1-readiness.md) is the release checklist. A version
 bump prepares artifacts; it does not satisfy the remaining requirements or
-authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
+authorize publication. [Draft notes](0.1.1-notes.md) describe the candidate.
 
 ## Verify the candidate
 
@@ -24,8 +24,10 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
 4. Dispatch publication-disabled rehearsals **from a branch, never a tag**:
 
    ```sh
-   gh workflow run publish-crate.yml --ref main
-   gh workflow run publish-rust.yml --ref main -f publish_testpypi=false
+   candidate_branch=review/0.1.1-npm-signoff # branch containing the reviewed commit
+   gh workflow run publish-crate.yml --ref "$candidate_branch"
+   gh workflow run publish-rust.yml --ref "$candidate_branch" -f publish_testpypi=false
+   gh workflow run publish-wasm.yml --ref "$candidate_branch"
    ```
 
    The publish jobs test `github.event_name == 'push'`, so a dispatch cannot
@@ -38,11 +40,11 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    file lists and checksums. The crate verifier tests the extracted archive in
    its own build directory. Inspect the actual `.crate`, not only the listing.
    **Publication is irreversible.** Neither registry lets a version be
-   re-uploaded: if `0.1.0` goes out wrong, that number is burned and the fix
-   ships as `0.1.1`. `cargo yank` and a PyPI yank stop new resolution but
+   re-uploaded: if `0.1.1` goes out wrong, that number is burned and the fix
+   ships as `0.1.2`. `cargo yank` and a PyPI yank stop new resolution but
    delete nothing and do not break existing lockfiles; deleting a PyPI file is
    permanent and does not free the filename. The Python job uploads 29 files in
-   one action, so a partial upload leaves `0.1.0` permanently half-populated.
+   one action, so a partial upload leaves that version permanently half-populated.
    This is a property of the registries, not a project policy.
 
 5. **Before designating the final candidate**, put the published-install form
@@ -53,12 +55,11 @@ authorize publication. [Draft notes](0.1.0-notes.md) describe the candidate.
    README the core-metadata description of all 28 wheels and the sdist, and the
    PyPI project page. Neither registry permits a re-upload, so a checkout-only
    install line in either file is permanent for that version: for the whole
-   time 0.1.0 is the newest release, both registry pages would tell a visitor
+   time that version is the newest release, both registry pages would tell a visitor
    nothing is published while they are standing on the published package.
 
-   Every other guide is git-only and is corrected after publication (#122).
-   Make this edit in the release commit itself, not earlier — until the tag,
-   the checkout instructions are the true ones.
+   Align git-only guides in the release PR as well. Keep the readiness record
+   explicit about verification and publication status.
 
 6. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
@@ -98,18 +99,18 @@ the act that put "Nothing is published yet" on the npm page.
 
 **Bootstrap a prerelease, not the release.** The version you bootstrap is spent
 by hand — no reviewer gate, no OIDC, no provenance — so it should not be the
-version people install. `0.1.0-rc.1` reserves the name, and `0.1.0` then goes
-out through the tagged workflow like every release after it. `cargo add vanedb` and
-`pip install vanedb` both resolve to the prerelease during the window, so the
-install commands in the guides keep working; a hand-written `vanedb = "0.1"`
-does not, which is why no README carries one. Leave the bootstrap version published rather than yanking it: it
+version people install. `0.1.0-rc.1` reserved the name, and `0.1.1` goes
+out through the tagged workflow like every release after it. Prereleases are
+excluded from Cargo's default requirements, so `vanedb = "0.1"` never resolves
+to the bootstrap. `cargo add vanedb` can select an available prerelease and
+write its version requirement. Leave the bootstrap version published rather than yanking it: it
 is the provenance record of how the name was claimed, and yanking it would
 imply it was defective.
 
 npm is the counter-example already on the shelf. `@vanedb/wasm@0.1.0` was
 bootstrapped by hand, so it carries no attestation, and npm never frees a used
-version — so its first attested release must be `0.1.1`, one patch ahead of the
-other two registries.
+version. The first release is therefore `0.1.1` across all three registries,
+from one approved source commit.
 
 ## Publish the approved release
 
@@ -153,6 +154,10 @@ through protected main.
   `@vanedb/wasm` first, which requires owning the `vanedb` npm organisation or
   user scope.
 
+  The verifier packs and tests one tarball. The protected publisher downloads
+  that tarball, verifies its checksum, reruns the installed consumer and
+  publishes the same bytes. It does not rebuild the package.
+
   **npm needs a bootstrap publish, exactly like crates.io.** Trusted
   publishing is configured per package, at
   `npmjs.com → Packages → @vanedb/wasm → Settings → Trusted publishing`, and
@@ -170,19 +175,16 @@ through protected main.
   `--access public`.
 - C library archives come from the
   approved commit's CI artifacts. Attach the C archives with their runtime
-  compatibility metadata, and `vanedb-wasm-0.1.0-nodejs.tgz` and
-  `vanedb-wasm-0.1.0-web.tgz`, each with its matching checksum. There is no
+  compatibility metadata, and `vanedb-wasm-<version>-nodejs.tgz` and
+  `vanedb-wasm-<version>-web.tgz`, each with its matching checksum. There is no
   automatic C++ package publication.
 
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
-the downloadable C and WebAssembly assets match the approved checksums. Only
-then add the release links and verified checksums to the **git-only** user
-guides: the root `README.md`, `cpp/`, and the organisation profile. Their
-unpinned install commands do not wait on this step — they resolve to the
-prerelease meanwhile, as above — but anything naming a released version does. That
-step cannot reach `vanedb/README.md` or `vanedb-py/README.md` — those are
-already inside the published artifacts by this point. See step 5.
+the downloadable C and WebAssembly assets match the approved checksums. Update
+git-only guides and the organisation profile with verified release links and
+publication status. Packaged READMEs must already be correct before tagging;
+they cannot be changed inside an existing release. See step 5.
 
 If publication fails, inspect which versions and files were actually accepted
 before retrying. Preserve published versions and tags; do not delete or move

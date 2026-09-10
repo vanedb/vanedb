@@ -7,6 +7,11 @@ generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
 storage and no filtered search — so keep your own id-to-document mapping
 alongside it.
 
+New to embeddings, or unsure where the vectors come from? Start with
+[Getting started: from text to search results](docs/GETTING_STARTED.md) — it
+sets up a local or hosted embedding provider and searches real sentences in
+about ten minutes.
+
 ## Quick start
 
 ### Rust
@@ -123,11 +128,13 @@ if file size matters.
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
-`upsert`, `tombstones` and `compact`; it does not expose persistence, which
-would need a filesystem. A single id is a
+`upsert`, `tombstones` and `compact` on `ApproxIndex`; persistence is not exposed.
+Approximate search accepts a
+per-query beam override as `search(query, k, ef_search)`, leaving the
+`ef_search` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
-`wasm-pack build vanedb-wasm --target web --release --locked --out-dir pkg-web`
+`wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked`
 after installing `wasm-pack` and the `wasm32-unknown-unknown` Rust target. The
 `--out-dir` matters: the Node target also defaults to `pkg/`, and whichever
 build runs second silently overwrites the first. The generated directory
@@ -150,9 +157,9 @@ Python release workflows build and test
 Linux x86-64/ARM64 (glibc and musl), macOS Intel/ARM64, and Windows x64 wheels
 for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
 iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
-simulator and Android x86-64 emulator. The CI-built Android ARM64 library also
-passes acceptance locally on an Android 15 emulator with 16 KiB pages; see the
-[release evidence](docs/release/0.1.0-readiness.md). The accepted 0.1.0 mobile
+simulator and Android x86-64 emulator. The 0.1.1 release also passed Android ARM64
+acceptance on an Android 15 emulator with 16 KiB pages using the CI-built binary;
+see the [release evidence](docs/release/0.1.1-readiness.md). The accepted initial-release mobile
 verification scope is simulator/emulator based. Physical-device acceptance
 remains a follow-up; these results do not establish behavior on an iPhone or
 Android device.

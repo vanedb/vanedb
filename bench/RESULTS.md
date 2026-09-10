@@ -12,8 +12,9 @@
 > whatever machine you ran it on. It rewrites
 > it whole. Any caveat a reader needs beside these numbers belongs in
 > `bench/src/bin/report.rs`, not here — a longer version of this banner was
-> hand-added and would have been silently deleted by the next run. The recall
-> seed-sweep statistics it carried now live in the generator.
+> hand-added and would have been silently deleted by the next run. The
+> recall evaluation guidance lives in [`bench/README.md`](README.md#recall-needs-repeated-construction-seeds), which
+> regeneration does not touch.
 
 Engines: vanedb-cpp (CMake Release) and vanedb (Rust), monorepo 80066a2.
 Workload: dim=128, n=10000, k=10, L2. Latencies are medians of 501 interleaved paired samples (one query) after a joint warmup; recall is averaged over 100 queries. Both engines' data stays resident in one process (interleaved construction).
@@ -30,12 +31,7 @@ Criterion is canonical; see the README table. This bin times l2_sq in batches of
 
 ApproxIndex recall@10: C++ 0.689, Rust 0.700
 
-**The recall line is a single sample and the difference is noise.** Both
-engines build one graph at seed 7 and score it; there is no seed sweep. Swept
-over 100 construction seeds per engine on this workload the means are 0.6927
-(Rust, sd 0.0055) and 0.6924 (C++, sd 0.0052) — a true difference of +0.0003,
-95% CI [-0.0012, +0.0018], p = 0.69. Seed 7 is a draw where Rust landed +1.3 sd
-and C++ -0.7 sd; the 0.011 gap shown above sits 14 standard errors outside that
-interval. The same discipline the latency rows already got — sweep the
-randomness, publish an interval — has to reach the quality metric before this
-line means anything.
+**One seed does not establish a recall advantage.** Both
+engines build one graph at seed 7 and score it; there is no seed sweep.
+Repeat across construction seeds before drawing a comparison; see
+[`bench/README.md`](README.md#recall-needs-repeated-construction-seeds).

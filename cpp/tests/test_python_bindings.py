@@ -32,10 +32,13 @@ def test_version():
 
     # Against the distribution metadata, not a literal — see the note in
     # vanedb-py/tests/test_vanedb.py.
-    assert Version(vanedb_cpp.__version__) == Version(version("vanedb-cpp"))
-    assert vanedb_cpp.VERSION_MAJOR == 0
-    assert vanedb_cpp.VERSION_MINOR == 1
-    assert vanedb_cpp.VERSION_PATCH == 0
+    installed = Version(version("vanedb-cpp"))
+    assert Version(vanedb_cpp.__version__) == installed
+    assert (
+        vanedb_cpp.VERSION_MAJOR,
+        vanedb_cpp.VERSION_MINOR,
+        vanedb_cpp.VERSION_PATCH,
+    ) == installed.release
 
 
 def test_simd_backend():
@@ -783,13 +786,13 @@ def test_metric_pickles_at_every_protocol():
             getattr(vanedb_cpp.Metric, n)
             for n in ("L2", "COSINE", "DOT")
         ]
-        # This appended case is what gives the test teeth. The three named
+        # These appended cases are what give the test teeth. The three named
         # values round-trip correctly even under a by-name reduce, so a test
-        # without an unnamed one passes the implementation that corrupts it.
+        # without an unnamed one passes the implementation that corrupts them.
         # (pybind11 compares enums by underlying value, so `==` alone catches
         # it once the case exists; the int() assertion below is belt-and-braces
         # against a future __eq__, not the thing doing the work.)
-        metrics.append(vanedb_cpp.Metric(7))
+        metrics.extend(vanedb_cpp.Metric(n) for n in (-1, 3, 7, 42))
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             for metric in metrics:
                 restored = pickle.loads(pickle.dumps(metric, protocol=protocol))

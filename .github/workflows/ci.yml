@@ -107,6 +107,14 @@ jobs:
         shell: bash
         run: python3 scripts/test_release_scripts.py
 
+      # `bump_version.py` writes the version into every site for a publish no
+      # registry lets you take back, and its own tests claimed to run here
+      # while nothing ran them. A silent corruption it once caused -- four
+      # sites in one file, only the last write surviving -- is what they cover.
+      - name: Version bump script tests
+        shell: bash
+        run: python3 scripts/test_bump_version.py
+
   rust:
     name: Rust component
     needs: changes

@@ -1,6 +1,6 @@
 # VaneDB roadmap
 
-The 0.1.0 scope is the Rust engine and its Python, C and WebAssembly bindings,
+The 0.1.1 scope is the Rust engine and its Python, C and WebAssembly bindings,
 with CPU search and the existing macOS Metal feature. CUDA is a required,
 high-priority follow-up after the initial release, as agreed on September 7, 2026. It has no
 assigned release version or delivery date. The C++ engine remains frozen
@@ -9,7 +9,7 @@ reference code.
 ## CUDA on NVIDIA GPUs — required after the initial release
 
 Enable applications with NVIDIA hardware to accelerate vector workloads through
-the Rust engine. CUDA is not supported in 0.1.0; the unimplemented Rust stub is
+the Rust engine. CUDA is not supported in 0.1.1; the unimplemented Rust stub is
 excluded from that release. A feature flag or kernel source alone does not
 establish support.
 
@@ -62,10 +62,10 @@ with itself here (`FlatIndex.get` and `DiskIndex.get` return `None`,
 `ApproxIndex.get_vector` throws), so there is no single convention on that side
 to match.
 
-Nothing was changed for 0.1.0, for structural reasons: the Rust core has no
+The first release retains this behavior because the Rust core has no
 `Option`-returning accessor to bind, `get`/`get_vector` are the cross-engine
 spelling settled in #85, and `contains` is already the non-raising probe. The
-0.1.0 change to `KeyError` makes the mismatch more conspicuous rather than
+choice of `KeyError` makes the mismatch more conspicuous rather than
 less, because `KeyError` is the exception `dict.get` exists to avoid.
 
 Revisit deliberately: either accept the divergence and document `get` as

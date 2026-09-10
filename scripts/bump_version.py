@@ -141,7 +141,7 @@ if __name__ == "__main__":
                 sys.exit(1)
 
     print(f"""
-Version set to {args.version}. Still manual, and none of it is checked by a test:
+Version set to {args.version}. Remaining release tasks:
 
   1. vanedb/README.md, vanedb-py/README.md and vanedb-wasm/README.md must carry
      the published-install form -- in the release commit, not earlier
@@ -149,5 +149,5 @@ Version set to {args.version}. Still manual, and none of it is checked by a test
      that forbids re-upload.
      Check with: scripts/check_release_readmes.py <tag>
   2. CHANGELOG.md: move `## [Unreleased]` to `## [{args.version}] - <date>`.
-  3. docs/release/0.1.0-readiness.md: re-designate, with a fresh CI run.
+  3. docs/release/{args.version}-readiness.md: re-designate, with a fresh CI run.
 """)

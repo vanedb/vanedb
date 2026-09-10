@@ -50,6 +50,43 @@ assert.equal(index.size(), 1);
 assert.equal(index.seed(), 7n, 'the construction seed must round-trip');
 index.free();
 
+function checkUpsertAndSearch({ ApproxIndex }) {
+  const index = new ApproxIndex(1, 'l2', 4, 4, 16, 7);
+  const query = Float32Array.of(0);
+  const added = 2n ** 64n - 1n;
+  try {
+    index.add(10n, query);
+    index.add(11n, Float32Array.of(10));
+    index.upsert(10n, Float32Array.of(20));
+    assert.equal(index.size(), 2, 'replacement keeps the live count');
+    assert.equal(index.tombstones(), 1);
+    index.upsert(added, query);
+    assert.equal(index.size(), 3, 'upsert inserts an absent uint64 ID');
+    for (const vector of [Float32Array.of(1, 2), Float32Array.of(NaN)]) {
+      assert.throws(() => index.upsert(10n, vector));
+      assert.deepEqual([...index.get(10n)], [20], 'rejected upsert preserves the vector');
+      assert.equal(index.size(), 3);
+      assert.equal(index.tombstones(), 1);
+    }
+    index.ef_search = 1;
+    for (const ef of [undefined, null, 0, 64, 2 ** 32 - 1]) {
+      const hits = index.search(query, 2, ef);
+      try { assert.deepEqual([...hits.ids], [added, 11n]); }
+      finally { hits.free(); }
+      assert.equal(index.ef_search, 1, 'per-query beam leaves the default alone');
+    }
+    for (const ef of [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32]) {
+      assert.throws(() => index.search(query, 2, ef), /ef_search must be an integer/);
+      assert.equal(index.ef_search, 1);
+    }
+    index.compact();
+    assert.equal(index.tombstones(), 0);
+    assert.deepEqual([...index.get(10n)], [20]);
+    assert.deepEqual([...index.get(added)], [0]);
+  } finally { index.free(); }
+}
+checkUpsertAndSearch(esm);
+
 // The same package through require(), which resolves a different entry point
 // under the `node` + `require` condition.
 const require = createRequire(import.meta.url);
@@ -61,5 +98,6 @@ const viaRequire = new cjs.FlatIndex(2, 'dot');
 viaRequire.add(5n, Float32Array.from([1, 1]));
 assert.equal(viaRequire.size(), 1);
 viaRequire.free();
+checkUpsertAndSearch(cjs);
 
 console.log('npm package: ESM and CommonJS consumers both OK');

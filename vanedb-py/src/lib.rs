@@ -174,9 +174,6 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
     // Fall back element-wise through the same converter the single-id
     // methods use, so a list and a numpy array report identically: negative
     // and out-of-range ids are ValueError, never OverflowError.
-    if let Ok(ids) = obj.extract::<Vec<u64>>() {
-        return Ok(ids);
-    }
     let items = obj.try_iter()?;
     let mut ids = Vec::new();
     for item in items {
@@ -218,24 +215,24 @@ enum PyMetric {
 
 #[pymethods]
 impl PyMetric {
-    /// Pickle by name, the way `enum.Enum` does.
-    ///
-    /// A worker pool pickles its arguments, and PyO3 gives a `#[pyclass]` no
-    /// `__reduce__`: protocols 2 and up refused at `dumps`, while 0 and 1 fell
-    /// back to `copyreg._reconstructor` and *succeeded*, emitting a blob that
-    /// recorded no variant at all and failed only at `loads`. The variants are
-    /// singletons, so naming one rebuilds the identical object.
-    ///
-    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
-    /// renames above rather than the Rust ones.
-    /// `#[pyclass(eq)]` sets `__hash__ = None`, so the enum could not be a dict
-    /// key, live in a set, or reach `functools.lru_cache` -- all ordinary uses
-    /// for a metric. The discriminant is the only consistent choice, because
-    /// `eq_int` makes `Metric.L2 == 0` true and equal objects must hash alike.
+    /// `#[pyclass(eq)]` sets `__hash__ = None`, which bars a metric from being
+    /// a dict key, a set member, or an `lru_cache` argument. The discriminant
+    /// is the only consistent choice: `eq_int` makes `Metric.L2 == 0` true, and
+    /// equal objects must hash alike.
     fn __hash__(&self) -> isize {
         *self as isize
     }
 
+    /// Pickle by name, the way `enum.Enum` does.
+    ///
+    /// PyO3 gives a `#[pyclass]` no `__reduce__`, so protocols 2 and up refused
+    /// at `dumps` while 0 and 1 fell through to `copyreg._reconstructor` and
+    /// *succeeded*, emitting a blob that recorded no variant and failed only at
+    /// `loads` — bytes already written somewhere by then. The variants are
+    /// singletons, so naming one restores the identical object.
+    ///
+    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
+    /// renames on the enum rather than the Rust ones.
     fn __reduce__<'py>(
         &self,
         py: Python<'py>,

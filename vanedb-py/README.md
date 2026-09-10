@@ -9,6 +9,11 @@ search — so keep your own id-to-document mapping alongside it.
 The `vanedb` package is the shipping Python implementation. C++ bindings are
 kept in the repository for reference and local testing, and are not published.
 
+If you do not yet have embeddings, the
+[getting started guide](https://github.com/vanedb/vanedb/blob/main/docs/GETTING_STARTED.md)
+sets up a provider (local Ollama, sentence-transformers, or OpenAI) and searches
+text end to end.
+
 ## Installation
 
 Requires Python 3.11 or newer.

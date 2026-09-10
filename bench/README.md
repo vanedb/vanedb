@@ -131,9 +131,8 @@ hardware.
 Any save-path comparison requires both engines to use the same durability
 primitive; otherwise the faster row is only the weaker guarantee.
 
-Rust leads the largest scan after moving both brute-force paths to a bounded
-top-k heap (vanedb#32). The remaining honest gaps are on write paths and are
-diagnosed rather than mysterious.
+Rust's brute-force paths use a bounded top-k heap (vanedb#32). Search performance
+comparisons await the dedicated-hardware rerun described above.
 
 ## Measurement policy
 
@@ -154,6 +153,19 @@ diagnosed rather than mysterious.
 - On x86_64 the harness compiles the C++ capi with `-mavx2 -mfma`. C++ gates
   SIMD at compile time while Rust detects it at runtime, so without those flags
   the harness would compare Rust-AVX2 against C++-scalar.
+
+## Recall needs repeated construction seeds
+
+`RESULTS.md` reports `ApproxIndex` recall@10 from one graph per engine at
+seed 7. That observation does not establish a recall advantage. The generator
+rewrites the results file, so the evaluation guidance lives here.
+
+Repeat construction across seeds using the same vectors, queries and exact
+neighbours. Record the engine revisions, workload, per-seed recall and
+uncertainty in the mean difference. A confidence interval for that mean is
+not an expected range for an individual graph's result. Apply any seed-sweep
+conclusion only to the revisions and workload actually measured; a small or
+statistically unresolved difference does not establish engine equivalence.
 
 ## License
 

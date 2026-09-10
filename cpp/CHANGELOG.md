@@ -5,7 +5,7 @@ All notable changes to VaneDB will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-09-10
 
 ### Changed
 - **Legacy HNSW load now caps the size a header may declare.** `load()`
@@ -26,11 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The cap is a mitigation, not an elimination: at it, the constructor still
   reserves roughly 4 GB from an 80-byte header.
-- PyPI upload for the supplementary `vanedb-cpp` distribution is manual-only
-  while the generic x86-64 CPU baseline remains unresolved (#39). GitHub
-  releases do not retain a wheel artifact for it either (#100). CI still
-  builds one per OS and Python version and runs the suite against it; no
-  workflow uploads it.
+- The supplementary `vanedb-cpp` distribution is reference-only. CI builds
+  and tests its wheels across supported hosts and Python versions; the package
+  is not published. The Rust-backed `vanedb` package is the supported product.
 - **BREAKING: Project renamed from QuiverDB to VaneDB.** Pre-1.0, so no
   on-disk break — HNSW index files written with the old name still load
   (the `0x51565244` "QVRD" magic is retained for backward compat). What
@@ -45,8 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (GitHub redirects the old URL).
 
 ### Added
-- Supplementary Python distribution (since retired, #100): `vanedb-cpp`, imported as
-  `vanedb_cpp`. The Rust bindings remain the canonical `vanedb` distribution.
+- Supplementary Python distribution: `vanedb-cpp`, imported as `vanedb_cpp`.
+  Built and tested in CI, never published (#100). The Rust bindings remain the
+  canonical `vanedb` distribution.
 - Comprehensive corruption detection tests for file format validation
   - Invalid magic number, version, metric detection
   - Size overflow protection tests (SIZE_MAX scenarios)
@@ -96,19 +95,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coverage reporting now excludes test and benchmark files (measures only production code)
 - Division by zero in DiskIndex when loading corrupted file with dim=0
 
-## [0.1.0] - Unreleased
+## Earlier development
 
-This version tracks the core crate. RELEASING.md
-requires the C++ manifest, header and CMake version to match the core, so
-this section carries the core's release state too.
+These entries record development of the unpublished C++ reference engine
+before 0.1.1. The C++ manifest,
+header and CMake version track the core crate because RELEASING.md requires
+them to match, not because this package is published — it is not.
 
 ### Added
 - Core distance functions with SIMD optimization (ARM NEON, x86 AVX2)
   - L2 squared distance
   - Cosine similarity/distance
   - Dot product
-- GPU acceleration: Metal (Apple Silicon). CUDA (NVIDIA) is experimental —
-  kernel source only, not wired into the build
+- GPU acceleration: Metal (Apple Silicon). CUDA is not included — see the
+  roadmap; kernel source in the tree is not wired into the build and is not
+  a supported backend
   - Persistent buffer API for zero-copy repeated queries
 - In-memory FlatIndex with k-NN brute-force search
 - HNSW index for approximate nearest neighbor search

@@ -12,6 +12,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 
@@ -23,10 +24,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("package", type=Path, nargs="?",
                         default=ROOT / "target/npm/vanedb-wasm",
-                        help="assembled package directory")
+                        help="assembled package directory or packed .tgz")
     args = parser.parse_args()
     package = args.package.resolve()
-    manifest = json.loads((package / "package.json").read_text())
+    if package.is_dir():
+        manifest = json.loads((package / "package.json").read_text())
+    else:
+        with tarfile.open(package) as archive:
+            manifest = json.load(archive.extractfile("package/package.json"))
 
     with tempfile.TemporaryDirectory(prefix="vanedb-npm-check-") as tmp:
         consumer = Path(tmp)
@@ -37,12 +42,14 @@ def main() -> None:
         env_cache = consumer / "cache"
         env = {"npm_config_cache": str(env_cache), "PATH": __import__("os").environ["PATH"],
                "HOME": str(consumer)}
-        packed = subprocess.run(
-            ["npm", "pack", str(package), "--pack-destination", str(consumer),
-             "--ignore-scripts", "--json"],
-            cwd=consumer, env=env, check=True, text=True, capture_output=True,
-        )
-        tarball = consumer / json.loads(packed.stdout)[0]["filename"]
+        tarball = package
+        if package.is_dir():
+            packed = subprocess.run(
+                ["npm", "pack", str(package), "--pack-destination", str(consumer),
+                 "--ignore-scripts", "--json"],
+                cwd=consumer, env=env, check=True, text=True, capture_output=True,
+            )
+            tarball = consumer / json.loads(packed.stdout)[0]["filename"]
         subprocess.run(
             ["npm", "install", str(tarball), "--no-audit", "--no-fund", "--ignore-scripts"],
             cwd=consumer, env=env, check=True, capture_output=True,

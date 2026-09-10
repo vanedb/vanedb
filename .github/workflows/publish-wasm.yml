@@ -69,19 +69,31 @@ jobs:
       - name: Assemble the package
         run: python3 scripts/build_npm_package.py
 
-      - name: Consume it as an installed dependency
-        run: python3 scripts/check_npm_package.py
-
       - name: Pack for inspection
         run: |
           npm pack target/npm/vanedb-wasm --pack-destination target/npm --ignore-scripts
-          ls -l target/npm/*.tgz
-          sha256sum target/npm/*.tgz
+          cd target/npm
+          sha256sum ./*.tgz > SHA256SUMS
+
+      - name: Consume the release tarball as an installed dependency
+        run: python3 scripts/check_npm_package.py target/npm/*.tgz
+
+      # The publish job is gated off in every rehearsal, so `npm publish` has
+      # never executed until the run that cannot be undone. A dry run here
+      # exercises the same command against the same tarball, without a
+      # registry credential and without publishing.
+      - name: Dry-run the publish command
+        run: |
+          cd target/npm
+          tarball=$(awk '{ print $2 }' SHA256SUMS)
+          npm publish "$tarball" --ignore-scripts --access public --dry-run
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vanedb-wasm-npm
-          path: target/npm/*.tgz
+          path: |
+            target/npm/*.tgz
+            target/npm/SHA256SUMS
           if-no-files-found: error
 
   publish:
@@ -108,21 +120,30 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          toolchain: stable
-          targets: wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          name: vanedb-wasm-npm
+          path: release
 
-      - name: Assemble the package
-        run: python3 scripts/build_npm_package.py
-
-      # Re-run the consumer check on this runner's artifact. `verify` tested a
-      # tarball built on a different machine; without this the thing published
-      # is not the thing that was checked.
-      - name: Consume it as an installed dependency
-        run: python3 scripts/check_npm_package.py
+      - name: Verify the approved tarball
+        id: approved
+        run: |
+          cd release
+          # `sha256sum --check` verifies the files SHA256SUMS lists and says
+          # nothing about files it does not. An extra tarball would therefore
+          # pass, and `npm publish ./*.tgz` would glob it first and publish
+          # bytes nothing verified. Require exactly one, and publish it by the
+          # name the manifest gives rather than by a glob.
+          count=$(find . -maxdepth 1 -name '*.tgz' | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "expected exactly one tarball in the artifact, found $count" >&2
+            exit 1
+          fi
+          sha256sum --check SHA256SUMS
+          tarball=$(awk '{ print $2 }' SHA256SUMS)
+          test -f "$tarball"
+          python3 ../scripts/check_npm_package.py "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
       # npm 11.5.1+ performs the OIDC exchange itself when the workflow has
       # `id-token: write` and a trusted publisher is configured for the
@@ -134,7 +155,7 @@ jobs:
       # token and this job takes over from the second onwards, the same
       # bootstrap crates.io requires.
       - name: Update npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@11.5.1
 
       # A prerelease must not take `latest`. `vanedb-wasm-v0.2.0-rc.1` passes
       # the version check above, and without an explicit dist-tag every
@@ -151,5 +172,5 @@ jobs:
           fi
 
       - name: Publish
-        run: npm publish --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
-        working-directory: target/npm/vanedb-wasm
+        run: npm publish "${{ steps.approved.outputs.tarball }}" --ignore-scripts --provenance --access public --tag "${{ steps.disttag.outputs.tag }}"
+        working-directory: release

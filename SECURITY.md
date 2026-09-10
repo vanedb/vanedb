@@ -2,9 +2,14 @@
 
 ## Supported versions
 
-The canonical Rust and Python packages are preparing their first release.
-Report issues against `main` or the current release candidate and include the
-commit or package version. No published-version support window is promised yet.
+Support targets the 0.1.1 release line of the Rust crate, Python package and
+WebAssembly package. Before publication, report issues against `main` or the
+current release candidate and include the commit. For a published package,
+include its installed version. Earlier `0.1.0-rc`
+prereleases and the npm `0.1.0` bootstrap are historical and not supported.
+
+During 0.x, fixes land in a new minor or patch release rather than being
+backported.
 
 ## Reporting a vulnerability
 

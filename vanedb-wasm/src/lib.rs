@@ -291,7 +291,8 @@ impl WasmIndex {
     /// `ef_search` widens the beam for this query alone and leaves the index's
     /// own setting untouched. The property is shared state, so raising it to
     /// rescue one hard query silently pays for it on every later one; this is
-    /// the way to spend that cost once.
+    /// the way to spend that cost once. Measure recall and latency on your own
+    /// data when choosing one.
     ///
     /// Below `k` it is raised to `k`, so `0` is the narrowest legal override,
     /// not a request to fall back to the index's setting — omit the argument

@@ -7,10 +7,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 1.0.0, breaking changes may land in a minor release.
 
-## [0.1.0] - Unreleased
+## [0.1.1] - 2026-09-10
 
-The planned first release. There is no earlier version to diff against, so this
-section records what it contains rather than what changed.
+The first supported release. It is a 0.x release: as stated above, APIs and
+persistence formats may still change in a minor release. This section records
+its functionality and the fixes made during prerelease verification.
 
 ### Security
 
@@ -37,7 +38,7 @@ section records what it contains rather than what changed.
 - GitHub Actions are pinned to commits; Rust CI checks dependency advisories,
   licences, bans and sources with `cargo-deny`.
 
-### Changed — public API, before anything is published
+### Changed — public API before the first release
 
 - `SearchResult` is `#[non_exhaustive]`, so a field can be added later without
   a major version. `PartialEq`/`Ord` stay defined over `(id, distance)`.
@@ -129,18 +130,25 @@ section records what it contains rather than what changed.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
-- WebAssembly gains `upsert` and a per-query beam width, closing the last two
-  gaps against the other bindings. `upsert` is one operation where `remove`
-  then `add` is two, and those two can fail between the halves and leave the id
-  deleted. The beam width applies to a single `search` and leaves
-  `ef_search` alone, so rescuing one hard query no longer charges every later
-  one. `is_empty` is deliberately not ported (#182): Python already says
-  `len(index)` and JavaScript `index.size() === 0`, and it is absent from the C
-  ABI and the C++ engine too, so adding it to two of five surfaces would buy
-  no uniformity.
-- Python `Metric` pickles, so a worker pool can be handed one. The index types
-  still refuse, at `dumps` rather than at `loads`: an index belongs in a
-  `.vndb` file, and bytes no unpickler will accept are worse than an error.
+- A getting-started guide for embedding providers
+  ([`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)), covering local Ollama
+  and hosted OpenAI, the document/query prefixes Nomic requires, and storing
+  the ids alongside your own documents.
+- WebAssembly `ApproxIndex` gains `upsert` and a per-query beam width, closing
+  the last two gaps against the other bindings. `upsert` is one operation where
+  `remove` then `add` is two, and those two can fail between the halves and
+  leave the id deleted; a rejected replacement keeps the existing vector. The
+  beam width applies to a single `search` and leaves `ef_search` alone, so
+  rescuing one hard query no longer charges every later one. `is_empty` is
+  deliberately not ported (#182): Python already says `len(index)` or plain
+  truth testing, JavaScript says `index.size() === 0`, and it is absent from
+  the C ABI and the C++ engine too, so adding it to two of five surfaces would
+  buy no uniformity.
+- Python `Metric` pickles and hashes, so a worker pool can be handed one and a
+  dict can be keyed by one. The index types still refuse to pickle, at `dumps`
+  rather than at `loads`: bytes no unpickler will accept are worse than an
+  error. Save an `ApproxIndex`, build a file with `DiskIndexBuilder`, or
+  rebuild a `FlatIndex` from its source vectors instead.
 
 ### Changed
 

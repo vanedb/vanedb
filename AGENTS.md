@@ -64,7 +64,7 @@ cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
 Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is excluded from
-0.1.0 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
+0.1.1 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
 Do not reintroduce an unimplemented CUDA feature or claim support without the
 roadmap's NVIDIA hardware, correctness, lifecycle and performance evidence. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
 acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built

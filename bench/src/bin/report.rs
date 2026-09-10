@@ -82,7 +82,9 @@ fn main() -> ExitCode {
         "> that is also compiling is not a measurement: this repo's rule is",
         "> interleaved A-B-A runs on a quiet machine before any claim. The",
         "> canonical table is [the criterion snapshot in",
-        "> `README.md`](README.md#headline-snapshot).",
+        "> `README.md`](README.md). The recall line below is one graph per",
+        "> engine at one seed; [`README.md`](README.md#recall-needs-repeated-construction-seeds)",
+        "> explains how to compare recall across construction seeds.",
         "",
     ] {
         md.push_str(line);
@@ -113,19 +115,13 @@ fn main() -> ExitCode {
         Measure against exact search on your own vectors and queries before choosing \
         graph parameters.\n\n",
     );
-    // A single-seed recall difference is noise, and this caveat has to live in
-    // the generator rather than beside the number: a previous hand-written
-    // banner carrying it was destroyed by the next run of this binary, which
-    // rewrites the whole file.
+    // Keep the single-seed limitation in the generator so regeneration retains it.
     md.push_str(
-        "**A recall difference between the engines at one seed is not a result.** \
+        "**One seed does not establish a recall advantage.** \
         Each engine builds one graph and scores it, so the line below is a single \
-        sample. Swept over 100 construction seeds per engine on this workload the \
-        means were 0.6927 (Rust, sd 0.0055) and 0.6924 (C++, sd 0.0052) — a true \
-        difference of +0.0003, 95% CI [-0.0012, +0.0018], p = 0.69. A gap of 0.011 \
-        between the two lines below therefore sits far outside what the seed \
-        explains. Sweep the randomness and publish an interval before quoting a \
-        recall difference.\n\n",
+        sample. Repeat across construction seeds on the same vectors and queries, \
+        and report the mean difference and its uncertainty before claiming one \
+        engine has better recall.\n\n",
     );
     md.push_str("| Op | C++ (ns/call) | Rust (ns/call) | ratio (rs/cpp) |\n|---|---:|---:|---:|\n");
 
