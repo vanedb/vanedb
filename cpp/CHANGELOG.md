@@ -60,10 +60,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `__getstate__`, which serves protocol 2 and up; protocols 0 and 1
   reconstruct through `copyreg._reconstructor`, which calls `object.__new__`
   on a pybind11 type. That throws a C++ exception with no Python translation,
-  so the process died on SIGABRT instead of raising. `Metric` now reduces by
-  name, giving every protocol one path. The test runs out-of-process, because
-  an in-process one would have taken the whole session down with it — which is
-  why nothing caught this.
+  so the process died on SIGABRT instead of raising. `Metric` now reduces
+  through its constructor, giving every protocol one path. It reduces by
+  *value* rather than by name because pybind11 lets an enum hold an integer no
+  value names — `Metric(7)` reprs as `<Metric.???: 7>` — and a name-based
+  reduce has to pick a named fallback for those, turning a round trip into
+  silent corruption. The test runs out-of-process, because an in-process one
+  would have taken the whole session down with it, which is why nothing caught
+  the abort.
 - A persisted negative level multiplier made the next insertion fail. The
   loader now retains the multiplier derived from `M`, matching Rust, and a
   regression covers negative, infinite and NaN stored values. Recorded here

@@ -62,7 +62,7 @@ PYBIND11_MODULE(vanedb_cpp, m) {
         .value("L2", Metric::L2)
         .value("COSINE", Metric::COSINE)
         .value("DOT", Metric::DOT)
-        // Pickle by name, so every protocol takes one path.
+        // Pickle through the constructor, so every protocol takes one path.
         //
         // pybind11 gives an enum `__getstate__`, which serves protocol 2 and
         // up. Protocols 0 and 1 instead reconstruct through
@@ -71,13 +71,16 @@ PYBIND11_MODULE(vanedb_cpp, m) {
         // translation, so the interpreter aborts on SIGABRT rather than
         // raising. Nothing caught it because an in-process test would have
         // taken the whole session down with it.
+        //
+        // Reconstruct from the value, not the name. pybind11 lets an enum
+        // hold an integer no value names -- `Metric(7)` reprs as
+        // `<Metric.???: 7>` -- and reducing by name has to pick some named
+        // fallback for those, which turns a pickle round trip into silent
+        // corruption. The discriminants are already frozen by the C ABI
+        // (0=L2, 1=Cosine, 2=Dot), so naming them here commits to nothing new.
         .def("__reduce__", [](const Metric &self) {
-            const char *name = self == Metric::COSINE ? "COSINE"
-                             : self == Metric::DOT    ? "DOT"
-                                                      : "L2";
-            return py::make_tuple(
-                py::module_::import("builtins").attr("getattr"),
-                py::make_tuple(py::cast(self).get_type(), name));
+            return py::make_tuple(py::type::of(py::cast(self)),
+                                  py::make_tuple(static_cast<int>(self)));
         })
         ;
 

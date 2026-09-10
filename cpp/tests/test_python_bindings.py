@@ -782,10 +782,15 @@ def test_metric_pickles_at_every_protocol():
             getattr(vanedb_cpp.Metric, n)
             for n in ("L2", "COSINE", "DOT")
         ]
+        # pybind11 lets an enum hold an integer no value names, and a round
+        # trip must not quietly turn it into one that is: reducing by name has
+        # to choose some named fallback, which reports 7 back as L2.
+        metrics.append(vanedb_cpp.Metric(7))
         for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
             for metric in metrics:
                 restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
                 assert restored == metric, (protocol, metric, restored)
+                assert int(restored) == int(metric), (protocol, metric, restored)
         """
     )
     result = subprocess.run(
