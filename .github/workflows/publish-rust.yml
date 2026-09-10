@@ -22,6 +22,13 @@ jobs:
   validate-version:
     name: Validate release identity
     runs-on: ubuntu-latest
+      # Without this a hung job holds GitHub's six-hour default. These are
+      # the jobs that carry an OIDC credential and a protected environment,
+      # so they are the ones where that matters most. The ceilings are far
+      # above observed runtimes -- the slowest publish job measured 3m57s --
+      # so they cannot bite a legitimate run. Time spent waiting for the
+      # environment approval is not job runtime and is not counted.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -88,6 +95,7 @@ jobs:
     name: Linux wheels (${{ matrix.libc }} ${{ matrix.arch }}, Python 3.11–3.14)
     needs: validate-version
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -132,6 +140,7 @@ jobs:
     name: Test Linux wheel (${{ matrix.arch }}, Python ${{ matrix.python-version }})
     needs: linux
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +181,7 @@ jobs:
     name: Test musl wheel (${{ matrix.arch }}, Python ${{ matrix.python-version }})
     needs: linux
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -221,6 +231,7 @@ jobs:
     name: macOS wheels (${{ matrix.target }}, Python ${{ matrix.python-version }})
     needs: validate-version
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -262,6 +273,7 @@ jobs:
     name: Windows wheels (x64, Python ${{ matrix.python-version }})
     needs: validate-version
     runs-on: windows-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -295,6 +307,7 @@ jobs:
     name: Source distribution
     needs: validate-version
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build sdist
@@ -314,6 +327,7 @@ jobs:
     name: Test source distribution
     needs: sdist
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -337,6 +351,7 @@ jobs:
     name: Validate release artifacts
     needs: [linux-test, musl-test, macos, windows, sdist-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -376,6 +391,7 @@ jobs:
     name: Publish vanedb to TestPyPI
     needs: validate-artifacts
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: >-
       github.event_name == 'workflow_dispatch' &&
       inputs.publish_testpypi &&
@@ -400,6 +416,7 @@ jobs:
     name: Publish vanedb to PyPI
     needs: validate-artifacts
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-v')
     environment:
       name: pypi
