@@ -201,10 +201,11 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 /// which are imported in this file. It is an implementation detail: the names
 /// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
 /// import-line change.
-// `module` is what makes `__module__` and the class and instance reprs say
-// `vanedb` rather than `builtins`. It does not make these types picklable:
-// PyO3 gives them no `__reduce__`, so `pickle.dumps(Metric.L2)` still raises
-// `TypeError`, with the type named correctly now instead of as a builtin.
+// `module` is what makes `__module__`, the class repr and the instance reprs
+// say `vanedb` rather than `builtins`. It is also what makes `__reduce__`
+// below work at all: pickle stores a class as `module.qualname` and resolves
+// it by importing that module, so `builtins.Metric` named nothing an unpickler
+// could find.
 #[pyclass(module = "vanedb", name = "Metric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 enum PyMetric {
@@ -213,6 +214,34 @@ enum PyMetric {
     Cosine = 1,
     #[pyo3(name = "DOT")]
     Dot = 2,
+}
+
+#[pymethods]
+impl PyMetric {
+    /// Pickle by name, the way `enum.Enum` does.
+    ///
+    /// A worker pool pickles its arguments, and PyO3 gives a `#[pyclass]` no
+    /// `__reduce__`: protocols 2 and up refused at `dumps`, while 0 and 1 fell
+    /// back to `copyreg._reconstructor` and *succeeded*, emitting a blob that
+    /// recorded no variant at all and failed only at `loads`. The variants are
+    /// singletons, so naming one rebuilds the identical object.
+    ///
+    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
+    /// renames above rather than the Rust ones.
+    fn __reduce__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(Bound<'py, PyAny>, (Bound<'py, PyAny>, &'static str))> {
+        let name = match self {
+            PyMetric::L2 => "L2",
+            PyMetric::Cosine => "COSINE",
+            PyMetric::Dot => "DOT",
+        };
+        Ok((
+            py.import("builtins")?.getattr("getattr")?,
+            (py.get_type::<PyMetric>().into_any(), name),
+        ))
+    }
 }
 
 impl From<Metric> for PyMetric {

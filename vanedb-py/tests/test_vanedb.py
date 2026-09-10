@@ -1,5 +1,7 @@
 import vanedb
+import copy
 import os
+import pickle
 import sys
 import tempfile
 
@@ -380,3 +382,70 @@ def test_a_missing_pathlib_path_still_raises_filenotfounderror(tmp_path):
         vanedb.ApproxIndex.load(tmp_path / "absent.vndb")
     with pytest.raises(FileNotFoundError):
         vanedb.DiskIndex.open(tmp_path / "absent.vndb")
+
+
+def test_classes_report_their_module():
+    """`#[pyclass(module = "vanedb")]` on every exported type.
+
+    Without it PyO3 reports `builtins`, so `repr()` reads
+    `<builtins.FlatIndex object ...>` and every error message names a builtin.
+    Removing the attribute left the whole suite green, which is why this exists.
+
+    It does not make these types picklable: PyO3 gives them no `__reduce__`, so
+    `pickle.dumps(Metric.L2)` still raises. `module` is necessary for that and
+    not sufficient, and this asserts only what it actually buys.
+    """
+    import vanedb
+
+    for cls in (
+        vanedb.Metric,
+        vanedb.FlatIndex,
+        vanedb.ApproxIndex,
+        vanedb.DiskIndex,
+        vanedb.DiskIndexBuilder,
+    ):
+        assert cls.__module__ == "vanedb", f"{cls.__name__} says {cls.__module__}"
+        assert "vanedb." in repr(cls), repr(cls)
+
+    index = vanedb.FlatIndex(2, vanedb.Metric.L2)
+    assert repr(index).startswith("<vanedb.FlatIndex"), repr(index)
+
+
+def test_metric_survives_a_pickle_round_trip():
+    """`Metric` must cross a process boundary; the index types must not pretend to.
+
+    A worker pool pickles its arguments, so a metric that cannot be pickled
+    fails at the boundary rather than in the code that chose it. Protocols 0
+    and 1 pickle a class by name, which is what naming the module fixed -- and
+    fixing it moved the failure rather than removing it: `dumps` began
+    succeeding, emitting a blob that recorded no variant at all, and only
+    `loads` failed. That is the worse of the two failures, because by then the
+    bytes have been written somewhere.
+    """
+    metrics = (vanedb.Metric.L2, vanedb.Metric.COSINE, vanedb.Metric.DOT)
+    for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+        for metric in metrics:
+            restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
+            # The variants are singletons, so identity is the real contract:
+            # equality alone would pass for a blob that lost the variant and
+            # rebuilt L2, which is exactly the bug that shipped the empty blob.
+            assert restored is metric, f"protocol {protocol} lost {metric!r}"
+    for metric in metrics:
+        assert copy.deepcopy(metric) is metric
+        assert copy.copy(metric) is metric
+
+
+def test_indexes_refuse_to_pickle_at_dump_time():
+    """An index holds vectors that belong in a `.vndb` file, not in a pickle.
+
+    Refusing is right; refusing *early* is the part worth pinning. A `dumps`
+    that succeeds and hands back bytes no `loads` will ever accept is a silent
+    corruption dressed as a working call.
+    """
+    index = vanedb.FlatIndex(2, vanedb.Metric.L2)
+    approx = vanedb.ApproxIndex(2, vanedb.Metric.L2)
+    for obj in (index, approx):
+        for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+            with pytest.raises(TypeError):
+                pickle.dumps(obj, protocol=protocol)
+

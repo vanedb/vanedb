@@ -220,6 +220,29 @@ def main() -> None:
         "engines": {"node": ">=18"},
     }
     (out / "package.json").write_text(json.dumps(package, indent=2) + "\n")
+    # The declared type of `metric` is the property a review blocked on: taking
+    # a `JsValue` to type-check at runtime silently regressed it from `string`
+    # to `any`, so `new FlatIndex(3, 42)` stopped being a compile error for
+    # every TypeScript consumer. Nothing caught that -- removing the attribute
+    # that restores it leaves the whole wasm suite green -- and `index.d.ts`
+    # ships inside a tarball npm never lets you re-upload.
+    declarations = (out / "index.d.ts").read_text(encoding="utf-8")
+    constructors = [l for l in declarations.splitlines() if "constructor(dim:" in l]
+    if len(constructors) != 2:
+        raise SystemExit(
+            f"expected two constructors in index.d.ts, found {len(constructors)}"
+        )
+    for line in constructors:
+        if "metric: string" not in line:
+            raise SystemExit(
+                "index.d.ts no longer declares `metric: string`:\n"
+                f"  {line.strip()}\n"
+                "wasm-bindgen widens a `JsValue` parameter to `any` unless the "
+                "declaration is pinned with #[wasm_bindgen(unchecked_param_type "
+                '= "string")]. That loses the compile-time check for every '
+                "TypeScript consumer, permanently."
+            )
+
     print(f"npm package assembled at {out}")
 
 

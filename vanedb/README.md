@@ -66,8 +66,8 @@ to obtain an independent vector.
 Metal compute requires macOS 10.14 or newer and a usable Metal device. Enable
 `gpu-metal` explicitly in your application's dependency:
 
-```toml
-vanedb = { version = "0.1", features = ["gpu-metal"] }
+```sh
+cargo add vanedb --features gpu-metal
 ```
 
 This exposes `MetalCompute` for manually uploaded vectors and distance scans.
