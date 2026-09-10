@@ -201,7 +201,12 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
 /// which are imported in this file. It is an implementation detail: the names
 /// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
 /// import-line change.
-#[pyclass(name = "Metric", eq, eq_int, from_py_object)]
+// `module` is what makes `__module__`, the class repr and the instance reprs
+// say `vanedb` rather than `builtins`. It is also what makes `__reduce__`
+// below work at all: pickle stores a class as `module.qualname` and resolves
+// it by importing that module, so `builtins.Metric` named nothing an unpickler
+// could find.
+#[pyclass(module = "vanedb", name = "Metric", eq, eq_int, from_py_object)]
 #[derive(Clone, Copy, PartialEq)]
 enum PyMetric {
     L2 = 0,
@@ -209,6 +214,34 @@ enum PyMetric {
     Cosine = 1,
     #[pyo3(name = "DOT")]
     Dot = 2,
+}
+
+#[pymethods]
+impl PyMetric {
+    /// Pickle by name, the way `enum.Enum` does.
+    ///
+    /// A worker pool pickles its arguments, and PyO3 gives a `#[pyclass]` no
+    /// `__reduce__`: protocols 2 and up refused at `dumps`, while 0 and 1 fell
+    /// back to `copyreg._reconstructor` and *succeeded*, emitting a blob that
+    /// recorded no variant at all and failed only at `loads`. The variants are
+    /// singletons, so naming one rebuilds the identical object.
+    ///
+    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
+    /// renames above rather than the Rust ones.
+    fn __reduce__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(Bound<'py, PyAny>, (Bound<'py, PyAny>, &'static str))> {
+        let name = match self {
+            PyMetric::L2 => "L2",
+            PyMetric::Cosine => "COSINE",
+            PyMetric::Dot => "DOT",
+        };
+        Ok((
+            py.import("builtins")?.getattr("getattr")?,
+            (py.get_type::<PyMetric>().into_any(), name),
+        ))
+    }
 }
 
 impl From<Metric> for PyMetric {
@@ -235,7 +268,7 @@ impl From<PyMetric> for Metric {
 }
 
 /// Brute-force vector store with thread-safe k-NN search.
-#[pyclass(name = "FlatIndex")]
+#[pyclass(module = "vanedb", name = "FlatIndex")]
 struct PyStore {
     inner: FlatIndex,
 }
@@ -338,7 +371,7 @@ impl PyStore {
 }
 
 /// HNSW approximate nearest-neighbor index.
-#[pyclass(name = "ApproxIndex")]
+#[pyclass(module = "vanedb", name = "ApproxIndex")]
 struct PyIndex {
     inner: ApproxIndex,
 }
@@ -558,7 +591,7 @@ impl PyIndex {
 
 /// Builds a `DiskIndex` file. Vectors are held in memory until `save`; the
 /// memory saving is on the reading side.
-#[pyclass(name = "DiskIndexBuilder")]
+#[pyclass(module = "vanedb", name = "DiskIndexBuilder")]
 struct PyDiskStoreBuilder {
     // The core builder takes `&mut self`, which PyO3 turns into a runtime
     // borrow. That was safe only because the GIL serialised every call —
@@ -620,7 +653,7 @@ impl PyDiskStoreBuilder {
 
 /// Exact search over a memory-mapped file. Read-only; build one with
 /// `DiskIndexBuilder`.
-#[pyclass(name = "DiskIndex")]
+#[pyclass(module = "vanedb", name = "DiskIndex")]
 struct PyDiskStore {
     inner: DiskIndex,
 }

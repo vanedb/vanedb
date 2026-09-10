@@ -129,6 +129,9 @@ section records what it contains rather than what changed.
   cannot silently stop older files from loading.
 - `DiskIndex::open` documents that the mapped file must not change while open,
   on the Rust, C and Python surfaces.
+- Python `Metric` pickles, so a worker pool can be handed one. The index types
+  still refuse, at `dumps` rather than at `loads`: an index belongs in a
+  `.vndb` file, and bytes no unpickler will accept are worse than an error.
 
 ### Changed
 

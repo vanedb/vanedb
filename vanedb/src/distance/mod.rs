@@ -26,10 +26,12 @@ pub enum Metric {
     /// Cosine distance (1 - cosine similarity).
     ///
     /// A zero vector has no direction, so the angle to it is undefined. This
-    /// crate reports 1.0 — the maximum distance — whenever either *computed*
-    /// squared norm is zero or is not finite, including a zero vector's
-    /// distance to itself. Ranking it as maximally distant keeps it out of
-    /// results rather than making it a NaN that sorts unpredictably. Both
+    /// crate reports 1.0 whenever either *computed* squared norm is zero or is
+    /// not finite, including a zero vector's distance to itself. 1.0 is the
+    /// orthogonal distance, not the maximum: `1 - cos` spans `[0, 2]`, and an
+    /// antiparallel pair is 2.0. So a degenerate vector ranks as unrelated
+    /// rather than as maximally distant, and will sort ahead of genuinely
+    /// opposed vectors — the alternative, a NaN, sorts unpredictably. Both
     /// engines share this policy.
     ///
     /// "Computed" is load-bearing at both ends of the range, and neither end

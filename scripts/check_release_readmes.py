@@ -88,14 +88,33 @@ def pep440(version):
     return version.replace("-rc.", "rc").replace("-alpha.", "a").replace("-beta.", "b")
 
 
+def satisfied_by(pinned, version):
+    """Does `pinned` name this release, or a range prefix of it?
+
+    Not full semver: Cargo reads `vanedb = "0.1.0"` as a caret range that 0.1.5
+    also satisfies, and this rejects that. It errs toward refusing a tag, which
+    costs a re-tag, rather than passing a README that names another release,
+    which is permanent.
+
+    Exact spellings first, then the caret-range forms a README legitimately
+    uses: `vanedb = "0.1"` is a requirement that 0.1.0 satisfies, not a pin
+    naming a different release. Demanding string equality rejected it.
+    """
+    if pinned in {version, pep440(version)}:
+        return True
+    # `0.1` or `0` as a range prefix of `0.1.0`. A prerelease suffix never
+    # satisfies a bare range, which is Cargo's rule and the reason an unpinned
+    # `vanedb = "0.1"` fails while a release candidate is the newest version.
+    return "-" not in version and version.startswith(pinned + ".")
+
+
 def wrong_pins(prefix, text, version):
-    """Pins in `text` naming something other than `version`."""
-    accepted = {version, pep440(version)}
+    """Pins in `text` that `version` does not satisfy."""
     wrong = []
     for pattern in PINS.get(prefix, []):
         for match in re.finditer(pattern, text):
             pinned = match.group(1).strip("`'\".,;:)]}")
-            if pinned not in accepted:
+            if not satisfied_by(pinned, version):
                 wrong.append((" ".join(match.group(0).split()), pinned))
     return wrong
 
