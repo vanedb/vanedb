@@ -287,11 +287,9 @@ impl WasmIndex {
     /// parallel by index. Ids are never narrowed to `f32`: values at or above
     /// 2^24 are not exactly representable, so distinct records collided and
     /// callers could act on the wrong record (#39).
-    /// `ef_search` widens the beam for this query alone and leaves the index's
-    /// own setting untouched. The property is shared state, so raising it to
-    /// rescue one hard query silently pays for it on every later one; this is
-    /// the way to spend that cost once. Below `k` it is raised to `k`, since
-    /// fewer candidates than results is meaningless.
+    /// `ef_search` overrides the beam for this query without changing the
+    /// index default. Omitting it uses that default; the effective beam is
+    /// always at least `k`. Measure recall and latency when choosing a beam.
     pub fn search(
         &self,
         query: &[f32],

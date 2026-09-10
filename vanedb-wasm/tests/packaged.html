@@ -44,6 +44,7 @@ try {
                     if (index instanceof ApproxIndex) {
                         index.ef_search = 16;
                         rejectsNumber(() => { index.ef_search = value; });
+                        rejectsNumber(() => index.search(new Float32Array([1, 0, 0]), 2, value));
                         check(index.ef_search === 16, 'invalid setting changed ef_search');
                     }
                 }
@@ -56,6 +57,32 @@ try {
                 try { index.add(-1n, new Float32Array([1, 0, 0])); }
                 catch { rejected = true; }
                 check(rejected && index.size() === 2, 'invalid ID was accepted');
+                if (index instanceof ApproxIndex) {
+                    index.upsert(id, new Float32Array([0, 0, 1]));
+                    check(index.size() === 2 && index.tombstones() === 1, 'upsert did not replace');
+                    index.upsert(2n, new Float32Array([1, 0, 0]));
+                    check(index.size() === 3, 'upsert did not insert');
+                    for (const vector of [new Float32Array([1, 2]), new Float32Array([NaN, 0, 0])]) {
+                        let failed = false;
+                        try { index.upsert(id, vector); }
+                        catch { failed = true; }
+                        check(failed && index.size() === 3 && index.tombstones() === 1,
+                            'rejected upsert changed the index');
+                        check([...index.get(id)].join(',') === '0,0,1', 'rejected upsert lost the vector');
+                    }
+                    index.ef_search = 1;
+                    for (const ef of [undefined, null, 0, 64, 2 ** 32 - 1]) {
+                        const widened = index.search(new Float32Array([1, 0, 0]), 3, ef);
+                        try {
+                            check(widened.ids.length === 3 && widened.ids[0] === 2n,
+                                'per-query search returned the wrong results');
+                        } finally { widened.free(); }
+                        check(index.ef_search === 1, 'per-query search changed the default');
+                    }
+                    index.compact();
+                    check(index.tombstones() === 0 && index.size() === 3, 'compact lost upserted entries');
+                    index.remove(2n);
+                }
                 index.remove(id);
                 check(!index.contains(id) && index.size() === 1, 'remove failed');
             } finally { index.free(); }

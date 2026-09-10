@@ -267,12 +267,7 @@ fn a_non_string_metric_is_rejected_not_trapped() {
     assert!(WasmStore::new(2.0, &JsValue::from_str("nope")).is_err());
 }
 
-/// `upsert` is one locked operation where `remove` then `add` is two.
-///
-/// wasm shipped without it while Rust, Python and the C ABI had it, and the
-/// README stated the omission without a reason. There is none: persistence is
-/// absent because a browser has no filesystem, but this is pure in-memory
-/// state, and `add` and `remove` were already exposed.
+/// Replacement preserves size; a rejected replacement preserves the old vector.
 #[wasm_bindgen_test]
 fn upsert_replaces_in_place_and_inserts_when_absent() {
     let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
@@ -297,11 +292,7 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
     assert_eq!(index.get(1u64.into()).unwrap(), vec![5.0, 5.0, 5.0]);
 }
 
-/// A beam width for one query, leaving the index's own setting alone.
-///
-/// `ef_search` is a property, so the only way to widen a single hard query was
-/// to raise it, search, and lower it again -- three calls, and every search in
-/// between pays. Rust, Python and the C ABI all take it per call.
+/// A per-query beam leaves the index default unchanged.
 #[wasm_bindgen_test]
 fn per_query_ef_search_leaves_the_shared_setting_alone() {
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 200.0, 4.0, 8.0, Some(7.0)).unwrap();
