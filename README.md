@@ -7,6 +7,11 @@ generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
 storage and no filtered search — so keep your own id-to-document mapping
 alongside it. This checkout is pre-release.
 
+New to embeddings, or unsure where the vectors come from? Start with
+[Getting started: from text to search results](docs/GETTING_STARTED.md) — it
+sets up a local or hosted embedding provider and searches real sentences in
+about ten minutes.
+
 ## Quick start
 
 ### Rust
