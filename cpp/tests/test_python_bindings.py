@@ -760,3 +760,38 @@ class TestBufferAliasing:
         finally:
             stop.set()
             writer.join()
+
+
+def test_metric_pickles_at_every_protocol():
+    """`Metric` must not abort the interpreter when pickled.
+
+    pybind11 gives an enum `__getstate__`, which covers protocol 2 and up.
+    Protocols 0 and 1 instead reconstruct through `copyreg._reconstructor`,
+    which calls `object.__new__` on a pybind11 type; that throws a C++
+    exception with no Python translation and the process dies on SIGABRT.
+
+    Out-of-process on purpose: an in-process check would take the whole test
+    session down with it, which is why nothing caught this.
+    """
+    script = textwrap.dedent(
+        """
+        import pickle
+        import vanedb_cpp
+
+        metrics = [
+            getattr(vanedb_cpp.Metric, n)
+            for n in ("L2", "COSINE", "DOT")
+        ]
+        for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
+            for metric in metrics:
+                restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
+                assert restored == metric, (protocol, metric, restored)
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True
+    )
+    assert result.returncode == 0, (
+        f"pickling a Metric exited {result.returncode}\n{result.stderr}"
+    )
+
