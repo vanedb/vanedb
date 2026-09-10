@@ -102,9 +102,8 @@ by hand — no reviewer gate, no OIDC, no provenance — so it should not be the
 version people install. `0.1.0-rc.1` reserves the name, and `0.1.0` then goes
 out through the tagged workflow like every release after it. Prereleases are
 excluded from Cargo's default requirements, so `vanedb = "0.1"` never resolves
-to the bootstrap; the flip side is that during the window when the bootstrap is
-the only published version, `cargo add vanedb` resolves to nothing. Keep that
-window short. Leave the bootstrap version published rather than yanking it: it
+to the bootstrap. `cargo add vanedb` can select an available prerelease and
+write its version requirement. Leave the bootstrap version published rather than yanking it: it
 is the provenance record of how the name was claimed, and yanking it would
 imply it was defective.
 
