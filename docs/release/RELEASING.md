@@ -181,11 +181,10 @@ through protected main.
 
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
-the downloadable C and WebAssembly assets match the approved checksums. Only
-then add the verified registry commands and release links to the **git-only**
-user guides: the root `README.md`, `cpp/`, and the organisation profile. That
-step cannot reach `vanedb/README.md` or `vanedb-py/README.md` — those are
-already inside the published artifacts by this point. See step 5.
+the downloadable C and WebAssembly assets match the approved checksums. Update
+git-only guides and the organisation profile with verified release links and
+publication status. Packaged READMEs must already be correct before tagging;
+they cannot be changed inside an existing release. See step 5.
 
 If publication fails, inspect which versions and files were actually accepted
 before retrying. Preserve published versions and tags; do not delete or move
