@@ -64,10 +64,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through its constructor, giving every protocol one path. It reduces by
   *value* rather than by name because pybind11 lets an enum hold an integer no
   value names — `Metric(7)` reprs as `<Metric.???: 7>` — and a name-based
-  reduce has to pick a named fallback for those, turning a round trip into
-  silent corruption. The test runs out-of-process, because an in-process one
-  would have taken the whole session down with it, which is why nothing caught
-  the abort.
+  reduce has to pick a named fallback for those. That is worse than lossy:
+  `FlatIndex(3, Metric(7))` rejects the invalid value, so by-name turned an
+  inert-but-invalid metric into a *valid* `L2` the engine accepts and computes
+  wrong distances with.
+
+  A pickled `Metric` is now equal to, but not the same object as, the class
+  member, because reconstruction calls the constructor. `Metric(1) is
+  Metric.COSINE` was already false, so `is` was never sound on this type — but
+  note the `vanedb` package reduces by name and does preserve identity.
+  Compare metrics with `==`, which both honour.
+
+  The test runs out-of-process, because an in-process one would have taken the
+  whole session down with it, which is why nothing caught the abort. What gives
+  it teeth is the unnamed `Metric(7)` case: the three named values round-trip
+  correctly even under the buggy implementation.
 - A persisted negative level multiplier made the next insertion fail. The
   loader now retains the multiplier derived from `M`, matching Rust, and a
   regression covers negative, infinite and NaN stored values. Recorded here

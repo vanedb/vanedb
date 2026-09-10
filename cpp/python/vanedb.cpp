@@ -72,12 +72,27 @@ PYBIND11_MODULE(vanedb_cpp, m) {
         // raising. Nothing caught it because an in-process test would have
         // taken the whole session down with it.
         //
-        // Reconstruct from the value, not the name. pybind11 lets an enum
-        // hold an integer no value names -- `Metric(7)` reprs as
-        // `<Metric.???: 7>` -- and reducing by name has to pick some named
-        // fallback for those, which turns a pickle round trip into silent
-        // corruption. The discriminants are already frozen by the C ABI
-        // (0=L2, 1=Cosine, 2=Dot), so naming them here commits to nothing new.
+        // Reconstruct from the value, not the name. pybind11 lets an enum hold
+        // an integer no value names -- `Metric(7)` reprs as `<Metric.???: 7>`
+        // -- and reducing by name has to pick some named fallback for those.
+        // That is not merely lossy: `FlatIndex(3, Metric(7))` rejects the
+        // invalid value, so by-name turned an inert-but-invalid metric into a
+        // *valid* L2 the engine accepts and computes wrong distances with.
+        //
+        // Committing to the discriminant costs nothing new. It is already
+        // public API on this type (`int(Metric.L2)`, `Metric(0)`), it is the C
+        // ABI's metric parameter and the VNDB on-disk metric field, and it is
+        // what CPython's own `enum` reduces to.
+        //
+        // One consequence to know: the result is equal to, but not the same
+        // object as, the class member. `Metric(1) is Metric.COSINE` was already
+        // false before this, so `is` was never sound here -- but note the
+        // sibling `vanedb` package pickles by name and *does* preserve
+        // identity. Compare metrics with `==`, which both packages honour.
+        //
+        // `py::type::of(handle)` is the runtime overload on purpose: the
+        // template form `py::type::of<Metric>()` fails to compile for an enum,
+        // because `py::enum_` does not use the generic type caster.
         .def("__reduce__", [](const Metric &self) {
             return py::make_tuple(py::type::of(py::cast(self)),
                                   py::make_tuple(static_cast<int>(self)));
