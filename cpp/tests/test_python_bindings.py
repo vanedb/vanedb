@@ -791,6 +791,7 @@ def test_metric_pickles_at_every_protocol():
             for metric in metrics:
                 restored = pickle.loads(pickle.dumps(metric, protocol=protocol))
                 assert restored == metric, (protocol, metric, restored)
+                assert int(restored) == int(metric), (protocol, metric, restored)
         """
     )
     result = subprocess.run(
