@@ -157,6 +157,9 @@ already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 
 ## Conventions
 
+- Keep pull requests small and focused: one RFC, one fix, one feature slice,
+  or one document per PR, reviewable in one sitting. Split before opening
+  rather than after. Docs-only and code changes go in separate PRs.
 - Conventional commits: `feat(scope):`, `fix:`, `perf(scope):`, `chore(deps):`.
 - Run `cargo fmt --all` before committing. Don't chain fmt-check and commit with
   `;` — a failed check won't stop the commit.
