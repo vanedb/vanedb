@@ -1,6 +1,6 @@
 # RFC 0003: Competitor benchmark and demo
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.2.0
 - Tracking issue: #198
 - Supersedes / superseded by: none

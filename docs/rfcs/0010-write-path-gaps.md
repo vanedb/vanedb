@@ -1,6 +1,6 @@
 # RFC 0010: Write-path gaps
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.2.0
 - Tracking issues: #77, #109 (milestone 0.2.0)
 - Supersedes / superseded by: none

@@ -1,6 +1,6 @@
 # RFC 0002: C ABI distribution
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.2.0 (stages 1 and 5), 0.3.0 (stages 2, 3 and 4)
 - Tracking issues: #193 (stage 1), #194 (stage 2), #195 (stage 3), #196 (stage 4), #197 (stage 5)
 - Supersedes / superseded by: none
@@ -105,6 +105,11 @@ only the installed layout.
   `vanedb-crate-vX.Y.Z` tag. Signed with Sigstore `cosign` keyless signing;
   the release notes state how to verify.
 - `vanedb-capi/README.md` points at the release, not at "a successful CI run".
+
+## Decisions recorded
+
+- 2026-09-13: static-only xcframework, `abidiff` gate, keyless `cosign`
+  signing, and stage 5 before the mobile stages accepted (decision 7).
 
 ## Alternatives rejected
 

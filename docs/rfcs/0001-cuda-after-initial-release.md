@@ -1,7 +1,7 @@
 # RFC 0001: CUDA after the initial release
 
-- Status: accepted (decision of 2026-09-07); the ordering amendment below is
-  draft
+- Status: accepted (decision of 2026-09-07; ordering amendment accepted
+  2026-09-13)
 - Milestone: none assigned
 - Tracking issue: #205 (amendment decision)
 - Supersedes / superseded by: none
@@ -49,7 +49,7 @@ These are the requirements recorded in the roadmap on 2026-09-07, unchanged.
   and repeated-run variation. State where GPU use helps and where its overhead
   makes CPU execution preferable; kernel-only timing is not an application gain.
 
-## Proposed amendment: ordering (draft)
+## Amendment: ordering (accepted 2026-09-13)
 
 [`MARKET_ANALYSIS.md`](../MARKET_ANALYSIS.md) found that CUDA contradicts the
 stated positioning: the edge audience runs on NPUs, mobile GPUs and CPU SIMD,
@@ -66,7 +66,7 @@ FAISS or cuVS. The amendment:
    construction and graph search on the GPU are out of scope until the scan
    shows an end-to-end gain.
 
-Accepting the amendment changes `AGENTS.md`'s "required, high-priority
+The amendment changed `AGENTS.md`'s "required, high-priority
 follow-up" wording to "required follow-up, scheduled after RFCs 0002 to 0007".
 It changes none of the requirements above.
 
@@ -87,9 +87,9 @@ binding.
 
 For the amendment:
 
-- [ ] Maintainer accepts or rejects the ordering in this RFC.
-- [ ] `AGENTS.md` and `README.md` wording updated to match.
-- [ ] `docs/ROADMAP.md` lists CUDA after RFCs 0002 to 0007.
+- [x] Maintainer accepted the ordering on 2026-09-13 (#205).
+- [x] `AGENTS.md` and `README.md` wording updated to match.
+- [x] `docs/ROADMAP.md` lists CUDA after RFCs 0002 to 0007.
 
 For CUDA itself: the requirements section above, each item with recorded
 evidence.
@@ -102,4 +102,6 @@ CPU-only compile, never a CI timing.
 ## Out of scope
 
 Metal. The existing `gpu-metal` feature exposes distance scans without
-accelerating an index; whether to finish or remove it is a separate decision.
+accelerating an index. Decision 14 (2026-09-13): the README claim is removed
+now (#208), the feature flag stays, and finish-versus-delete is decided after
+0.3.0.

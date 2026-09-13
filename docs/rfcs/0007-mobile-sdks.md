@@ -1,6 +1,6 @@
 # RFC 0007: Mobile SDKs
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.3.0
 - Tracking issue: #202
 - Supersedes / superseded by: none
@@ -75,6 +75,14 @@ on an iPhone and on an Android device, recording hardware, OS, source revision
 and results. Simulator or emulator success is never presented as device
 evidence. The 0.3.0 readiness record carries these runs or states their
 absence.
+
+## Decisions recorded
+
+- 2026-09-13: `uniffi` accepted over hand-written bindings (decision 9);
+  Flutter and React Native deferred (decision 10).
+- An Apple developer account is available to the maintainer, so xcframework
+  signing, TestFlight sample distribution and physical iPhone runs are not
+  blocked on an account.
 
 ## Alternatives rejected
 

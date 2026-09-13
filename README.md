@@ -229,10 +229,13 @@ and [security policy](SECURITY.md) for release changes and vulnerability reports
 
 ## Roadmap
 
-CUDA support for NVIDIA GPUs is a required, high-priority follow-up after the initial release.
-It is excluded from this release. The [roadmap](docs/ROADMAP.md) records the
-implementation, hardware verification and performance requirements, plus mobile
-physical-device follow-up. No delivery version or date has been assigned.
+The [roadmap](docs/ROADMAP.md) indexes the planned work as RFCs with
+milestones. CUDA support for NVIDIA GPUs is a required follow-up scheduled
+after the C ABI distribution, competitor benchmark, filtered search, quantized
+storage, WebAssembly persistence and mobile SDK work; it is excluded from this
+release and [RFC 0001](docs/rfcs/0001-cuda-after-initial-release.md) records the
+implementation, hardware verification and performance requirements. No delivery
+version or date has been assigned.
 
 ## License
 

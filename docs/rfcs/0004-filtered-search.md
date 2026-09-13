@@ -1,6 +1,6 @@
 # RFC 0004: Filtered search
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.2.0
 - Tracking issue: #199
 - Supersedes / superseded by: none
@@ -98,6 +98,13 @@ reported as `VANEDB_RS_PANIC`.
 
 An unsorted or duplicated `Allow`/`Deny` slice is `VaneError::Validation`.
 A filter is never an error on an empty index.
+
+## Decisions recorded
+
+- 2026-09-13: automatic beam widening with the 4 × `ef_search` default cap
+  accepted (decision 4).
+- 2026-09-13: a Python callable predicate is allowed, documented as the slow
+  path, with id lists as the fast path (decision 5).
 
 ## Alternatives rejected
 

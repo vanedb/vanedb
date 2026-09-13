@@ -1,6 +1,6 @@
 # RFC 0005: Quantized storage
 
-- Status: draft
+- Status: accepted (2026-09-13)
 - Milestone: 0.3.0
 - Tracking issue: #200
 - Supersedes / superseded by: none

@@ -47,13 +47,15 @@ verified on the hardware it claims does not ship with the claim.
 
 | RFC | Title | Status | Milestone | Issues |
 |---|---|---|---|---|
-| [0001](0001-cuda-after-initial-release.md) | CUDA after the initial release | accepted, ordering amendment draft | none | #205 |
-| [0002](0002-c-abi-distribution.md) | C ABI distribution | draft | 0.2.0 (stages 1 and 5), 0.3.0 (stages 2 to 4) | #193 #194 #195 #196 #197 |
-| [0003](0003-competitor-benchmark-and-demo.md) | Competitor benchmark and demo | draft | 0.2.0 | #198 |
-| [0004](0004-filtered-search.md) | Filtered search | draft | 0.2.0 | #199 |
-| [0005](0005-quantized-storage.md) | Quantized storage | draft | 0.3.0 | #200 |
+| [0001](0001-cuda-after-initial-release.md) | CUDA after the initial release | accepted; ordering amendment accepted 2026-09-13 | none | #205 |
+| [0002](0002-c-abi-distribution.md) | C ABI distribution | accepted | 0.2.0 (stages 1 and 5), 0.3.0 (stages 2 to 4) | #193 #194 #195 #196 #197 |
+| [0003](0003-competitor-benchmark-and-demo.md) | Competitor benchmark and demo | accepted | 0.2.0 | #198 |
+| [0004](0004-filtered-search.md) | Filtered search | accepted | 0.2.0 | #199 |
+| [0005](0005-quantized-storage.md) | Quantized storage | accepted | 0.3.0 | #200 |
 | [0006](0006-wasm-persistence.md) | WebAssembly persistence | draft | 0.2.0 | #201 |
-| [0007](0007-mobile-sdks.md) | Mobile SDKs | draft | 0.3.0 | #202 |
+| [0007](0007-mobile-sdks.md) | Mobile SDKs | accepted | 0.3.0 | #202 |
 | [0008](0008-streaming-disk-build-and-mapped-graph.md) | Streaming disk build and mapped graph | draft | 0.4.0 | #203 |
 | [0009](0009-payload-column.md) | Optional payload column | draft | 0.4.0 | #204 |
-| [0010](0010-write-path-gaps.md) | Write-path gaps | draft | 0.2.0 | #77 #109 |
+| [0010](0010-write-path-gaps.md) | Write-path gaps | accepted | 0.2.0 | #77 #109 |
+| [0011](0011-api-vocabulary-before-1-0.md) | API vocabulary before 1.0 | accepted | 0.2.0 | #206 |
+| [0012](0012-platform-support-policy.md) | Platform support policy | draft | 0.2.0 | #207 |

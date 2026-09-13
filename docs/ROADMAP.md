@@ -14,17 +14,19 @@ decision, until the corresponding RFC is accepted.
 
 | Order | RFC | Milestone | Status |
 |---|---|---|---|
-| 0 | [0003 Competitor benchmark and demo](rfcs/0003-competitor-benchmark-and-demo.md) | 0.2.0 | draft |
-| 1 | [0004 Filtered search](rfcs/0004-filtered-search.md) | 0.2.0 | draft |
+| 0 | [0003 Competitor benchmark and demo](rfcs/0003-competitor-benchmark-and-demo.md) | 0.2.0 | accepted |
+| 1 | [0004 Filtered search](rfcs/0004-filtered-search.md) | 0.2.0 | accepted |
 | 2 | [0006 WebAssembly persistence](rfcs/0006-wasm-persistence.md) | 0.2.0 | draft |
-| 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | draft |
-| 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | draft |
-| 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | draft |
-| 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | draft |
-| 7 | [0007 Mobile SDKs](rfcs/0007-mobile-sdks.md) | 0.3.0 | draft |
+| 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | accepted |
+| 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | accepted |
+| 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | accepted |
+| 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | draft |
+| 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
+| 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | accepted |
+| 7 | [0007 Mobile SDKs](rfcs/0007-mobile-sdks.md) | 0.3.0 | accepted |
 | 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | draft |
 | 9 | [0009 Optional payload column](rfcs/0009-payload-column.md) | 0.4.0 | draft |
-| after the above | [0001 CUDA after the initial release](rfcs/0001-cuda-after-initial-release.md) | none assigned | accepted; ordering amendment draft |
+| after the above | [0001 CUDA after the initial release](rfcs/0001-cuda-after-initial-release.md) | none assigned | accepted; ordering amendment accepted 2026-09-13 |
 
 Milestones: [0.2.0](https://github.com/vanedb/vanedb/milestone/1),
 [0.3.0](https://github.com/vanedb/vanedb/milestone/2),
@@ -39,7 +41,7 @@ source alone does not establish support. The implementation, real-hardware CI,
 correctness, lifecycle, error-behaviour and end-to-end performance
 requirements that must be met before CUDA is advertised are recorded in
 [RFC 0001](rfcs/0001-cuda-after-initial-release.md); nothing may claim CUDA
-support without that evidence. RFC 0001 also carries a draft amendment that
+support without that evidence. Its amendment, accepted on 2026-09-13,
 schedules CUDA after RFCs 0002 to 0007 and scopes a first target to NVIDIA
 Jetson.
 
@@ -54,7 +56,13 @@ iPhone and an Android device, recording hardware, OS, source revision and
 results. Simulator or emulator success must never be presented as
 physical-device evidence.
 
-## Open API question for 0.2: should `get` return `None` instead of raising?
+## Decided for 0.2: `get` returns `None` instead of raising
+
+Decided on 2026-09-13 and recorded in [RFC 0011](rfcs/0011-api-vocabulary-before-1-0.md),
+which also settles the count spelling, `Metric` ergonomics and the `ef_search`
+shape. The survey that informed it is kept below.
+
+### The survey
 
 An independent precedent survey done for vanedb#153 found that `.get()`
 returning `None` on a miss is more settled across keyed stores than raising:
@@ -67,12 +75,7 @@ with itself here (`FlatIndex.get` and `DiskIndex.get` return `None`,
 `ApproxIndex.get_vector` throws), so there is no single convention on that side
 to match.
 
-The first release retains this behavior because the Rust core has no
-`Option`-returning accessor to bind, `get`/`get_vector` are the cross-engine
-spelling settled in #85, and `contains` is already the non-raising probe. The
-choice of `KeyError` makes the mismatch more conspicuous rather than
-less, because `KeyError` is the exception `dict.get` exists to avoid.
-
-Revisit deliberately: either accept the divergence and document `get` as
-raising with `contains` as the probe, or add a `try_get`-style accessor to the
-core first so every binding can offer both. Do not change one binding alone.
+0.1.1 retained the raising behavior because the Rust core had no
+`Option`-returning accessor to bind, `get`/`get_vector` were the cross-engine
+spelling settled in #85, and `contains` was already the non-raising probe.
+RFC 0011 changes every binding at once in 0.2.0; no binding changes alone.
