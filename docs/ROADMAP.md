@@ -6,6 +6,10 @@ high-priority follow-up after the initial release, as agreed on September 7, 202
 assigned release version or delivery date. The C++ engine remains frozen
 reference code.
 
+[`MARKET_ANALYSIS.md`](MARKET_ANALYSIS.md) (2026-09-13) reviews the audience,
+competitors and monetisation options and proposes a different ordering for the
+items below; it is analysis, not a decision.
+
 ## CUDA on NVIDIA GPUs — required after the initial release
 
 Enable applications with NVIDIA hardware to accelerate vector workloads through
