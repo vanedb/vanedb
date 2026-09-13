@@ -20,6 +20,13 @@ jobs:
   verify:
     name: Build and consume the package
     runs-on: ubuntu-latest
+      # Without this a hung job holds GitHub's six-hour default. These are
+      # the jobs that carry an OIDC credential and a protected environment,
+      # so they are the ones where that matters most. The ceilings are far
+      # above observed runtimes -- the slowest publish job measured 3m57s --
+      # so they cannot bite a legitimate run. Time spent waiting for the
+      # environment approval is not job runtime and is not counted.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,6 +110,7 @@ jobs:
     # never satisfy it, whatever ref it names.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-wasm-v')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: npm
     permissions:
       contents: read

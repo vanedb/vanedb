@@ -150,9 +150,28 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
+      # Two axes, not their product. `vanedb-cpp` is never published -- it is
+      # reference code and the second arm of the benchmark comparison -- and the
+      # engine underneath is already built and tested on every platform by the
+      # jobs above, with gcc, clang, msvc, both sanitizers, Linux ARM64, Android
+      # and iOS. What is left for this job to catch is the pybind11-to-CPython
+      # layer, which moves with the interpreter version, and whether the
+      # extension builds at all on a given OS.
+      #
+      # So: every interpreter version on one OS, and the oldest and newest on
+      # the other two. Twelve jobs become eight. The twelve were sixteen of the
+      # seventy-two runner-minutes a push costs, spent on a package that ships
+      # nowhere.
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        include:
+          - { os: ubuntu-latest, python-version: '3.11' }
+          - { os: ubuntu-latest, python-version: '3.12' }
+          - { os: ubuntu-latest, python-version: '3.13' }
+          - { os: ubuntu-latest, python-version: '3.14' }
+          - { os: macos-latest, python-version: '3.11' }
+          - { os: macos-latest, python-version: '3.14' }
+          - { os: windows-latest, python-version: '3.11' }
+          - { os: windows-latest, python-version: '3.14' }
 
     steps:
     - name: Checkout code
