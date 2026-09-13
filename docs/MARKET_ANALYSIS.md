@@ -262,6 +262,8 @@ the moment it has users:
 ## 7. Roadmap guidance
 
 Ordered. Each item names the audience it unlocks and the evidence for it.
+Each now has an RFC in [`docs/rfcs/`](rfcs/README.md) and a tracking issue;
+[`ROADMAP.md`](ROADMAP.md) is the index.
 
 0. **Generate a signal before committing engineering.** Publish a competitor
    benchmark (usearch, hnswlib, sqlite-vec, instant-distance, EdgeVec) on the
