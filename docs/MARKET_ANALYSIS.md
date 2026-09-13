@@ -1,6 +1,7 @@
 # VaneDB market analysis
 
-Dated 2026-09-13, three days after the 0.1.1 release. Inputs: the repository
+Dated 2026-09-13, three days after the 0.1.1 release. Covers audience, market
+size, competitors, feedback and roadmap guidance. Inputs: the repository
 and its 44 issues and 100+ pull requests, crates.io/PyPI/npm registry metadata,
 and public material on competing products and on the vector-database and edge-AI
 markets. Every number that came from this repository or a registry is marked as
@@ -120,9 +121,10 @@ Working estimate: worldwide spend on embedded and on-device vector search
 software specifically is in the low tens of millions of dollars a year through
 2028 and is fragmented across sync, encryption, support and enterprise
 licences. A realistic serviceable market for a single-engine project is a few
-million dollars a year at maturity, and only via one of the attached-value
-models in section 8. The category's strategic value (ecosystem position,
-acquisition interest, consulting flow) exceeds its direct licensing value.
+million dollars a year at maturity, and only via services attached to the
+engine rather than the engine itself. The category's strategic value
+(ecosystem position, acquisition interest, consulting flow) exceeds its direct
+licensing value.
 
 ## 5. Competitors
 
@@ -159,7 +161,7 @@ counts quoted from search results and are approximate.
 
 ### Mobile-first and edge products
 
-| Product | Surface | Sync | Monetisation |
+| Product | Surface | Sync | Business model |
 |---|---|---|---|
 | **ObjectBox** (~4.6k Java) | Java/Kotlin, Swift, Dart/Flutter, C/C++, Python; HNSW; metadata | paid | Core free, Sync paid, no public price |
 | **Couchbase Lite** | Swift, Kotlin, C, .NET; vector search in-device | paid, incl. peer-to-peer | Enterprise licence |
@@ -329,34 +331,7 @@ Deprioritise or reframe:
   a feature buyers can use. Either finish it (GPU brute-force `FlatIndex` on
   Apple Silicon, which is a real on-device story) or remove it from the README.
 
-## 8. Monetisation
-
-Ranked by fit with a single-maintainer MIT library whose value is trust and
-correctness. Each option names its comparable and its prerequisite.
-
-| Option | Comparable | Prerequisite | Assessment |
-|---|---|---|---|
-| **Paid sync / replication of indexes between devices and a cloud** | ObjectBox Sync, Couchbase Mobile, the former Realm Sync | payload storage, mobile SDKs, a server component | The only model with proven recurring revenue in this niche. Also the hardest: MongoDB abandoned it. Two years out at minimum. |
-| **Commercial extensions under a separate licence** (encryption at rest for VNDB files, secure enclave key handling, signed indexes) | SQLite Encryption Extension, $2,000 perpetual | file format hooks (a `kind` for encrypted payload) | Best near-term fit. Regulated buyers (health, automotive, defence) pay for exactly the loader-hardening story VaneDB already has. Keep the core MIT; ship the extension as a closed crate/wheel with a source-available licence. |
-| **Support and consortium** | SQLite Consortium (~$75k/year), Tidelift | adoption in at least one product with a legal department | Low effort, scales with adoption, unavailable before adoption. |
-| **Enterprise packaging**: signed binaries, SBOM, long-term-support branches, security advisories with SLAs | Tidelift, HeroDevs | a release cadence and an LTS policy | Fits the existing release-evidence discipline; a natural add-on to support. |
-| **Managed index-build service** (build large graphs in the cloud, ship the VNDB file to devices) | LanceDB Cloud | none technically | Plausible for large-corpus mobile apps (offline maps, catalogues). Small market; do not build ahead of demand. |
-| **Sponsorship** | GitHub Sponsors | visibility | Negligible revenue for infrastructure crates; do it for signalling only. |
-| **Acquisition or acqui-hire** | Realm ($39M), sqlite-vss author to Mozilla | adoption | Not a plan, but the format spec, conformance suite and hardening are the parts an acquirer values. Keep them clean. |
-
-Constraints:
-
-- MIT means any of the above can be forked around. The defensible parts are
-  the closed extension code, the trademark, and the trust record. Register
-  the name; keep release evidence as a product feature.
-- Do not change the core licence. The audiences in section 3 evaluate the
-  licence before the code; BSL-style changes cost more adoption than they
-  earn in this segment.
-- Nothing monetises before adoption. The order is: signal (item 0), the
-  three surface features that lose evaluations today (items 1–3), then the
-  encryption extension as the first paid artefact.
-
-## 9. Summary of decisions this analysis asks for
+## 8. Summary of decisions this analysis asks for
 
 1. Choose the audience the next two releases serve: in-process Rust/Python
    (what ships) or mobile/edge (what the tagline says). Section 7 assumes the
@@ -364,8 +339,6 @@ Constraints:
 2. Ship filtered search, quantization and wasm persistence before CUDA.
 3. Publish one honest benchmark against the incumbents and one demo, then
    read the feedback that produces before committing further roadmap.
-4. Plan the first paid artefact as an encryption extension under a separate
-   licence, leaving the core MIT.
 
 ## Sources
 
@@ -400,12 +373,6 @@ Competitors and their users: [ObjectBox, on-device vector databases in 2026](htt
 [Chroma vs LanceDB cost](https://aibizhub.io/articles/chroma-vs-lancedb-cost-2026/) ·
 [RAG on mobile, 2026](https://dev.to/devin-rosario/rag-on-mobile-local-vector-dbs-and-smart-search-2026-1ad7) ·
 [react-native-rag op-sqlite store](https://github.com/software-mansion-labs/react-native-rag/blob/main/packages/op-sqlite/README.md)
-
-Monetisation comparables: [SQLite Encryption Extension](https://sqlite.org/purchase/see) ·
-[SQLite Consortium](https://www.sqlite.org/pressrelease-20071212.html) ·
-[MongoDB acquires Realm](https://www.techtarget.com/searchdatamanagement/news/252462282/MongoDB-buys-Realm-database-to-boost-mobile-chops) ·
-[MongoDB ends mobile support](https://www.couchbase.com/blog/realm-mongodb-eol-day-2025/) ·
-[Open source monetisation approaches](https://github.com/PayDevs/awesome-oss-monetization/blob/main/approaches/dual-licensing.md)
 
 Registry data: [crates.io vanedb](https://crates.io/crates/vanedb) ·
 [PyPI vanedb](https://pypi.org/project/vanedb/) ·

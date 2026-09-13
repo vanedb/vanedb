@@ -54,6 +54,19 @@ Rules that follow:
   not there has a bug, and `remove` is not named `get`.
 - No binding gains a method the others cannot express.
 
+## The precedent survey (moved from the roadmap)
+
+An independent precedent survey done for vanedb#153 found that `.get()`
+returning `None` on a miss is more settled across keyed stores than raising:
+py-lmdb, plyvel, rocksdict, python-rocksdb, redis-py, usearch and
+`collections.abc.Mapping.get` all do it. That makes a raising method named
+`get` the outlier, independently of which exception it raises. The frozen C++
+package was inconsistent with itself (`FlatIndex.get` and `DiskIndex.get`
+returned `None`, `ApproxIndex.get_vector` threw), so there was no convention
+on that side to match. 0.1.1 kept the raising behaviour because the Rust core
+had no `Option`-returning accessor to bind and `contains` was already the
+non-raising probe.
+
 ## Alternatives rejected
 
 - **Add `try_get` and keep `get` raising.** Two names for one read, forever,

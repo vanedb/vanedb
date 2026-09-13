@@ -123,5 +123,4 @@ emulator", as it does today.
 
 ## Out of scope
 
-Encrypted storage (a monetisation candidate in `MARKET_ANALYSIS.md`, section
-8), sync, Flutter, React Native, on-device embedding models.
+Encrypted storage, sync, Flutter, React Native, on-device embedding models.

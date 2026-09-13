@@ -3,7 +3,7 @@
 - Status: accepted (2026-09-13)
 - Milestone: 0.3.0
 - Tracking issue: #200
-- Supersedes / superseded by: none
+- Supersedes / superseded by: none; stores its encodings in the RFC 0013 container
 
 ## Problem
 
@@ -66,20 +66,16 @@ constructors; existing constructors unchanged.
 
 ### File format
 
-- VNDB v2 (graph) gains kinds `2` (HNSW, int8 vectors) and `3` (HNSW, binary
-  vectors, optional f32 section). The v1 disk header has no kind field and
-  version `2` already names the graph format, so quantized disk files use a
-  new version `3` header that adds a kind field (`1` int8, `2` binary); f32
-  disk files stay version `1`. Exact layouts are specified in `conformance/`
-  before implementation, with golden fixtures.
-- Quantization parameters (`offset`, `scale`, mean vector, padding) live in
-  the header or a fixed-length parameter section, never inferred from data.
-- Existing readers reject the new kinds with `VaneError::Corrupt { .. }`
-  naming the kind, as they do today for unknown kinds. Old files load
-  unchanged.
-- The frozen C++ engine does not learn the new kinds. Cross-engine conformance
-  for quantized files is: the C++ reader rejects them cleanly, verified by a
-  fixture test. Loading a Rust f32 file in C++ is unchanged.
+- Amended 2026-09-13: no new kinds or versions. Quantized vectors are the
+  `vectors` section of the VNDB v3 container (RFC 0013) with encoding `1`
+  (int8) or `2` (binary); the parameters (`offset`, `scale`, per-vector norms
+  for cosine, the mean vector and padding bits for binary) are the
+  `quant_params` section; the optional f32 copy for rescoring is the
+  `rescore_f32` section. Both flat and graph indexes use the same sections.
+- Parameters are stored, never inferred from data.
+- v1 and v2 readers are unchanged; a quantized index is always a v3 file.
+- The frozen C++ engine reads v1 and v2 only and rejects v3 cleanly (tested
+  under RFC 0013); loading a Rust f32 v1 or v2 file in C++ is unchanged.
 
 ### Kernels
 
@@ -105,17 +101,16 @@ lengths.
 
 - Additive API. Default storage remains `F32`; every existing test passes
   unchanged.
-- New file kinds; existing identifiers untouched; readers for existing files
-  retained. Both `HnswData` mirrors in `tests/corruption_tests.rs` and
-  `tests/approx_id_map_conformance.rs` are updated in lockstep with any layout
-  change, per `AGENTS.md`.
+- No new identifiers beyond RFC 0013's section table; readers for existing
+  files retained. Both `HnswData` mirrors are unaffected (they mirror the
+  legacy bincode layout).
 - A quantized index cannot be converted back to `F32` losslessly; the docs say
   to keep the source vectors.
 
 ## Acceptance criteria
 
-- [ ] Format layouts for the new kinds specified in `conformance/` with golden
-      fixtures and corruption fixtures; the C++ engine's rejection tested.
+- [ ] `vectors` encodings 1 and 2, `quant_params` and `rescore_f32` specified
+      in `conformance/v3/` with golden and corruption fixtures (RFC 0013).
 - [ ] Scalar, NEON and AVX2 kernels for i8 and binary with property tests and
       the `f64` reference suite.
 - [ ] `Storage` API in Rust, Python, WebAssembly and C ABI with tests.

@@ -1,9 +1,10 @@
 # RFC 0008: Streaming disk build and mapped graph
 
-- Status: draft
+- Status: draft; direction accepted 2026-09-13, acceptance gated on the
+  capacity study (#210) and the cold-cache spike below
 - Milestone: 0.4.0
 - Tracking issue: #203
-- Supersedes / superseded by: none
+- Supersedes / superseded by: none; relies on the RFC 0013 container layout
 
 ## Problem
 
@@ -19,7 +20,16 @@ vectors than fit in memory, on one machine.
 Two changes. First, `DiskIndexBuilder` streams rows to the destination file as
 they arrive and finalises the header at `save`, holding only the id set in
 memory. Second, `ApproxIndex` gains a read-only memory-mapped open in which
-vectors are paged from the file and graph links are resident.
+f32 vectors are paged from the file, graph links are resident as flat `u32`
+arrays, and, when the file carries a quantized encoding (RFC 0005), the
+quantized vectors are resident too and drive the graph walk, with the mapped
+f32 copy used only to rescore the final candidates. This is DiskANN's
+navigate-on-compressed, rescore-on-exact trick applied to the existing HNSW
+graph, without a second index structure.
+
+Before implementation, a spike measures cold-cache search on one Android
+device and one NVMe laptop at 1M × 768-d; if p99 exceeds 20 ms the fallback is
+IVF over the mapped `DiskIndex` (below), and this RFC is amended.
 
 ## Design
 
@@ -49,15 +59,21 @@ vectors are paged from the file and graph links are resident.
   itself against a concurrent writer. Read-only: `add`, `remove`, `upsert`,
   `compact` return `VaneError::ReadOnly` (new variant; `VaneError` is
   `#[non_exhaustive]`).
-- Requires the VNDB v2 vector region to be contiguous and 4-byte aligned in
-  the file. The v2 specification in `conformance/graph/README.md` is checked
-  for this before implementation; if the current layout interleaves vectors
-  with links, a new kind (`4`, HNSW with a separated vector region) is
-  specified with golden fixtures, and `open_mapped` accepts only that kind
-  while `load` accepts both. Existing identifiers are not reinterpreted.
-- Links, levels, tombstone flags and the id map are read into memory at open;
-  vectors are read through the mapping during search. Distance kernels take
-  slices from the mapping directly.
+- Operates on VNDB v3 files (RFC 0013): the `vectors` section is contiguous
+  and aligned by construction, and the `graph` section stores `u32` slot
+  numbers. `open_mapped` on a v1 or v2 file returns `VaneError::Validation`
+  telling the caller to load and save once. v2 interleaves vectors with links,
+  which is why v3 exists.
+- Links, levels, tombstone flags and the id map are read into flat resident
+  arrays at open (`u32` slots, about 140 bytes per node at M = 16, half of
+  today's `usize`). f32 vectors are read through the mapping during search;
+  the distance kernels take slices from the mapping directly.
+- With a quantized `vectors` section (RFC 0005), the int8 or binary vectors
+  are read into memory (770 B or 96 B per 768-d vector) and the walk runs on
+  them; `SearchParams::rescore(n)` re-ranks the top `n × k` candidates from
+  the mapped `rescore_f32` section. Resident memory for 1M × 768-d is then
+  about 140 MB of links plus 96 MB (binary) or 770 MB (int8); for 10M, 1.4 GB
+  plus 0.96 GB or 7.7 GB.
 - Search semantics identical to the resident index for the same file; a test
   asserts identical results on the conformance fixtures.
 
@@ -66,20 +82,43 @@ vectors are paged from the file and graph links are resident.
 `ApproxIndex::resident_bytes()` (both modes) reports what the process holds,
 so a mobile caller can budget. Documented as an estimate.
 
+### Fallback: IVF over the mapped `DiskIndex`
+
+If the spike fails the 20 ms p99 gate, the alternative with sequential rather
+than random disk access: k-means centroids (resident, a few MB) partition the
+rows of a `DiskIndex` file into clusters stored contiguously; a search scans
+the `nprobe` nearest clusters from the mapping. Simpler than a mapped graph,
+friendlier to flash, lower recall at equal latency. It would be a mode of
+`DiskIndex` ("exact by default, approximate with clusters"), not a fourth
+index type, and a `clusters` section in the v3 container.
+
+### Capacity study (#210)
+
+The choice between the designs above, and the numbers this RFC promises, rest
+on facts not yet gathered: the corpus sizes and memory budgets each target
+segment actually has (mobile, browser, desktop RAG, gateway); the capacity
+each competitor supports and at what resident memory (ObjectBox, USearch,
+sqlite-vec, libSQL DiskANN, LanceDB, EdgeVec); and the measured latency,
+recall and memory of the mapped and quantized designs on real embeddings.
+`docs/LIMITS.md` records what 0.1.1 can hold today; the study produces
+`docs/research/capacity.md` and amends this RFC before it is accepted.
+
 ## Alternatives rejected
 
-- **DiskANN-style on-disk graph with vectors and links both paged.** Deferred:
-  a different index structure and file format; the mapped HNSW covers the
-  100k to few-million range that the audience has, with much less new code.
+- **DiskANN-style on-disk graph with vectors and links both paged.** Rejected
+  for now: a different index structure and file format; the mapped HNSW with
+  quantized navigation covers the 100k to 10M range the audience has, with
+  much less new code. Revisit only if the capacity study finds a segment past
+  10M vectors on one device.
 - **Vectors in a sidecar file for the mapped graph.** Rejected: one file per
-  index is a property users rely on and the conformance suite checks.
+  index (RFC 0013).
 
 ## Compatibility and migration
 
 - `DiskIndex` file bytes unchanged; both builders produce the same file.
-- Possible new VNDB v2 kind; old kind unchanged and readable; C++ engine
-  rejects the new kind cleanly (tested). Both `HnswData` mirrors updated in
-  lockstep if the graph layout changes.
+- No new identifiers: the layout is RFC 0013's. v1 and v2 files remain
+  loadable; `open_mapped` needs a v3 file. Both `HnswData` mirrors are
+  unaffected.
 - `VaneError::ReadOnly` is a new variant; every binding maps it: Python a
   new `ReadOnlyError` under the package's base exception (not
   `PermissionError`, which would conflate it with OS permissions), C ABI
@@ -87,6 +126,9 @@ so a mobile caller can budget. Documented as an estimate.
 
 ## Acceptance criteria
 
+- [ ] Spike recorded: cold-cache p50/p99 at 1M × 768-d on one Android device
+      and one NVMe laptop, f32 and binary navigation; the 20 ms gate decided.
+- [ ] Capacity study (#210) published and this RFC amended with its findings.
 - [ ] Streaming builder produces byte-identical files to the in-memory builder
       on the conformance fixtures and on a 1M-row synthetic corpus, with peak
       resident memory recorded for both.
@@ -108,5 +150,4 @@ latency figure so the docs can say what paging costs.
 
 ## Out of scope
 
-Writable mapped graphs, DiskANN, quantized mapped vectors (compose with RFC
-0005 later).
+Writable mapped graphs, DiskANN.

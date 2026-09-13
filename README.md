@@ -104,7 +104,9 @@ index type in every binding, so swapping one index for another does not mean
 renaming call sites.
 
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
-hint rather than a ceiling. Vector storage grows on demand.
+hint rather than a ceiling. Vector storage grows on demand. Hard limits,
+memory and file-size formulas, and what is not supported are collected in
+[`docs/LIMITS.md`](docs/LIMITS.md).
 
 `remove` tombstones: the node keeps its graph links, which may be the only
 route between live neighbourhoods, and simply stops appearing in results.
@@ -229,13 +231,9 @@ and [security policy](SECURITY.md) for release changes and vulnerability reports
 
 ## Roadmap
 
-The [roadmap](docs/ROADMAP.md) indexes the planned work as RFCs with
-milestones. CUDA support for NVIDIA GPUs is a required follow-up scheduled
-after the C ABI distribution, competitor benchmark, filtered search, quantized
-storage, WebAssembly persistence and mobile SDK work; it is excluded from this
-release and [RFC 0001](docs/rfcs/0001-cuda-after-initial-release.md) records the
-implementation, hardware verification and performance requirements. No delivery
-version or date has been assigned.
+Planned work, including CUDA and physical-device verification, is indexed in
+[`docs/ROADMAP.md`](docs/ROADMAP.md); current limits are in
+[`docs/LIMITS.md`](docs/LIMITS.md).
 
 ## License
 
