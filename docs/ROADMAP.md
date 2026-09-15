@@ -22,7 +22,7 @@ decision, until the corresponding RFC is accepted.
 | 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | accepted |
 | 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | accepted |
 | 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | accepted |
-| 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | draft |
+| 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | accepted |
 | 5 | [0013 VNDB v3 container format](rfcs/0013-vndb-v3-container.md) | 0.3.0 | accepted |
 | 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
 | 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | accepted |
