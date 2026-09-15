@@ -1,0 +1,129 @@
+# Attach the C ABI archives and the two wasm tarballs to a GitHub release, as
+# RELEASING.md requires, from the artifacts of the CI run at the tagged commit.
+# Nothing is rebuilt: the files attached are the bytes CI produced and hashed.
+#
+# The run is looked up, not trusted: the job refuses to continue unless the
+# run's head commit is the commit the tag points at.
+
+name: Attach release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, e.g. vanedb-crate-v0.1.1
+        required: true
+        type: string
+      run_id:
+        description: Id of the CI run at the tagged commit whose artifacts to attach
+        required: true
+        type: string
+      notes_file:
+        description: Release notes, relative to the repository root
+        required: true
+        type: string
+        default: docs/release/0.1.1-notes.md
+      draft:
+        description: Create the release as a draft
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-assets-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  attach:
+    name: Attach assets to ${{ inputs.tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      RUN_ID: ${{ inputs.run_id }}
+      NOTES_FILE: ${{ inputs.notes_file }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Check the run belongs to the tagged commit and no release exists yet
+        run: |
+          tag_sha="$(git rev-parse "refs/tags/${TAG}^{commit}")"
+          run_sha="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" --jq .head_sha)"
+          echo "tag ${TAG} -> ${tag_sha}"
+          echo "run ${RUN_ID} -> ${run_sha}"
+          if [ "${tag_sha}" != "${run_sha}" ]; then
+            echo "::error::run ${RUN_ID} was not built from the commit ${TAG} points at" >&2
+            exit 1
+          fi
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::error::a release for ${TAG} already exists; this workflow never overwrites one" >&2
+            exit 1
+          fi
+          test -f "${NOTES_FILE}" || { echo "::error::${NOTES_FILE} not found" >&2; exit 1; }
+
+      - name: Download the C ABI archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          pattern: vanedb-capi-*
+          path: assets/capi
+
+      - name: Download the wasm packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          name: vanedb-wasm-packages
+          path: assets/wasm
+
+      - name: Verify every archive against the checksum CI wrote beside it
+        run: |
+          set -u
+          count=0
+          while IFS= read -r sums; do
+            dir="$(dirname "${sums}")"
+            (cd "${dir}" && sha256sum --check --strict "$(basename "${sums}")")
+            count=$((count + 1))
+          done < <(find assets -name '*.sha256' | sort)
+          echo "verified ${count} checksum files"
+          # Five C archives and two wasm tarballs; fewer means a missing artifact.
+          [ "${count}" -ge 7 ] || { echo "::error::expected at least 7 checksum files, found ${count}" >&2; exit 1; }
+
+      - name: Collect the assets and refuse duplicate names
+        run: |
+          set -u
+          mkdir -p upload
+          find assets \( -name '*.zip' -o -name '*.tgz' -o -name '*.sha256' \) -type f | sort | while IFS= read -r f; do
+            name="$(basename "${f}")"
+            if [ -e "upload/${name}" ]; then
+              echo "::error::two assets share the name ${name}" >&2
+              exit 1
+            fi
+            cp "${f}" "upload/${name}"
+          done
+          ls -l upload
+
+      - name: Create the release and upload the assets
+        run: |
+          set -u
+          version="${TAG##*-v}"
+          draft_flag=""
+          if [ "${{ inputs.draft }}" = "true" ]; then draft_flag="--draft"; fi
+          # shellcheck disable=SC2086
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --verify-tag \
+            --title "vanedb ${version}" \
+            --notes-file "${NOTES_FILE}" \
+            ${draft_flag} \
+            upload/*
+          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft,assets \
+            --jq '"draft=\(.isDraft)", (.assets[] | "\(.name) \(.size)")'
