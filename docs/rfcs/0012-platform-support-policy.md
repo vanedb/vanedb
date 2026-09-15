@@ -1,6 +1,6 @@
 # RFC 0012: Platform support policy
 
-- Status: draft
+- Status: accepted (2026-09-15)
 - Milestone: 0.2.0
 - Tracking issue: #207; resolves #47
 - Supersedes / superseded by: none
@@ -69,6 +69,13 @@ workflows and `check_wheel_matrix.py` change in the same PR.
 it; release notes cite it; `compatibility.json` remains the per-artifact
 evidence. A CI test asserts that every platform named in the README appears
 in `PLATFORMS.md`.
+
+## Decisions recorded
+
+- 2026-09-15: accepted as written, including the Intel macOS exit: no
+  native x86-64 macOS wheels or C archives after the `macos-15-intel` runner
+  retires in August 2027, no cross-compiled or `universal2` substitute, sdist
+  and source builds remain supported.
 
 ## Alternatives rejected
 

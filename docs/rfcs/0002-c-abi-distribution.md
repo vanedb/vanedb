@@ -42,6 +42,18 @@ only the installed layout.
 - `VANEDB_RS_ABI_VERSION` integer macro and `uint32_t vanedb_rs_abi_version(void)`.
   Bumped only on an incompatible change. `VANEDB_RS_VERSION` stays as the
   semver string.
+- Handles become integers. Every `vanedb_rs_store*`, `vanedb_rs_index*` and
+  `vanedb_rs_disk*` value crossing the boundary is a `uint64_t` id looked up
+  in a process-wide table, not a pointer from `Box::into_raw`. An unknown,
+  stale or truncated id fails the lookup and returns a new status code,
+  `VANEDB_RS_INVALID_HANDLE`; today it is dereferenced. Motivation: a Python
+  `ctypes` caller that omits `restype` truncates the returned pointer to a C
+  `int` (observed: `x0 = 0xc7d590` for a live `0x100c7d390`) and crashes in
+  `vanedb_rs_store_add`; the same happens with any FFI that guesses types.
+  Cost: one lookup under a sharded lock per call, below the search noise
+  floor. Also gives double-free and use-after-free detection and a
+  `vanedb_rs_handle_count()` for leak tests. This is the one incompatible
+  change in stage 1 and the reason `VANEDB_RS_ABI_VERSION` starts at 1.
 - Rule, written into the header comment: signatures never change. New behaviour
   arrives as a new function (`_ex` or `_v2`); old functions stay. No struct
   crosses the boundary; if one ever does, its first field is `size_t size`.
@@ -110,6 +122,10 @@ only the installed layout.
 
 - 2026-09-13: static-only xcframework, `abidiff` gate, keyless `cosign`
   signing, and stage 5 before the mobile stages accepted (decision 7).
+- 2026-09-15: integer handles accepted over a pointer registry (which
+  cannot catch a truncated pointer that collides with a live one) and over
+  documenting `restype` (which leaves the crash reachable by every future
+  binding author). Tracked in #193.
 
 ## Alternatives rejected
 
@@ -125,7 +141,10 @@ only the installed layout.
 
 ## Compatibility and migration
 
-- No function changes. `vanedb_rs_abi_version()` is additive.
+- Function names and signatures are unchanged except that handle-typed
+  parameters and returns become `uint64_t`. Consumers that stored the
+  opaque pointer type recompile; consumers that never dereferenced it need
+  no source change. `vanedb_rs_abi_version()` is additive.
 - The existing zips keep their layout and gain `lib/cmake` and
   `lib/pkgconfig`.
 - Consumers who linked the raw `.so` or `.dylib` from a CI artifact continue
@@ -137,6 +156,11 @@ only the installed layout.
 Stage 1 (#193):
 
 - [ ] `vanedb_rs_abi_version()` and `VANEDB_RS_ABI_VERSION` exist and agree.
+- [ ] Handles are `uint64_t` ids; a test passes a truncated, freed and random
+      id to every entry point and gets `VANEDB_RS_INVALID_HANDLE`, never a
+      crash; `vanedb-py` is unaffected (PyO3, not the C ABI); the README's
+      C ABI section gains a `ctypes` snippet that sets `restype` and
+      `argtypes`, for callers who bypass the header.
 - [ ] Exported symbols of the shared library on Linux, macOS and Windows are
       exactly the `vanedb_rs_*` set; a CI step asserts it with `nm`/`dumpbin`.
 - [ ] A consumer project using only `find_package(vanedb)` builds, links both
