@@ -435,6 +435,10 @@ jobs:
 
     - name: Set up Android NDK
       uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+      with:
+        # The action's default also requests the legacy `tools` package, which
+        # the SDK repository no longer serves; the NDK is installed below.
+        packages: platform-tools
 
     - name: Install NDK
       run: |
@@ -479,6 +483,10 @@ jobs:
 
     - name: Set up Android NDK
       uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+      with:
+        # The action's default also requests the legacy `tools` package, which
+        # the SDK repository no longer serves; the NDK is installed below.
+        packages: platform-tools
 
     - name: Install NDK
       run: |

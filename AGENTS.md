@@ -63,15 +63,12 @@ rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
 cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
-Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is excluded from
-0.1.1 and is a required, high-priority follow-up in [the roadmap](docs/ROADMAP.md).
-Do not reintroduce an unimplemented CUDA feature or claim support without the
-roadmap's NVIDIA hardware, correctness, lifecycle and performance evidence. Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
-acceptance on an iOS ARM64 simulator and Android x86-64 emulator. The CI-built
-Android ARM64 bundle also passes locally on an Android 15 emulator with 16 KiB
-pages; see the release evidence. The September 7 decision accepts simulators
-and emulators for initial-release verification. Physical-device checks remain a follow-up, and
-no physical-device success may be claimed without a recorded run. Node wasm tests likewise
+Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is not
+implemented; do not reintroduce a stub or claim support. What is planned, and
+the evidence each claim needs, lives in [the roadmap](docs/ROADMAP.md) only.
+Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI
+acceptance on an iOS ARM64 simulator and Android x86-64 emulator; no
+physical-device success may be claimed without a recorded run. Node wasm tests
 do not prove browser integration; CI also runs headless Chrome. Match each
 platform claim to the actual build and runtime evidence; use the relevant host
 and toolchain for checks that cannot run locally.
@@ -160,6 +157,9 @@ already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 
 ## Conventions
 
+- Keep pull requests small and focused: one RFC, one fix, one feature slice,
+  or one document per PR, reviewable in one sitting. Split before opening
+  rather than after. Docs-only and code changes go in separate PRs.
 - Conventional commits: `feat(scope):`, `fix:`, `perf(scope):`, `chore(deps):`.
 - Run `cargo fmt --all` before committing. Don't chain fmt-check and commit with
   `;` — a failed check won't stop the commit.

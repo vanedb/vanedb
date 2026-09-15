@@ -115,6 +115,14 @@ jobs:
         shell: bash
         run: python3 scripts/test_bump_version.py
 
+      # Every RFC needs a valid status line and a row in both indexes, or the
+      # roadmap stops being an index of anything.
+      - name: RFC index checks
+        shell: bash
+        run: |
+          python3 scripts/test_check_rfcs.py
+          python3 scripts/check_rfcs.py
+
   rust:
     name: Rust component
     needs: changes
