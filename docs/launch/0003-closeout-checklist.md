@@ -51,7 +51,7 @@ The helper refuses cloud/CI shells, refuses `apple-*` off Darwin, refuses
 
 ### Android ARM64
 
-Follow [`../bench/compare/ANDROID.md`](../bench/compare/ANDROID.md) (NDK/adb on
+Follow [`../../bench/compare/ANDROID.md`](../../bench/compare/ANDROID.md) (NDK/adb on
 device, or labelled emulator). Do **not** use `record_publish_run.sh` with an
 `android-*` label on a laptop/server — that would mislabel host timings.
 

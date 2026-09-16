@@ -272,9 +272,17 @@ where
 
 /// Allowed `VANEDB_COMPARE_HW` prefixes for the three #198 hardware classes.
 pub fn refuse_bad_hw_label(hw: &str) -> Result<(), String> {
-    let ok = hw.starts_with("apple-")
-        || hw.starts_with("linux-avx2")
-        || hw.starts_with("android-arm64-");
+    if hw.starts_with("android-arm64-") {
+        if !android_host() {
+            return Err(
+                "refusing --markdown with android-* off an Android host \
+                 (need /system/build.prop, or follow bench/compare/ANDROID.md on-device)"
+                    .into(),
+            );
+        }
+        return Ok(());
+    }
+    let ok = hw.starts_with("apple-") || hw.starts_with("linux-avx2");
     if !ok {
         return Err(format!(
             "refusing --markdown with VANEDB_COMPARE_HW={hw:?}; \
@@ -283,6 +291,11 @@ pub fn refuse_bad_hw_label(hw: &str) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn android_host() -> bool {
+    std::path::Path::new("/system/build.prop").exists()
+        || std::path::Path::new("/system/bin/app_process").exists()
 }
 
 #[cfg(test)]
@@ -374,7 +387,9 @@ mod tests {
         assert!(err.contains("apple-"), "{err}");
         refuse_bad_hw_label("linux-avx2").unwrap();
         refuse_bad_hw_label("apple-m4-pro").unwrap();
-        refuse_bad_hw_label("android-arm64-emulator").unwrap();
+        // android-* requires an Android host filesystem; this CI/dev Linux box must refuse.
+        let err = refuse_bad_hw_label("android-arm64-emulator").unwrap_err();
+        assert!(err.contains("android"), "{err}");
     }
 
     #[test]

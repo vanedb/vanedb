@@ -111,6 +111,18 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    # Mirror Rust: android-* JSON must not be rendered from a non-Android paste
+    # unless the report was recorded on-device (we cannot see the host here —
+    # require dedicated_attested + shared_runner=false already; still warn in notes).
+    # Hostname heuristic only: refuse obvious laptop/desktop names with android label.
+    if hw.startswith("android-arm64-"):
+        host = (report.get("hostname") or "").lower()
+        if any(x in host for x in ("macbook", "imac", "ubuntu", "fedora", "debian", "windows")):
+            print(
+                f"refusing to render android-* report with hostname={host!r}",
+                file=sys.stderr,
+            )
+            return 1
     metric = report.get("metric")
     if metric not in ("cosine", "l2"):
         print(f"refusing to render missing/unknown metric={metric!r}", file=sys.stderr)

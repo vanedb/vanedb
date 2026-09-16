@@ -5,7 +5,7 @@ USearch, hnswlib, instant-distance, hnsw_rs, and sqlite-vec. This is a
 **separate arm** from the C++-vs-Rust harness in [`../`](../); that harness
 stays conformance-adjacent. Numbers here are only meaningful on dedicated
 hardware with interleaved rounds — never from CI or a shared cloud runner
-([`AGENTS.md`](../../AGENTS.md) performance rules).
+([`AGENTS.md`](../AGENTS.md) performance rules).
 
 ## Caveats (read before the tables)
 

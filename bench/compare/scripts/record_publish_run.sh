@@ -27,13 +27,22 @@ case "$HW" in
       echo "refusing apple-* on $(uname -s); need Darwin Apple Silicon host" >&2
       exit 1
     fi
+    arch="$(uname -m)"
+    if [[ "$arch" != "arm64" && "$arch" != "aarch64" ]]; then
+      echo "refusing apple-* on arch=$arch; need Apple Silicon (arm64)" >&2
+      exit 1
+    fi
     ;;
   linux-avx2*)
     if [[ "$(uname -s)" != "Linux" ]]; then
       echo "refusing linux-avx2* on $(uname -s)" >&2
       exit 1
     fi
-    if [[ -r /proc/cpuinfo ]] && ! grep -qw avx2 /proc/cpuinfo; then
+    if [[ ! -r /proc/cpuinfo ]]; then
+      echo "refusing linux-avx2*: cannot read /proc/cpuinfo to verify AVX2" >&2
+      exit 1
+    fi
+    if ! grep -qw avx2 /proc/cpuinfo; then
       echo "refusing linux-avx2*: /proc/cpuinfo has no avx2 flag" >&2
       exit 1
     fi
