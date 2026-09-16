@@ -1,7 +1,7 @@
 # Closing #198 — maintainer closeout
 
-Tip harness + publish gates are WIP on PR #212. **Do not close #198** until
-every box below has evidence.
+PR #212 tip has harness + hosted fixture + Required CI Gate green. **Do not close #198** until
+every box below has evidence (AC3 HW tables + AC5 demo release still open).
 
 ## 1. Publish fixture (AC2) — **done on tip**
 
@@ -19,13 +19,20 @@ VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/co
 Rebuild `compare` after pulling this tip so the compile-time SUMS pin matches
 before dedicated HW `--markdown` runs.
 
-## 2. Dedicated hardware tables (AC3)
+## 2. Dedicated hardware tables (AC3) — **blocked for cloud agents**
+
+`bench/COMPARISON.md` still has six `*Pending.*` cells (cosine+L2 × Apple /
+Linux AVX2 / Android). This cloud agent has **0** connected self-hosted
+workers and must not paste timings from shared runners (`AGENTS.md`).
 
 ### Apple Silicon / Linux AVX2 (host binary)
 
-Idle dedicated machine only:
+Idle dedicated machine only (after `git pull` of the tip with the fixture pin,
+rebuild `compare`):
 
 ```bash
+VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
+  bash bench/compare/scripts/fetch_fixture.sh
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
 bash bench/compare/scripts/record_publish_run.sh apple-m4-pro cosine
@@ -48,12 +55,13 @@ Paste only harness `--markdown` output (or `render_comparison_md.py` on that
 JSON) under the matching heading in `bench/COMPARISON.md`. Keep JSON under
 `bench/compare/runs/` or attach on the PR. **Never** paste cloud/CI timings.
 
-## 3. Demo (AC5)
+## 3. Demo (AC5) — **maintainer apply required**
 
-Follow [`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). Apply
+Applyable patch is in-tree:
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
-in the demo repo (this agent has no write access there), cut the `0.2.0`
-release, and reply on #198 / #212 with the release URL.
+(verified `git apply`). This agent cannot push/fork
+`vanedb/obsidian-vane-search` (403). Maintainer: apply patch, cut `0.2.0`
+release, reply on #198 / #212 with the release URL. Until then AC5 is open.
 
 ## 4. Launch (AC6)
 
@@ -61,7 +69,7 @@ Only after §2 and §3: remove the do-not-publish banner from
 [`0003-competitor-benchmark.md`](0003-competitor-benchmark.md) and switch
 provisional tense to past tense with the real numbers.
 
-## 5. Gate
+## 5. Gate — **Required CI Gate green on tip `0ab9619`**
 
-Required CI Gate green on the tip that contains the filled COMPARISON + pinned
-fixture sums.
+Harness + fixture pin tip has Required CI Gate success (ignore `claude-review`
+missing API key). Re-check the gate after the COMPARISON paste commit lands.
