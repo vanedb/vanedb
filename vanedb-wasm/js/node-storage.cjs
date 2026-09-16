@@ -18,7 +18,7 @@ function installPersistence(ApproxIndex, defaultStorage) {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('name must be a non-empty string');
     }
-    const bytes = this.toBytes().slice();
+    const bytes = new Uint8Array(this.toBytes());
     await (storage ?? defaultStorage).put(name, bytes);
   };
   ApproxIndex.load = async function load(name, storage) {
@@ -41,7 +41,14 @@ function fileStorage(directory = process.cwd()) {
         `.${name}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`,
       );
       try {
-        await fs.writeFile(temp, bytes);
+        const handle = await fs.open(temp, 'w');
+        try {
+          await handle.writeFile(bytes);
+          // Same durability as core `save`: data on disk before the rename.
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
         await fs.rename(temp, dest);
       } catch (error) {
         await fs.unlink(temp).catch(() => {});

@@ -8,8 +8,9 @@ export function installPersistence(ApproxIndex, defaultStorage) {
       throw new Error('name must be a non-empty string');
     }
     // Copy off wasm linear memory before handing bytes to storage. WebKit
-    // cannot structured-clone a Uint8Array that views WebAssembly.Memory.
-    const bytes = this.toBytes().slice();
+    // cannot structured-clone a Uint8Array that views WebAssembly.Memory,
+    // and Buffer#slice is a view rather than a copy.
+    const bytes = new Uint8Array(this.toBytes());
     await (storage ?? defaultStorage).put(name, bytes);
   };
   ApproxIndex.load = async function load(name, storage) {

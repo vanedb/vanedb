@@ -23,7 +23,10 @@ function ownedArrayBuffer(bytes) {
   if (!(bytes instanceof Uint8Array)) {
     throw new TypeError('put requires a Uint8Array');
   }
-  return bytes.slice().buffer;
+  // `new Uint8Array(typedArray)` copies off wasm linear memory onto a
+  // JS-owned buffer of exactly `bytes.length`. `.slice().buffer` is the
+  // same for a real Uint8Array; the constructor is unambiguous.
+  return new Uint8Array(bytes).buffer;
 }
 
 export function indexedDbStorage(dbName = 'vanedb') {

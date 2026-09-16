@@ -108,6 +108,15 @@ const path = await import('node:path');
 assert.equal(typeof esm.fileStorage, 'function');
 assert.equal(typeof esm.indexedDbStorage, 'function');
 assert.equal(typeof cjs.fileStorage, 'function');
+assert.throws(
+  () => esm.indexedDbStorage(),
+  /not available in Node/,
+  'the Node build must not pretend IndexedDB exists',
+);
+assert.throws(
+  () => cjs.indexedDbStorage(),
+  /not available in Node/,
+);
 
 const golden = new Uint8Array(readFileSync('l2_rng1.vndb'));
 const fromFixture = esm.ApproxIndex.fromBytes(golden);
@@ -146,5 +155,32 @@ const child = spawnSync(process.execPath, [childScript], {
   env: process.env,
 });
 assert.equal(child.status, 0, child.stderr || child.stdout || 'child failed');
+
+await assert.rejects(() => storage.put('../escape', new Uint8Array([1])), /file name/);
+const nameless = new esm.ApproxIndex(2, 'l2', 8, 4, 16);
+try {
+  await assert.rejects(() => nameless.save(''), /non-empty string/);
+} finally { nameless.free(); }
+await assert.rejects(() => esm.ApproxIndex.load(''), /non-empty string/);
+
+{
+  const mem = new Map();
+  const custom = {
+    async put(name, bytes) { mem.set(name, bytes); },
+    async get(name) { return mem.has(name) ? mem.get(name) : null; },
+    async delete(name) { mem.delete(name); },
+  };
+  const idx = new esm.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(7n, Float32Array.from([0, 1]));
+  await idx.save('mem', custom);
+  idx.free();
+  const loaded = await esm.ApproxIndex.load('mem', custom);
+  try {
+    assert.equal(loaded.size(), 1);
+    assert.deepEqual([...loaded.get(7n)], [0, 1]);
+  } finally { loaded.free(); }
+  await custom.delete('mem');
+  assert.equal(await esm.ApproxIndex.load('mem', custom), null);
+}
 
 console.log('npm package: ESM and CommonJS consumers both OK');
