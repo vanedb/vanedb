@@ -461,3 +461,32 @@ jobs:
           test "$rc" -ne 0
           echo "$out" | grep -q 'shared CI/cloud'
           echo "ok: markdown refused shared CI/cloud runner"
+      - name: maintainer_fill_host_comparison.sh refuses CI/cloud
+        run: |
+          set +e
+          out=$(bash bench/compare/scripts/maintainer_fill_host_comparison.sh 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'CI/cloud'
+          echo "ok: maintainer_fill refused CI/cloud shell"
+      - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
+        # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
+        # Official release still needs a maintainer push to obsidian-vane-search.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          BARE=$(mktemp -d)
+          SRC=$(mktemp -d)
+          git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$SRC/repo"
+          git clone --bare "$SRC/repo" "$BARE/repo.git"
+          git --git-dir="$SRC/repo/.git" --work-tree="$SRC/repo" \
+            push "$BARE/repo.git" HEAD:refs/heads/main
+          DEMO_URL="file://$BARE/repo.git" \
+            bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
+          git --git-dir="$BARE/repo.git" rev-parse "refs/tags/0.2.0"
+          ver=$(git --git-dir="$BARE/repo.git" show 0.2.0:manifest.json \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+          test "$ver" = "0.2.0"
+          echo "ok: demo cut script tagged 0.2.0 against local bare remote"
