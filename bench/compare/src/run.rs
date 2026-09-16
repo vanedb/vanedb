@@ -79,7 +79,10 @@ pub struct ComparisonReport {
     pub fixture_role: FixtureRole,
     pub fixture_sha256: String,
     pub fixture_n_docs: usize,
+    /// Full fixture query count (not shrunk by `--max-queries`).
     pub fixture_n_queries: usize,
+    /// How many queries were actually measured this run.
+    pub queries_measured: usize,
     pub fixture_dim: usize,
     pub metric: String,
     pub k: usize,
@@ -234,7 +237,8 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         fixture_role: cfg.fixture_role,
         fixture_sha256: fixture.sha256.clone(),
         fixture_n_docs: fixture.n_docs(),
-        fixture_n_queries: n_queries,
+        fixture_n_queries: fixture.n_queries(),
+        queries_measured: n_queries,
         fixture_dim: fixture.dim,
         metric: cfg.metric.as_str().into(),
         k: cfg.k,

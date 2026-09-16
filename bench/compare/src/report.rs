@@ -14,11 +14,12 @@ pub fn render_machine_section(report: &ComparisonReport) -> String {
         report.recorded_at_utc, report.commit
     ));
     out.push_str(&format!(
-        "- Fixture: role={}, dim={}, n_docs={}, n_queries={}, sha256=`{}`\n",
+        "- Fixture: role={}, dim={}, n_docs={}, n_queries={} (measured {}), sha256=`{}`\n",
         report.fixture_role.as_str(),
         report.fixture_dim,
         report.fixture_n_docs,
         report.fixture_n_queries,
+        report.queries_measured,
         report.fixture_sha256
     ));
     out.push_str(&format!(

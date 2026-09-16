@@ -148,6 +148,21 @@ def main() -> int:
     if report.get("fixture_n_queries", 0) < 1000:
         print("refusing to render fixture_n_queries < 1000", file=sys.stderr)
         return 1
+    if "queries_measured" not in report:
+        print(
+            "refusing to render without queries_measured "
+            "(need harness that records measured vs fixture query counts)",
+            file=sys.stderr,
+        )
+        return 1
+    if report.get("queries_measured") != report.get("fixture_n_queries"):
+        print(
+            f"refusing to render: queries_measured={report.get('queries_measured')!r} != "
+            f"fixture_n_queries={report.get('fixture_n_queries')!r} "
+            "(publish must use the full query set; no --max-queries shrink)",
+            file=sys.stderr,
+        )
+        return 1
     if report.get("fixture_dim") != PUBLISH_DIM:
         print(
             f"refusing to render fixture_dim={report.get('fixture_dim')!r}; "
@@ -273,7 +288,8 @@ def main() -> int:
     print(f"- Date (UTC) / commit: `{when}` / `{report.get('commit', '?')}`")
     print(
         f"- Fixture: role={role}, dim={report['fixture_dim']}, "
-        f"n_docs={report['fixture_n_docs']}, n_queries={report['fixture_n_queries']}, "
+        f"n_docs={report['fixture_n_docs']}, n_queries={report['fixture_n_queries']} "
+        f"(measured {report['queries_measured']}), "
         f"sha256=`{report['fixture_sha256']}`"
     )
     print(

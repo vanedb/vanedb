@@ -91,7 +91,7 @@ fi
 # Reject caller overrides that could bypass the preflight fixture/pin.
 for arg in "$@"; do
   case "$arg" in
-    --fixture|--fixture=*|--markdown|--no-markdown|--metric|--metric=*|--rounds|--rounds=*)
+    --fixture|--fixture=*|--markdown|--no-markdown|--metric|--metric=*|--rounds|--rounds=*|--max-queries|--max-queries=*)
       echo "refusing extra arg that overrides fixed publish flags: $arg" >&2
       exit 1
       ;;
