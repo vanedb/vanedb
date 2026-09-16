@@ -145,7 +145,9 @@ def embed_fastembed(texts: list[str], model: str, dim: int) -> np.ndarray:
     eng = TextEmbedding(model_name=model)
     out = np.empty((len(texts), dim), dtype=np.float32)
     i = 0
-    for vec in eng.embed(texts, batch_size=32):
+    # batch_size=256 + parallel=0 (all cores) for offline bulk encoding; keep
+    # peak RSS in check via float32 accumulation rather than Python float lists.
+    for vec in eng.embed(texts, batch_size=256, parallel=0):
         row = np.asarray(vec, dtype=np.float32)
         if row.shape != (dim,):
             raise SystemExit(f"fastembed returned dim {row.shape[0]}, expected {dim}")
