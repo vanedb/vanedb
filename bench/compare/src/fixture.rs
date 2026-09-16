@@ -492,11 +492,4 @@ mod tests {
         });
         assert_eq!(classify_fixture(&fixture), FixtureRole::Publish);
     }
-
-    fn load_fixture_from_bytes() -> Fixture {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("t.vnef");
-        write_smoke_fixture(&path, 32, 4, 8).unwrap();
-        load_fixture(&path).unwrap()
-    }
 }
