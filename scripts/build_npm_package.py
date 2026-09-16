@@ -133,7 +133,7 @@ def patch_persistence_types(path: Path) -> None:
     )
     patched = patched.replace(
         "    static fromBytes(bytes: Uint8Array): ApproxIndex;",
-        "    static fromBytes(bytes: Uint8Array): ApproxIndex;\n    static load(name: string, storage?: Storage): Promise<ApproxIndex | null>;",
+        "    static fromBytes(bytes: Uint8Array | ArrayBuffer): ApproxIndex;\n    static load(name: string, storage?: Storage): Promise<ApproxIndex | null>;",
         1,
     )
     if patched == text:

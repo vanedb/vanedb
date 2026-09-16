@@ -14,10 +14,14 @@ function assertFileName(name) {
 }
 
 function installPersistence(ApproxIndex, defaultStorage) {
+  const fromBytes = ApproxIndex.fromBytes.bind(ApproxIndex);
+  ApproxIndex.fromBytes = function fromBytesWrapped(bytes) {
+    return fromBytes(asInputBytes(bytes));
+  };
   ApproxIndex.prototype.save = async function save(name, storage) {
     assertIndexName(name);
-    const bytes = new Uint8Array(this.toBytes());
-    await (storage ?? defaultStorage).put(name, bytes);
+    const copy = new Uint8Array(this.toBytes());
+    await (storage ?? defaultStorage).put(name, copy);
   };
   ApproxIndex.load = async function load(name, storage) {
     assertIndexName(name);
@@ -25,6 +29,14 @@ function installPersistence(ApproxIndex, defaultStorage) {
     if (bytes == null) return null;
     return ApproxIndex.fromBytes(bytes);
   };
+}
+
+function asInputBytes(bytes) {
+  if (bytes instanceof Uint8Array) return bytes;
+  if (typeof ArrayBuffer !== 'undefined' && bytes instanceof ArrayBuffer) {
+    return new Uint8Array(bytes);
+  }
+  throw new TypeError('fromBytes requires a Uint8Array or ArrayBuffer');
 }
 
 // Keep in lockstep with vanedb-wasm/js/persistence.js.

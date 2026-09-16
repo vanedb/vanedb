@@ -128,6 +128,15 @@ try {
   finally { hits.free(); }
   const saved = fromFixture.toBytes();
   assert.deepEqual([...saved], [...golden], 'wasm toBytes must reproduce the VNDB fixture');
+  const owned = golden.buffer.slice(golden.byteOffset, golden.byteOffset + golden.byteLength);
+  const fromAb = esm.ApproxIndex.fromBytes(owned);
+  try { assert.equal(fromAb.size(), 3); }
+  finally { fromAb.free(); }
+  assert.throws(
+    () => esm.ApproxIndex.fromBytes({}),
+    /Uint8Array or ArrayBuffer/,
+    'a non-buffer must not be reported as a corrupt file',
+  );
 } finally { fromFixture.free(); }
 
 const persistDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-persist-'));
