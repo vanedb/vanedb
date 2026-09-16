@@ -1,6 +1,20 @@
 # Hosting `embeddings.vnef` (#198)
 
-The publish fixture is ~310 MiB and must not be committed. Maintainer steps:
+**Status:** published as prerelease tag `compare-fixture-v1`
+(`https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef`).
+sha256 `4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`.
+
+Consumers:
+
+```bash
+VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
+  bash bench/compare/scripts/fetch_fixture.sh
+```
+
+## Regenerating (maintainers only)
+
+The publish fixture is ~310 MiB and must not be committed. Steps if the pin
+must be replaced:
 
 1. Generate on a machine with ≥16 GiB RAM (streaming generator):
 

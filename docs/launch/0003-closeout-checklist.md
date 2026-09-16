@@ -3,41 +3,21 @@
 Tip harness + publish gates are WIP on PR #212. **Do not close #198** until
 every box below has evidence.
 
-## 1. Publish fixture (AC2)
+## 1. Publish fixture (AC2) — **done on tip**
 
-Full runbook: [`0003-fixture-hosting.md`](0003-fixture-hosting.md).
-
-```bash
-# Generate (once; needs ≥16 GiB RAM; streaming generator):
-python3 bench/compare/scripts/generate_fixture.py --backend fastembed \
-  --out-dir /tmp/vnef-full --text-batch 64 --max-chars 1500
-
-# Or reuse a finished agent tree under /tmp/vnef-full, then:
-bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
-UPLOAD_RELEASE=1 COMPARE_FIXTURE_TAG=compare-fixture-v1 \
-  bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
-
-git add bench/compare/fixtures/metadata.json bench/compare/fixtures/SHA256SUMS
-# do NOT add embeddings.vnef
-```
-
-`--markdown` / `render_comparison_md.py` fail closed until
-`fixtures/SHA256SUMS` lists `embeddings.vnef` in this checkout (Round-8
-compile-time pin in the `compare` binary + render's on-disk pin; dim must be
-768). Finalize + commit the pin and **rebuild** `compare` **before** dedicated
-HW `--markdown` runs.
-
-After the release asset exists, set the fetch URL in `bench/COMPARISON.md` /
-`fixtures/README.md` to:
-
+Release asset:
 `https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef`
 
-Verify:
+Pinned sha256 `4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`
+in `bench/compare/fixtures/SHA256SUMS`. Metadata committed. Fetch verify:
 
 ```bash
 VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
   bash bench/compare/scripts/fetch_fixture.sh
 ```
+
+Rebuild `compare` after pulling this tip so the compile-time SUMS pin matches
+before dedicated HW `--markdown` runs.
 
 ## 2. Dedicated hardware tables (AC3)
 
