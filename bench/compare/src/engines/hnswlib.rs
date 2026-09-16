@@ -11,6 +11,7 @@ extern "C" {
         m: usize,
         ef_construction: usize,
         metric: i32,
+        random_seed: usize,
     ) -> *mut HnswBridge;
     fn hnsw_bridge_free(index: *mut HnswBridge);
     fn hnsw_bridge_add(index: *mut HnswBridge, id: u64, vector: *const f32) -> i32;
@@ -101,6 +102,7 @@ impl Engine for HnswlibEngine {
                 params.m,
                 params.ef_construction,
                 metric_i,
+                params.seed as usize,
             )
         };
         if ptr.is_null() {
@@ -120,15 +122,14 @@ impl Engine for HnswlibEngine {
         self.ptr = ptr;
         self.dim = dim;
         let mut notes = vec![format!(
-            "vendored hnswlib v0.8.0; M={} efC={}",
-            params.m, params.ef_construction
+            "vendored hnswlib v0.8.0; M={} efC={} seed={}",
+            params.m, params.ef_construction, params.seed
         )];
         if metric == MetricKind::Cosine {
             notes.push(
                 "cosine via InnerProductSpace on L2-normalized vectors (hnswlib convention)".into(),
             );
         }
-        let _ = self.dim;
         Ok(BuildStats {
             build_secs,
             peak_rss_bytes: rss_delta(rss_before, rss_after),

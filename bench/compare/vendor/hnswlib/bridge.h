@@ -11,7 +11,8 @@ typedef struct HnswBridge HnswBridge;
 
 /* metric: 0 = L2 squared, 1 = cosine (inner-product space on normalized vectors) */
 HnswBridge *hnsw_bridge_create(size_t dim, size_t max_elements, size_t m,
-                               size_t ef_construction, int metric);
+                               size_t ef_construction, int metric,
+                               size_t random_seed);
 void hnsw_bridge_free(HnswBridge *index);
 
 int hnsw_bridge_add(HnswBridge *index, uint64_t id, const float *vector);

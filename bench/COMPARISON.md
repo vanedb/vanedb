@@ -47,20 +47,19 @@ the existing `bench/README.md` discipline.
 | Rounds | interleaved, ≥2 on dedicated hardware |
 | Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 |
 
-One command (from `bench/compare/`):
+One command (from the **repository root**):
 
 ```bash
-cargo run --release --locked -- run \
-  --fixture fixtures/embeddings.vnef \
+VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
+  --manifest-path bench/compare/Cargo.toml -- run \
+  --fixture bench/compare/fixtures/embeddings.vnef \
   --rounds 4 \
   --markdown \
   --json-out runs/$(hostname)-$(date +%Y%m%d).json
 ```
 
-Set `VANEDB_COMPARE_HW` to a short label (`apple-m4-pro`, `linux-avx2`,
-`android-arm64-emulator`, …) before the run. Paste the markdown section into
-the matching hardware heading below, and keep the JSON beside this file under
-`bench/compare/runs/` (gitignored except a README).
+Smoke fixtures require `--allow-smoke` and must never be pasted here.
+
 
 Generate the full fixture once (not in CI):
 

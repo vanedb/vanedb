@@ -34,7 +34,7 @@ struct HnswBridge {
 
 extern "C" HnswBridge *hnsw_bridge_create(size_t dim, size_t max_elements,
                                           size_t m, size_t ef_construction,
-                                          int metric) {
+                                          int metric, size_t random_seed) {
   auto *bridge = new (std::nothrow) HnswBridge();
   if (!bridge) {
     return nullptr;
@@ -47,8 +47,9 @@ extern "C" HnswBridge *hnsw_bridge_create(size_t dim, size_t max_elements,
     } else {
       bridge->space = std::make_unique<hnswlib::L2Space>(dim);
     }
+    // HierarchicalNSW(space, max_elements, M, ef_construction, random_seed, ...)
     bridge->index = std::make_unique<hnswlib::HierarchicalNSW<float>>(
-        bridge->space.get(), max_elements, m, ef_construction);
+        bridge->space.get(), max_elements, m, ef_construction, random_seed);
   } catch (...) {
     delete bridge;
     return nullptr;

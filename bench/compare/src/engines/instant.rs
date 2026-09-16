@@ -115,6 +115,10 @@ impl Engine for InstantDistanceEngine {
                 params.m
             ));
         }
+        notes.push(
+            "per-query ef is ignored; ef-sweep latency/recall rows duplicate construction ef_search"
+                .into(),
+        );
 
         let rss_before = current_rss_bytes();
         let timer = InstantTimer::start();
@@ -134,9 +138,12 @@ impl Engine for InstantDistanceEngine {
         })
     }
 
-    fn search(&self, query: &[f32], k: usize, _ef: usize) -> Result<Vec<u64>, String> {
+    fn search(&self, query: &[f32], k: usize, ef: usize) -> Result<Vec<u64>, String> {
         let map = self.map.as_ref().ok_or("instant-distance: not built")?;
-        // ef is fixed at construction for this crate.
+        // instant-distance fixes ef at construction; per-query ef is ignored.
+        // Callers should treat ef-sweep rows for this engine as duplicates of
+        // the construction ef_search (recorded in build notes).
+        let _ = ef;
         let mut search = Search::default();
         let q = VecPoint {
             data: query.to_vec(),

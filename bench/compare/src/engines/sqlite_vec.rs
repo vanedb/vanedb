@@ -120,8 +120,17 @@ impl Engine for SqliteVecEngine {
             build_secs,
             peak_rss_bytes: rss_delta(rss_before, rss_after),
             notes: vec![
-                "brute-force KNN via vec0 (no ANN; sqlite-vec #25)".into(),
-                format!("metric for reporting: {}", metric.as_str()),
+                "brute-force KNN via vec0 for L2 (no ANN; sqlite-vec #25)".into(),
+                format!(
+                    "metric {}: {}",
+                    metric.as_str(),
+                    match metric {
+                        MetricKind::L2 => "native vec0 MATCH",
+                        MetricKind::Cosine => {
+                            "harness-side f32 brute-force over blobs (not sqlite-vec)"
+                        }
+                    }
+                ),
             ],
         })
     }
@@ -150,7 +159,8 @@ impl Engine for SqliteVecEngine {
                 Ok(out)
             }
             MetricKind::Cosine => {
-                // Brute-force cosine in Rust over the table — vec0 has no cosine.
+                // vec0 has no cosine metric. This path is a harness-side
+                // brute-force scan over stored blobs — not sqlite-vec ANN.
                 let mut stmt = conn
                     .prepare("SELECT id, embedding FROM vecs")
                     .map_err(|e| e.to_string())?;

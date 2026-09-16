@@ -273,4 +273,32 @@ mod tests {
         assert_eq!(loaded.n_queries(), 4);
         assert_eq!(loaded.sha256, sha);
     }
+
+    #[test]
+    fn rejects_bad_magic() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("bad.vnef");
+        std::fs::write(&path, b"XXXX").unwrap();
+        assert!(load_fixture(&path).is_err());
+    }
+
+    #[test]
+    fn checksum_mismatch_detected() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("smoke.vnef");
+        write_smoke_fixture(&path, 8, 2, 8).unwrap();
+        let sums = dir.path().join("SHA256SUMS");
+        std::fs::write(&sums, "0000  smoke.vnef\n").unwrap();
+        assert!(verify_sha256sums(&path, &sums).is_err());
+    }
+
+    #[test]
+    fn checksum_missing_entry() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("smoke.vnef");
+        write_smoke_fixture(&path, 8, 2, 8).unwrap();
+        let sums = dir.path().join("SHA256SUMS");
+        std::fs::write(&sums, "abcd  other.vnef\n").unwrap();
+        assert!(verify_sha256sums(&path, &sums).is_err());
+    }
 }

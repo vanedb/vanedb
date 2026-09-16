@@ -65,59 +65,61 @@ def write_vnef(
     return hashlib.sha256(blob).hexdigest()
 
 
-def load_nq_texts(n_docs: int, n_queries: int) -> tuple[list[str], list[str]]:
-    """Pull plain-text passages from a public BeIR/nq mirror via huggingface_hub."""
+def load_nq_texts(n_docs: int, n_queries: int) -> tuple[list[str], list[str], str]:
+    """Pull plain-text passages + queries from BeIR/nq parquet on Hugging Face.
+
+    Returns (docs, queries, corpus_revision_note).
+    """
     try:
         from huggingface_hub import hf_hub_download
+        import pyarrow.parquet as pq
     except ImportError as e:
         raise SystemExit(
-            "huggingface_hub is required to fetch the corpus: pip install huggingface_hub"
+            "huggingface_hub and pyarrow are required: pip install huggingface_hub pyarrow"
         ) from e
 
-    # Small enough JSONL of passages; fall back to synthetic titles if missing.
     try:
-        path = hf_hub_download(
+        corpus_path = hf_hub_download(
             repo_id="BeIR/nq",
-            filename="corpus.jsonl.gz",
+            filename="corpus/corpus-00000-of-00001.parquet",
+            repo_type="dataset",
+        )
+        queries_path = hf_hub_download(
+            repo_id="BeIR/nq",
+            filename="queries/queries-00000-of-00001.parquet",
             repo_type="dataset",
         )
     except Exception as e:  # noqa: BLE001
-        print(f"warning: could not download BeIR/nq ({e}); using synthetic corpus", file=sys.stderr)
-        docs = [f"document {i} about retrieval and embeddings" for i in range(n_docs)]
-        queries = [f"query {i} about retrieval" for i in range(n_queries)]
-        return docs, queries
+        raise SystemExit(
+            f"refusing synthetic fallback: could not download BeIR/nq ({e}). "
+            "Pin network access or populate HF_HUB_CACHE."
+        ) from e
 
-    import gzip
-
-    docs: list[str] = []
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        for line in fh:
-            if len(docs) >= n_docs:
-                break
-            obj = json.loads(line)
-            text = (obj.get("title") or "") + " " + (obj.get("text") or "")
-            text = text.strip()
-            if text:
-                docs.append(text)
+    corpus = pq.read_table(corpus_path, columns=["title", "text"])
+    if corpus.num_rows < n_docs:
+        raise SystemExit(f"corpus only had {corpus.num_rows} passages; need {n_docs}")
+    titles = corpus.column("title").to_pylist()[:n_docs]
+    texts = corpus.column("text").to_pylist()[:n_docs]
+    docs = [f"{(t or '').strip()} {(x or '').strip()}".strip() for t, x in zip(titles, texts)]
+    docs = [d for d in docs if d]
     if len(docs) < n_docs:
-        raise SystemExit(f"corpus only had {len(docs)} passages; need {n_docs}")
-    # Held-out queries: take later passages as query text (not overlapping ids).
-    queries = docs[n_docs : n_docs + n_queries]
+        raise SystemExit(f"after filtering empty rows, only {len(docs)} docs; need {n_docs}")
+    docs = docs[:n_docs]
+
+    qtab = pq.read_table(queries_path, columns=["text"])
+    if qtab.num_rows < n_queries:
+        raise SystemExit(f"queries only had {qtab.num_rows}; need {n_queries}")
+    queries = [((q or "").strip()) for q in qtab.column("text").to_pylist()[:n_queries]]
+    queries = [q for q in queries if q]
     if len(queries) < n_queries:
-        # Re-read more if needed.
-        with gzip.open(path, "rt", encoding="utf-8") as fh:
-            extras: list[str] = []
-            for line in fh:
-                if len(extras) >= n_docs + n_queries:
-                    break
-                obj = json.loads(line)
-                text = (obj.get("title") or "") + " " + (obj.get("text") or "")
-                text = text.strip()
-                if text:
-                    extras.append(text)
-        docs = extras[:n_docs]
-        queries = extras[n_docs : n_docs + n_queries]
-    return docs, queries
+        raise SystemExit(f"after filtering empty queries, only {len(queries)}; need {n_queries}")
+    queries = queries[:n_queries]
+
+    note = (
+        "BeIR/nq dataset parquet "
+        "corpus/corpus-00000-of-00001.parquet + queries/queries-00000-of-00001.parquet"
+    )
+    return docs, queries, note
 
 
 def embed_fastembed(texts: list[str], model: str) -> list[list[float]]:
@@ -191,7 +193,7 @@ def main() -> None:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     print(f"loading corpus ({args.n_docs} docs, {args.n_queries} queries)…", flush=True)
-    docs, queries = load_nq_texts(args.n_docs, args.n_queries)
+    docs, queries, corpus_note = load_nq_texts(args.n_docs, args.n_queries)
 
     t0 = time.time()
     print(f"embedding with {args.backend} / {args.model}…", flush=True)
@@ -222,7 +224,7 @@ def main() -> None:
     sha = write_vnef(out_path, dim, doc_vecs, query_vecs)
     meta = {
         "model": args.model,
-        "corpus": "BeIR/nq corpus.jsonl.gz passages (or synthetic fallback)",
+        "corpus": corpus_note,
         "dim": dim,
         "n_docs": args.n_docs,
         "n_queries": args.n_queries,

@@ -24,9 +24,12 @@ struct Cli {
 enum Command {
     /// Run every selected engine on a checksummed fixture (interleaved rounds).
     Run {
-        /// Path to a `.vnef` fixture. Defaults to fixtures/embeddings.vnef or smoke.
+        /// Path to a `.vnef` fixture. Defaults to fixtures/embeddings.vnef.
         #[arg(long)]
         fixture: Option<PathBuf>,
+        /// Allow the deterministic smoke fixture (NOT for COMPARISON.md).
+        #[arg(long, default_value_t = false)]
+        allow_smoke: bool,
         /// Verify against fixtures/SHA256SUMS when present.
         #[arg(long, default_value_t = true)]
         verify_checksum: bool,
@@ -133,6 +136,7 @@ fn real_main() -> Result<(), String> {
         }
         Command::Run {
             fixture,
+            allow_smoke,
             verify_checksum,
             metric,
             k,
@@ -149,7 +153,21 @@ fn real_main() -> Result<(), String> {
             skip_delete,
             markdown,
         } => {
-            let fixture_path = resolve_fixture(fixture)?;
+            let fixture_path = resolve_fixture(fixture, allow_smoke)?;
+            let is_smoke = fixture_path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .is_some_and(|n| n.contains("smoke"));
+            if is_smoke && !allow_smoke {
+                return Err(
+                    "refusing smoke fixture without --allow-smoke (not for COMPARISON.md)".into(),
+                );
+            }
+            if markdown && is_smoke {
+                eprintln!(
+                    "WARNING: markdown output is from the SMOKE fixture and must not be pasted into COMPARISON.md"
+                );
+            }
             if verify_checksum {
                 let sums = fixture_path
                     .parent()
@@ -208,6 +226,9 @@ fn real_main() -> Result<(), String> {
             write_json_report(&report, &json_path)?;
             eprintln!("wrote {}", json_path.display());
             if markdown {
+                if is_smoke {
+                    println!("<!-- SMOKE FIXTURE — DO NOT PUBLISH -->\n");
+                }
                 print!("{}", render_machine_section(&report));
             }
             Ok(())
@@ -215,7 +236,7 @@ fn real_main() -> Result<(), String> {
     }
 }
 
-fn resolve_fixture(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
+fn resolve_fixture(explicit: Option<PathBuf>, allow_smoke: bool) -> Result<PathBuf, String> {
     if let Some(p) = explicit {
         return Ok(p);
     }
@@ -224,15 +245,21 @@ fn resolve_fixture(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     if full.exists() {
         return Ok(full);
     }
+    if !allow_smoke {
+        return Err(format!(
+            "fixtures/embeddings.vnef not found under {}. Generate it with \
+             scripts/generate_fixture.py, or pass --fixture / --allow-smoke for harness checks.",
+            dir.display()
+        ));
+    }
     let smoke = dir.join("smoke.vnef");
     if smoke.exists() {
         eprintln!(
-            "using smoke fixture {}; publish only with embeddings.vnef",
+            "using smoke fixture {} (--allow-smoke); not for publication",
             smoke.display()
         );
         return Ok(smoke);
     }
-    // Auto-create smoke for a first run.
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     write_smoke_fixture(&smoke, 256, 16, 768)?;
     eprintln!("generated smoke fixture at {}", smoke.display());
