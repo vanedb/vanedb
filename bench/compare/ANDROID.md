@@ -30,12 +30,17 @@ adb push bench/compare/fixtures/embeddings.vnef /data/local/tmp/
 adb push bench/compare/fixtures/SHA256SUMS /data/local/tmp/
 adb push bench/compare/fixtures/metadata.json /data/local/tmp/
 adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
-  ./compare run --fixture embeddings.vnef --rounds 4 --markdown \
-  --json-out device-$(date +%Y%m%d).json'
-adb pull /data/local/tmp/device-*.json bench/compare/runs/
+  ./compare run --fixture embeddings.vnef --metric cosine --rounds 4 --markdown \
+  --json-out device-cosine-$(date +%Y%m%d).json'
+adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
+  ./compare run --fixture embeddings.vnef --metric l2 --rounds 4 --markdown \
+  --json-out device-l2-$(date +%Y%m%d).json'
+adb pull /data/local/tmp/device-cosine-*.json bench/compare/runs/
+adb pull /data/local/tmp/device-l2-*.json bench/compare/runs/
 ```
 
-Paste the markdown section into `bench/COMPARISON.md` (Android section).
+Paste each markdown section into the matching Cosine / Squared L2 slot under
+Android in `bench/COMPARISON.md`.
 
 ### On-device (Termux)
 

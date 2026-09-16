@@ -17,6 +17,9 @@ The publish fixture is ~310 MiB and must not be committed. Maintainer steps:
    # merge embeddings.vnef hash into fixtures/SHA256SUMS (keep smoke.vnef line)
    ```
 
+   CI verifies **present** files only (`smoke.vnef` always; `embeddings.vnef`
+   only after a local/fetch). Committing the embeddings hash without the blob
+   is intentional and safe.
 3. Create a prerelease asset (example tag `compare-fixture-v1`):
 
    ```bash

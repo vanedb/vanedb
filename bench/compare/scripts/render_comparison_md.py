@@ -76,19 +76,13 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 return 1
-        if r["engine"] in ("vanedb", "usearch", "hnswlib", "sqlite-vec", "instant-distance"):
-            # instant-distance has no save; others that support save must report size
-            if r["engine"] != "instant-distance" and r["engine"] != "hnsw_rs":
-                if r.get("file_size_bytes") is None and r["engine"] in (
-                    "vanedb",
-                    "usearch",
-                    "sqlite-vec",
-                ):
-                    print(
-                        f"refusing to render {r['engine']} without file_size_bytes",
-                        file=sys.stderr,
-                    )
-                    return 1
+        if r["engine"] in ("vanedb", "usearch", "hnswlib", "sqlite-vec"):
+            if r.get("file_size_bytes") is None:
+                print(
+                    f"refusing to render {r['engine']} without file_size_bytes",
+                    file=sys.stderr,
+                )
+                return 1
     if any(r.get("engine") == "sqlite-vec" and metric == "cosine" for r in report["results"]):
         print(
             "refusing to render cosine report that includes sqlite-vec",

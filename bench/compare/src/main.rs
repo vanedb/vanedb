@@ -8,6 +8,9 @@ use vanedb_compare::fixture::{
     classify_fixture, default_fixture_dir, load_fixture, verify_sha256sums, write_smoke_fixture,
     FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
+use vanedb_compare::publish::{
+    refuse_incomplete_save_rows, refuse_markdown_flags, MarkdownFlagGate,
+};
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
 
@@ -211,6 +214,13 @@ fn real_main() -> Result<(), String> {
             );
 
             if markdown {
+                // Flag refusals first — observable on smoke without role masking.
+                refuse_markdown_flags(MarkdownFlagGate {
+                    rounds,
+                    force_sqlite_vec_cosine,
+                    skip_delete,
+                    skip_save,
+                })?;
                 if role != FixtureRole::Publish {
                     return Err(format!(
                         "refusing --markdown for fixture_role={} (n_docs={}, n_queries={}). \
@@ -235,12 +245,6 @@ fn real_main() -> Result<(), String> {
                             .into(),
                     );
                 }
-                if rounds < 2 {
-                    return Err(
-                        "refusing --markdown with --rounds < 2 (dedicated interleaved runs only)"
-                            .into(),
-                    );
-                }
                 if let Some(mq) = max_queries {
                     if mq < fixture.n_queries() {
                         return Err(format!(
@@ -255,23 +259,6 @@ fn real_main() -> Result<(), String> {
                         "refusing --markdown: fixture n_queries={} < {PUBLISH_MIN_QUERIES}",
                         fixture.n_queries()
                     ));
-                }
-                if force_sqlite_vec_cosine {
-                    return Err("refusing --markdown with --force-sqlite-vec-cosine \
-                         (harness-side cosine scan is not a COMPARISON.md row; use --metric l2)"
-                        .into());
-                }
-                if skip_delete {
-                    return Err(
-                        "refusing --markdown with --skip-delete (publish rows must exercise delete)"
-                            .into(),
-                    );
-                }
-                if skip_save {
-                    return Err(
-                        "refusing --markdown with --skip-save (publish rows must record file size)"
-                            .into(),
-                    );
                 }
                 if fixture.meta.is_none() {
                     return Err(
@@ -323,6 +310,14 @@ fn real_main() -> Result<(), String> {
             };
 
             let report = run_comparison(&fixture, &cfg)?;
+            if markdown {
+                refuse_incomplete_save_rows(
+                    report
+                        .results
+                        .iter()
+                        .map(|r| (r.engine.as_str(), r.file_size_bytes)),
+                )?;
+            }
             let json_path = json_out.unwrap_or_else(|| out_dir.join("report.json"));
             write_json_report(&report, &json_path)?;
             eprintln!("wrote {}", json_path.display());

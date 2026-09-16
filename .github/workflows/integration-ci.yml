@@ -28,8 +28,17 @@ jobs:
       - name: Check portable graph files
         run: shasum -a 256 -c conformance/graph/SHA256SUMS
       - name: Check competitor fixture checksums
-        run: shasum -a 256 -c SHA256SUMS
+        # Only verify files that exist (embeddings.vnef is hosted, not committed).
         working-directory: bench/compare/fixtures
+        run: |
+          awk '{name=$2; sub(/^\*/,"",name); print}' SHA256SUMS | while read -r name; do
+            [ -f "$name" ] || continue
+            awk -v n="$name" '$2==n || $2=="*"n {print}' SHA256SUMS | shasum -a 256 -c -
+          done
+          # smoke.vnef must always be present and listed.
+          grep -E '(^| )smoke\.vnef$' SHA256SUMS >/dev/null
+          test -f smoke.vnef
+          echo "ok: present fixture checksums"
       - name: Lint shared harness
         run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
       - name: Lint competitor harness
@@ -138,11 +147,40 @@ jobs:
           echo "ok: markdown refused smoke"
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
-          if VANEDB_COMPARE_HW=ci-test cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
             --fixture bench/compare/fixtures/smoke.vnef \
             --allow-smoke --force-sqlite-vec-cosine --markdown --rounds 2 --ef 50 \
-            --json-out "${{ runner.temp }}/should-fail-force.json"; then
-            echo "expected markdown refusal for force-sqlite-vec-cosine" >&2
-            exit 1
-          fi
-          echo "ok: markdown refused force-sqlite-vec-cosine"
+            --json-out "${{ runner.temp }}/should-fail-force.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'force-sqlite-vec-cosine'
+          echo "ok: markdown refused force-sqlite-vec-cosine (not masked by role)"
+      - name: Markdown refuses skip-delete
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --skip-delete --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-skip-del.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'skip-delete'
+          echo "ok: markdown refused skip-delete"
+      - name: Markdown refuses skip-save
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --skip-save --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-skip-save.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'skip-save'
+          echo "ok: markdown refused skip-save"

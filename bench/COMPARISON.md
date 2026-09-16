@@ -65,10 +65,11 @@ VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
 ```
 
 `--markdown` refuses smoke/dev fixtures, unsigned files, unset
-`VANEDB_COMPARE_HW`, `--rounds < 2`, shrunk `--max-queries`, and
-`--force-sqlite-vec-cosine`. Smoke fixtures require `--allow-smoke` and cannot
-produce publishable markdown (classification is by `n_docs`/`n_queries` +
-metadata, not filename).
+`VANEDB_COMPARE_HW`, `--rounds < 2`, shrunk `--max-queries`,
+`--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`, and a missing
+`metadata.json`. Smoke fixtures require `--allow-smoke` and cannot produce
+publishable markdown (classification is by `n_docs`/`n_queries` + metadata,
+not filename).
 
 
 Generate the full fixture once (not in CI):

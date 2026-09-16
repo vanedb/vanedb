@@ -147,7 +147,11 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
                 ));
                 match engine.save(&path) {
                     Ok(sz) => accum.file_size = Some(sz),
-                    Err(e) => accum.notes.push(format!("save skipped: {e}")),
+                    Err(e) => {
+                        // Soft-skip only on the non-publish path; --markdown refuses
+                        // incomplete file_size rows after the run.
+                        accum.notes.push(format!("save failed: {e}"));
+                    }
                 }
             }
 
