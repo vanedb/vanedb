@@ -72,6 +72,8 @@ meaning. Pair it with Ollama + `nomic-embed-text` (or any OpenAI-compatible
 embeddings endpoint) once you follow the plugin README. The #198 “Try it on a
 real vault” walkthrough / 0.2.0 demo slice is still maintainer-tracked (see
 [`docs/launch/0003-demo-update-checklist.md`](docs/launch/0003-demo-update-checklist.md)).
+Full #198 closeout (fixture host + dedicated HW tables + demo release):
+[`docs/launch/0003-closeout-checklist.md`](docs/launch/0003-closeout-checklist.md).
 Competitor methodology (and dedicated-hardware results, when filled) live in
 [`bench/COMPARISON.md`](bench/COMPARISON.md).
 
