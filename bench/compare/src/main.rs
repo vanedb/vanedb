@@ -255,6 +255,15 @@ fn real_main() -> Result<(), String> {
                 refuse_incomplete_engine_set(metric_kind.as_str(), &names)?;
                 refuse_unattested_dedicated_hw()?;
                 refuse_ci_env_for_markdown()?;
+                let hw = std::env::var("VANEDB_COMPARE_HW").unwrap_or_default();
+                if hw.is_empty() || hw == "unlabelled" {
+                    return Err(
+                        "refusing --markdown without VANEDB_COMPARE_HW set to a real label \
+                         (e.g. linux-avx2, apple-m4-pro, android-arm64-emulator)"
+                            .into(),
+                    );
+                }
+                refuse_bad_hw_label(&hw)?;
                 refuse_non_publish_role(role, fixture.n_docs(), fixture.n_queries())?;
                 if !checksum_verified {
                     return Err(
@@ -272,15 +281,6 @@ fn real_main() -> Result<(), String> {
                          (got {fname})"
                     ));
                 }
-                let hw = std::env::var("VANEDB_COMPARE_HW").unwrap_or_default();
-                if hw.is_empty() || hw == "unlabelled" {
-                    return Err(
-                        "refusing --markdown without VANEDB_COMPARE_HW set to a real label \
-                         (e.g. linux-avx2, apple-silicon, android-arm64-emulator)"
-                            .into(),
-                    );
-                }
-                refuse_bad_hw_label(&hw)?;
                 if let Some(mq) = max_queries {
                     if mq < fixture.n_queries() {
                         return Err(format!(
