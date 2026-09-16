@@ -637,19 +637,40 @@ pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> *mut vaned
     })
 }
 
+struct CountingWriter {
+    n: usize,
+}
+
+impl std::io::Write for CountingWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.n = self.n.checked_add(buf.len()).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "serialized length overflow",
+            )
+        })?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 /// Writes a VNDB graph into `buf`.
 ///
 /// `written` must be non-null. On success it receives the number of bytes
 /// written. If `buf` is null and `cap` is 0, this is a size query: it
-/// succeeds and stores the required length without copying. If `buf` is
-/// non-null but `cap` is smaller than needed, it fails with
-/// `VANEDB_RS_INVALID_PARAMETER` and still stores the required length so
-/// the caller can allocate and retry.
+/// serializes into a counter (no output buffer) and stores the required
+/// length. If `buf` is non-null but `cap` is smaller than needed, it fails
+/// with `VANEDB_RS_INVALID_PARAMETER` and still stores the required length
+/// so the caller can allocate and retry.
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` or
-/// `vanedb_rs_index_load` (or null). `written` must be a valid pointer.
-/// If `buf` is non-null it must have room for `cap` bytes.
+/// `h` must be a live handle from `vanedb_rs_index_new`,
+/// `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer` (or null).
+/// `written` must be a valid pointer. If `buf` is non-null it must have
+/// room for `cap` bytes.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_save_to_buffer(
     h: *mut vanedb_rs_index,
@@ -668,12 +689,19 @@ pub unsafe extern "C" fn vanedb_rs_index_save_to_buffer(
             return null_arg(1);
         }
         let idx = &*h;
+        if buf.is_null() {
+            let mut counter = CountingWriter { n: 0 };
+            return match idx.save_to(&mut counter) {
+                Ok(()) => {
+                    *written = counter.n;
+                    0
+                }
+                Err(e) => fail(e, 1),
+            };
+        }
         match idx.to_bytes() {
             Ok(bytes) => {
                 *written = bytes.len();
-                if buf.is_null() {
-                    return 0;
-                }
                 if cap < bytes.len() {
                     set_code(
                         VANEDB_RS_INVALID_PARAMETER,

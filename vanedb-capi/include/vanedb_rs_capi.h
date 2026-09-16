@@ -311,15 +311,16 @@ vanedb_rs_index *vanedb_rs_index_load(const char *path);
  *
  * `written` must be non-null. On success it receives the number of bytes
  * written. If `buf` is null and `cap` is 0, this is a size query: it
- * succeeds and stores the required length without copying. If `buf` is
- * non-null but `cap` is smaller than needed, it fails with
- * `VANEDB_RS_INVALID_PARAMETER` and still stores the required length so
- * the caller can allocate and retry.
+ * serializes into a counter (no output buffer) and stores the required
+ * length. If `buf` is non-null but `cap` is smaller than needed, it fails
+ * with `VANEDB_RS_INVALID_PARAMETER` and still stores the required length
+ * so the caller can allocate and retry.
  *
  * # Safety
- * `h` must be a live handle from `vanedb_rs_index_new` or
- * `vanedb_rs_index_load` (or null). `written` must be a valid pointer.
- * If `buf` is non-null it must have room for `cap` bytes.
+ * `h` must be a live handle from `vanedb_rs_index_new`,
+ * `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer` (or null).
+ * `written` must be a valid pointer. If `buf` is non-null it must have
+ * room for `cap` bytes.
  */
 int32_t vanedb_rs_index_save_to_buffer(vanedb_rs_index *h,
                                        uint8_t *buf,

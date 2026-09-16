@@ -160,6 +160,7 @@ await assert.rejects(() => storage.put('../escape', new Uint8Array([1])), /file 
 const nameless = new esm.ApproxIndex(2, 'l2', 8, 4, 16);
 try {
   await assert.rejects(() => nameless.save(''), /non-empty string/);
+  await assert.rejects(() => nameless.save('../escape', storage), /file name/);
 } finally { nameless.free(); }
 await assert.rejects(() => esm.ApproxIndex.load(''), /non-empty string/);
 

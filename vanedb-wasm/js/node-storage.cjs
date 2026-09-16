@@ -15,20 +15,26 @@ function assertFileName(name) {
 
 function installPersistence(ApproxIndex, defaultStorage) {
   ApproxIndex.prototype.save = async function save(name, storage) {
-    if (typeof name !== 'string' || name.length === 0) {
-      throw new Error('name must be a non-empty string');
-    }
+    assertIndexName(name);
     const bytes = new Uint8Array(this.toBytes());
     await (storage ?? defaultStorage).put(name, bytes);
   };
   ApproxIndex.load = async function load(name, storage) {
-    if (typeof name !== 'string' || name.length === 0) {
-      throw new Error('name must be a non-empty string');
-    }
+    assertIndexName(name);
     const bytes = await (storage ?? defaultStorage).get(name);
     if (bytes == null) return null;
     return ApproxIndex.fromBytes(bytes);
   };
+}
+
+// Keep in lockstep with vanedb-wasm/js/persistence.js.
+function assertIndexName(name) {
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new Error('name must be a non-empty string');
+  }
+  if (name === '.' || name === '..' || /[\\/]/.test(name)) {
+    throw new Error('name must be a file name, not a path');
+  }
 }
 
 function fileStorage(directory = process.cwd()) {

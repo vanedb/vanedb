@@ -499,9 +499,9 @@ impl PyIndex {
 
     /// Reads a graph from a VNDB file (or a legacy Rust file) in memory.
     #[staticmethod]
-    fn from_bytes(py: Python<'_>, bytes: Vec<u8>) -> PyResult<Self> {
+    fn from_bytes(py: Python<'_>, data: Vec<u8>) -> PyResult<Self> {
         let inner = py
-            .detach(move || ApproxIndex::from_bytes(&bytes))
+            .detach(move || ApproxIndex::from_bytes(&data))
             .map_err(to_pyerr)?;
         Ok(Self { inner })
     }
