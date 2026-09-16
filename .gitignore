@@ -27,7 +27,8 @@ vanedb-py/python/vanedb/*.dylib
 !bench/compare/fixtures/**/*.vnef
 bench/compare/fixtures/embeddings.vnef
 bench/compare/target/
-bench/compare/runs/
+bench/compare/runs/*
+!bench/compare/runs/README.md
 
 # The virtual environment the guides and CLAUDE.md tell you to create at the
 # repository root for the Python bindings. Following the documented workflow
