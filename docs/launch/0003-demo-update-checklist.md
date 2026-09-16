@@ -6,6 +6,20 @@ https://github.com/vanedb/obsidian-vane-search/issues/18 — apply the ready
 patch below, cut a release, and reply on vanedb#198 / PR #212 with the release
 URL.
 
+## Verified on tip (agent)
+
+Against `obsidian-vane-search` `main` (`e79bef9`), the patch:
+
+1. `git apply` — clean
+2. `npm ci && npm test` — **98/98** vitest passed
+3. `npm run build` — produced `main.js` (215.9 KiB)
+
+Staging installables (prerelease on **vanedb**, not the demo repo):
+https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
+(`main.js` + `manifest.json` + `LICENSE`, version `0.2.0`). Manual install into
+`<vault>/.obsidian/plugins/vane-search/` works for walkthrough verification;
+AC5 still needs the **official** `obsidian-vane-search` `0.2.0` tag/release.
+
 ## Ready-to-apply patch
 
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)

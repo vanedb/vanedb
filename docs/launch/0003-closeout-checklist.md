@@ -73,11 +73,14 @@ metrics record.
 
 Applyable patch is in-tree:
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
-(verified `git apply`). This agent cannot push/fork
-`vanedb/obsidian-vane-search` (403). Maintainer request opened:
+(verified `git apply` + **98/98** tests + production `main.js` build). This
+agent cannot push/fork `vanedb/obsidian-vane-search` (403). Maintainer request:
 https://github.com/vanedb/obsidian-vane-search/issues/18 — apply patch, cut
-`0.2.0` release, reply on #198 / #212 with the release URL. Until then AC5 is
-open.
+`0.2.0` release, reply on #198 / #212 with the release URL.
+
+Staging artifacts (vanedb prerelease, not official demo release):
+https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
+Until the official demo tag exists, AC5 stays open.
 
 ## 4. Launch (AC6)
 
