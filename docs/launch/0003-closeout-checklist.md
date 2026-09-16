@@ -70,8 +70,10 @@ JSON) under the matching heading in `bench/COMPARISON.md`. Keep JSON under
 
 ## 3. Demo (AC5)
 
-Follow [`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). Reply
-on #198 / #212 with the demo release URL.
+Follow [`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). Apply
+[`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
+in the demo repo (this agent has no write access there), cut the `0.2.0`
+release, and reply on #198 / #212 with the release URL.
 
 ## 4. Launch (AC6)
 
