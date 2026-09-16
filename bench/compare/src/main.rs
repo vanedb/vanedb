@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use vanedb_compare::engines::{BuildParams, EngineKind, MetricKind};
 use vanedb_compare::fixture::{
     classify_fixture, default_fixture_dir, load_fixture, verify_sha256sums, write_smoke_fixture,
-    FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
+    FixtureMeta, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
 use vanedb_compare::publish::{
     refuse_bad_hw_label, refuse_ci_env_for_markdown, refuse_incomplete_delete_rows,
