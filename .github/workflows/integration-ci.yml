@@ -219,6 +219,46 @@ jobs:
           assert "queries_measured" in p.stderr, p.stderr
           print("ok: render refused queries_measured shrink")
           PY
+      - name: fill_comparison_slot replaces Pending only
+        run: |
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location(
+              "fill", "bench/compare/scripts/fill_comparison_slot.py"
+          )
+          fill = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(fill)
+          sample = Path("bench/COMPARISON.md").read_text()
+          body = "### linux-avx2 (host) — metric `l2`\n\n| Engine |\n|---|\n| vanedb |\n"
+          out = fill.replace_slot(
+              sample,
+              "### Linux x86-64 AVX2 (dedicated box)",
+              "#### Squared L2",
+              body,
+              False,
+          )
+          slot = out.split("### Linux x86-64 AVX2 (dedicated box)")[1].split("### Android")[0]
+          l2 = slot.split("#### Squared L2")[1]
+          assert "vanedb" in l2 and "*Pending.*" not in l2
+          cos = slot.split("#### Cosine")[1].split("#### Squared L2")[0]
+          assert cos.strip() == "*Pending.*"
+          try:
+              fill.replace_slot(
+                  out,
+                  "### Linux x86-64 AVX2 (dedicated box)",
+                  "#### Squared L2",
+                  body,
+                  False,
+              )
+              raise SystemExit("expected refuse overwrite")
+          except SystemExit as e:
+              assert "non-Pending" in str(e)
+          # Dry-run path must not write.
+          before = Path("bench/COMPARISON.md").read_text()
+          assert before == sample
+          print("ok: fill_comparison_slot Pending-only replace")
+          PY
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
           set +e

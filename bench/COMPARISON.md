@@ -64,8 +64,15 @@ the existing `bench/README.md` discipline.
 Preferred command (binds HW label to the host OS/arch/CPU):
 
 ```bash
+# One-shot Apple Silicon / Linux AVX2 (fetch + rebuild + both metrics + slot fill):
+bash bench/compare/scripts/maintainer_fill_host_comparison.sh
+
+# Or per metric:
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
+python3 bench/compare/scripts/fill_comparison_slot.py \
+  bench/compare/runs/linux-avx2-cosine-*.json \
+  bench/compare/runs/linux-avx2-l2-*.json
 ```
 
 Equivalent raw form (same host binds are enforced inside `--markdown`):
@@ -137,8 +144,9 @@ Dedicated-machine helper (Apple/Linux only):
 
 Fill **two** subsections under each hardware class: one for `--metric cosine`
 (sqlite-vec omitted) and one for `--metric l2` (includes native sqlite-vec).
-Paste the harness `--markdown` output (or `render_comparison_md.py`) under the
-matching heading; do not mix metrics in one table.
+Paste the harness `--markdown` output, or run
+`fill_comparison_slot.py` on the publish JSON, under the matching heading; do
+not mix metrics in one table.
 
 ### Apple Silicon (dedicated laptop)
 

@@ -39,6 +39,14 @@ esac
 
 echo "recording $HW cosine + l2…"
 bash bench/compare/scripts/record_both_metrics.sh "$HW"
-echo
-echo "Next: paste the printed markdown into bench/COMPARISON.md under the matching"
-echo "Cosine / Squared L2 headings for this HW class, commit, and push."
+
+COS_JSON="$(ls -1t bench/compare/runs/"${HW}"-cosine-*.json 2>/dev/null | head -n 1 || true)"
+L2_JSON="$(ls -1t bench/compare/runs/"${HW}"-l2-*.json 2>/dev/null | head -n 1 || true)"
+if [[ -n "$COS_JSON" && -n "$L2_JSON" ]]; then
+  echo "filling bench/COMPARISON.md from $COS_JSON + $L2_JSON…"
+  python3 bench/compare/scripts/fill_comparison_slot.py "$COS_JSON" "$L2_JSON"
+  echo "Next: git add bench/COMPARISON.md bench/compare/runs/ && commit && push."
+else
+  echo "Next: python3 bench/compare/scripts/fill_comparison_slot.py <cosine.json> <l2.json>"
+  echo "Or paste --markdown output into bench/COMPARISON.md under matching headings."
+fi

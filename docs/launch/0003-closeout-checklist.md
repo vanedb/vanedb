@@ -1,7 +1,8 @@
 # Closing #198 — maintainer closeout
 
-PR #212 tip has harness + hosted fixture + Required CI Gate green. **Do not close #198** until
-every box below has evidence (AC3 HW tables + AC5 demo release still open).
+PR #212 tip has harness + hosted fixture. Re-check **Required CI Gate** on the
+current tip after every push. **Do not close #198** until every box below has
+evidence (AC3 HW tables + AC5 demo release still open).
 
 ## 1. Publish fixture (AC2) — **done on tip**
 
@@ -54,9 +55,19 @@ Follow [`../../bench/compare/ANDROID.md`](../../bench/compare/ANDROID.md) (NDK/a
 device, or labelled emulator). Do **not** use `record_publish_run.sh` with an
 `android-*` label on a laptop/server — that would mislabel host timings.
 
-Paste only harness `--markdown` output (or `render_comparison_md.py` on that
-JSON) under the matching heading in `bench/COMPARISON.md`. Keep JSON under
+Prefer the gated slot filler (same policy as `--markdown` /
+`render_comparison_md.py`):
+
+```bash
+python3 bench/compare/scripts/fill_comparison_slot.py \
+  bench/compare/runs/<hw>-cosine-*.json \
+  bench/compare/runs/<hw>-l2-*.json
+```
+
+Or paste harness `--markdown` output under the matching heading. Keep JSON under
 `bench/compare/runs/` or attach on the PR. **Never** paste cloud/CI timings.
+`maintainer_fill_host_comparison.sh` runs the filler automatically after both
+metrics record.
 
 ## 3. Demo (AC5) — **maintainer apply required**
 
@@ -72,7 +83,8 @@ Only after §2 and §3: remove the do-not-publish banner from
 [`0003-competitor-benchmark.md`](0003-competitor-benchmark.md) and switch
 provisional tense to past tense with the real numbers.
 
-## 5. Gate — **Required CI Gate green on tip `0ab9619`**
+## 5. Gate — **Required CI Gate green on tip**
 
-Harness + fixture pin tip has Required CI Gate success (ignore `claude-review`
-missing API key). Re-check the gate after the COMPARISON paste commit lands.
+Ignore `claude-review` (missing `ANTHROPIC_API_KEY`). After the COMPARISON
+paste commit and any harness tip, re-check Required CI Gate on that SHA before
+closing #198.
