@@ -27,6 +27,15 @@ bumps `package.json` / `manifest.json` / `versions.json` to `0.2.0` and adds
 README section **"Try it on a real vault"** (BRAT → Ollama nomic → index →
 one semantic query).
 
+**One-shot** (needs push access to the demo repo; cloud agents get 403):
+
+```bash
+bash docs/launch/maintainer_cut_demo_0.2.0.sh
+# optional: --skip-tests  (release workflow still builds + publishes assets)
+```
+
+Manual equivalent:
+
 ```bash
 git clone https://github.com/vanedb/obsidian-vane-search.git
 cd obsidian-vane-search

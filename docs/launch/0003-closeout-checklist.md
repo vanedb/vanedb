@@ -74,9 +74,16 @@ metrics record.
 Applyable patch is in-tree:
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
 (verified `git apply` + **98/98** tests + production `main.js` build). This
-agent cannot push/fork `vanedb/obsidian-vane-search` (403). Maintainer request:
-https://github.com/vanedb/obsidian-vane-search/issues/18 — apply patch, cut
-`0.2.0` release, reply on #198 / #212 with the release URL.
+agent cannot push/fork `vanedb/obsidian-vane-search` (403 on git push and
+Contents API). One-shot for a maintainer with write access:
+
+```bash
+bash docs/launch/maintainer_cut_demo_0.2.0.sh
+```
+
+Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
+run the script (or apply patch + tag `0.2.0`), reply on #198 / #212 with the
+release URL.
 
 Staging artifacts (vanedb prerelease, not official demo release):
 https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
