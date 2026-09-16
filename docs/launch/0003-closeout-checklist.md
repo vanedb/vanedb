@@ -81,9 +81,11 @@ Contents API). One-shot for a maintainer with write access:
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
 ```
 
+Or Actions → **Cut demo 0.2.0** after setting secret `DEMO_REPO_TOKEN`.
+
 Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
-run the script (or apply patch + tag `0.2.0`), reply on #198 / #212 with the
-release URL.
+run the script / workflow (or apply patch + tag `0.2.0`), reply on #198 / #212
+with the release URL.
 
 Staging artifacts (vanedb prerelease, not official demo release):
 https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging

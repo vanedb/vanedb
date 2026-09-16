@@ -32,7 +32,11 @@ one semantic query).
 ```bash
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
 # optional: --skip-tests  (release workflow still builds + publishes assets)
+# or: DEMO_REPO_TOKEN=... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
 ```
+
+**Actions alternative:** add repo secret `DEMO_REPO_TOKEN` (contents:write on
+`vanedb/obsidian-vane-search`), then Actions → **Cut demo 0.2.0** → Run workflow.
 
 Manual equivalent:
 
