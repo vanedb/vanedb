@@ -19,8 +19,13 @@ function rejectsNumber(operation) {
     throw new Error('invalid number was accepted');
 }
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
+const REQUIRE_PERSISTENCE = false;
 async function main() {
     await init();
+    if (REQUIRE_PERSISTENCE) {
+        check(typeof ApproxIndex.load === 'function', 'merged package must expose ApproxIndex.load');
+        check(typeof ApproxIndex.prototype.save === 'function', 'merged package must expose save');
+    }
     if (typeof ApproxIndex.load === 'function') {
         const params = new URLSearchParams(location.search);
         if (!params.has('persisted')) {
@@ -28,14 +33,10 @@ async function main() {
             index.add(101n, new Float32Array([1, 0]));
             await index.save('reload-survival');
             index.free();
-            // WebKit can lose a just-completed IndexedDB put if navigation
-            // starts in the same turn as db.close().
-            await new Promise((resolve) => setTimeout(resolve, 0));
             const next = new URL(location.href);
             next.searchParams.set('persisted', '1');
             location.replace(next.toString());
-            // Top-level modules cannot `return` to stop the rest of the file;
-            // if the navigation does not happen, fail instead of hanging the
+            // If the navigation does not happen, fail instead of hanging the
             // Playwright wait on "Running".
             await new Promise((_, reject) => {
                 setTimeout(() => reject(new Error('reload navigation did not happen')), 2000);
