@@ -64,6 +64,10 @@ export function indexedDbStorage(dbName = 'vanedb') {
       } finally {
         db.close();
       }
+      // WebKit can drop a just-completed put if navigation starts in the
+      // same turn as close(). `await save()` is the durability barrier, so
+      // the yield belongs here rather than in every caller.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     },
     async get(name) {
       const db = await open();
