@@ -111,8 +111,7 @@ Host the resulting `embeddings.vnef` as a GitHub Release asset (too large for
 git), add its sha256 to `fixtures/SHA256SUMS`, then consumers fetch with:
 
 ```bash
-# After the compare-fixture-v1 (or successor) asset is published:
-VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/<tag>/embeddings.vnef \
+VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
   bash bench/compare/scripts/fetch_fixture.sh
 ```
 
