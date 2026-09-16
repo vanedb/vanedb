@@ -9,9 +9,10 @@ use vanedb_compare::fixture::{
     FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
 use vanedb_compare::publish::{
-    refuse_ci_env_for_markdown, refuse_incomplete_engine_set, refuse_incomplete_save_rows,
-    refuse_markdown_flags, refuse_noncanonical_params, refuse_unattested_dedicated_hw,
-    CanonicalParamsGate, MarkdownFlagGate,
+    refuse_bad_hw_label, refuse_ci_env_for_markdown, refuse_incomplete_delete_rows,
+    refuse_incomplete_engine_set, refuse_incomplete_save_rows, refuse_markdown_flags,
+    refuse_noncanonical_params, refuse_unattested_dedicated_hw, CanonicalParamsGate,
+    MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -288,6 +289,7 @@ fn real_main() -> Result<(), String> {
                             .into(),
                     );
                 }
+                refuse_bad_hw_label(&hw)?;
                 if let Some(mq) = max_queries {
                     if mq < fixture.n_queries() {
                         return Err(format!(
@@ -341,6 +343,12 @@ fn real_main() -> Result<(), String> {
                         .results
                         .iter()
                         .map(|r| (r.engine.as_str(), r.file_size_bytes)),
+                )?;
+                refuse_incomplete_delete_rows(
+                    report
+                        .results
+                        .iter()
+                        .map(|r| (r.engine.as_str(), r.delete_ok)),
                 )?;
             }
             let json_path = json_out.unwrap_or_else(|| out_dir.join("report.json"));

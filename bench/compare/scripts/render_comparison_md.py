@@ -3,8 +3,11 @@
 
 Prefer producing markdown on the dedicated machine via `compare run --markdown`.
 This helper re-renders an existing publish JSON without re-running engines.
-It applies the same publish-policy gates as the Rust harness (sha pin, params,
-full engine set) so hand-forged JSON cannot become COMPARISON.md paste.
+
+It applies the same *policy* gates as the Rust harness (role, sha pin, params,
+full engine set, dedicated attestation, shared-runner refuse). It does **not**
+cryptographically prove timings were not hand-edited — paste only JSON you
+recorded yourself on dedicated hardware (or attached as evidence on the PR).
 """
 
 from __future__ import annotations
@@ -78,6 +81,13 @@ def main() -> int:
         return 2
     path = Path(sys.argv[1])
     report = json.loads(path.read_text())
+    if report.get("report_kind") != "vanedb-compare-v1":
+        print(
+            "refusing to render: report_kind must be vanedb-compare-v1 "
+            "(harness-produced JSON only)",
+            file=sys.stderr,
+        )
+        return 1
     role = report.get("fixture_role", "?")
     if role != "publish":
         print(
@@ -89,6 +99,17 @@ def main() -> int:
     hw = report.get("hardware_label", "unlabelled")
     if not hw or hw == "unlabelled":
         print("refusing to render unlabelled hardware_label", file=sys.stderr)
+        return 1
+    if not (
+        hw.startswith("apple-")
+        or hw.startswith("linux-avx2")
+        or hw.startswith("android-arm64-")
+    ):
+        print(
+            f"refusing to render hardware_label={hw!r}; "
+            "need apple-*, linux-avx2*, or android-arm64-*",
+            file=sys.stderr,
+        )
         return 1
     metric = report.get("metric")
     if metric not in ("cosine", "l2"):

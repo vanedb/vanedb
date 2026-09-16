@@ -62,6 +62,8 @@ pub struct RecallRow {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ComparisonReport {
+    /// Stable marker so paste helpers can refuse non-harness JSON shapes.
+    pub report_kind: String,
     pub commit: String,
     pub hostname: String,
     pub hardware_label: String,
@@ -209,6 +211,7 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
     let results = per_engine.into_iter().map(|a| a.into_result(cfg)).collect();
 
     Ok(ComparisonReport {
+        report_kind: "vanedb-compare-v1".into(),
         commit: git_commit(),
         hostname: hostname(),
         hardware_label: std::env::var("VANEDB_COMPARE_HW").unwrap_or_else(|_| "unlabelled".into()),

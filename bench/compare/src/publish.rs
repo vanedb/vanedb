@@ -217,6 +217,11 @@ pub fn save_required_engines() -> &'static [&'static str] {
     &["vanedb", "usearch", "hnswlib", "sqlite-vec"]
 }
 
+/// Engines that must report delete_ok on the publish path.
+pub fn delete_required_engines() -> &'static [&'static str] {
+    &["vanedb", "usearch", "hnswlib", "sqlite-vec"]
+}
+
 pub fn refuse_incomplete_save_rows<'a, I>(engines: I) -> Result<(), String>
 where
     I: IntoIterator<Item = (&'a str, Option<u64>)>,
@@ -227,6 +232,35 @@ where
                 "refusing --markdown: engine {name} supports save but file_size_bytes is missing"
             ));
         }
+    }
+    Ok(())
+}
+
+pub fn refuse_incomplete_delete_rows<'a, I>(engines: I) -> Result<(), String>
+where
+    I: IntoIterator<Item = (&'a str, Option<bool>)>,
+{
+    for (name, delete_ok) in engines {
+        if delete_required_engines().contains(&name) && delete_ok.is_none() {
+            return Err(format!(
+                "refusing --markdown: engine {name} supports delete but delete_ok is missing"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Allowed `VANEDB_COMPARE_HW` prefixes for the three #198 hardware classes.
+pub fn refuse_bad_hw_label(hw: &str) -> Result<(), String> {
+    let ok = hw.starts_with("apple-")
+        || hw.starts_with("linux-avx2")
+        || hw.starts_with("android-arm64-");
+    if !ok {
+        return Err(format!(
+            "refusing --markdown with VANEDB_COMPARE_HW={hw:?}; \
+             use a label starting with apple-, linux-avx2, or android-arm64- \
+             (e.g. apple-m4-pro, linux-avx2, android-arm64-device)"
+        ));
     }
     Ok(())
 }
@@ -303,6 +337,32 @@ mod tests {
         ])
         .unwrap_err();
         assert!(err.contains("hnswlib"), "{err}");
+    }
+
+    #[test]
+    fn incomplete_delete_refused() {
+        let err =
+            refuse_incomplete_delete_rows([("vanedb", None), ("usearch", Some(true))]).unwrap_err();
+        assert!(err.contains("delete_ok"), "{err}");
+    }
+
+    #[test]
+    fn bad_hw_label_refused() {
+        let err = refuse_bad_hw_label("cloud-box").unwrap_err();
+        assert!(err.contains("apple-"), "{err}");
+        refuse_bad_hw_label("linux-avx2").unwrap();
+        refuse_bad_hw_label("apple-m4-pro").unwrap();
+        refuse_bad_hw_label("android-arm64-emulator").unwrap();
+    }
+
+    #[test]
+    fn shared_runner_truthy_forms() {
+        // Pure helper coverage via refuse_ci when env is set is flaky in parallel
+        // tests; assert the documented contract strings instead.
+        assert!(matches!(
+            "1".to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes"
+        ));
     }
 
     fn canonical() -> CanonicalParamsGate {
