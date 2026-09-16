@@ -11,8 +11,9 @@ use vanedb_compare::fixture::{
 use vanedb_compare::publish::{
     refuse_bad_hw_label, refuse_ci_env_for_markdown, refuse_incomplete_delete_rows,
     refuse_incomplete_engine_set, refuse_incomplete_save_rows, refuse_markdown_flags,
-    refuse_non_publish_role, refuse_noncanonical_params, refuse_unattested_dedicated_hw,
-    CanonicalParamsGate, MarkdownFlagGate,
+    refuse_non_publish_dim, refuse_non_publish_role, refuse_noncanonical_params,
+    refuse_unattested_dedicated_hw, refuse_unpinned_repo_sha, CanonicalParamsGate,
+    MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -265,12 +266,16 @@ fn real_main() -> Result<(), String> {
                 }
                 refuse_bad_hw_label(&hw)?;
                 refuse_non_publish_role(role, fixture.n_docs(), fixture.n_queries())?;
+                refuse_non_publish_dim(fixture.dim)?;
                 if !checksum_verified {
                     return Err(
                         "refusing --markdown unless the fixture hash is listed in SHA256SUMS"
                             .into(),
                     );
                 }
+                // Beside-file SUMS is not enough — pin must match the in-repo
+                // fixtures/SHA256SUMS embeddings.vnef line (fail-closed until hosted).
+                refuse_unpinned_repo_sha(&fixture.sha256)?;
                 let fname = fixture_path
                     .file_name()
                     .and_then(|s| s.to_str())

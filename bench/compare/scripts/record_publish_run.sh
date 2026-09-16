@@ -60,8 +60,13 @@ OUT="$OUT_DIR/${HW}-${METRIC}-${STAMP}.json"
 export VANEDB_COMPARE_HW="$HW"
 export VANEDB_COMPARE_DEDICATED=1
 # Refuse to run if this shell looks like CI/cloud (belt + suspenders).
-if [[ "${CI:-}" == "true" || "${CI:-}" == "1" || "${GITHUB_ACTIONS:-}" == "true" || -n "${CURSOR_AGENT:-}" ]]; then
-  echo "refusing record_publish_run.sh under CI/cloud env" >&2
+# FS markers survive `env -u CURSOR_AGENT` on Cursor cloud VMs.
+if [[ "${CI:-}" == "true" || "${CI:-}" == "1" \
+   || "${GITHUB_ACTIONS:-}" == "true" || "${GITHUB_ACTIONS:-}" == "1" \
+   || "${GITLAB_CI:-}" == "true" || "${CIRCLECI:-}" == "true" \
+   || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
+   || -e /opt/cursor || -e /exec-daemon ]]; then
+  echo "refusing record_publish_run.sh under CI/cloud env (or Cursor cloud FS markers)" >&2
   exit 1
 fi
 cd "$ROOT"

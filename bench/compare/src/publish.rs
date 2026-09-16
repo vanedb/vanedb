@@ -108,18 +108,31 @@ pub fn refuse_noncanonical_params(g: &CanonicalParamsGate) -> Result<(), String>
 }
 
 /// True when the process looks like a shared CI/cloud runner.
+///
+/// Env vars alone are not enough: `env -u CURSOR_AGENT` on a Cursor cloud VM
+/// would otherwise emit `shared_runner=false` pasteable JSON. Filesystem
+/// markers (`/opt/cursor`, `/exec-daemon`) cannot be unset that way.
 pub fn shared_runner_env() -> bool {
+    shared_runner_signals(
+        |k| std::env::var(k).ok(),
+        |p| std::path::Path::new(p).exists(),
+    )
+}
+
+/// Testable core for [`shared_runner_env`].
+pub fn shared_runner_signals<E, P>(env_var: E, path_exists: P) -> bool
+where
+    E: Fn(&str) -> Option<String>,
+    P: Fn(&str) -> bool,
+{
     let truthy = |k: &str| {
         matches!(
-            std::env::var(k)
-                .unwrap_or_default()
-                .to_ascii_lowercase()
-                .as_str(),
+            env_var(k).unwrap_or_default().to_ascii_lowercase().as_str(),
             "1" | "true" | "yes"
         )
     };
     // Presence flags: empty string must not count (CI YAML `VAR: ""` still sets the key).
-    let present = |k: &str| std::env::var(k).map(|v| !v.is_empty()).unwrap_or(false);
+    let present = |k: &str| env_var(k).map(|v| !v.is_empty()).unwrap_or(false);
     truthy("CI")
         || truthy("GITHUB_ACTIONS")
         || truthy("GITLAB_CI")
@@ -128,6 +141,71 @@ pub fn shared_runner_env() -> bool {
         || truthy("TF_BUILD")
         || present("CURSOR_AGENT")
         || present("CODESPACES")
+        // Immutable host markers for Cursor cloud agent VMs (survive `env -u`).
+        || path_exists("/opt/cursor")
+        || path_exists("/exec-daemon")
+}
+
+/// RFC publish fixture dimensionality (nomic-embed-text-v1.5).
+pub const PUBLISH_DIM: usize = 768;
+
+/// Refuse --markdown / paste unless the fixture is the RFC 768-d embedding.
+pub fn refuse_non_publish_dim(dim: usize) -> Result<(), String> {
+    if dim != PUBLISH_DIM {
+        return Err(format!(
+            "refusing --markdown with fixture dim={dim} (COMPARISON requires dim={PUBLISH_DIM})"
+        ));
+    }
+    Ok(())
+}
+
+/// Path to the in-repo pin file (not a beside-file SUMS under /tmp).
+pub fn repo_sha256sums_path() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/SHA256SUMS")
+}
+
+/// Require `fixture_sha256` to match the `embeddings.vnef` line in the **repo**
+/// `fixtures/SHA256SUMS`. Beside-file SUMS alone must not authorize paste.
+pub fn refuse_unpinned_repo_sha(fixture_sha256: &str) -> Result<(), String> {
+    refuse_sha_not_in_sums(fixture_sha256, &repo_sha256sums_path())
+}
+
+pub fn refuse_sha_not_in_sums(
+    fixture_sha256: &str,
+    sums_path: &std::path::Path,
+) -> Result<(), String> {
+    let sums = std::fs::read_to_string(sums_path).map_err(|e| {
+        format!(
+            "refusing --markdown: cannot read repo SHA256SUMS {}: {e}",
+            sums_path.display()
+        )
+    })?;
+    for line in sums.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        let hash = parts.next().ok_or("bad SHA256SUMS line")?;
+        let file_name = parts
+            .next()
+            .ok_or("bad SHA256SUMS line")?
+            .trim_start_matches('*');
+        if file_name == "embeddings.vnef" {
+            if hash != fixture_sha256 {
+                return Err(format!(
+                    "refusing --markdown: fixture sha256 {fixture_sha256} != \
+                     repo SHA256SUMS embeddings.vnef {hash}"
+                ));
+            }
+            return Ok(());
+        }
+    }
+    Err(format!(
+        "refusing --markdown: embeddings.vnef not listed in repo {} \
+         (finalize + commit the publish pin before pasteable runs)",
+        sums_path.display()
+    ))
 }
 
 /// Maintainer attestation that this host is idle dedicated hardware.
@@ -553,5 +631,57 @@ mod tests {
         let err = refuse_unless_dedicated_attested(false).unwrap_err();
         assert!(err.contains("VANEDB_COMPARE_DEDICATED"), "{err}");
         refuse_unless_dedicated_attested(true).unwrap();
+    }
+
+    #[test]
+    fn shared_runner_fs_markers_survive_cleared_env() {
+        // Cleared env alone must not authorize paste on Cursor cloud VMs.
+        assert!(
+            !shared_runner_signals(|_| None, |_| false),
+            "clean host must not look shared"
+        );
+        assert!(shared_runner_signals(|_| None, |p| p == "/opt/cursor"));
+        assert!(shared_runner_signals(|_| None, |p| p == "/exec-daemon"));
+        assert!(shared_runner_signals(
+            |k| {
+                if k == "CURSOR_AGENT" {
+                    Some("1".into())
+                } else {
+                    None
+                }
+            },
+            |_| false
+        ));
+        // Empty CURSOR_AGENT must not trip the present() check.
+        assert!(!shared_runner_signals(
+            |k| {
+                if k == "CURSOR_AGENT" {
+                    Some(String::new())
+                } else {
+                    None
+                }
+            },
+            |_| false
+        ));
+    }
+
+    #[test]
+    fn non_publish_dim_refused() {
+        let err = refuse_non_publish_dim(1).unwrap_err();
+        assert!(err.contains("dim=1"), "{err}");
+        refuse_non_publish_dim(PUBLISH_DIM).unwrap();
+    }
+
+    #[test]
+    fn unpinned_repo_sha_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let sums = dir.path().join("SHA256SUMS");
+        std::fs::write(&sums, "aaaa smoke.vnef\n").unwrap();
+        let err = refuse_sha_not_in_sums("bbbb", &sums).unwrap_err();
+        assert!(err.contains("not listed"), "{err}");
+        std::fs::write(&sums, "cccc embeddings.vnef\n").unwrap();
+        let err = refuse_sha_not_in_sums("bbbb", &sums).unwrap_err();
+        assert!(err.contains("!="), "{err}");
+        refuse_sha_not_in_sums("cccc", &sums).unwrap();
     }
 }

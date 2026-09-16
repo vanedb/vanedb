@@ -169,6 +169,14 @@ jobs:
           cargo test --manifest-path bench/compare/Cargo.toml --locked \
             refuse_non_publish_role_smoke -- --nocapture
           echo "ok: smoke-role refuse covered by unit test"
+      - name: Markdown cloud FS markers + dim + repo SUMS pin (unit)
+        # Cursor cloud can `env -u CURSOR_AGENT`; FS markers must still refuse.
+        # Beside-file SUMS / non-768 fixtures must not authorize --markdown.
+        run: |
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            'shared_runner_fs_markers_survive_cleared_env|non_publish_dim_refused|unpinned_repo_sha_refused' \
+            -- --nocapture
+          echo "ok: cloud FS / dim / repo-pin gates covered by unit tests"
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
           set +e

@@ -20,6 +20,7 @@ PUBLISH_M = 16
 PUBLISH_EF_CONSTRUCTION = 200
 PUBLISH_K = 10
 PUBLISH_SEED = 42
+PUBLISH_DIM = 768
 PUBLISH_EF = (16, 32, 50, 100)
 PUBLISH_ENGINES_COSINE = (
     "vanedb",
@@ -146,6 +147,13 @@ def main() -> int:
         return 1
     if report.get("fixture_n_queries", 0) < 1000:
         print("refusing to render fixture_n_queries < 1000", file=sys.stderr)
+        return 1
+    if report.get("fixture_dim") != PUBLISH_DIM:
+        print(
+            f"refusing to render fixture_dim={report.get('fixture_dim')!r}; "
+            f"need dim={PUBLISH_DIM}",
+            file=sys.stderr,
+        )
         return 1
     if not report.get("recorded_at_utc"):
         print("refusing to render without recorded_at_utc", file=sys.stderr)

@@ -24,6 +24,8 @@ ver, dim, n_docs, n_queries, _metric, _res = struct.unpack_from("<IIIIII", raw, 
 need = 28 + (n_docs + n_queries) * dim * 4 + n_docs * 8
 if len(raw) != need:
     sys.exit(f"incomplete vnef: size={len(raw)} need={need} n_docs={n_docs} n_queries={n_queries} dim={dim}")
+if dim != 768:
+    sys.exit(f"dim={dim} != 768 (RFC publish fixture)")
 if n_docs < 100_000 or n_queries < 1000:
     sys.exit(f"too small for publish: n_docs={n_docs} n_queries={n_queries}")
 meta = json.loads(pathlib.Path("$META").read_text())
@@ -37,7 +39,15 @@ print(f"ok size={len(raw)} dim={dim} docs={n_docs} queries={n_queries}")
 PY
 cp "$META" "$FIX/metadata.json"
 cp "$VNEF" "$FIX/embeddings.vnef"
-HASH="$( (cd "$FIX" && sha256sum embeddings.vnef) )"
+# macOS ships shasum; Linux ships sha256sum (and often shasum via Perl).
+if command -v sha256sum >/dev/null 2>&1; then
+  HASH="$( (cd "$FIX" && sha256sum embeddings.vnef) )"
+elif command -v shasum >/dev/null 2>&1; then
+  HASH="$( (cd "$FIX" && shasum -a 256 embeddings.vnef) )"
+else
+  echo "need sha256sum or shasum to pin embeddings.vnef" >&2
+  exit 1
+fi
 # Keep smoke line; replace or append embeddings line.
 TMP="$(mktemp)"
 if [[ -f "$FIX/SHA256SUMS" ]]; then
