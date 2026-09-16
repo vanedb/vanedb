@@ -31,14 +31,20 @@ jobs:
         # Only verify files that exist (embeddings.vnef is hosted, not committed).
         working-directory: bench/compare/fixtures
         run: |
-          awk '{name=$2; sub(/^\*/,"",name); print}' SHA256SUMS | while read -r name; do
-            [ -f "$name" ] || continue
-            awk -v n="$name" '$2==n || $2=="*"n {print}' SHA256SUMS | shasum -a 256 -c -
-          done
+          set -euo pipefail
+          verified=0
+          while read -r digest name; do
+            [[ -z "${digest:-}" || "$digest" =~ ^# ]] && continue
+            name="${name#\*}"
+            [[ -f "$name" ]] || continue
+            echo "$digest  $name" | shasum -a 256 -c -
+            verified=$((verified + 1))
+          done < SHA256SUMS
+          test "$verified" -ge 1
           # smoke.vnef must always be present and listed.
-          grep -E '(^| )smoke\.vnef$' SHA256SUMS >/dev/null
+          grep -E '(^|[[:space:]\*])smoke\.vnef$' SHA256SUMS >/dev/null
           test -f smoke.vnef
-          echo "ok: present fixture checksums"
+          echo "ok: verified $verified present fixture checksum(s)"
       - name: Lint shared harness
         run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
       - name: Lint competitor harness

@@ -31,6 +31,8 @@ if "pending" in meta.get("notes","").lower() or "pending" in meta.get("model",""
     sys.exit("metadata still marked pending")
 if int(meta["n_docs"]) != n_docs or int(meta["n_queries"]) != n_queries:
     sys.exit(f"metadata mismatch meta={meta['n_docs']}/{meta['n_queries']} file={n_docs}/{n_queries}")
+if int(meta.get("dim", -1)) != dim:
+    sys.exit(f"metadata dim mismatch meta={meta.get('dim')} file={dim}")
 print(f"ok size={len(raw)} dim={dim} docs={n_docs} queries={n_queries}")
 PY
 cp "$META" "$FIX/metadata.json"

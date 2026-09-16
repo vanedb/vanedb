@@ -435,45 +435,62 @@ mod tests {
 
     #[test]
     fn synthetic_meta_never_publish_even_at_100k() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("big.vnef");
-        // Cheap tiny file with forged meta claiming 100k — classifier uses loaded
-        // n_docs from bytes, so also attach forbidding meta and assert Dev/Smoke.
-        write_smoke_fixture(&path, 64, 4, 8).unwrap();
-        let meta = FixtureMeta {
-            model: "none (deterministic smoke)".into(),
-            corpus: "synthetic".into(),
-            dim: 8,
-            n_docs: 100_000,
-            n_queries: 1_000,
-            metric_native: "cosine".into(),
-            generator: "test".into(),
-            notes: "NOT for published COMPARISON.md numbers".into(),
+        // Publish-scale sizes without allocating 100k×768 floats.
+        let fixture = Fixture {
+            dim: 1,
+            vectors: vec![0.0; 100_000],
+            ids: (0..100_000u64).collect(),
+            queries: vec![0.0; 1_000],
+            meta: Some(FixtureMeta {
+                model: "nomic".into(),
+                corpus: "synthetic".into(),
+                dim: 1,
+                n_docs: 100_000,
+                n_queries: 1_000,
+                metric_native: "cosine".into(),
+                generator: "test".into(),
+                notes: "real-looking notes".into(),
+            }),
+            sha256: "test".into(),
         };
-        std::fs::write(
-            dir.path().join("metadata.json"),
-            serde_json::to_string_pretty(&meta).unwrap(),
-        )
-        .unwrap();
-        let loaded = load_fixture(&path).unwrap();
-        assert_ne!(classify_fixture(&loaded), FixtureRole::Publish);
+        assert_eq!(fixture.n_docs(), 100_000);
+        assert_eq!(fixture.n_queries(), 1_000);
+        assert_ne!(classify_fixture(&fixture), FixtureRole::Publish);
     }
 
     #[test]
     fn pending_generation_meta_blocks_publish() {
-        let mut fixture = load_fixture_from_bytes();
+        let mut fixture = Fixture {
+            dim: 1,
+            vectors: vec![0.0; 100_000],
+            ids: (0..100_000u64).collect(),
+            queries: vec![0.0; 1_000],
+            meta: Some(FixtureMeta {
+                model: "nomic (pending)".into(),
+                corpus: "BeIR/nq".into(),
+                dim: 1,
+                n_docs: 100_000,
+                n_queries: 1_000,
+                metric_native: "cosine".into(),
+                generator: "test".into(),
+                notes: "pending generation".into(),
+            }),
+            sha256: "test".into(),
+        };
+        assert_ne!(classify_fixture(&fixture), FixtureRole::Publish);
+
+        // Control: same size with clean meta is Publish.
         fixture.meta = Some(FixtureMeta {
-            model: "nomic (pending generation)".into(),
-            corpus: "BeIR/nq".into(),
-            dim: 768,
+            model: "nomic-ai/nomic-embed-text-v1.5".into(),
+            corpus: "BeIR/nq revision b7253e6c".into(),
+            dim: 1,
             n_docs: 100_000,
             n_queries: 1_000,
             metric_native: "cosine".into(),
-            generator: "test".into(),
-            notes: "pending generation".into(),
+            generator: "generate_fixture.py".into(),
+            notes: "publish fixture".into(),
         });
-        // Size from bytes is small; force ids/queries lengths via role path on meta first.
-        assert_ne!(classify_fixture(&fixture), FixtureRole::Publish);
+        assert_eq!(classify_fixture(&fixture), FixtureRole::Publish);
     }
 
     fn load_fixture_from_bytes() -> Fixture {
