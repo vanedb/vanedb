@@ -51,7 +51,7 @@ pub fn render_machine_section(report: &ComparisonReport) -> String {
     out.push_str("Recall@10 and latency by ef (median across rounds):\n\n");
     for r in &report.results {
         out.push_str(&format!("**{}**\n\n", r.engine));
-        out.push_str("| ef | latency/query | spread | recall@10 |\n");
+        out.push_str("| ef | latency/query | spread | recall@10 (median) |\n");
         out.push_str("|---:|---:|---:|---:|\n");
         for (lat, rec) in r.latency_ns_by_ef.iter().zip(r.recall_at_k_by_ef.iter()) {
             out.push_str(&format!(
@@ -59,7 +59,7 @@ pub fn render_machine_section(report: &ComparisonReport) -> String {
                 lat.ef,
                 fmt_ns(lat.median_ns),
                 lat.spread * 100.0,
-                rec.mean_recall
+                rec.recall_median
             ));
         }
         out.push('\n');

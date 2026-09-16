@@ -9,7 +9,8 @@ use vanedb_compare::fixture::{
     FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
 use vanedb_compare::publish::{
-    refuse_incomplete_save_rows, refuse_markdown_flags, MarkdownFlagGate,
+    refuse_ci_env_for_markdown, refuse_incomplete_engine_set, refuse_incomplete_save_rows,
+    refuse_markdown_flags, refuse_noncanonical_params, CanonicalParamsGate, MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -221,6 +222,38 @@ fn real_main() -> Result<(), String> {
                     skip_delete,
                     skip_save,
                 })?;
+                let ef_sweep_early = parse_ef_list(&ef)?;
+                refuse_noncanonical_params(&CanonicalParamsGate {
+                    m,
+                    ef_construction,
+                    k,
+                    seed,
+                    ef_sweep: ef_sweep_early.clone(),
+                })?;
+            }
+
+            let ef_sweep = parse_ef_list(&ef)?;
+            let metric_kind: MetricKind = metric.into();
+            let mut engines = if engine.is_empty() {
+                EngineKind::all().to_vec()
+            } else {
+                engine
+            };
+            if metric_kind == MetricKind::Cosine
+                && !force_sqlite_vec_cosine
+                && engines.contains(&EngineKind::SqliteVec)
+            {
+                engines.retain(|e| *e != EngineKind::SqliteVec);
+                eprintln!(
+                    "skipping sqlite-vec on cosine (not a native vec0 metric); \
+                     pass --force-sqlite-vec-cosine to include the harness-side scan, \
+                     or run --metric l2 for native sqlite-vec"
+                );
+            }
+
+            if markdown {
+                let names: Vec<&str> = engines.iter().map(|e| e.as_str()).collect();
+                refuse_incomplete_engine_set(metric_kind.as_str(), &names)?;
                 if role != FixtureRole::Publish {
                     return Err(format!(
                         "refusing --markdown for fixture_role={} (n_docs={}, n_queries={}). \
@@ -237,6 +270,16 @@ fn real_main() -> Result<(), String> {
                             .into(),
                     );
                 }
+                let fname = fixture_path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                if fname != "embeddings.vnef" {
+                    return Err(format!(
+                        "refusing --markdown: fixture basename must be embeddings.vnef \
+                         (got {fname})"
+                    ));
+                }
                 let hw = std::env::var("VANEDB_COMPARE_HW").unwrap_or_default();
                 if hw.is_empty() || hw == "unlabelled" {
                     return Err(
@@ -245,6 +288,7 @@ fn real_main() -> Result<(), String> {
                             .into(),
                     );
                 }
+                refuse_ci_env_for_markdown()?;
                 if let Some(mq) = max_queries {
                     if mq < fixture.n_queries() {
                         return Err(format!(
@@ -267,24 +311,6 @@ fn real_main() -> Result<(), String> {
                 }
             }
 
-            let ef_sweep = parse_ef_list(&ef)?;
-            let metric_kind: MetricKind = metric.into();
-            let mut engines = if engine.is_empty() {
-                EngineKind::all().to_vec()
-            } else {
-                engine
-            };
-            if metric_kind == MetricKind::Cosine
-                && !force_sqlite_vec_cosine
-                && engines.contains(&EngineKind::SqliteVec)
-            {
-                engines.retain(|e| *e != EngineKind::SqliteVec);
-                eprintln!(
-                    "skipping sqlite-vec on cosine (not a native vec0 metric); \
-                     pass --force-sqlite-vec-cosine to include the harness-side scan, \
-                     or run --metric l2 for native sqlite-vec"
-                );
-            }
             let out_dir = out_dir.unwrap_or_else(|| {
                 PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out")
             });

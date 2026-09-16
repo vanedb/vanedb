@@ -20,8 +20,8 @@ the existing `bench/README.md` discipline.
    paste their output into the result tables below.
 3. **Real embeddings, fixed fixture.** Published rows use
    `fixtures/embeddings.vnef` (100k × 768-d, 1k queries), checksummed in
-   `fixtures/SHA256SUMS`. Passages are truncated to `--max-chars` at generation
-   time (default 1500–2000; see `fixtures/metadata.json`). The smoke fixture is
+   `fixtures/SHA256SUMS`. Passages are truncated to `--max-chars 1500` at
+   generation time (see `fixtures/metadata.json`). The smoke fixture is
    for harness checks only and must never appear in a published table.
 4. **Parameter fairness.** Shared `M=16`, `ef_construction=200`, seed `42`
    where the engine exposes them. `instant-distance` hard-codes `M=32` and
@@ -64,12 +64,13 @@ VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
   --json-out runs/$(hostname)-$(date +%Y%m%d).json
 ```
 
-`--markdown` refuses smoke/dev fixtures, unsigned files, unset
-`VANEDB_COMPARE_HW`, `--rounds < 2`, shrunk `--max-queries`,
-`--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`, and a missing
-`metadata.json`. Smoke fixtures require `--allow-smoke` and cannot produce
-publishable markdown (classification is by `n_docs`/`n_queries` + metadata,
-not filename).
+`--markdown` refuses smoke/dev fixtures, unsigned files, basename other than
+`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, `--rounds < 2`, non-canonical
+`M`/`ef_construction`/`ef`/`k`/`seed`, engine cherry-picks, shrunk
+`--max-queries`, `--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`,
+CI/`GITHUB_ACTIONS` environments, and a missing `metadata.json`. Smoke fixtures
+require `--allow-smoke` and cannot produce publishable markdown (classification
+is by `n_docs`/`n_queries` + metadata, not filename).
 
 
 Generate the full fixture once (not in CI):

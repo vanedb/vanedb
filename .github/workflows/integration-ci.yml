@@ -184,3 +184,29 @@ jobs:
           test "$rc" -ne 0
           echo "$out" | grep -q 'skip-save'
           echo "ok: markdown refused skip-save"
+      - name: Markdown refuses non-canonical ef sweep
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-ef.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q '\-\-ef'
+          echo "ok: markdown refused non-canonical --ef"
+      - name: Markdown refuses engine cherry-pick
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 --engine vanedb \
+            --json-out "${{ runner.temp }}/should-fail-engine.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'incomplete engine set'
+          echo "ok: markdown refused engine cherry-pick"

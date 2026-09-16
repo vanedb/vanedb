@@ -2,9 +2,9 @@
   "model": "nomic-ai/nomic-embed-text-v1.5 (pending generation)",
   "corpus": "BeIR/nq revision b7253e6c379163d024ddb1d6948152a91a2e3b46 (parquet)",
   "dim": 768,
-  "n_docs": 100000,
-  "n_queries": 1000,
+  "n_docs": 0,
+  "n_queries": 0,
   "metric_native": "cosine",
   "generator": "bench/compare/scripts/generate_fixture.py --backend fastembed --max-chars 1500",
-  "notes": "embeddings.vnef is not committed (too large). Generate once with nomic search_document:/search_query: prefixes, publish as a release asset, and add its sha256 to SHA256SUMS before filling COMPARISON.md result tables."
+  "notes": "pending generation — embeddings.vnef is not committed (too large). Generate once with nomic search_document:/search_query: prefixes, publish as a release asset, and add its sha256 to SHA256SUMS before filling COMPARISON.md result tables. Until then n_docs/n_queries are 0 so this file cannot be mistaken for a ready publish fixture."
 }

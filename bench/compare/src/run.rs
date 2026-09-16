@@ -53,7 +53,10 @@ pub struct LatencyRow {
 #[derive(Clone, Debug, Serialize)]
 pub struct RecallRow {
     pub ef: usize,
-    pub mean_recall: f64,
+    /// Median of per-round mean-recall samples (field name is historical JSON;
+    /// rendered as median in markdown).
+    #[serde(rename = "recall_median")]
+    pub recall_median: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -264,7 +267,7 @@ impl EngineAccum {
         for (ef, samples) in &self.recall {
             recall_at_k_by_ef.push(RecallRow {
                 ef: *ef,
-                mean_recall: median_f64(samples),
+                recall_median: median_f64(samples),
             });
         }
 

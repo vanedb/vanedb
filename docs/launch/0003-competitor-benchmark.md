@@ -37,8 +37,9 @@ supports delete.
 
 **Methodology and caveats first:** https://github.com/vanedb/vanedb/blob/main/bench/COMPARISON.md
 
-Please read the caveats before the tables. Numbers are from dedicated machines
-only; CI timings are discarded by policy.
+Please read the caveats before the tables. **Numbers will be pasted here only
+after** dedicated-machine runs fill `bench/COMPARISON.md` (currently pending).
+CI / cloud timings are discarded by policy and must never appear in the post.
 
 **Demo:** Obsidian vault search powered by the WASM build —
 https://github.com/vanedb/obsidian-vane-search — index a vault and run one
