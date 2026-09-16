@@ -208,7 +208,7 @@ were run before release. What they found, and what remains:
 | Finding | Status | Residual |
 |---|---|---|
 | No delete or update on the graph "rules out every stated use case" (#91) | fixed: tombstones, upsert, compact | space is not reclaimed without a full-rebuild compact under the write lock |
-| Metadata filtering is "the other big gap" (#91) | open by design | over-fetch and filter client-side; no predicate hook |
+| Metadata filtering is "the other big gap" (#91) | fixed: RFC 0004 (#199) | filtered search via predicates, allow/deny ID lists, automatic widening |
 | Empty index reserved ~295 MB and could not grow (#90) | fixed | |
 | No type stubs (#105), no ARM/musl wheels "the edge is ARM" (#104) | fixed | |
 | Stringly-typed errors, no `Debug` (#93, #94) | fixed | |
@@ -227,7 +227,7 @@ need is still unmet.
 The README's own disclaimers are the shortest list of what a buyer will hold
 against the product:
 
-- no metadata or payload storage, no filtered search;
+- no metadata or payload storage (filtered search supported via ID sets/predicates in RFC 0004);
 - WebAssembly has no persistence;
 - `DiskIndex` build buffers every vector in memory, and `open` is `unsafe`
   because the mapping cannot defend itself against a concurrent writer;

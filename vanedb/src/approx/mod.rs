@@ -40,9 +40,12 @@ fn check_slot_growth(stored: usize, additional: usize) -> Result<()> {
     Ok(())
 }
 
+pub mod filter;
 mod graph_format;
 mod persistence;
 mod storage;
+
+pub use filter::Filter;
 
 // Versioned thread-local visited tracker. `marks[i] == epoch` means visited;
 // the epoch is bumped each `search_layer` call, so the per-search work stays
@@ -201,11 +204,12 @@ impl std::fmt::Debug for ApproxIndex {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct SearchParams<'a> {
-    ef_search: Option<usize>,
-    _borrowed: std::marker::PhantomData<&'a ()>,
+    pub(crate) ef_search: Option<usize>,
+    pub(crate) max_ef_search: Option<usize>,
+    pub(crate) filter: Option<Filter<'a>>,
 }
 
-impl SearchParams<'_> {
+impl<'a> SearchParams<'a> {
     /// Options that follow the index's own settings.
     pub fn new() -> Self {
         Self::default()
@@ -217,6 +221,18 @@ impl SearchParams<'_> {
     /// are raised to `k`, since fewer candidates than results is meaningless.
     pub fn ef_search(mut self, ef: usize) -> Self {
         self.ef_search = Some(ef);
+        self
+    }
+
+    /// Upper bound on automatic beam widening during filtered search; defaults to 4 × ef_search.
+    pub fn max_ef_search(mut self, ef: usize) -> Self {
+        self.max_ef_search = Some(ef);
+        self
+    }
+
+    /// Attaches an ID filter to restrict results to matching vector IDs.
+    pub fn filter(mut self, filter: Filter<'a>) -> Self {
+        self.filter = Some(filter);
         self
     }
 }
@@ -571,7 +587,7 @@ impl ApproxIndex {
         let mut ep_for_layer = cur_ep;
 
         for lev in (0..=insert_from).rev() {
-            let results = Self::search_layer(
+            let (results, _) = Self::search_layer(
                 &inner.vectors,
                 self.dist_fn,
                 &inner.neighbors,
@@ -583,6 +599,8 @@ impl ApproxIndex {
                 // Build links to whatever is nearest, tombstoned or not:
                 // excluding them here could disconnect the graph.
                 &[],
+                None,
+                &inner.ext_ids,
             );
 
             // New nodes get M links; m_for_layer (2M at level 0) is only the
@@ -658,6 +676,9 @@ impl ApproxIndex {
         params: &SearchParams<'_>,
     ) -> Result<Vec<SearchResult>> {
         validate_query(query, self.dim, k)?;
+        if let Some(ref filter) = params.filter {
+            filter.validate()?;
+        }
         let inner = self.inner.read();
         if inner.count == 0 {
             return Ok(Vec::new());
@@ -685,34 +706,79 @@ impl ApproxIndex {
             }
         }
 
-        // Search at layer 0 with ef = max(ef_search, k)
-        let ef = params
+        let base_ef = params
             .ef_search
             .unwrap_or_else(|| self.ef_search.load(Ordering::Relaxed))
             .max(k);
-        let top = Self::search_layer(
-            &inner.vectors,
-            self.dist_fn,
-            &inner.neighbors,
-            query,
-            curr,
-            ef,
-            0,
-            inner.count,
-            &inner.deleted,
-        );
 
-        // Sort the whole candidate set before cutting to k: `SearchResult`'s
-        // Ord tie-breaks on id, and truncating first would pick among equal
-        // distances in heap order instead. vanedb-cpp sorts then takes k for
-        // the same reason.
-        let mut results: Vec<SearchResult> = top
-            .into_iter()
-            .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
-            .collect();
-        results.sort();
-        results.truncate(k);
-        Ok(results)
+        // If no filter is active, take the standard path with no widening loop
+        if params.filter.is_none() {
+            let (top, _visited) = Self::search_layer(
+                &inner.vectors,
+                self.dist_fn,
+                &inner.neighbors,
+                query,
+                curr,
+                base_ef,
+                0,
+                inner.count,
+                &inner.deleted,
+                None,
+                &inner.ext_ids,
+            );
+            let mut results: Vec<SearchResult> = top
+                .into_iter()
+                .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
+                .collect();
+            results.sort();
+            results.truncate(k);
+            return Ok(results);
+        }
+
+        // Filtered search: automatic beam widening up to max_ef_search
+        let max_ef = params.max_ef_search.unwrap_or(4 * base_ef).max(base_ef);
+        let mut current_ef = base_ef;
+        let filter = params.filter;
+
+        loop {
+            let (top, visited_count) = Self::search_layer(
+                &inner.vectors,
+                self.dist_fn,
+                &inner.neighbors,
+                query,
+                curr,
+                current_ef,
+                0,
+                inner.count,
+                &inner.deleted,
+                filter.as_ref(),
+                &inner.ext_ids,
+            );
+
+            let accepted_count = top.len();
+            if accepted_count >= k || current_ef >= max_ef || visited_count >= max_ef {
+                let mut results: Vec<SearchResult> = top
+                    .into_iter()
+                    .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
+                    .collect();
+                results.sort();
+                results.truncate(k);
+                return Ok(results);
+            }
+
+            // Beam widening: double beam up to max_ef_search
+            let next_ef = current_ef.saturating_mul(2).min(max_ef);
+            if next_ef <= current_ef {
+                let mut results: Vec<SearchResult> = top
+                    .into_iter()
+                    .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
+                    .collect();
+                results.sort();
+                results.truncate(k);
+                return Ok(results);
+            }
+            current_ef = next_ef;
+        }
     }
 
     /// Generate a random level using exponential distribution.
@@ -746,12 +812,24 @@ impl ApproxIndex {
         // may be the only route to a live neighbourhood -- but never occupy a
         // result slot. Empty means nothing is deleted, which is the build path.
         deleted: &[bool],
-    ) -> Vec<(f32, usize)> {
+        filter: Option<&Filter<'_>>,
+        ext_ids: &[u64],
+    ) -> (Vec<(f32, usize)>, usize) {
         debug_assert!(entry < total, "search_layer: entry out of range");
         let live = |iid: usize| deleted.get(iid).is_none_or(|d| !d);
+        let accepted = |iid: usize| {
+            if !live(iid) {
+                return false;
+            }
+            match filter {
+                Some(f) => f.accepts(ext_ids[iid]),
+                None => true,
+            }
+        };
 
         VISITED.with_borrow_mut(|vb| {
             let epoch = vb.begin(total);
+            let mut visited_count = 0usize;
 
             let entry_dist = dist_fn(vectors.get(entry), query);
 
@@ -761,25 +839,26 @@ impl ApproxIndex {
 
             // Max-heap of results (farthest first, capped at ef)
             let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
-            if live(entry) {
+            if accepted(entry) {
                 results.push((FloatOrd(entry_dist), entry));
             }
 
             vb.marks[entry] = epoch;
+            visited_count += 1;
 
             while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
                 // Stop only once the result set is FULL and the closest
                 // remaining candidate is farther than the farthest result.
                 //
                 // The `results.len() >= ef` conjunct is load-bearing when
-                // tombstones are present: `results` holds live nodes only,
-                // while `candidates` still holds deleted ones, so a popped
-                // tombstone can be farther than the farthest live result while
+                // tombstones or filtered nodes are present: `results` holds accepted nodes only,
+                // while `candidates` still holds deleted or filtered ones, so a popped
+                // candidate can be farther than the farthest result while
                 // the result set is nowhere near full. Breaking there abandons
-                // exactly the traversal tombstones are kept for, and search
+                // exactly the traversal kept for, and search
                 // silently returns a fraction of `k`.
                 //
-                // On the build path `deleted` is empty, so every candidate is
+                // On the build path `deleted` is empty and `filter` is None, so every candidate is
                 // also a result; an unfull `results` therefore holds every
                 // visited node and `c_dist > f_dist` cannot hold. Construction
                 // is unchanged.
@@ -799,6 +878,7 @@ impl ApproxIndex {
                         continue;
                     }
                     vb.marks[nb] = epoch;
+                    visited_count += 1;
 
                     let nb_dist = dist_fn(vectors.get(nb), query);
 
@@ -812,7 +892,7 @@ impl ApproxIndex {
 
                     if should_add {
                         candidates.push(Reverse((FloatOrd(nb_dist), nb)));
-                        if live(nb) {
+                        if accepted(nb) {
                             results.push((FloatOrd(nb_dist), nb));
                             if results.len() > ef {
                                 results.pop();
@@ -828,7 +908,7 @@ impl ApproxIndex {
                 .map(|(FloatOrd(d), id)| (d, id))
                 .collect();
             result_vec.sort_by_key(|a| FloatOrd(a.0));
-            result_vec
+            (result_vec, visited_count)
         })
     }
 

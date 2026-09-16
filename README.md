@@ -3,9 +3,9 @@
 Embeddable vector database for edge AI.
 
 Bring your own embeddings: VaneDB stores and searches vectors; it does not
-generate them. It holds only `(u64 id, vector)` pairs — no metadata or payload
-storage and no filtered search — so keep your own id-to-document mapping
-alongside it.
+generate them. It holds only `(u64 id, vector)` pairs — no arbitrary metadata
+storage — with support for filtered search via ID allow/deny sets and predicates,
+so keep your own id-to-document mapping alongside it.
 
 New to embeddings, or unsure where the vectors come from? Start with
 [Getting started: from text to search results](docs/GETTING_STARTED.md) — it
@@ -88,6 +88,12 @@ alone so concurrent callers can choose different widths. In Rust, construct
 `index.search_with(&query, 10, &params)`; Python takes `ef_search=` on `search`,
 WebAssembly a third argument, and the C ABI a parameter. The effective beam is
 at least `k`; ordinary `search` uses the index's defaults.
+
+Filtered search is supported across all indexes and bindings via predicates, allow lists,
+or deny lists without mutating graph connectivity. Rust uses `SearchParams::new().filter(...)`,
+Python accepts `filter=`, `allow_ids=`, and `deny_ids=`, WebAssembly accepts options with
+`allow`, `deny`, or `predicate`, and the C ABI exposes `*_search_filtered`. In `ApproxIndex`,
+beam widening automatically expands the search window (up to `max_ef_search`) to maintain recall.
 
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
 Python bindings; wasm takes it as a required string argument. Results come back

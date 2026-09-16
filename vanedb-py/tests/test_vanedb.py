@@ -481,3 +481,53 @@ def test_metric_works_as_a_dict_key():
     for value, metric in enumerate(metrics):
         assert hash(metric) == hash(value), f"{metric!r} must hash as {value}"
 
+
+def test_filtered_search():
+    store = vanedb.FlatIndex(2)
+    approx = vanedb.ApproxIndex(2)
+    for i in range(10):
+        store.add(i, [float(i), float(i)])
+        approx.add(i, [float(i), float(i)])
+
+    q = [0.1, 0.1]
+    # Allow
+    res_store = store.search(q, 5, allow_ids=[2, 4, 6])
+    assert [r[0] for r in res_store] == [2, 4, 6]
+    res_approx = approx.search(q, 5, allow_ids=[2, 4, 6])
+    assert [r[0] for r in res_approx] == [2, 4, 6]
+
+    # Deny
+    res_deny = store.search(q, 2, deny_ids=[0])
+    assert res_deny[0][0] == 1
+    res_deny_approx = approx.search(q, 2, deny_ids=[0])
+    assert res_deny_approx[0][0] == 1
+
+    # Predicate
+    res_pred = store.search(q, 3, filter=lambda id: id % 2 == 1)
+    assert [r[0] for r in res_pred] == [1, 3, 5]
+    res_pred_approx = approx.search(q, 3, filter=lambda id: id % 2 == 1)
+    assert [r[0] for r in res_pred_approx] == [1, 3, 5]
+
+    # Mutually exclusive
+    with pytest.raises(ValueError):
+        store.search(q, 5, allow_ids=[1], deny_ids=[2])
+    with pytest.raises(ValueError):
+        store.search(q, 5, filter=lambda _: True, allow_ids=[1])
+
+    # Validation errors on unsorted or duplicate lists
+    with pytest.raises(ValueError, match="sorted in strictly ascending order"):
+        store.search(q, 5, allow_ids=[5, 2])
+    with pytest.raises(ValueError, match="sorted in strictly ascending order"):
+        approx.search(q, 5, allow_ids=[2, 2, 5])
+    with pytest.raises(ValueError, match="sorted in strictly ascending order"):
+        store.search(q, 5, deny_ids=[5, 2])
+
+    # Non-callable filter
+    with pytest.raises(TypeError, match="callable"):
+        store.search(q, 5, filter="not a function")
+
+    # max_ef_search on approx
+    res_widened = approx.search(q, 5, allow_ids=[2, 4], ef_search=10, max_ef_search=40)
+    assert [r[0] for r in res_widened] == [2, 4]
+
+

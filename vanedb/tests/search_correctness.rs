@@ -17,7 +17,7 @@
 //! floats per iteration and NEON four, so 7/8/9 and 15/16/17 exercise a full
 //! body, an exact fit, and a one-element tail on both.
 
-use vanedb::{ApproxIndex, FlatIndex, Metric, SearchParams};
+use vanedb::{ApproxIndex, Filter, FlatIndex, Metric, SearchParams};
 
 #[cfg(feature = "disk")]
 use vanedb::{DiskIndex, DiskIndexBuilder};
@@ -434,4 +434,278 @@ fn separable_clusters_are_searched_correctly_at_the_default_beam() {
             );
         }
     }
+}
+
+#[test]
+fn filtered_search_exact_matches_reference() {
+    let dim = 8;
+    let n = 100;
+    let mut rng = Rng(0xF17E_8001);
+
+    let store = FlatIndex::new(dim, Metric::L2).unwrap();
+    let index = ApproxIndex::builder(dim, Metric::L2)
+        .capacity(n)
+        .build()
+        .unwrap();
+
+    let mut vectors = Vec::new();
+    let mut ids = Vec::new();
+    for i in 0..n {
+        let id = (i * 2 + 10) as u64;
+        let v = rng.vector(dim);
+        store.add(id, &v).unwrap();
+        index.add(id, &v).unwrap();
+        vectors.push(v);
+        ids.push(id);
+    }
+
+    let query = rng.vector(dim);
+
+    // 1. Predicate filter: only IDs divisible by 4
+    let pred = |id: u64| id % 4 == 0;
+    let filter_pred = Filter::Predicate(&pred);
+    let params_pred = SearchParams::new().filter(filter_pred);
+
+    let store_hits = store.search_with(&query, 10, &params_pred).unwrap();
+    let index_hits = index.search_with(&query, 10, &params_pred).unwrap();
+
+    assert!(!store_hits.is_empty());
+    for hit in &store_hits {
+        assert_eq!(hit.id % 4, 0);
+    }
+    for hit in &index_hits {
+        assert_eq!(hit.id % 4, 0);
+    }
+    // High-recall comparison on 100 items with widening
+    assert_eq!(store_hits[0].id, index_hits[0].id);
+
+    // 2. Allow list: explicitly allow a subset of 5 IDs
+    let allowed_ids = [ids[5], ids[12], ids[25], ids[40], ids[70]];
+    let mut sorted_allowed = allowed_ids;
+    sorted_allowed.sort();
+    let filter_allow = Filter::Allow(&sorted_allowed);
+    let params_allow = SearchParams::new().filter(filter_allow);
+
+    let store_allow = store.search_with(&query, 5, &params_allow).unwrap();
+    let index_allow = index.search_with(&query, 5, &params_allow).unwrap();
+
+    assert_eq!(store_allow.len(), 5);
+    for hit in &store_allow {
+        assert!(sorted_allowed.contains(&hit.id));
+    }
+    assert_eq!(index_allow.len(), 5);
+    for hit in &index_allow {
+        assert!(sorted_allowed.contains(&hit.id));
+    }
+
+    // 3. Deny list: deny the top result from unfiltered search
+    let unfiltered = store.search(&query, 5).unwrap();
+    let top_id = unfiltered[0].id;
+    let denied_ids = [top_id];
+    let filter_deny = Filter::Deny(&denied_ids);
+    let params_deny = SearchParams::new().filter(filter_deny);
+
+    let store_deny = store.search_with(&query, 5, &params_deny).unwrap();
+    let index_deny = index.search_with(&query, 5, &params_deny).unwrap();
+
+    for hit in &store_deny {
+        assert_ne!(hit.id, top_id);
+    }
+    for hit in &index_deny {
+        assert_ne!(hit.id, top_id);
+    }
+    // Denied search should match unfiltered from 2nd onwards
+    assert_eq!(store_deny[0].id, unfiltered[1].id);
+
+    // 4. Validation error on unsorted Allow/Deny
+    let unsorted = [100, 20];
+    assert!(store
+        .search_with(
+            &query,
+            5,
+            &SearchParams::new().filter(Filter::Allow(&unsorted))
+        )
+        .is_err());
+    assert!(index
+        .search_with(
+            &query,
+            5,
+            &SearchParams::new().filter(Filter::Deny(&unsorted))
+        )
+        .is_err());
+}
+
+#[cfg(feature = "disk")]
+#[test]
+fn disk_filtered_search() {
+    let dim = 4;
+    let n = 20;
+    let mut rng = Rng(0xD15C_F17E);
+    let path = scratch_path("filtered-disk");
+
+    let mut b = DiskIndexBuilder::new(dim, Metric::L2).unwrap();
+    for i in 0..n {
+        let id = i as u64;
+        let v = rng.vector(dim);
+        b.add(id, &v).unwrap();
+    }
+    b.save(&path).unwrap();
+
+    let disk = unsafe { DiskIndex::open(&path).unwrap() };
+    let query = rng.vector(dim);
+
+    let allowed = [2, 5, 10];
+    let hits = disk
+        .search_with(
+            &query,
+            3,
+            &SearchParams::new().filter(Filter::Allow(&allowed)),
+        )
+        .unwrap();
+    assert_eq!(hits.len(), 3);
+    for hit in &hits {
+        assert!(allowed.contains(&hit.id));
+    }
+    let _ = std::fs::remove_file(path);
+}
+
+/// Filtered exact search equals the f64 reference restricted to the allowed set,
+/// for all three metrics and the existing twelve dimensions.
+#[test]
+fn filtered_flat_search_reproduces_reference_across_all_metrics_and_dimensions() {
+    for metric in METRICS {
+        for dim in DIMS {
+            let mut rng = Rng(0xF117_0000 ^ ((metric as u64) << 16) ^ (dim as u64));
+            let n = 100;
+            let vectors: Vec<Vec<f32>> = (0..n).map(|_| rng.vector(dim)).collect();
+            let ids: Vec<u64> = (0..n).map(|i| (i as u64) * 3 + 7).collect();
+
+            let index = FlatIndex::new(dim, metric).unwrap();
+            for (&id, v) in ids.iter().zip(&vectors) {
+                index.add(id, v).unwrap();
+            }
+
+            let query = rng.vector(dim);
+            // Allow roughly 25% of IDs
+            let allowed_ids: Vec<u64> = ids.iter().copied().filter(|&id| id % 4 == 1).collect();
+            let filter = Filter::Allow(&allowed_ids);
+            let params = SearchParams::new().filter(filter);
+
+            let k = 8;
+            let hits = index.search_with(&query, k, &params).unwrap();
+
+            // Compute reference ranking restricted to allowed_ids
+            let allowed_vectors: Vec<Vec<f32>> = ids
+                .iter()
+                .zip(&vectors)
+                .filter(|(&id, _)| allowed_ids.contains(&id))
+                .map(|(_, v)| v.clone())
+                .collect();
+            let ref_ranked = reference_ranking(metric, &allowed_ids, &allowed_vectors, &query);
+            let prefix = decisive_prefix(&ref_ranked, k);
+
+            let got_ids: Vec<u64> = hits.iter().map(|h| h.id).collect();
+            let want_ids: Vec<u64> = ref_ranked.iter().take(prefix).map(|(id, _)| *id).collect();
+
+            assert_eq!(
+                got_ids[..prefix],
+                want_ids[..],
+                "{metric:?} dim={dim}: filtered ranking differs from f64 reference"
+            );
+        }
+    }
+}
+
+/// Filtered graph search: recall@10 at 50%, 10%, and 1% selectivity measured against
+/// exact filtered search, ensuring widening behaves properly and tombstones are never returned.
+#[test]
+fn filtered_graph_search_recall_and_tombstones() {
+    let dim = 16;
+    let n = 300;
+    let mut rng = Rng(0x684A_F117);
+
+    let flat = FlatIndex::new(dim, Metric::L2).unwrap();
+    let approx = ApproxIndex::builder(dim, Metric::L2)
+        .capacity(n)
+        .build()
+        .unwrap();
+
+    let mut ids = Vec::new();
+    for i in 0..n {
+        let id = i as u64;
+        let v = rng.vector(dim);
+        flat.add(id, &v).unwrap();
+        approx.add(id, &v).unwrap();
+        ids.push(id);
+    }
+
+    let query = rng.vector(dim);
+
+    // Test selectivities: 50% (even IDs), 10% (ID % 10 == 0), 1% (first 3 IDs)
+    for (selectivity, allowed) in [
+        (
+            "50%",
+            ids.iter()
+                .copied()
+                .filter(|&id| id % 2 == 0)
+                .collect::<Vec<_>>(),
+        ),
+        (
+            "10%",
+            ids.iter()
+                .copied()
+                .filter(|&id| id % 10 == 0)
+                .collect::<Vec<_>>(),
+        ),
+        ("1%", ids[..3].to_vec()),
+    ] {
+        let k = 10.min(allowed.len());
+        let filter = Filter::Allow(&allowed);
+        let params = SearchParams::new().filter(filter);
+
+        let exact_hits = flat.search_with(&query, k, &params).unwrap();
+        let approx_hits = approx.search_with(&query, k, &params).unwrap();
+
+        assert_eq!(
+            exact_hits.len(),
+            k,
+            "exact search at {selectivity} selectivity should find {k} items"
+        );
+        assert_eq!(
+            approx_hits.len(),
+            k,
+            "approx search at {selectivity} selectivity should find {k} items via beam widening"
+        );
+
+        let exact_id_set: std::collections::HashSet<u64> =
+            exact_hits.iter().map(|h| h.id).collect();
+        let matched = approx_hits
+            .iter()
+            .filter(|h| exact_id_set.contains(&h.id))
+            .count();
+        let recall = (matched as f64) / (k as f64);
+        assert!(
+            recall >= 0.8,
+            "recall at {selectivity} selectivity was {recall}, expected >= 0.8"
+        );
+    }
+
+    // Tombstoned entries are never returned, regardless of filter
+    let victim = ids[0];
+    approx.remove(victim).unwrap();
+    let filter = Filter::Allow(&[victim]);
+    let hits = approx
+        .search_with(&query, 1, &SearchParams::new().filter(filter))
+        .unwrap();
+    assert!(
+        hits.is_empty(),
+        "tombstoned id must not be returned even if explicitly in allow filter"
+    );
+}
+
+fn scratch_path(name: &str) -> String {
+    std::env::temp_dir()
+        .join(format!("vanedb-{name}-{}.bin", std::process::id()))
+        .to_string_lossy()
+        .into_owned()
 }

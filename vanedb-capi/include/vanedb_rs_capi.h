@@ -142,6 +142,8 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  */
 #define VANEDB_RS_UNKNOWN 15
 
+typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -245,6 +247,23 @@ uintptr_t vanedb_rs_store_search(vanedb_rs_store *s,
 
 /**
  * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ */
+uintptr_t vanedb_rs_store_search_filtered(vanedb_rs_store *s,
+                                          const float *q,
+                                          uintptr_t k,
+                                          vanedb_rs_filter_fn filter,
+                                          void *user_data,
+                                          const uint64_t *allow,
+                                          uintptr_t allow_len,
+                                          const uint64_t *deny,
+                                          uintptr_t deny_len,
+                                          uint64_t *out_ids,
+                                          float *out_dists);
+
+/**
+ * # Safety
  * The handle must have come from `vanedb_rs_store_new` and not been freed already
  * (or be null, which is a no-op).
  */
@@ -291,6 +310,24 @@ uintptr_t vanedb_rs_index_search(vanedb_rs_index *h,
                                  uintptr_t ef_search,
                                  uint64_t *out_ids,
                                  float *out_dists);
+
+/**
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ */
+uintptr_t vanedb_rs_index_search_filtered(vanedb_rs_index *h,
+                                          const float *q,
+                                          uintptr_t k,
+                                          uintptr_t ef_search,
+                                          vanedb_rs_filter_fn filter,
+                                          void *user_data,
+                                          const uint64_t *allow,
+                                          uintptr_t allow_len,
+                                          const uint64_t *deny,
+                                          uintptr_t deny_len,
+                                          uint64_t *out_ids,
+                                          float *out_dists);
 
 /**
  * # Safety
@@ -345,6 +382,23 @@ uintptr_t vanedb_rs_disk_search(vanedb_rs_disk *m,
                                 uintptr_t k,
                                 uint64_t *out_ids,
                                 float *out_dists);
+
+/**
+ * # Safety
+ * `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ */
+uintptr_t vanedb_rs_disk_search_filtered(vanedb_rs_disk *m,
+                                         const float *q,
+                                         uintptr_t k,
+                                         vanedb_rs_filter_fn filter,
+                                         void *user_data,
+                                         const uint64_t *allow,
+                                         uintptr_t allow_len,
+                                         const uint64_t *deny,
+                                         uintptr_t deny_len,
+                                         uint64_t *out_ids,
+                                         float *out_dists);
 
 /**
  * # Safety

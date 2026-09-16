@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use parking_lot::RwLock;
 
+use crate::approx::SearchParams;
 use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
 use crate::validation::{validate_finite, validate_query, validate_vector};
@@ -224,7 +225,20 @@ impl FlatIndex {
     ///
     /// Returns fewer than `k` results when the store holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        self.search_with(query, k, &SearchParams::new())
+    }
+
+    /// [`search`](Self::search) with per-query options such as filters.
+    pub fn search_with(
+        &self,
+        query: &[f32],
+        k: usize,
+        params: &SearchParams<'_>,
+    ) -> Result<Vec<SearchResult>> {
         validate_query(query, self.dim, k)?;
+        if let Some(ref filter) = params.filter {
+            filter.validate()?;
+        }
         let inner = self.inner.read();
         let n = inner.ids.len();
         if n == 0 {
@@ -236,19 +250,33 @@ impl FlatIndex {
         // stored vector. See the note in topk.rs for why quickselect over the
         // full array was the wrong shape.
         let vecs = inner.data.chunks_exact(self.dim).zip(&inner.ids);
+        let filter = params.filter;
+
+        macro_rules! scan {
+            ($dist:path) => {
+                match filter {
+                    Some(f) => topk::select(
+                        vecs.filter_map(|(v, &id)| {
+                            if f.accepts(id) {
+                                Some(SearchResult::new(id, $dist(query, v)))
+                            } else {
+                                None
+                            }
+                        }),
+                        k,
+                    ),
+                    None => topk::select(
+                        vecs.map(|(v, &id)| SearchResult::new(id, $dist(query, v))),
+                        k,
+                    ),
+                }
+            };
+        }
+
         let results = match self.metric {
-            Metric::L2 => topk::select(
-                vecs.map(|(v, &id)| SearchResult::new(id, d::l2_squared(query, v))),
-                k,
-            ),
-            Metric::Cosine => topk::select(
-                vecs.map(|(v, &id)| SearchResult::new(id, d::cosine_distance(query, v))),
-                k,
-            ),
-            Metric::Dot => topk::select(
-                vecs.map(|(v, &id)| SearchResult::new(id, d::dot_distance(query, v))),
-                k,
-            ),
+            Metric::L2 => scan!(d::l2_squared),
+            Metric::Cosine => scan!(d::cosine_distance),
+            Metric::Dot => scan!(d::dot_distance),
         };
         Ok(results)
     }
