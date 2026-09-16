@@ -22,8 +22,10 @@ git add bench/compare/fixtures/metadata.json bench/compare/fixtures/SHA256SUMS
 ```
 
 `--markdown` / `render_comparison_md.py` fail closed until
-`fixtures/SHA256SUMS` lists `embeddings.vnef` in this checkout (Round-8 repo
-pin, dim must be 768). Finalize + commit the pin **before** dedicated HW runs.
+`fixtures/SHA256SUMS` lists `embeddings.vnef` in this checkout (Round-8
+compile-time pin in the `compare` binary + render's on-disk pin; dim must be
+768). Finalize + commit the pin and **rebuild** `compare` **before** dedicated
+HW `--markdown` runs.
 
 After the release asset exists, set the fetch URL in `bench/COMPARISON.md` /
 `fixtures/README.md` to:

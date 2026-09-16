@@ -5,7 +5,7 @@
 | `smoke.vnef` | Deterministic harness smoke (768-d, 256 docs, 16 queries). **Not for publication.** |
 | `embeddings.vnef` | **Not in git yet.** Target: real `nomic-embed-text-v1.5` 100k×768 + 1k queries with nomic task prefixes over BeIR/nq (pinned revision). Generate once, host as a release asset, never in CI. See [`docs/launch/0003-fixture-hosting.md`](../../../docs/launch/0003-fixture-hosting.md). |
 | `metadata.json` | Placeholder until generation finishes (`n_docs`/`n_queries` = 0, notes say pending). Replaced by the generator output when the publish fixture is finalized. |
-| `SHA256SUMS` | Today pins `smoke.vnef` only. The `embeddings.vnef` line is added when the publish fixture is hosted. `--markdown` / `render_comparison_md.py` fail closed until that line exists in **this checkout** (beside-file SUMS alone is not enough; dim must be 768). |
+| `SHA256SUMS` | Today pins `smoke.vnef` only. The `embeddings.vnef` line is added when the publish fixture is hosted. `--markdown` bakes this file at **compile time**; `render_comparison_md.py` reads it on disk. Beside-file SUMS alone is not enough; dim must be 768. After adding the pin, rebuild `compare` before pasteable `--markdown` runs. |
 
 ## Format (VNEF v1)
 

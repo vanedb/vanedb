@@ -88,13 +88,23 @@ if [[ "${CI:-}" == "true" || "${CI:-}" == "1" \
   echo "refusing record_publish_run.sh under CI/cloud env (or Cursor cloud FS markers)" >&2
   exit 1
 fi
+# Reject caller overrides that could bypass the preflight fixture/pin.
+for arg in "$@"; do
+  case "$arg" in
+    --fixture|--fixture=*|--markdown|--no-markdown|--metric|--metric=*|--rounds|--rounds=*)
+      echo "refusing extra arg that overrides fixed publish flags: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
 cd "$ROOT"
+# Fixed flags after "$@" so clap last-wins cannot replace fixture/metric/rounds/markdown.
 cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
+  "$@" \
   --fixture "$FIX" \
   --metric "$METRIC" \
   --rounds 4 \
   --markdown \
-  --json-out "$OUT" \
-  "$@"
+  --json-out "$OUT"
 echo "wrote $OUT"
 echo "Re-render later with: python3 bench/compare/scripts/render_comparison_md.py $OUT"

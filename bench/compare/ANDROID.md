@@ -31,12 +31,10 @@ adb push bench/compare/fixtures/SHA256SUMS /data/local/tmp/
 adb push bench/compare/fixtures/metadata.json /data/local/tmp/
 ```
 
-Do **not** rely on `--markdown` on-device alone: the harness pins against
-`CARGO_MANIFEST_DIR/fixtures/SHA256SUMS` (build-host path), which is absent on
-the device unless you override it. Preferred path — record JSON on-device
-**without** `--markdown` (still set `VANEDB_COMPARE_HW` +
-`VANEDB_COMPARE_DEDICATED=1`), `adb pull` the JSON, then on a checkout that has
-the committed publish pin:
+Do **not** rely on `--markdown` on-device as the primary paste path: prefer
+recording JSON on-device **without** `--markdown` (still set
+`VANEDB_COMPARE_HW` + `VANEDB_COMPARE_DEDICATED=1`), `adb pull` the JSON, then
+on a checkout that has the committed publish pin:
 
 ```bash
 adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
@@ -53,15 +51,10 @@ python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled
 python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled-l2>.json
 ```
 
-Optional on-device `--markdown` (same refuse policy): point the repo pin at the
-pushed SUMS file:
-
-```bash
-adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
-  VANEDB_COMPARE_DEDICATED=1 VANEDB_COMPARE_REPO_SUMS=/data/local/tmp/SHA256SUMS \
-  ./compare run --fixture embeddings.vnef --metric cosine --rounds 4 --markdown \
-  --json-out device-cosine-$(date +%Y%m%d).json'
-```
+Optional on-device `--markdown`: rebuild `compare` **after** committing the
+`embeddings.vnef` line to `fixtures/SHA256SUMS` so the compile-time pin is
+baked into the Android binary, then push that binary + fixture + SUMS + meta.
+There is no env override for the pin.
 
 Paste each markdown section into the matching Cosine / Squared L2 slot under
 Android in `bench/COMPARISON.md`.

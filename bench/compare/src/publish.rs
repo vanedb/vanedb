@@ -159,22 +159,20 @@ pub fn refuse_non_publish_dim(dim: usize) -> Result<(), String> {
     Ok(())
 }
 
-/// Path to the in-repo pin file (not a beside-file SUMS under /tmp).
-/// Override with `VANEDB_COMPARE_REPO_SUMS` on Android (pushed pin path).
-pub fn repo_sha256sums_path() -> std::path::PathBuf {
-    if let Ok(p) = std::env::var("VANEDB_COMPARE_REPO_SUMS") {
-        let p = p.trim();
-        if !p.is_empty() {
-            return std::path::PathBuf::from(p);
-        }
-    }
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/SHA256SUMS")
-}
+/// In-repo `fixtures/SHA256SUMS` baked at compile time so Android / out-of-tree
+/// runs cannot authorize paste from a forged beside-file SUMS (and so there is
+/// no `VANEDB_COMPARE_REPO_SUMS` override that reopens that hole).
+const REPO_SHA256SUMS: &str = include_str!("../fixtures/SHA256SUMS");
 
 /// Require `fixture_sha256` to match the `embeddings.vnef` line in the **repo**
-/// `fixtures/SHA256SUMS`. Beside-file SUMS alone must not authorize paste.
+/// `fixtures/SHA256SUMS` (compile-time pin). Beside-file SUMS alone must not
+/// authorize paste.
 pub fn refuse_unpinned_repo_sha(fixture_sha256: &str) -> Result<(), String> {
-    refuse_sha_not_in_sums(fixture_sha256, &repo_sha256sums_path())
+    refuse_sha_not_in_sums_text(
+        fixture_sha256,
+        REPO_SHA256SUMS,
+        "repo fixtures/SHA256SUMS (baked at compile time)",
+    )
 }
 
 pub fn refuse_sha_not_in_sums(
@@ -187,6 +185,14 @@ pub fn refuse_sha_not_in_sums(
             sums_path.display()
         )
     })?;
+    refuse_sha_not_in_sums_text(fixture_sha256, &sums, &sums_path.display().to_string())
+}
+
+pub fn refuse_sha_not_in_sums_text(
+    fixture_sha256: &str,
+    sums: &str,
+    sums_label: &str,
+) -> Result<(), String> {
     for line in sums.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -202,16 +208,15 @@ pub fn refuse_sha_not_in_sums(
             if hash != fixture_sha256 {
                 return Err(format!(
                     "refusing --markdown: fixture sha256 {fixture_sha256} != \
-                     repo SHA256SUMS embeddings.vnef {hash}"
+                     {sums_label} embeddings.vnef {hash}"
                 ));
             }
             return Ok(());
         }
     }
     Err(format!(
-        "refusing --markdown: embeddings.vnef not listed in repo {} \
-         (finalize + commit the publish pin before pasteable runs)",
-        sums_path.display()
+        "refusing --markdown: embeddings.vnef not listed in {sums_label} \
+         (finalize + commit the publish pin, then rebuild compare, before pasteable runs)"
     ))
 }
 
@@ -690,5 +695,13 @@ mod tests {
         let err = refuse_sha_not_in_sums("bbbb", &sums).unwrap_err();
         assert!(err.contains("!="), "{err}");
         refuse_sha_not_in_sums("cccc", &sums).unwrap();
+        // Live binary pin: smoke-only SUMS must refuse until embeddings.vnef is committed.
+        let live = refuse_unpinned_repo_sha("deadbeef");
+        assert!(
+            live.is_err(),
+            "expected refuse while embeddings.vnef unpinned in repo SUMS"
+        );
+        let msg = live.unwrap_err();
+        assert!(msg.contains("not listed") || msg.contains("!="), "{msg}");
     }
 }
