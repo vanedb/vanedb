@@ -80,16 +80,22 @@ VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 cargo run --release --lo
 ```
 
 `--markdown` refuses smoke/dev fixtures, unsigned files, basename other than
-`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, HW labels that do not match the
-current host (`apple-*` ⇒ Darwin aarch64, `linux-avx2*` ⇒ Linux+AVX2,
-`android-arm64-*` ⇒ on-device Android), missing `VANEDB_COMPARE_DEDICATED=1`,
-`--rounds < 2`, non-canonical `M`/`ef_construction`/`ef`/`k`/`seed`, engine
-cherry-picks, shrunk `--max-queries`, `--force-sqlite-vec-cosine`,
-`--skip-delete`, `--skip-save`, shared CI/cloud runner envs, and a missing
-`metadata.json`. Smoke fixtures require `--allow-smoke` and cannot produce
-publishable markdown (classification is by `n_docs`/`n_queries` + metadata,
-not filename). JSON recorded without `dedicated_attested=true` (or with
-`shared_runner=true`), or with host facts that contradict the HW label, is
+`embeddings.vnef`, fixture dim ≠ 768, any fixture whose sha256 is not the
+`embeddings.vnef` line in the **in-repo** `bench/compare/fixtures/SHA256SUMS`
+(beside-file SUMS alone is not enough — run `finalize_fixture.sh`, then
+`git add`/`commit` that pin before pasteable runs; on Android set
+`VANEDB_COMPARE_REPO_SUMS` to the pushed pin), unset `VANEDB_COMPARE_HW`, HW
+labels that do not match the current host (`apple-*` ⇒ Darwin aarch64,
+`linux-avx2*` ⇒ Linux+AVX2, `android-arm64-*` ⇒ on-device Android), missing
+`VANEDB_COMPARE_DEDICATED=1`, `--rounds < 2`, non-canonical
+`M`/`ef_construction`/`ef`/`k`/`seed`, engine cherry-picks, shrunk
+`--max-queries`, `--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`,
+shared CI/cloud runner envs **and** Cursor cloud filesystem markers
+`/opt/cursor` and `/exec-daemon` (clearing `CURSOR_AGENT` is not enough), and
+a missing `metadata.json`. Smoke fixtures require `--allow-smoke` and cannot
+produce publishable markdown (classification is by `n_docs`/`n_queries` +
+metadata, not filename). JSON recorded without `dedicated_attested=true` (or
+with `shared_runner=true`), or with host facts that contradict the HW label, is
 also refused by `render_comparison_md.py`.
 
 

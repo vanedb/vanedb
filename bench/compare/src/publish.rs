@@ -160,7 +160,14 @@ pub fn refuse_non_publish_dim(dim: usize) -> Result<(), String> {
 }
 
 /// Path to the in-repo pin file (not a beside-file SUMS under /tmp).
+/// Override with `VANEDB_COMPARE_REPO_SUMS` on Android (pushed pin path).
 pub fn repo_sha256sums_path() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("VANEDB_COMPARE_REPO_SUMS") {
+        let p = p.trim();
+        if !p.is_empty() {
+            return std::path::PathBuf::from(p);
+        }
+    }
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/SHA256SUMS")
 }
 

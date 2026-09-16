@@ -10,9 +10,28 @@ HW="${1:?hw label required (apple-* or linux-avx2*)}"
 METRIC="${2:?metric required (cosine|l2)}"
 shift 2
 FIX="$ROOT/bench/compare/fixtures/embeddings.vnef"
+SUMS="$ROOT/bench/compare/fixtures/SHA256SUMS"
 if [[ ! -f "$FIX" ]]; then
   echo "missing $FIX — fetch or finalize the publish fixture first" >&2
   echo "see docs/launch/0003-fixture-hosting.md" >&2
+  exit 1
+fi
+if [[ ! -f "$SUMS" ]] || ! grep -qE '(^|[[:space:]\*])embeddings\.vnef$' "$SUMS"; then
+  echo "refusing: $SUMS must list embeddings.vnef (finalize + commit pin before --markdown)" >&2
+  exit 1
+fi
+# Cheap preflight: digest must match the repo pin (avoids a long run that fails at the end).
+if command -v sha256sum >/dev/null 2>&1; then
+  got="$(sha256sum "$FIX" | awk '{print $1}')"
+elif command -v shasum >/dev/null 2>&1; then
+  got="$(shasum -a 256 "$FIX" | awk '{print $1}')"
+else
+  echo "need sha256sum or shasum for preflight" >&2
+  exit 1
+fi
+expected="$(awk '$2=="embeddings.vnef" || $2=="*embeddings.vnef" {print $1; exit}' "$SUMS")"
+if [[ -z "$expected" || "$got" != "$expected" ]]; then
+  echo "refusing: fixture sha256 $got != SHA256SUMS embeddings.vnef ${expected:-<missing>}" >&2
   exit 1
 fi
 

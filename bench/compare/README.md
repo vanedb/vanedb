@@ -6,17 +6,25 @@ Requires a Rust toolchain (MSRV 1.85+) and a C++17 compiler (`g++` preferred).
 
 ## One command (from the repository root)
 
+Publish paste path (dedicated idle host only; after `embeddings.vnef` is
+fetched **and** listed in `fixtures/SHA256SUMS`):
+
 ```bash
-cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
+# Prefer the helper (Apple/Linux):
+bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
+
+# Or equivalent:
+VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
+  cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
   --fixture bench/compare/fixtures/embeddings.vnef \
   --rounds 4 \
   --markdown \
   --json-out /tmp/compare-$(hostname).json
 ```
 
-Set `VANEDB_COMPARE_HW` to a short label (`apple-m4-pro`, `linux-avx2`,
-`android-arm64-emulator`, …) and `VANEDB_COMPARE_DEDICATED=1` before
-`--markdown` / COMPARISON paste. Shared CI/cloud runners are refused.
+`--markdown` requires `VANEDB_COMPARE_HW`, `VANEDB_COMPARE_DEDICATED=1`,
+dim=768, and the in-repo `embeddings.vnef` SUMS pin. Shared CI/cloud runners
+(and Cursor cloud FS markers) are refused. Android: see [`ANDROID.md`](ANDROID.md).
 
 Smoke / CI only (never paste into COMPARISON.md):
 
