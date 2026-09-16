@@ -1,8 +1,10 @@
 # Demo update patch notes for `obsidian-vane-search` (issue #198)
 
 This agent cannot push to https://github.com/vanedb/obsidian-vane-search
-(no write permission). Maintainer apply the ready patch below, cut a release,
-and reply on vanedb#198 / PR #212 with the release URL.
+(no write permission). Maintainer request:
+https://github.com/vanedb/obsidian-vane-search/issues/18 — apply the ready
+patch below, cut a release, and reply on vanedb#198 / PR #212 with the release
+URL.
 
 ## Ready-to-apply patch
 

@@ -74,8 +74,10 @@ metrics record.
 Applyable patch is in-tree:
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
 (verified `git apply`). This agent cannot push/fork
-`vanedb/obsidian-vane-search` (403). Maintainer: apply patch, cut `0.2.0`
-release, reply on #198 / #212 with the release URL. Until then AC5 is open.
+`vanedb/obsidian-vane-search` (403). Maintainer request opened:
+https://github.com/vanedb/obsidian-vane-search/issues/18 — apply patch, cut
+`0.2.0` release, reply on #198 / #212 with the release URL. Until then AC5 is
+open.
 
 ## 4. Launch (AC6)
 

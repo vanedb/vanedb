@@ -47,8 +47,12 @@ adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
   --json-out device-l2-$(date +%Y%m%d).json'
 adb pull /data/local/tmp/device-cosine-*.json bench/compare/runs/
 adb pull /data/local/tmp/device-l2-*.json bench/compare/runs/
-python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled-cosine>.json
-python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled-l2>.json
+python3 bench/compare/scripts/fill_comparison_slot.py \
+  bench/compare/runs/device-cosine-*.json \
+  bench/compare/runs/device-l2-*.json
+# Or render-only:
+# python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled-cosine>.json
+# python3 bench/compare/scripts/render_comparison_md.py bench/compare/runs/<pulled-l2>.json
 ```
 
 Optional on-device `--markdown`: rebuild `compare` **after** committing the
@@ -56,8 +60,9 @@ Optional on-device `--markdown`: rebuild `compare` **after** committing the
 baked into the Android binary, then push that binary + fixture + SUMS + meta.
 There is no env override for the pin.
 
-Paste each markdown section into the matching Cosine / Squared L2 slot under
-Android in `bench/COMPARISON.md`.
+Paste via `fill_comparison_slot.py` on the pulled JSON (preferred) or paste each
+markdown section into the matching Cosine / Squared L2 slot under Android in
+`bench/COMPARISON.md`.
 
 ### On-device (Termux)
 

@@ -49,25 +49,22 @@ def section_for(hw: str, metric: str) -> tuple[str, str]:
 
 def render_body(report: dict) -> str:
     """Run render gates; return markdown body (no trailing extra blank lines)."""
-    # render.main expects argv path; call its logic via a temp round-trip is
-    # awkward — instead write JSON to a buffer path is overkill. Inline: set
-    # argv and capture stdout after dumping report to a NamedTemporaryFile.
     import tempfile
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
         json.dump(report, tmp)
         tmp_path = tmp.name
+    old_argv = sys.argv
     try:
         buf = io.StringIO()
-        old_argv = sys.argv
         sys.argv = [render.__file__, tmp_path]
         with redirect_stdout(buf):
             rc = render.main()
-        sys.argv = old_argv
         if rc != 0:
             raise SystemExit(rc)
         return buf.getvalue().rstrip() + "\n"
     finally:
+        sys.argv = old_argv
         Path(tmp_path).unlink(missing_ok=True)
 
 
