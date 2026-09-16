@@ -90,6 +90,7 @@ provisional tense to past tense with the real numbers.
 
 ## 5. Gate — **Required CI Gate green on tip**
 
-Ignore `claude-review` (missing `ANTHROPIC_API_KEY`). After the COMPARISON
-paste commit and any harness tip, re-check Required CI Gate on that SHA before
-closing #198.
+Tip CI (including Required CI Gate and `claude-review`) must stay green after
+every COMPARISON paste / harness tip. Re-check the tip SHA before closing
+#198. Do **not** close while six `*Pending.*` cells remain or while the
+official demo `0.2.0` release URL is missing (staging on vanedb is not AC5).
