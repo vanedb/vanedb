@@ -24,6 +24,50 @@ use sha2::{Digest, Sha256};
 
 pub const FIXTURE_MAGIC: &[u8; 4] = b"VNEF";
 pub const FIXTURE_VERSION: u32 = 1;
+/// Minimum document count for a publishable COMPARISON.md fixture (RFC 0003).
+pub const PUBLISH_MIN_DOCS: usize = 100_000;
+
+/// Whether a loaded fixture may appear in published comparison tables.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixtureRole {
+    /// Deterministic harness smoke / any fixture below the publish size floor.
+    Smoke,
+    /// Large enough for local experiments but not the RFC publish fixture.
+    Dev,
+    /// ≥ [`PUBLISH_MIN_DOCS`] — the only role allowed with `--markdown` publish output.
+    Publish,
+}
+
+impl FixtureRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Smoke => "smoke",
+            Self::Dev => "dev",
+            Self::Publish => "publish",
+        }
+    }
+
+    pub fn requires_allow_smoke(self) -> bool {
+        matches!(self, Self::Smoke | Self::Dev)
+    }
+}
+
+/// Classify by content size (not filename) so renaming smoke.vnef cannot bypass gates.
+pub fn classify_fixture(fixture: &Fixture) -> FixtureRole {
+    let n = fixture.n_docs();
+    if n >= PUBLISH_MIN_DOCS {
+        FixtureRole::Publish
+    } else if n <= 1024
+        || fixture.meta.as_ref().is_some_and(|m| {
+            m.notes.to_ascii_lowercase().contains("not for published") || m.corpus == "synthetic"
+        })
+    {
+        FixtureRole::Smoke
+    } else {
+        FixtureRole::Dev
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FixtureMeta {
@@ -248,9 +292,32 @@ fn hex_sha256(bytes: &[u8]) -> String {
 }
 
 fn load_meta_beside(path: &Path) -> Result<FixtureMeta, String> {
-    let meta_path = path.with_file_name("metadata.json");
-    let text = std::fs::read_to_string(&meta_path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&text).map_err(|e| e.to_string())
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let candidates = [
+        path.with_file_name("metadata.json"),
+        parent.join("metadata.smoke.json"),
+        path.with_extension("json"),
+    ];
+    // Prefer metadata.smoke.json when the fixture itself is a smoke file.
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if name.contains("smoke") {
+        let smoke_meta = parent.join("metadata.smoke.json");
+        if smoke_meta.exists() {
+            let text = std::fs::read_to_string(&smoke_meta).map_err(|e| e.to_string())?;
+            return serde_json::from_str(&text).map_err(|e| e.to_string());
+        }
+    }
+    for meta_path in &candidates {
+        if meta_path.exists() {
+            let text = std::fs::read_to_string(meta_path).map_err(|e| e.to_string())?;
+            return serde_json::from_str(&text).map_err(|e| e.to_string());
+        }
+    }
+    Err("no metadata.json beside fixture".into())
 }
 
 pub fn default_fixture_dir() -> PathBuf {
@@ -300,5 +367,26 @@ mod tests {
         let sums = dir.path().join("SHA256SUMS");
         std::fs::write(&sums, "abcd  other.vnef\n").unwrap();
         assert!(verify_sha256sums(&path, &sums).is_err());
+    }
+
+    #[test]
+    fn renamed_smoke_still_classified_smoke() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("tiny.vnef");
+        write_smoke_fixture(&path, 64, 4, 16).unwrap();
+        let loaded = load_fixture(&path).unwrap();
+        assert_eq!(classify_fixture(&loaded), FixtureRole::Smoke);
+        assert!(classify_fixture(&loaded).requires_allow_smoke());
+    }
+
+    #[test]
+    fn publish_floor_requires_100k_docs() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("mid.vnef");
+        // 2048 docs → Dev (not Publish); still requires --allow-smoke.
+        write_smoke_fixture(&path, 2048, 8, 8).unwrap();
+        let loaded = load_fixture(&path).unwrap();
+        assert_eq!(classify_fixture(&loaded), FixtureRole::Dev);
+        assert!(classify_fixture(&loaded).requires_allow_smoke());
     }
 }

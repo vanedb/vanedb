@@ -99,6 +99,7 @@ jobs:
           cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
             --fixture bench/compare/fixtures/smoke.vnef \
             --allow-smoke \
+            --force-sqlite-vec-cosine \
             --rounds 1 \
             --max-queries 4 \
             --ef 50 \

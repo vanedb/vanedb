@@ -39,6 +39,11 @@ import numpy as np
 
 MAGIC = b"VNEF"
 VERSION = 1
+# Pin BeIR/nq so regenerations are byte-stable across hosts.
+BEIR_NQ_REVISION = "b7253e6c379163d024ddb1d6948152a91a2e3b46"
+# nomic-embed-text-v1.5 asymmetric task prefixes (required for faithful embeddings).
+NOMIC_DOC_PREFIX = "search_document: "
+NOMIC_QUERY_PREFIX = "search_query: "
 
 
 class VnefWriter:
@@ -102,20 +107,22 @@ def open_nq_parquet():
             repo_id="BeIR/nq",
             filename="corpus/corpus-00000-of-00001.parquet",
             repo_type="dataset",
+            revision=BEIR_NQ_REVISION,
         )
         queries_path = hf_hub_download(
             repo_id="BeIR/nq",
             filename="queries/queries-00000-of-00001.parquet",
             repo_type="dataset",
+            revision=BEIR_NQ_REVISION,
         )
     except Exception as e:  # noqa: BLE001
         raise SystemExit(
-            f"refusing synthetic fallback: could not download BeIR/nq ({e}). "
+            f"refusing synthetic fallback: could not download BeIR/nq@{BEIR_NQ_REVISION} ({e}). "
             "Pin network access or populate HF_HUB_CACHE."
         ) from e
 
     note = (
-        "BeIR/nq dataset parquet "
+        f"BeIR/nq dataset revision {BEIR_NQ_REVISION} "
         "corpus/corpus-00000-of-00001.parquet + queries/queries-00000-of-00001.parquet"
     )
     return pq, corpus_path, queries_path, note
@@ -338,10 +345,18 @@ def main() -> None:
             return embed_batch_openai(texts, args.model, args.openai_base, key, args.dim)
 
     done = 0
+    use_nomic = "nomic" in args.model.lower()
+    if use_nomic:
+        print(
+            f"  applying nomic task prefixes ({NOMIC_DOC_PREFIX!r} / {NOMIC_QUERY_PREFIX!r})",
+            flush=True,
+        )
     print("  docs…", flush=True)
     for batch_texts in iter_nq_docs(
         pq, corpus_path, args.n_docs, args.text_batch, args.max_chars
     ):
+        if use_nomic:
+            batch_texts = [NOMIC_DOC_PREFIX + t for t in batch_texts]
         mat = embed_docs(batch_texts)
         writer.write_vectors(mat, kind="docs")
         done += mat.shape[0]
@@ -367,6 +382,8 @@ def main() -> None:
     q_batch = args.text_batch
     for i in range(0, len(queries), q_batch):
         chunk = queries[i : i + q_batch]
+        if use_nomic:
+            chunk = [NOMIC_QUERY_PREFIX + t for t in chunk]
         mat = embed_queries(chunk)
         writer.write_vectors(mat, kind="queries")
         print(f"  embedded queries {min(i + q_batch, len(queries))}/{args.n_queries}", flush=True)
@@ -386,6 +403,8 @@ def main() -> None:
         ),
         "notes": (
             f"generated in {elapsed:.1f}s; max_chars={args.max_chars}; "
+            f"beir_nq_revision={BEIR_NQ_REVISION}; "
+            f"nomic_prefixes={'yes' if use_nomic else 'no'}; "
             "never regenerate in CI"
         ),
     }

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::engines::{BuildParams, EngineKind, MetricKind};
-use crate::fixture::Fixture;
+use crate::fixture::{Fixture, FixtureRole};
 use crate::ground_truth::{brute_force_topk_f64, recall_at_k, GtMetric};
 use crate::measure::{median_f64, spread_f64, InstantTimer};
 
@@ -24,6 +24,7 @@ pub struct RunConfig {
     pub max_queries: Option<usize>,
     pub skip_save: bool,
     pub skip_delete: bool,
+    pub fixture_role: FixtureRole,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -60,6 +61,7 @@ pub struct ComparisonReport {
     pub commit: String,
     pub hostname: String,
     pub hardware_label: String,
+    pub fixture_role: FixtureRole,
     pub fixture_sha256: String,
     pub fixture_n_docs: usize,
     pub fixture_n_queries: usize,
@@ -115,6 +117,12 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         eprintln!("round {}/{}", round + 1, cfg.rounds);
         for accum in &mut per_engine {
             let mut engine = accum.kind.make();
+            // instant-distance ignores per-query ef; emit a single construction-ef row.
+            let ef_for_engine: Vec<usize> = if accum.kind == EngineKind::InstantDistance {
+                vec![cfg.params.ef_search]
+            } else {
+                cfg.ef_sweep.clone()
+            };
             let stats = engine.build(
                 &fixture.vectors,
                 &fixture.ids,
@@ -141,7 +149,7 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
                 }
             }
 
-            for &ef in &cfg.ef_sweep {
+            for &ef in &ef_for_engine {
                 let mut latencies = Vec::with_capacity(n_queries);
                 let mut recalls = Vec::with_capacity(n_queries);
                 for (qi, truth_ids) in truth.iter().enumerate().take(n_queries) {
@@ -165,11 +173,18 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
 
             if !cfg.skip_delete && engine.supports_delete() && !fixture.ids.is_empty() {
                 let victim = fixture.ids[0];
+                let victim_vec = &fixture.vectors[..fixture.dim];
+                // Prefer the victim's own vector so pre-delete membership is meaningful.
+                let before = engine.search(victim_vec, cfg.k, cfg.params.ef_search)?;
+                if !before.contains(&victim) {
+                    accum.notes.push(format!(
+                        "delete oracle weak: id {victim} not in top-{} of its own vector before delete",
+                        cfg.k
+                    ));
+                }
                 engine.remove(victim)?;
-                // Victim must not appear in results for a query that previously hit it.
-                let q = fixture.query(0);
-                let got = engine.search(q, cfg.k, cfg.params.ef_search)?;
-                let ok = !got.contains(&victim);
+                let after = engine.search(victim_vec, cfg.k, cfg.params.ef_search)?;
+                let ok = !after.contains(&victim);
                 accum.delete_ok = Some(accum.delete_ok.unwrap_or(true) && ok);
             }
         }
@@ -181,6 +196,7 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         commit: git_commit(),
         hostname: hostname(),
         hardware_label: std::env::var("VANEDB_COMPARE_HW").unwrap_or_else(|_| "unlabelled".into()),
+        fixture_role: cfg.fixture_role,
         fixture_sha256: fixture.sha256.clone(),
         fixture_n_docs: fixture.n_docs(),
         fixture_n_queries: n_queries,
@@ -253,10 +269,20 @@ impl EngineAccum {
             latency_ns_by_ef,
             recall_at_k_by_ef,
             delete_ok: self.delete_ok,
-            notes: self.notes,
+            notes: dedupe_notes(self.notes),
             rounds: cfg.rounds,
         }
     }
+}
+
+fn dedupe_notes(notes: Vec<String>) -> Vec<String> {
+    let mut out = Vec::new();
+    for n in notes {
+        if !out.iter().any(|e: &String| e == &n) {
+            out.push(n);
+        }
+    }
+    out
 }
 
 fn git_commit() -> String {

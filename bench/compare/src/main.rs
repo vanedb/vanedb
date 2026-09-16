@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand, ValueEnum};
 use vanedb_compare::engines::{BuildParams, EngineKind, MetricKind};
 use vanedb_compare::fixture::{
-    default_fixture_dir, load_fixture, verify_sha256sums, write_smoke_fixture, FixtureMeta,
+    classify_fixture, default_fixture_dir, load_fixture, verify_sha256sums, write_smoke_fixture,
+    FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -31,8 +32,11 @@ enum Command {
         #[arg(long, default_value_t = false)]
         allow_smoke: bool,
         /// Verify against fixtures/SHA256SUMS when present.
-        #[arg(long, default_value_t = true)]
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         verify_checksum: bool,
+        /// Skip SHA256SUMS verification (not allowed with --markdown).
+        #[arg(long, default_value_t = false)]
+        no_verify_checksum: bool,
         #[arg(long, value_enum, default_value_t = MetricArg::Cosine)]
         metric: MetricArg,
         #[arg(long, default_value_t = 10)]
@@ -64,8 +68,13 @@ enum Command {
         #[arg(long, default_value_t = false)]
         skip_delete: bool,
         /// Also print a markdown section for pasting into COMPARISON.md.
+        /// Refuses smoke/dev fixtures and requires VANEDB_COMPARE_HW + checksum.
         #[arg(long, default_value_t = false)]
         markdown: bool,
+        /// Include sqlite-vec on cosine runs (harness-side f32 scan, not vec0).
+        /// Default: skip sqlite-vec when --metric cosine so published rows are honest.
+        #[arg(long, default_value_t = false)]
+        force_sqlite_vec_cosine: bool,
     },
     /// Write a tiny deterministic smoke fixture (not for published numbers).
     WriteSmoke {
@@ -138,6 +147,7 @@ fn real_main() -> Result<(), String> {
             fixture,
             allow_smoke,
             verify_checksum,
+            no_verify_checksum,
             metric,
             k,
             ef,
@@ -152,22 +162,11 @@ fn real_main() -> Result<(), String> {
             skip_save,
             skip_delete,
             markdown,
+            force_sqlite_vec_cosine,
         } => {
             let fixture_path = resolve_fixture(fixture, allow_smoke)?;
-            let is_smoke = fixture_path
-                .file_name()
-                .and_then(|s| s.to_str())
-                .is_some_and(|n| n.contains("smoke"));
-            if is_smoke && !allow_smoke {
-                return Err(
-                    "refusing smoke fixture without --allow-smoke (not for COMPARISON.md)".into(),
-                );
-            }
-            if markdown && is_smoke {
-                eprintln!(
-                    "WARNING: markdown output is from the SMOKE fixture and must not be pasted into COMPARISON.md"
-                );
-            }
+            let verify_checksum = verify_checksum && !no_verify_checksum;
+            let mut checksum_verified = false;
             if verify_checksum {
                 let sums = fixture_path
                     .parent()
@@ -175,29 +174,85 @@ fn real_main() -> Result<(), String> {
                     .join("SHA256SUMS");
                 if sums.exists() {
                     verify_sha256sums(&fixture_path, &sums)?;
+                    checksum_verified = true;
                     eprintln!("checksum ok for {}", fixture_path.display());
+                } else if markdown {
+                    return Err(format!(
+                        "refusing --markdown without SHA256SUMS beside {}",
+                        fixture_path.display()
+                    ));
                 } else {
                     eprintln!(
                         "warning: no SHA256SUMS beside {}; skipping verify",
                         fixture_path.display()
                     );
                 }
+            } else if markdown {
+                return Err("refusing --markdown with --verify-checksum=false".into());
             }
+
             let fixture = load_fixture(&fixture_path)?;
+            let role = classify_fixture(&fixture);
+            if role.requires_allow_smoke() && !allow_smoke {
+                return Err(format!(
+                    "refusing {} fixture (n_docs={}, need ≥{PUBLISH_MIN_DOCS} for publish) \
+                     without --allow-smoke — renaming the file does not bypass this",
+                    role.as_str(),
+                    fixture.n_docs()
+                ));
+            }
             eprintln!(
-                "fixture dim={} docs={} queries={} sha256={}",
+                "fixture role={} dim={} docs={} queries={} sha256={}",
+                role.as_str(),
                 fixture.dim,
                 fixture.n_docs(),
                 fixture.n_queries(),
                 fixture.sha256
             );
 
+            if markdown {
+                if role != FixtureRole::Publish {
+                    return Err(format!(
+                        "refusing --markdown for fixture_role={} (n_docs={}). \
+                         Publish only checksummed embeddings.vnef with ≥{PUBLISH_MIN_DOCS} docs",
+                        role.as_str(),
+                        fixture.n_docs()
+                    ));
+                }
+                if !checksum_verified {
+                    return Err(
+                        "refusing --markdown unless the fixture hash is listed in SHA256SUMS"
+                            .into(),
+                    );
+                }
+                let hw = std::env::var("VANEDB_COMPARE_HW").unwrap_or_default();
+                if hw.is_empty() || hw == "unlabelled" {
+                    return Err(
+                        "refusing --markdown without VANEDB_COMPARE_HW set to a real label \
+                         (e.g. linux-avx2, apple-silicon, android-arm64-emulator)"
+                            .into(),
+                    );
+                }
+            }
+
             let ef_sweep = parse_ef_list(&ef)?;
-            let engines = if engine.is_empty() {
+            let metric_kind: MetricKind = metric.into();
+            let mut engines = if engine.is_empty() {
                 EngineKind::all().to_vec()
             } else {
                 engine
             };
+            if metric_kind == MetricKind::Cosine
+                && !force_sqlite_vec_cosine
+                && engines.contains(&EngineKind::SqliteVec)
+            {
+                engines.retain(|e| *e != EngineKind::SqliteVec);
+                eprintln!(
+                    "skipping sqlite-vec on cosine (not a native vec0 metric); \
+                     pass --force-sqlite-vec-cosine to include the harness-side scan, \
+                     or run --metric l2 for native sqlite-vec"
+                );
+            }
             let out_dir = out_dir.unwrap_or_else(|| {
                 PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out")
             });
@@ -205,7 +260,7 @@ fn real_main() -> Result<(), String> {
 
             let cfg = RunConfig {
                 engines,
-                metric: metric.into(),
+                metric: metric_kind,
                 k,
                 ef_sweep,
                 params: BuildParams {
@@ -219,6 +274,7 @@ fn real_main() -> Result<(), String> {
                 max_queries,
                 skip_save,
                 skip_delete,
+                fixture_role: role,
             };
 
             let report = run_comparison(&fixture, &cfg)?;
@@ -226,9 +282,6 @@ fn real_main() -> Result<(), String> {
             write_json_report(&report, &json_path)?;
             eprintln!("wrote {}", json_path.display());
             if markdown {
-                if is_smoke {
-                    println!("<!-- SMOKE FIXTURE — DO NOT PUBLISH -->\n");
-                }
                 print!("{}", render_machine_section(&report));
             }
             Ok(())

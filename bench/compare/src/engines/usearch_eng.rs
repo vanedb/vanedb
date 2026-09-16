@@ -74,8 +74,8 @@ impl Engine for UsearchEngine {
             build_secs,
             peak_rss_bytes: rss_delta(rss_before, rss_after),
             notes: vec![format!(
-                "connectivity(M)={} expansion_add(efC)={}",
-                params.m, params.ef_construction
+                "connectivity(M)={} expansion_add(efC)={}; seed not exposed by usearch IndexOptions (requested {})",
+                params.m, params.ef_construction, params.seed
             )],
         })
     }

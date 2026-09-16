@@ -14,8 +14,12 @@ pub fn render_machine_section(report: &ComparisonReport) -> String {
         report.commit
     ));
     out.push_str(&format!(
-        "- Fixture: dim={}, n_docs={}, n_queries={}, sha256=`{}`\n",
-        report.fixture_dim, report.fixture_n_docs, report.fixture_n_queries, report.fixture_sha256
+        "- Fixture: role={}, dim={}, n_docs={}, n_queries={}, sha256=`{}`\n",
+        report.fixture_role.as_str(),
+        report.fixture_dim,
+        report.fixture_n_docs,
+        report.fixture_n_queries,
+        report.fixture_sha256
     ));
     out.push_str(&format!(
         "- Params: M={}, ef_construction={}, k={}, seed={}\n\n",

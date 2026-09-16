@@ -23,9 +23,14 @@ the existing `bench/README.md` discipline.
    `fixtures/SHA256SUMS`. The smoke fixture is for harness checks only and
    must never appear in a published table.
 4. **Parameter fairness.** Shared `M=16`, `ef_construction=200`, seed `42`
-   where the engine exposes them. `instant-distance` hard-codes `M=32` —
-   recorded in the row notes. sqlite-vec is brute force (no ANN); it is the
-   "you already ship SQLite" baseline, not an HNSW peer.
+   where the engine exposes them. `instant-distance` hard-codes `M=32` and
+   ignores per-query ef (one row at construction `ef_search` only). USearch
+   and `hnsw_rs` do not expose construction RNG seeds — recorded in row notes.
+   sqlite-vec is brute force (no ANN); it is the "you already ship SQLite"
+   baseline, not an HNSW peer. Cosine publish runs **omit** sqlite-vec by
+   default (vec0 has no cosine metric; the harness scan would mislabel); use
+   `--metric l2` for native sqlite-vec, or `--force-sqlite-vec-cosine` only
+   when you intentionally want the harness-side scan labelled as such.
 5. **Recall is against f64 exact search** on the same fixture and metric.
    Graph luck still applies: one construction seed is one observation.
 6. **Delete-then-search** is checked only for engines with a public delete
@@ -41,11 +46,11 @@ the existing `bench/README.md` discipline.
 | Item | Value |
 |---|---|
 | Fixture | `nomic-embed-text` family, 768-d, BeIR/nq passages (see `fixtures/metadata.json`) |
-| Metrics | cosine (native) and squared L2 (separate runs) |
+| Metrics | cosine (native; sqlite-vec omitted unless forced) and squared L2 (separate run, includes sqlite-vec) |
 | k | 10 |
-| ef sweep | 16, 32, 50, 100 |
+| ef sweep | 16, 32, 50, 100 (instant-distance: construction ef only) |
 | Rounds | interleaved, ≥2 on dedicated hardware |
-| Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 |
+| Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 (L2) |
 
 One command (from the **repository root**):
 
@@ -58,13 +63,16 @@ VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
   --json-out runs/$(hostname)-$(date +%Y%m%d).json
 ```
 
-Smoke fixtures require `--allow-smoke` and must never be pasted here.
+`--markdown` refuses smoke/dev fixtures, unsigned files, and an unset
+`VANEDB_COMPARE_HW`. Smoke fixtures require `--allow-smoke` and cannot produce
+publishable markdown (classification is by `n_docs`, not filename).
 
 
 Generate the full fixture once (not in CI):
 
 ```bash
-python3 bench/compare/scripts/generate_fixture.py --backend fastembed --out-dir bench/compare/fixtures
+python3 bench/compare/scripts/generate_fixture.py --backend fastembed \
+  --out-dir bench/compare/fixtures
 # host embeddings.vnef as a release asset; commit metadata.json + SHA256SUMS
 ```
 
@@ -72,7 +80,7 @@ Host the resulting `embeddings.vnef` as a GitHub Release asset (too large for
 git), add its sha256 to `fixtures/SHA256SUMS`, then consumers fetch with:
 
 ```bash
-VANEDB_COMPARE_FIXTURE_URL=https://…/embeddings.vnef \
+VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/<tag>/embeddings.vnef \
   bash bench/compare/scripts/fetch_fixture.sh
 ```
 

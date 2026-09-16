@@ -104,8 +104,8 @@ impl Engine for HnswRsEngine {
             build_secs,
             peak_rss_bytes: rss_delta(rss_before, rss_after),
             notes: vec![format!(
-                "max_nb_connection(M)={} efC={} max_layer={}",
-                params.m, params.ef_construction, max_layer
+                "max_nb_connection(M)={} efC={} max_layer={}; seed not plumbed by hnsw_rs Hnsw::new (requested {})",
+                params.m, params.ef_construction, max_layer, params.seed
             )],
         })
     }
