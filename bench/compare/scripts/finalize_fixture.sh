@@ -31,6 +31,11 @@ if n_docs < 100_000 or n_queries < 1000:
 meta = json.loads(pathlib.Path("$META").read_text())
 if "pending" in meta.get("notes","").lower() or "pending" in meta.get("model","").lower():
     sys.exit("metadata still marked pending")
+corpus = meta.get("corpus","").lower()
+model = meta.get("model","").lower()
+notes = meta.get("notes","").lower()
+if corpus == "synthetic" or "synthetic" in corpus or "smoke" in model or "not for published" in notes:
+    sys.exit("metadata forbids publish (synthetic/smoke/not-for-published)")
 if int(meta["n_docs"]) != n_docs or int(meta["n_queries"]) != n_queries:
     sys.exit(f"metadata mismatch meta={meta['n_docs']}/{meta['n_queries']} file={n_docs}/{n_queries}")
 if int(meta.get("dim", -1)) != dim:
