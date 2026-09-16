@@ -7,6 +7,16 @@ JSON reports from dedicated-hardware runs go here. Name them
 [`../../COMPARISON.md`](../../COMPARISON.md), keep the matching JSON in this
 directory (or attach it on the issue/PR). Re-render only via
 `scripts/render_comparison_md.py`, which refuses forged params, incomplete
-engine sets, and fixture hashes not listed in `fixtures/SHA256SUMS`.
+engine sets, fixture hashes not listed in `fixtures/SHA256SUMS`, JSON with
+`shared_runner=true`, and JSON without `dedicated_attested=true`.
+
+Record publish runs with:
+
+```bash
+VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
+  cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
+  --fixture bench/compare/fixtures/embeddings.vnef --rounds 4 --markdown \
+  --json-out runs/linux-avx2-cosine-$(date +%Y%m%d).json
+```
 
 Raw timings from CI or shared cloud runners must not be committed or pasted.

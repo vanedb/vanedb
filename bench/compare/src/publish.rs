@@ -107,16 +107,57 @@ pub fn refuse_noncanonical_params(g: &CanonicalParamsGate) -> Result<(), String>
     Ok(())
 }
 
+/// True when the process looks like a shared CI/cloud runner.
+pub fn shared_runner_env() -> bool {
+    let truthy = |k: &str| {
+        matches!(
+            std::env::var(k)
+                .unwrap_or_default()
+                .to_ascii_lowercase()
+                .as_str(),
+            "1" | "true" | "yes"
+        )
+    };
+    truthy("CI")
+        || truthy("GITHUB_ACTIONS")
+        || truthy("GITLAB_CI")
+        || truthy("CIRCLECI")
+        || truthy("BUILDKITE")
+        || std::env::var("CURSOR_AGENT").is_ok()
+        || std::env::var("CODESPACES").is_ok()
+}
+
+/// Maintainer attestation that this host is idle dedicated hardware.
+pub fn dedicated_hw_attested() -> bool {
+    matches!(
+        std::env::var("VANEDB_COMPARE_DEDICATED")
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str(),
+        "1" | "true" | "yes"
+    )
+}
+
 /// Refuse pasteable markdown from CI / GitHub Actions hosts (defense in depth).
 pub fn refuse_ci_env_for_markdown() -> Result<(), String> {
-    let ci = std::env::var("CI").unwrap_or_default();
-    let gha = std::env::var("GITHUB_ACTIONS").unwrap_or_default();
-    if ci == "true" || gha == "true" {
-        return Err(
-            "refusing --markdown under CI/GITHUB_ACTIONS (dedicated hardware only; \
-             AGENTS.md forbids publishing shared-runner timings)"
-                .into(),
-        );
+    if shared_runner_env() {
+        return Err("refusing --markdown under a shared CI/cloud runner env \
+             (dedicated hardware only; AGENTS.md forbids publishing shared-runner timings)"
+            .into());
+    }
+    Ok(())
+}
+
+/// Refuse --markdown unless the operator attests dedicated hardware.
+pub fn refuse_unattested_dedicated_hw() -> Result<(), String> {
+    refuse_unless_dedicated_attested(dedicated_hw_attested())
+}
+
+pub fn refuse_unless_dedicated_attested(attested: bool) -> Result<(), String> {
+    if !attested {
+        return Err("refusing --markdown without VANEDB_COMPARE_DEDICATED=1 \
+             (operator attestation that this is an idle dedicated machine)"
+            .into());
     }
     Ok(())
 }
@@ -317,5 +358,12 @@ mod tests {
     #[test]
     fn cosine_full_set_ok() {
         refuse_incomplete_engine_set("cosine", PUBLISH_ENGINES_COSINE).unwrap();
+    }
+
+    #[test]
+    fn unattested_dedicated_refused() {
+        let err = refuse_unless_dedicated_attested(false).unwrap_err();
+        assert!(err.contains("VANEDB_COMPARE_DEDICATED"), "{err}");
+        refuse_unless_dedicated_attested(true).unwrap();
     }
 }

@@ -210,3 +210,29 @@ jobs:
           test "$rc" -ne 0
           echo "$out" | grep -q 'incomplete engine set'
           echo "ok: markdown refused engine cherry-pick"
+      - name: Markdown refuses missing dedicated attestation
+        run: |
+          set +e
+          out=$(env -u VANEDB_COMPARE_DEDICATED cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 \
+            --json-out "${{ runner.temp }}/should-fail-dedicated.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'VANEDB_COMPARE_DEDICATED'
+          echo "ok: markdown refused missing VANEDB_COMPARE_DEDICATED"
+      - name: Markdown refuses shared CI runner even when attested
+        run: |
+          set +e
+          out=$(VANEDB_COMPARE_DEDICATED=1 cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 \
+            --json-out "${{ runner.temp }}/should-fail-ci.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'shared CI/cloud'
+          echo "ok: markdown refused shared CI/cloud runner"

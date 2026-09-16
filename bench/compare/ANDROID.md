@@ -30,9 +30,11 @@ adb push bench/compare/fixtures/embeddings.vnef /data/local/tmp/
 adb push bench/compare/fixtures/SHA256SUMS /data/local/tmp/
 adb push bench/compare/fixtures/metadata.json /data/local/tmp/
 adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
+  VANEDB_COMPARE_DEDICATED=1 \
   ./compare run --fixture embeddings.vnef --metric cosine --rounds 4 --markdown \
   --json-out device-cosine-$(date +%Y%m%d).json'
 adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
+  VANEDB_COMPARE_DEDICATED=1 \
   ./compare run --fixture embeddings.vnef --metric l2 --rounds 4 --markdown \
   --json-out device-l2-$(date +%Y%m%d).json'
 adb pull /data/local/tmp/device-cosine-*.json bench/compare/runs/
@@ -46,12 +48,13 @@ Android in `bench/COMPARISON.md`.
 
 Full Rust + `clang`/`clang++` with libc++. Same `cargo build --release --locked
 --manifest-path bench/compare/Cargo.toml`, then run as above with
-`VANEDB_COMPARE_HW=android-arm64-device`.
+`VANEDB_COMPARE_HW=android-arm64-device VANEDB_COMPARE_DEDICATED=1`.
 
 ## Acceptable: emulator (must be labelled)
 
 ```text
 VANEDB_COMPARE_HW=android-arm64-emulator
+VANEDB_COMPARE_DEDICATED=1
 ```
 
 Use an **ARM64** system image (not x86_64 with translation) when claiming ARM64.

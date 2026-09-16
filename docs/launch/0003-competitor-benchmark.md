@@ -13,7 +13,9 @@ numbers and caveats identical).
 ## Title options
 
 1. Show HN: VaneDB – embeddable vector search vs USearch, hnswlib, and sqlite-vec
-2. We benchmarked our edge vector DB against USearch, hnswlib, instant-distance, hnsw_rs, and sqlite-vec on real 768-d embeddings
+2. *(Use only after COMPARISON tables are filled.)* We benchmarked our edge
+   vector DB against USearch, hnswlib, instant-distance, hnsw_rs, and sqlite-vec
+   on real 768-d embeddings
 
 ## Body (draft)
 
@@ -21,9 +23,10 @@ We built VaneDB as an embeddable nearest-neighbour library for on-device / edge
 AI (Rust, Python, C, WASM). Until now the only published comparison was against
 our own frozen C++ reference engine — useless to anyone choosing a stack.
 
-We added a second benchmark arm that runs VaneDB against the libraries people
-actually shortlist, on a fixed real-embedding fixture (nomic-embed-text, 768-d,
-100k documents, 1k queries), with interleaved rounds on dedicated hardware:
+We are adding a second benchmark arm that will run VaneDB against the libraries
+people actually shortlist, on a fixed real-embedding fixture (nomic-embed-text,
+768-d, 100k documents, 1k queries), with interleaved rounds on dedicated
+hardware:
 
 - USearch
 - hnswlib
@@ -42,13 +45,14 @@ after** dedicated-machine runs fill `bench/COMPARISON.md` (currently pending).
 CI / cloud timings are discarded by policy and must never appear in the post.
 
 **Demo:** Obsidian vault search powered by the WASM build —
-https://github.com/vanedb/obsidian-vane-search — index a vault and run one
+https://github.com/vanedb/obsidian-vane-search — *(runnable “Try it on a real
+vault” walkthrough still tracked under #198).* Index a vault and run one
 semantic search locally (Ollama + nomic-embed-text, or any OpenAI-compatible
-embeddings endpoint).
+embeddings endpoint) once the demo checklist lands.
 
-What we are looking for: whether these results match what you see on your
-hardware, and which gap (filtering, quantization, mobile SDKs, wasm
-persistence) would unblock a real project.
+What we are looking for once the tables are filled: whether those dedicated-HW
+results match what you see on your hardware, and which gap (filtering,
+quantization, mobile SDKs, wasm persistence) would unblock a real project.
 
 ---
 

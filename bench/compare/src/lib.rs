@@ -13,8 +13,9 @@ pub use fixture::{
     Fixture, FixtureMeta, FixtureRole, FIXTURE_MAGIC, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
 pub use publish::{
-    refuse_ci_env_for_markdown, refuse_incomplete_engine_set, refuse_incomplete_save_rows,
-    refuse_markdown_flags, refuse_noncanonical_params, CanonicalParamsGate, MarkdownFlagGate,
+    dedicated_hw_attested, refuse_ci_env_for_markdown, refuse_incomplete_engine_set,
+    refuse_incomplete_save_rows, refuse_markdown_flags, refuse_noncanonical_params,
+    refuse_unattested_dedicated_hw, shared_runner_env, CanonicalParamsGate, MarkdownFlagGate,
     PUBLISH_EF_CONSTRUCTION, PUBLISH_EF_SWEEP, PUBLISH_ENGINES_COSINE, PUBLISH_ENGINES_L2,
     PUBLISH_K, PUBLISH_M, PUBLISH_SEED,
 };

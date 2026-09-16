@@ -10,7 +10,8 @@ use vanedb_compare::fixture::{
 };
 use vanedb_compare::publish::{
     refuse_ci_env_for_markdown, refuse_incomplete_engine_set, refuse_incomplete_save_rows,
-    refuse_markdown_flags, refuse_noncanonical_params, CanonicalParamsGate, MarkdownFlagGate,
+    refuse_markdown_flags, refuse_noncanonical_params, refuse_unattested_dedicated_hw,
+    CanonicalParamsGate, MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -214,24 +215,6 @@ fn real_main() -> Result<(), String> {
                 fixture.sha256
             );
 
-            if markdown {
-                // Flag refusals first — observable on smoke without role masking.
-                refuse_markdown_flags(MarkdownFlagGate {
-                    rounds,
-                    force_sqlite_vec_cosine,
-                    skip_delete,
-                    skip_save,
-                })?;
-                let ef_sweep_early = parse_ef_list(&ef)?;
-                refuse_noncanonical_params(&CanonicalParamsGate {
-                    m,
-                    ef_construction,
-                    k,
-                    seed,
-                    ef_sweep: ef_sweep_early.clone(),
-                })?;
-            }
-
             let ef_sweep = parse_ef_list(&ef)?;
             let metric_kind: MetricKind = metric.into();
             let mut engines = if engine.is_empty() {
@@ -252,8 +235,25 @@ fn real_main() -> Result<(), String> {
             }
 
             if markdown {
+                // Order is intentional so CI can assert each reason on smoke:
+                // flags → canonical params → engine set → dedicated → shared runner → role…
+                refuse_markdown_flags(MarkdownFlagGate {
+                    rounds,
+                    force_sqlite_vec_cosine,
+                    skip_delete,
+                    skip_save,
+                })?;
+                refuse_noncanonical_params(&CanonicalParamsGate {
+                    m,
+                    ef_construction,
+                    k,
+                    seed,
+                    ef_sweep: ef_sweep.clone(),
+                })?;
                 let names: Vec<&str> = engines.iter().map(|e| e.as_str()).collect();
                 refuse_incomplete_engine_set(metric_kind.as_str(), &names)?;
+                refuse_unattested_dedicated_hw()?;
+                refuse_ci_env_for_markdown()?;
                 if role != FixtureRole::Publish {
                     return Err(format!(
                         "refusing --markdown for fixture_role={} (n_docs={}, n_queries={}). \
@@ -288,7 +288,6 @@ fn real_main() -> Result<(), String> {
                             .into(),
                     );
                 }
-                refuse_ci_env_for_markdown()?;
                 if let Some(mq) = max_queries {
                     if mq < fixture.n_queries() {
                         return Err(format!(

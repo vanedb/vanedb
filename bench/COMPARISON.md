@@ -19,10 +19,13 @@ the existing `bench/README.md` discipline.
 2. **No CI / cloud timings.** Shared runners are noisy and contested. Do not
    paste their output into the result tables below.
 3. **Real embeddings, fixed fixture.** Published rows use
-   `fixtures/embeddings.vnef` (100k × 768-d, 1k queries), checksummed in
-   `fixtures/SHA256SUMS`. Passages are truncated to `--max-chars 1500` at
-   generation time (see `fixtures/metadata.json`). The smoke fixture is
-   for harness checks only and must never appear in a published table.
+   `fixtures/embeddings.vnef` (100k × 768-d, 1k queries) **once that file is
+   generated, checksummed in `fixtures/SHA256SUMS`, and hosted** (see
+   [`docs/launch/0003-fixture-hosting.md`](../docs/launch/0003-fixture-hosting.md)).
+   Until then only `smoke.vnef` is in-tree. Passages are truncated to
+   `--max-chars 1500` at generation time (see `fixtures/metadata.json`). The
+   smoke fixture is for harness checks only and must never appear in a
+   published table.
 4. **Parameter fairness.** Shared `M=16`, `ef_construction=200`, seed `42`
    where the engine exposes them. `instant-distance` hard-codes `M=32` and
    ignores per-query ef (one row at construction `ef_search` only). USearch
@@ -56,7 +59,7 @@ the existing `bench/README.md` discipline.
 One command (from the **repository root**):
 
 ```bash
-VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
+VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 cargo run --release --locked \
   --manifest-path bench/compare/Cargo.toml -- run \
   --fixture bench/compare/fixtures/embeddings.vnef \
   --rounds 4 \
@@ -65,12 +68,14 @@ VANEDB_COMPARE_HW=linux-avx2 cargo run --release --locked \
 ```
 
 `--markdown` refuses smoke/dev fixtures, unsigned files, basename other than
-`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, `--rounds < 2`, non-canonical
-`M`/`ef_construction`/`ef`/`k`/`seed`, engine cherry-picks, shrunk
-`--max-queries`, `--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`,
-CI/`GITHUB_ACTIONS` environments, and a missing `metadata.json`. Smoke fixtures
-require `--allow-smoke` and cannot produce publishable markdown (classification
-is by `n_docs`/`n_queries` + metadata, not filename).
+`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, missing `VANEDB_COMPARE_DEDICATED=1`,
+`--rounds < 2`, non-canonical `M`/`ef_construction`/`ef`/`k`/`seed`, engine
+cherry-picks, shrunk `--max-queries`, `--force-sqlite-vec-cosine`,
+`--skip-delete`, `--skip-save`, shared CI/cloud runner envs, and a missing
+`metadata.json`. Smoke fixtures require `--allow-smoke` and cannot produce
+publishable markdown (classification is by `n_docs`/`n_queries` + metadata,
+not filename). JSON recorded without `dedicated_attested=true` (or with
+`shared_runner=true`) is also refused by `render_comparison_md.py`.
 
 
 Generate the full fixture once (not in CI):

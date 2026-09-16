@@ -108,6 +108,21 @@ def main() -> int:
         print("refusing to render rounds < 2", file=sys.stderr)
         return 1
 
+    if report.get("shared_runner") is True:
+        print(
+            "refusing to render JSON recorded under a shared CI/cloud runner "
+            "(shared_runner=true)",
+            file=sys.stderr,
+        )
+        return 1
+    if report.get("dedicated_attested") is not True:
+        print(
+            "refusing to render JSON without dedicated_attested=true "
+            "(set VANEDB_COMPARE_DEDICATED=1 on the dedicated machine before run)",
+            file=sys.stderr,
+        )
+        return 1
+
     p = report.get("params") or {}
     if (
         p.get("m") != PUBLISH_M

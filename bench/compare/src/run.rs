@@ -8,6 +8,7 @@ use crate::engines::{BuildParams, EngineKind, MetricKind};
 use crate::fixture::{Fixture, FixtureRole};
 use crate::ground_truth::{brute_force_topk_f64, recall_at_k, GtMetric};
 use crate::measure::{median_f64, spread_f64, InstantTimer};
+use crate::publish::{dedicated_hw_attested, shared_runner_env};
 
 /// Local noise floor from AGENTS.md / existing bench abtest.
 pub const NOISE_FLOOR: f64 = 0.03;
@@ -65,6 +66,10 @@ pub struct ComparisonReport {
     pub hostname: String,
     pub hardware_label: String,
     pub recorded_at_utc: String,
+    /// True when CI/cloud/shared-runner env vars were present at record time.
+    pub shared_runner: bool,
+    /// True when `VANEDB_COMPARE_DEDICATED=1` attested idle dedicated hardware.
+    pub dedicated_attested: bool,
     pub fixture_role: FixtureRole,
     pub fixture_sha256: String,
     pub fixture_n_docs: usize,
@@ -208,6 +213,8 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         hostname: hostname(),
         hardware_label: std::env::var("VANEDB_COMPARE_HW").unwrap_or_else(|_| "unlabelled".into()),
         recorded_at_utc: utc_now(),
+        shared_runner: shared_runner_env(),
+        dedicated_attested: dedicated_hw_attested(),
         fixture_role: cfg.fixture_role,
         fixture_sha256: fixture.sha256.clone(),
         fixture_n_docs: fixture.n_docs(),

@@ -15,7 +15,8 @@ cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
 ```
 
 Set `VANEDB_COMPARE_HW` to a short label (`apple-m4-pro`, `linux-avx2`,
-`android-arm64-emulator`, …) before publishing a row.
+`android-arm64-emulator`, …) and `VANEDB_COMPARE_DEDICATED=1` before
+`--markdown` / COMPARISON paste. Shared CI/cloud runners are refused.
 
 Smoke / CI only (never paste into COMPARISON.md):
 
