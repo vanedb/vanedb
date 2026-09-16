@@ -68,7 +68,8 @@ impl Engine for VanedbEngine {
             build_secs,
             peak_rss_bytes: rss_delta(rss_before, rss_after),
             notes: vec![format!(
-                "vanedb crate {}; ApproxIndex M={} efC={} seed={}",
+                "vanedb crate {}; ApproxIndex M={} efC={} seed={}; build uses add_batch \
+                 (same graph topology as serial add; wall time is not sequential-insert peer)",
                 option_env!("VANEDB_VERSION").unwrap_or("path"),
                 params.m,
                 params.ef_construction,

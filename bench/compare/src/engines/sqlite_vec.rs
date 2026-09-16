@@ -125,6 +125,7 @@ impl Engine for SqliteVecEngine {
             peak_rss_bytes: rss_delta(rss_before, rss_after),
             notes: vec![
                 "brute-force KNN via vec0 for L2 (no ANN; sqlite-vec #25)".into(),
+                "ef unused — single construction-ef latency row only".into(),
                 format!(
                     "metric {}: {}",
                     metric.as_str(),

@@ -129,8 +129,12 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         eprintln!("round {}/{}", round + 1, cfg.rounds);
         for accum in &mut per_engine {
             let mut engine = accum.kind.make();
-            // instant-distance ignores per-query ef; emit a single construction-ef row.
-            let ef_for_engine: Vec<usize> = if accum.kind == EngineKind::InstantDistance {
+            // instant-distance ignores per-query ef; sqlite-vec is brute force
+            // (ef unused) — emit a single construction-ef row for both.
+            let ef_for_engine: Vec<usize> = if matches!(
+                accum.kind,
+                EngineKind::InstantDistance | EngineKind::SqliteVec
+            ) {
                 vec![cfg.params.ef_search]
             } else {
                 cfg.ef_sweep.clone()

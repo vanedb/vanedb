@@ -135,16 +135,29 @@ jobs:
           assert len(engines)==5, engines
           print("ok: cosine default engines", sorted(engines))
           PY
-      - name: Markdown refuses smoke even with allow-smoke
+      - name: Markdown refuses smoke role (CI markers cleared)
+        # Clear shared-runner markers so the role gate is observable (otherwise
+        # dedicated/CI refuse mask fixture_role=smoke on Actions).
+        env:
+          CI: ""
+          GITHUB_ACTIONS: ""
+          CURSOR_AGENT: ""
+          CODESPACES: ""
+          TF_BUILD: ""
+          VANEDB_COMPARE_DEDICATED: "1"
+          VANEDB_COMPARE_HW: "linux-avx2"
         run: |
-          if cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
             --fixture bench/compare/fixtures/smoke.vnef \
-            --allow-smoke --markdown --rounds 2 --ef 50 --skip-save --skip-delete \
-            --json-out "${{ runner.temp }}/should-fail.json"; then
-            echo "expected markdown refusal" >&2
-            exit 1
-          fi
-          echo "ok: markdown refused smoke"
+            --allow-smoke --markdown --rounds 2 \
+            --json-out "${{ runner.temp }}/should-fail-smoke-role.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'fixture_role=smoke'
+          echo "ok: markdown refused smoke role"
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
           set +e

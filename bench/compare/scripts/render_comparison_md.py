@@ -129,14 +129,14 @@ def main() -> int:
         print("refusing to render rounds < 2", file=sys.stderr)
         return 1
 
-    if report.get("shared_runner") is True:
+    if "shared_runner" not in report or report.get("shared_runner") is not False:
         print(
-            "refusing to render JSON recorded under a shared CI/cloud runner "
-            "(shared_runner=true)",
+            "refusing to render: shared_runner must be present and false "
+            "(omit/true means untrusted or shared-runner JSON)",
             file=sys.stderr,
         )
         return 1
-    if report.get("dedicated_attested") is not True:
+    if "dedicated_attested" not in report or report.get("dedicated_attested") is not True:
         print(
             "refusing to render JSON without dedicated_attested=true "
             "(set VANEDB_COMPARE_DEDICATED=1 on the dedicated machine before run)",
@@ -209,6 +209,14 @@ def main() -> int:
             if len(efs) != 1:
                 print(
                     "refusing to render instant-distance without exactly one ef row",
+                    file=sys.stderr,
+                )
+                return 1
+        elif r["engine"] == "sqlite-vec":
+            if len(efs) != 1:
+                print(
+                    "refusing to render sqlite-vec without exactly one ef row "
+                    "(brute force; ef unused)",
                     file=sys.stderr,
                 )
                 return 1

@@ -30,10 +30,13 @@ the existing `bench/README.md` discipline.
    where the engine exposes them. `instant-distance` hard-codes `M=32` and
    ignores per-query ef (one row at construction `ef_search` only). USearch
    and `hnsw_rs` do not expose construction RNG seeds — recorded in row notes.
-   sqlite-vec is brute force (no ANN); it is the "you already ship SQLite"
+   VaneDB build uses `add_batch` (same topology as serial add; wall time is
+   not a sequential-insert peer — noted in the vanedb row). sqlite-vec is
+   brute force (no ANN); it is the "you already ship SQLite"
    baseline, not an HNSW peer. Its **Build (s)** cell is temp-DB create + row
    insert time, not an in-RAM graph construction — read it as ingest cost,
-   not as an HNSW peer. Cosine publish runs **omit** sqlite-vec by
+   not as an HNSW peer. sqlite-vec also emits a single ef row (ef unused).
+   Cosine publish runs **omit** sqlite-vec by
    default (vec0 has no cosine metric; the harness scan would mislabel); use
    `--metric l2` for native sqlite-vec, or `--force-sqlite-vec-cosine` only
    when you intentionally want the harness-side scan labelled as such.

@@ -24,6 +24,8 @@ def main() -> int:
             assert row.get("delete_ok") is True, row
         if row["engine"] == "instant-distance":
             assert len(row["latency_ns_by_ef"]) == 1, row["latency_ns_by_ef"]
+        if row["engine"] == "sqlite-vec":
+            assert len(row["latency_ns_by_ef"]) == 1, row["latency_ns_by_ef"]
         if row["engine"] in ("usearch", "hnsw_rs"):
             assert any("seed" in n.lower() for n in row.get("notes", [])), row.get("notes")
     print(f"ok: {len(results)} engines role=smoke metric=cosine")

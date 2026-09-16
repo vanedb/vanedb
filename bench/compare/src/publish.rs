@@ -125,6 +125,7 @@ pub fn shared_runner_env() -> bool {
         || truthy("BUILDKITE")
         || std::env::var("CURSOR_AGENT").is_ok()
         || std::env::var("CODESPACES").is_ok()
+        || truthy("TF_BUILD")
 }
 
 /// Maintainer attestation that this host is idle dedicated hardware.
@@ -178,7 +179,7 @@ pub fn refuse_incomplete_engine_set(
     let got: Vec<&str> = engines.iter().map(|e| e.as_ref()).collect();
     let mut missing = Vec::new();
     for name in required {
-        if !got.iter().any(|g| *g == *name) {
+        if !got.contains(name) {
             missing.push(*name);
         }
     }
@@ -241,9 +242,9 @@ where
     I: IntoIterator<Item = (&'a str, Option<bool>)>,
 {
     for (name, delete_ok) in engines {
-        if delete_required_engines().contains(&name) && delete_ok.is_none() {
+        if delete_required_engines().contains(&name) && delete_ok != Some(true) {
             return Err(format!(
-                "refusing --markdown: engine {name} supports delete but delete_ok is missing"
+                "refusing --markdown: engine {name} must report delete_ok=true (got {delete_ok:?})"
             ));
         }
     }
@@ -344,6 +345,8 @@ mod tests {
         let err =
             refuse_incomplete_delete_rows([("vanedb", None), ("usearch", Some(true))]).unwrap_err();
         assert!(err.contains("delete_ok"), "{err}");
+        let err = refuse_incomplete_delete_rows([("vanedb", Some(false))]).unwrap_err();
+        assert!(err.contains("delete_ok=true"), "{err}");
     }
 
     #[test]
