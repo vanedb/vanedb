@@ -172,11 +172,53 @@ jobs:
       - name: Markdown cloud FS markers + dim + repo SUMS pin (unit)
         # Cursor cloud can `env -u CURSOR_AGENT`; FS markers must still refuse.
         # Beside-file SUMS / non-768 fixtures must not authorize --markdown.
+        # libtest filters are literal substrings — never use `|` OR here.
         run: |
           cargo test --manifest-path bench/compare/Cargo.toml --locked \
-            'shared_runner_fs_markers_survive_cleared_env|non_publish_dim_refused|unpinned_repo_sha_refused' \
-            -- --nocapture
+            shared_runner_fs_markers_survive_cleared_env -- --nocapture
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            non_publish_dim_refused -- --nocapture
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            unpinned_repo_sha_refused -- --nocapture
           echo "ok: cloud FS / dim / repo-pin gates covered by unit tests"
+      - name: Render refuses queries_measured shrink
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys, tempfile
+          from pathlib import Path
+          report = {
+              "report_kind": "vanedb-compare-v1",
+              "fixture_role": "publish",
+              "hardware_label": "linux-avx2",
+              "host_os": "linux",
+              "host_arch": "x86_64",
+              "host_has_avx2": True,
+              "host_android": False,
+              "metric": "l2",
+              "fixture_n_docs": 100_000,
+              "fixture_n_queries": 1000,
+              "queries_measured": 4,
+              "fixture_dim": 768,
+              "recorded_at_utc": "2026-01-01T00:00:00Z",
+              "shared_runner": False,
+              "dedicated_attested": True,
+              "k": 10,
+              "params": {"m": 16, "ef_construction": 200, "seed": 42},
+              "fixture_sha256": "0" * 64,
+              "results": [],
+          }
+          path = Path(tempfile.mkstemp(suffix=".json")[1])
+          path.write_text(json.dumps(report))
+          p = subprocess.run(
+              ["python3", "bench/compare/scripts/render_comparison_md.py", str(path)],
+              capture_output=True,
+              text=True,
+          )
+          path.unlink(missing_ok=True)
+          assert p.returncode != 0, p.stdout + p.stderr
+          assert "queries_measured" in p.stderr, p.stderr
+          print("ok: render refused queries_measured shrink")
+          PY
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
           set +e

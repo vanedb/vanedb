@@ -173,7 +173,11 @@ def main() -> int:
     if not report.get("recorded_at_utc"):
         print("refusing to render without recorded_at_utc", file=sys.stderr)
         return 1
-    rounds = max((r.get("rounds") or 0) for r in report.get("results", []))
+    results = report.get("results") or []
+    if not results:
+        print("refusing to render empty results", file=sys.stderr)
+        return 1
+    rounds = max((r.get("rounds") or 0) for r in results)
     if rounds < 2:
         print("refusing to render rounds < 2", file=sys.stderr)
         return 1
