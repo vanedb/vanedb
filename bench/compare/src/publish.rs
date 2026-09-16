@@ -118,14 +118,16 @@ pub fn shared_runner_env() -> bool {
             "1" | "true" | "yes"
         )
     };
+    // Presence flags: empty string must not count (CI YAML `VAR: ""` still sets the key).
+    let present = |k: &str| std::env::var(k).map(|v| !v.is_empty()).unwrap_or(false);
     truthy("CI")
         || truthy("GITHUB_ACTIONS")
         || truthy("GITLAB_CI")
         || truthy("CIRCLECI")
         || truthy("BUILDKITE")
-        || std::env::var("CURSOR_AGENT").is_ok()
-        || std::env::var("CODESPACES").is_ok()
         || truthy("TF_BUILD")
+        || present("CURSOR_AGENT")
+        || present("CODESPACES")
 }
 
 /// Maintainer attestation that this host is idle dedicated hardware.
@@ -356,16 +358,6 @@ mod tests {
         refuse_bad_hw_label("linux-avx2").unwrap();
         refuse_bad_hw_label("apple-m4-pro").unwrap();
         refuse_bad_hw_label("android-arm64-emulator").unwrap();
-    }
-
-    #[test]
-    fn shared_runner_truthy_forms() {
-        // Pure helper coverage via refuse_ci when env is set is flaky in parallel
-        // tests; assert the documented contract strings instead.
-        assert!(matches!(
-            "1".to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes"
-        ));
     }
 
     fn canonical() -> CanonicalParamsGate {

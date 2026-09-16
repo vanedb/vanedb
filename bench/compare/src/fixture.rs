@@ -60,12 +60,12 @@ fn meta_forbids_publish(meta: &FixtureMeta) -> bool {
     let corpus = meta.corpus.to_ascii_lowercase();
     let model = meta.model.to_ascii_lowercase();
     notes.contains("not for published")
-        || notes.contains("pending generation")
+        || notes.contains("pending")
         || corpus == "synthetic"
         || corpus.contains("synthetic")
         || model.contains("smoke")
         || model.contains("deterministic smoke")
-        || model.contains("pending generation")
+        || model.contains("pending")
 }
 
 /// Classify by content (size + metadata), not filename.

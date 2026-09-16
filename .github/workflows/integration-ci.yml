@@ -104,6 +104,8 @@ jobs:
       - name: Smoke-run every engine on the smoke fixture
         # Correctness only: shared-runner timings are discarded by policy
         # (bench/COMPARISON.md). max-queries keeps the job short.
+        # Default --ef sweep (16,32,50,100) so sqlite-vec / instant-distance
+        # single-row collapse is non-vacuous vs HNSW peers.
         run: |
           cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
             --fixture bench/compare/fixtures/smoke.vnef \
@@ -111,11 +113,30 @@ jobs:
             --force-sqlite-vec-cosine \
             --rounds 1 \
             --max-queries 4 \
-            --ef 50 \
             --skip-save \
             --json-out "${{ runner.temp }}/compare-smoke.json"
           python3 bench/compare/scripts/assert_smoke_report.py \
             "${{ runner.temp }}/compare-smoke.json"
+      - name: Smoke L2 includes native sqlite-vec
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke \
+            --metric l2 \
+            --rounds 1 \
+            --max-queries 2 \
+            --ef 50 \
+            --skip-save \
+            --json-out "${{ runner.temp }}/compare-smoke-l2.json"
+          python3 - <<'PY'
+          import json
+          r=json.load(open("${{ runner.temp }}/compare-smoke-l2.json"))
+          assert r["metric"]=="l2", r["metric"]
+          engines={row["engine"] for row in r["results"]}
+          assert "sqlite-vec" in engines, engines
+          assert len(engines)==6, engines
+          print("ok: l2 smoke engines", sorted(engines))
+          PY
       - name: Cosine default omits sqlite-vec
         run: |
           cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
@@ -138,6 +159,7 @@ jobs:
       - name: Markdown refuses smoke role (CI markers cleared)
         # Clear shared-runner markers so the role gate is observable (otherwise
         # dedicated/CI refuse mask fixture_role=smoke on Actions).
+        # Empty string must not count as present for CURSOR_AGENT/CODESPACES.
         env:
           CI: ""
           GITHUB_ACTIONS: ""

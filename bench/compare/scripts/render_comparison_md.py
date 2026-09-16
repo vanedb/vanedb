@@ -192,9 +192,10 @@ def main() -> int:
     # Publish JSON must include delete/save evidence for engines that support them.
     for r in report["results"]:
         if r["engine"] in ("vanedb", "usearch", "hnswlib", "sqlite-vec"):
-            if r.get("delete_ok") is None:
+            if r.get("delete_ok") is not True:
                 print(
-                    f"refusing to render {r['engine']} without delete_ok",
+                    f"refusing to render {r['engine']} without delete_ok=true "
+                    f"(got {r.get('delete_ok')!r})",
                     file=sys.stderr,
                 )
                 return 1

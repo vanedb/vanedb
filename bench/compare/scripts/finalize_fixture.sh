@@ -3,9 +3,10 @@
 # bench/compare/fixtures/{metadata.json,SHA256SUMS} and optionally upload a
 # GitHub Release asset. Does NOT git-add embeddings.vnef (gitignored).
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# scripts/ -> compare/
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${1:-/tmp/vnef-full}"
-FIX="$ROOT/bench/compare/fixtures"
+FIX="$ROOT/fixtures"
 VNEF="$SRC/embeddings.vnef"
 META="$SRC/metadata.json"
 test -f "$VNEF" || { echo "missing $VNEF" >&2; exit 1; }
@@ -38,7 +39,7 @@ HASH="$( (cd "$FIX" && sha256sum embeddings.vnef) )"
 # Keep smoke line; replace or append embeddings line.
 TMP="$(mktemp)"
 if [[ -f "$FIX/SHA256SUMS" ]]; then
-  grep -vE '(^| )embeddings\.vnef$' "$FIX/SHA256SUMS" >"$TMP" || true
+  grep -vE '(^|[[:space:]\*])embeddings\.vnef$' "$FIX/SHA256SUMS" >"$TMP" || true
 else
   : >"$TMP"
 fi
