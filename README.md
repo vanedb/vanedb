@@ -64,6 +64,14 @@ all-or-nothing and releases the GIL while the index builds. The same batch
 API is exposed in the wasm bindings (`Float32Array`/`BigUint64Array`) and
 the C ABI (`vanedb_rs_*_add_batch`).
 
+## Demo
+
+[Vane Search](https://github.com/vanedb/obsidian-vane-search) is a local-first
+Obsidian plugin that indexes a vault with VaneDB's WASM build and searches by
+meaning. Pair it with Ollama + `nomic-embed-text` (or any OpenAI-compatible
+embeddings endpoint). Competitor benchmark methodology and results live in
+[`bench/COMPARISON.md`](bench/COMPARISON.md).
+
 ## API
 
 Three indexes. All answer the same question — which stored vectors are nearest
@@ -209,7 +217,7 @@ This does not guarantee identical future graph topology after insertions.
 | [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
 | [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
 | [`cpp/`](cpp) | Frozen C++ reference engine and local Python bindings |
-| [`bench/`](bench) | Reproducible cross-engine benchmark harness |
+| [`bench/`](bench) | Cross-engine (C++/Rust) harness and [`competitor comparison`](bench/COMPARISON.md) |
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
 The Rust engine in [`vanedb/`](vanedb) is the one that ships. The header-only

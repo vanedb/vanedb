@@ -1,0 +1,111 @@
+# Competitor comparison (RFC 0003 / #198)
+
+VaneDB against the in-process libraries a developer actually shortlists:
+USearch, hnswlib, instant-distance, hnsw_rs, and sqlite-vec. This is a
+**separate arm** from the C++-vs-Rust harness in [`../`](../); that harness
+stays conformance-adjacent. Numbers here are only meaningful on dedicated
+hardware with interleaved rounds — never from CI or a shared cloud runner
+([`AGENTS.md`](../../AGENTS.md) performance rules).
+
+## Caveats (read before the tables)
+
+These caveats are written **before** any published numbers, per the RFC and
+the existing `bench/README.md` discipline.
+
+1. **Dedicated hardware only.** Idle machine, plugged in, other work stopped.
+   Interleaved A-B-C-… rounds (`--rounds ≥ 2`). Report medians and inter-pass
+   spread. A single run is not a result. Local noise floor is ~3%; treat
+   deltas inside that floor as noise.
+2. **No CI / cloud timings.** Shared runners are noisy and contested. Do not
+   paste their output into the result tables below.
+3. **Real embeddings, fixed fixture.** Published rows use
+   `fixtures/embeddings.vnef` (100k × 768-d, 1k queries), checksummed in
+   `fixtures/SHA256SUMS`. The smoke fixture is for harness checks only and
+   must never appear in a published table.
+4. **Parameter fairness.** Shared `M=16`, `ef_construction=200`, seed `42`
+   where the engine exposes them. `instant-distance` hard-codes `M=32` —
+   recorded in the row notes. sqlite-vec is brute force (no ANN); it is the
+   "you already ship SQLite" baseline, not an HNSW peer.
+5. **Recall is against f64 exact search** on the same fixture and metric.
+   Graph luck still applies: one construction seed is one observation.
+6. **Delete-then-search** is checked only for engines with a public delete
+   API (VaneDB, USearch, hnswlib, sqlite-vec). Others report `n/a`.
+7. **File size** is whatever that engine's native save path writes. Engines
+   without a wired save path report `n/a`.
+8. **RSS** is the process resident-set delta during that engine's build in
+   this process. Later engines inherit allocator state; treat RSS as
+   indicative, not a lab-grade isolate.
+
+## Methodology
+
+| Item | Value |
+|---|---|
+| Fixture | `nomic-embed-text` family, 768-d, BeIR/nq passages (see `fixtures/metadata.json`) |
+| Metrics | cosine (native) and squared L2 (separate runs) |
+| k | 10 |
+| ef sweep | 16, 32, 50, 100 |
+| Rounds | interleaved, ≥2 on dedicated hardware |
+| Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 |
+
+One command (from `bench/compare/`):
+
+```bash
+cargo run --release --locked -- run \
+  --fixture fixtures/embeddings.vnef \
+  --rounds 4 \
+  --markdown \
+  --json-out runs/$(hostname)-$(date +%Y%m%d).json
+```
+
+Set `VANEDB_COMPARE_HW` to a short label (`apple-m4-pro`, `linux-avx2`,
+`android-arm64-emulator`, …) before the run. Paste the markdown section into
+the matching hardware heading below, and keep the JSON beside this file under
+`bench/compare/runs/` (gitignored except a README).
+
+Generate the full fixture once (not in CI):
+
+```bash
+python3 scripts/generate_fixture.py --backend fastembed --out-dir fixtures
+# host embeddings.vnef; commit metadata.json + SHA256SUMS only if the bytes are published
+```
+
+## Engine versions (pin these in the run JSON)
+
+| Engine | Access | Version pinned in harness |
+|---|---|---|
+| VaneDB | `vanedb` path dep | workspace crate version |
+| USearch | `usearch` crate | 2.21.0 |
+| hnswlib | vendored C++ + thin FFI | 0.8.0 |
+| instant-distance | crate | 0.6.1 (`M=32` fixed) |
+| hnsw_rs | crate | 0.3.4 |
+| sqlite-vec | vendored amalgamation via rusqlite | 0.1.6 |
+
+## Results
+
+### Apple Silicon (dedicated laptop)
+
+*Pending.* Record date, commit, `VANEDB_COMPARE_HW`, and paste the harness
+markdown section here after an interleaved run on the full fixture.
+
+### Linux x86-64 AVX2 (dedicated box)
+
+*Pending.* Same discipline as above. Do not use CI runners.
+
+### Android ARM64 (device or emulator)
+
+*Pending.* If the run used an emulator, say so in the hardware label. Physical
+device preferred when available; emulator results are still useful when labelled.
+
+## Smoke verification (not a result)
+
+The harness builds with `--locked` and runs every engine on
+`fixtures/smoke.vnef`. That path exists to catch API breakage. Its timings
+and recall are excluded from the tables above by policy.
+
+## Demo and launch
+
+- Demo application: [`obsidian-vane-search`](https://github.com/vanedb/obsidian-vane-search)
+  (separate repository). Linked from the top-level README.
+- Launch post draft: [`docs/launch/0003-competitor-benchmark.md`](../docs/launch/0003-competitor-benchmark.md)
+  — publish only after maintainer review and after the three hardware classes
+  above are filled.

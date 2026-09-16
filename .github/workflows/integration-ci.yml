@@ -21,12 +21,18 @@ jobs:
           toolchain: stable
       - name: Check benchmark formatting
         run: cargo fmt --manifest-path bench/Cargo.toml --all -- --check
+      - name: Check competitor-harness formatting
+        run: cargo fmt --manifest-path bench/compare/Cargo.toml --all -- --check
       - name: Check fixed legacy graph files
         run: shasum -a 256 -c conformance/legacy_graph/SHA256SUMS
       - name: Check portable graph files
         run: shasum -a 256 -c conformance/graph/SHA256SUMS
+      - name: Check competitor fixture checksums
+        run: shasum -a 256 -c bench/compare/fixtures/SHA256SUMS
       - name: Lint shared harness
         run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Lint competitor harness
+        run: cargo clippy --manifest-path bench/compare/Cargo.toml --all-targets --locked -- -D warnings
 
   harness:
     name: Build and test both C ABIs (${{ matrix.os }})
@@ -69,3 +75,32 @@ jobs:
             echo "the harness left files in the working tree"
             exit 1
           fi
+
+  compare-smoke:
+    name: Competitor harness smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - name: Test competitor harness
+        run: cargo test --manifest-path bench/compare/Cargo.toml --locked
+      - name: Smoke-run every engine on the smoke fixture
+        # Correctness only: shared-runner timings are discarded by policy
+        # (bench/COMPARISON.md). max-queries keeps the job short.
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --rounds 1 \
+            --max-queries 4 \
+            --ef 50 \
+            --skip-save \
+            --json-out "${{ runner.temp }}/compare-smoke.json"
+          python3 -c "import json,sys; r=json.load(open(sys.argv[1])); assert len(r['results'])==6, r" \
+            "${{ runner.temp }}/compare-smoke.json"
