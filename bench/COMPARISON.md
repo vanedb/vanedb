@@ -95,13 +95,15 @@ Host the resulting `embeddings.vnef` as a GitHub Release asset (too large for
 git), add its sha256 to `fixtures/SHA256SUMS`, then consumers fetch with:
 
 ```bash
-VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
+# After the compare-fixture-v1 (or successor) asset is published:
+VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/<tag>/embeddings.vnef \
   bash bench/compare/scripts/fetch_fixture.sh
 ```
 
-Maintainer closeout (fixture + three HW classes + demo): 
+Maintainer closeout (fixture + three HW classes + demo):
 [`docs/launch/0003-closeout-checklist.md`](../docs/launch/0003-closeout-checklist.md).
-Dedicated-machine helper: `bench/compare/scripts/record_publish_run.sh`.
+Dedicated-machine helper (Apple/Linux only):
+`bench/compare/scripts/record_publish_run.sh`. Android: [`ANDROID.md`](compare/ANDROID.md).
 
 
 

@@ -11,8 +11,8 @@ use vanedb_compare::fixture::{
 use vanedb_compare::publish::{
     refuse_bad_hw_label, refuse_ci_env_for_markdown, refuse_incomplete_delete_rows,
     refuse_incomplete_engine_set, refuse_incomplete_save_rows, refuse_markdown_flags,
-    refuse_noncanonical_params, refuse_unattested_dedicated_hw, CanonicalParamsGate,
-    MarkdownFlagGate,
+    refuse_non_publish_role, refuse_noncanonical_params, refuse_unattested_dedicated_hw,
+    CanonicalParamsGate, MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -255,16 +255,7 @@ fn real_main() -> Result<(), String> {
                 refuse_incomplete_engine_set(metric_kind.as_str(), &names)?;
                 refuse_unattested_dedicated_hw()?;
                 refuse_ci_env_for_markdown()?;
-                if role != FixtureRole::Publish {
-                    return Err(format!(
-                        "refusing --markdown for fixture_role={} (n_docs={}, n_queries={}). \
-                         Publish only checksummed embeddings.vnef with ≥{PUBLISH_MIN_DOCS} docs \
-                         and ≥{PUBLISH_MIN_QUERIES} queries",
-                        role.as_str(),
-                        fixture.n_docs(),
-                        fixture.n_queries()
-                    ));
-                }
+                refuse_non_publish_role(role, fixture.n_docs(), fixture.n_queries())?;
                 if !checksum_verified {
                     return Err(
                         "refusing --markdown unless the fixture hash is listed in SHA256SUMS"

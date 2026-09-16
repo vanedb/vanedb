@@ -215,6 +215,23 @@ pub fn refuse_incomplete_engine_set(
     Ok(())
 }
 
+pub fn refuse_non_publish_role(
+    role: crate::fixture::FixtureRole,
+    n_docs: usize,
+    n_queries: usize,
+) -> Result<(), String> {
+    use crate::fixture::{FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES};
+    if role != FixtureRole::Publish {
+        return Err(format!(
+            "refusing --markdown for fixture_role={} (n_docs={n_docs}, n_queries={n_queries}). \
+             Publish only checksummed embeddings.vnef with ≥{PUBLISH_MIN_DOCS} docs \
+             and ≥{PUBLISH_MIN_QUERIES} queries",
+            role.as_str(),
+        ));
+    }
+    Ok(())
+}
+
 /// Engines that must report a file size on the publish path.
 pub fn save_required_engines() -> &'static [&'static str] {
     &["vanedb", "usearch", "hnswlib", "sqlite-vec"]
@@ -358,6 +375,14 @@ mod tests {
         refuse_bad_hw_label("linux-avx2").unwrap();
         refuse_bad_hw_label("apple-m4-pro").unwrap();
         refuse_bad_hw_label("android-arm64-emulator").unwrap();
+    }
+
+    #[test]
+    fn refuse_non_publish_role_smoke() {
+        use crate::fixture::FixtureRole;
+        let err = refuse_non_publish_role(FixtureRole::Smoke, 256, 16).unwrap_err();
+        assert!(err.contains("fixture_role=smoke"), "{err}");
+        refuse_non_publish_role(FixtureRole::Publish, 100_000, 1_000).unwrap();
     }
 
     fn canonical() -> CanonicalParamsGate {

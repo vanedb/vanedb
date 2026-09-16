@@ -5,8 +5,14 @@ every box below has evidence.
 
 ## 1. Publish fixture (AC2)
 
+Full runbook: [`0003-fixture-hosting.md`](0003-fixture-hosting.md).
+
 ```bash
-# If /tmp/vnef-full already finished on an agent host:
+# Generate (once; needs ≥16 GiB RAM; streaming generator):
+python3 bench/compare/scripts/generate_fixture.py --backend fastembed \
+  --out-dir /tmp/vnef-full --text-batch 64 --max-chars 1500
+
+# Or reuse a finished agent tree under /tmp/vnef-full, then:
 bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
 UPLOAD_RELEASE=1 COMPARE_FIXTURE_TAG=compare-fixture-v1 \
   bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
@@ -15,7 +21,8 @@ git add bench/compare/fixtures/metadata.json bench/compare/fixtures/SHA256SUMS
 # do NOT add embeddings.vnef
 ```
 
-Update `bench/COMPARISON.md` / `fixtures/README.md` fetch URL to:
+After the release asset exists, set the fetch URL in `bench/COMPARISON.md` /
+`fixtures/README.md` to:
 
 `https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef`
 
@@ -28,19 +35,29 @@ VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/co
 
 ## 2. Dedicated hardware tables (AC3)
 
-On each of **Apple Silicon**, **Linux AVX2**, and **Android ARM64** (device
-preferred; emulator only if labelled), with the machine idle:
+### Apple Silicon / Linux AVX2 (host binary)
+
+Idle dedicated machine only:
 
 ```bash
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
-# apple-m4-pro / android-arm64-device likewise
+bash bench/compare/scripts/record_publish_run.sh apple-m4-pro cosine
+bash bench/compare/scripts/record_publish_run.sh apple-m4-pro l2
 ```
 
-Paste only the harness `--markdown` output (or
-`render_comparison_md.py` on that JSON) under the matching heading in
-`bench/COMPARISON.md`. Keep the JSON under `bench/compare/runs/` or attach it
-on the PR. **Never** paste cloud/CI timings.
+The helper refuses cloud/CI shells, refuses `apple-*` off Darwin, refuses
+`linux-avx2*` without an AVX2 CPU flag, and **refuses `android-*`** (see below).
+
+### Android ARM64
+
+Follow [`../bench/compare/ANDROID.md`](../bench/compare/ANDROID.md) (NDK/adb on
+device, or labelled emulator). Do **not** use `record_publish_run.sh` with an
+`android-*` label on a laptop/server — that would mislabel host timings.
+
+Paste only harness `--markdown` output (or `render_comparison_md.py` on that
+JSON) under the matching heading in `bench/COMPARISON.md`. Keep JSON under
+`bench/compare/runs/` or attach on the PR. **Never** paste cloud/CI timings.
 
 ## 3. Demo (AC5)
 

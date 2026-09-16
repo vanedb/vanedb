@@ -156,30 +156,13 @@ jobs:
           assert len(engines)==5, engines
           print("ok: cosine default engines", sorted(engines))
           PY
-      - name: Markdown refuses smoke role (CI markers cleared)
-        # Clear shared-runner markers so the role gate is observable (otherwise
-        # dedicated/CI refuse mask fixture_role=smoke on Actions).
-        # Empty string must not count as present for CURSOR_AGENT/CODESPACES.
-        env:
-          CI: ""
-          GITHUB_ACTIONS: ""
-          CURSOR_AGENT: ""
-          CODESPACES: ""
-          TF_BUILD: ""
-          VANEDB_COMPARE_DEDICATED: "1"
-          VANEDB_COMPARE_HW: "linux-avx2"
+      - name: Markdown smoke-role refuse (unit; GITHUB_ACTIONS is immutable on Actions)
+        # Actions forbids overwriting GITHUB_*; clearing CI markers in step env
+        # cannot reach the role gate on runners. Cover the message in unit tests.
         run: |
-          set +e
-          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
-            --fixture bench/compare/fixtures/smoke.vnef \
-            --allow-smoke --markdown --rounds 2 \
-            --json-out "${{ runner.temp }}/should-fail-smoke-role.json" 2>&1)
-          rc=$?
-          set -e
-          echo "$out"
-          test "$rc" -ne 0
-          echo "$out" | grep -q 'fixture_role=smoke'
-          echo "ok: markdown refused smoke role"
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            refuse_non_publish_role_smoke -- --nocapture
+          echo "ok: smoke-role refuse covered by unit test"
       - name: Markdown refuses force-sqlite-vec-cosine
         run: |
           set +e
