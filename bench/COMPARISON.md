@@ -64,9 +64,19 @@ Smoke fixtures require `--allow-smoke` and must never be pasted here.
 Generate the full fixture once (not in CI):
 
 ```bash
-python3 scripts/generate_fixture.py --backend fastembed --out-dir fixtures
-# host embeddings.vnef; commit metadata.json + SHA256SUMS only if the bytes are published
+python3 bench/compare/scripts/generate_fixture.py --backend fastembed --out-dir bench/compare/fixtures
+# host embeddings.vnef as a release asset; commit metadata.json + SHA256SUMS
 ```
+
+Host the resulting `embeddings.vnef` as a GitHub Release asset (too large for
+git), add its sha256 to `fixtures/SHA256SUMS`, then consumers fetch with:
+
+```bash
+VANEDB_COMPARE_FIXTURE_URL=https://…/embeddings.vnef \
+  bash bench/compare/scripts/fetch_fixture.sh
+```
+
+
 
 ## Engine versions (pin these in the run JSON)
 
