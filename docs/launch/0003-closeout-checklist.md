@@ -27,16 +27,19 @@ workers and must not paste timings from shared runners (`AGENTS.md`).
 
 ### Apple Silicon / Linux AVX2 (host binary)
 
-Idle dedicated machine only (after `git pull` of the tip with the fixture pin,
-rebuild `compare`):
+Idle dedicated machine only (after `git pull` of the tip with the fixture pin):
 
 ```bash
-VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef \
-  bash bench/compare/scripts/fetch_fixture.sh
+# One-shot for the current Apple Silicon or Linux AVX2 host:
+bash bench/compare/scripts/maintainer_fill_host_comparison.sh
+
+# Or per metric:
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
 bash bench/compare/scripts/record_publish_run.sh apple-m4-pro cosine
 bash bench/compare/scripts/record_publish_run.sh apple-m4-pro l2
+# Both metrics for one label:
+bash bench/compare/scripts/record_both_metrics.sh linux-avx2
 ```
 
 The helper refuses cloud/CI shells, refuses `apple-*` off Darwin arm64, refuses
