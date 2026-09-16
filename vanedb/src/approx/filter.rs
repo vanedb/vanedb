@@ -71,9 +71,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn filter_debug() {
+        let pred = |id: u64| id == 1;
+        let f_pred = Filter::Predicate(&pred);
+        assert_eq!(format!("{f_pred:?}"), "Predicate");
+
+        let allow_slice = [10, 20];
+        let f_allow = Filter::Allow(&allow_slice);
+        assert_eq!(format!("{f_allow:?}"), "Allow([10, 20])");
+
+        let deny_slice = [10, 20];
+        let f_deny = Filter::Deny(&deny_slice);
+        assert_eq!(format!("{f_deny:?}"), "Deny([10, 20])");
+    }
+
+    #[test]
     fn filter_accepts() {
         let pred = |id: u64| id % 2 == 0;
         let f_pred = Filter::Predicate(&pred);
+        assert!(f_pred.validate().is_ok());
         assert!(f_pred.accepts(2));
         assert!(!f_pred.accepts(3));
 

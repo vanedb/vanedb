@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 
 use ::vanedb::approx::{ApproxIndex, Filter, SearchParams};
 use ::vanedb::distance::Metric;
-use ::vanedb::flat::FlatIndex;
+use ::vanedb::flat::{FlatIndex, SearchResult};
 use ::vanedb::VaneError;
 use ::vanedb::{DiskIndex, DiskIndexBuilder};
 
@@ -240,6 +240,30 @@ fn extract_py_filter<'a>(
     Ok(PyFilterHolder::None)
 }
 
+fn run_search_with_filter(
+    py: Python<'_>,
+    py_filter: &PyFilterHolder<'_>,
+    base_params: SearchParams<'_>,
+    search_fn: impl Fn(&SearchParams<'_>) -> ::vanedb::Result<Vec<SearchResult>> + Send + Sync,
+) -> PyResult<Vec<(u64, f32)>> {
+    let results = match py_filter {
+        PyFilterHolder::None => py.detach(|| search_fn(&base_params)).map_err(to_pyerr)?,
+        PyFilterHolder::Allow(ids) => {
+            let params = base_params.clone().filter(Filter::Allow(ids));
+            py.detach(|| search_fn(&params)).map_err(to_pyerr)?
+        }
+        PyFilterHolder::Deny(ids) => {
+            let params = base_params.clone().filter(Filter::Deny(ids));
+            py.detach(|| search_fn(&params)).map_err(to_pyerr)?
+        }
+        PyFilterHolder::Predicate(pred) => {
+            let params = base_params.filter(Filter::Predicate(pred.as_ref()));
+            search_fn(&params).map_err(to_pyerr)?
+        }
+    };
+    Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+}
+
 fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
     if ids.len() != rows {
         return Err(PyValueError::new_err(format!(
@@ -385,26 +409,9 @@ impl PyStore {
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
-        let results = match py_filter {
-            PyFilterHolder::None => py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?,
-            PyFilterHolder::Allow(ref ids) => {
-                let params = SearchParams::new().filter(Filter::Allow(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Deny(ref ids) => {
-                let params = SearchParams::new().filter(Filter::Deny(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Predicate(ref pred) => {
-                let params = SearchParams::new().filter(Filter::Predicate(pred.as_ref()));
-                // When predicate is a Python callable, it will acquire GIL on each evaluation,
-                // so we don't detach here (or python callbacks will re-attach as needed).
-                self.inner.search_with(&q, k, &params).map_err(to_pyerr)?
-            }
-        };
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
@@ -543,26 +550,9 @@ impl PyIndex {
             base_params = base_params.max_ef_search(m);
         }
 
-        let results = match py_filter {
-            PyFilterHolder::None => py
-                .detach(|| self.inner.search_with(&q, k, &base_params))
-                .map_err(to_pyerr)?,
-            PyFilterHolder::Allow(ref ids) => {
-                let params = base_params.clone().filter(Filter::Allow(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Deny(ref ids) => {
-                let params = base_params.clone().filter(Filter::Deny(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Predicate(ref pred) => {
-                let params = base_params.filter(Filter::Predicate(pred.as_ref()));
-                self.inner.search_with(&q, k, &params).map_err(to_pyerr)?
-            }
-        };
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        run_search_with_filter(py, &py_filter, base_params, |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get_vector(
@@ -805,24 +795,9 @@ impl PyDiskStore {
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
-        let results = match py_filter {
-            PyFilterHolder::None => py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?,
-            PyFilterHolder::Allow(ref ids) => {
-                let params = SearchParams::new().filter(Filter::Allow(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Deny(ref ids) => {
-                let params = SearchParams::new().filter(Filter::Deny(ids));
-                py.detach(|| self.inner.search_with(&q, k, &params))
-                    .map_err(to_pyerr)?
-            }
-            PyFilterHolder::Predicate(ref pred) => {
-                let params = SearchParams::new().filter(Filter::Predicate(pred.as_ref()));
-                self.inner.search_with(&q, k, &params).map_err(to_pyerr)?
-            }
-        };
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {

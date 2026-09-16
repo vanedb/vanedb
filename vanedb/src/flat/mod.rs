@@ -285,6 +285,7 @@ impl FlatIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Filter;
 
     #[test]
     fn new_rejects_zero_dimension() {
@@ -545,5 +546,23 @@ mod tests {
         }
         let results = store.search(&[4.0, 4.0, 4.1], 1).unwrap();
         assert_eq!(results[0].id, 4);
+    }
+
+    #[test]
+    fn filtered_search_validation_and_behavior() {
+        let store = FlatIndex::new(2, Metric::L2).unwrap();
+        store.add(10, &[1.0, 0.0]).unwrap();
+        store.add(20, &[2.0, 0.0]).unwrap();
+        store.add(30, &[3.0, 0.0]).unwrap();
+
+        let allowed = [20];
+        let p = SearchParams::new().filter(Filter::Allow(&allowed));
+        let hits = store.search_with(&[0.0, 0.0], 5, &p).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, 20);
+
+        let bad_allow = [50, 10];
+        let bad_p = SearchParams::new().filter(Filter::Allow(&bad_allow));
+        assert!(store.search_with(&[0.0, 0.0], 5, &bad_p).is_err());
     }
 }

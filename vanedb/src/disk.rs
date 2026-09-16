@@ -542,6 +542,7 @@ impl DiskIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Filter;
 
     #[test]
     fn builder_add_and_size() {
@@ -656,6 +657,18 @@ mod tests {
         // SAFETY: this test does not modify the file while it is mapped.
         let store = unsafe { DiskIndex::open(&path) }.unwrap();
         assert!(store.search(&[1.0, 2.0], 1).is_err());
+
+        // Test filtered search and validation on DiskIndex
+        let allowed = [1];
+        let p = SearchParams::new().filter(Filter::Allow(&allowed));
+        let hits = store.search_with(&[1.0, 2.0, 3.0], 1, &p).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, 1);
+
+        let bad_allowed = [5, 1];
+        let bad_p = SearchParams::new().filter(Filter::Allow(&bad_allowed));
+        assert!(store.search_with(&[1.0, 2.0, 3.0], 1, &bad_p).is_err());
+
         let _ = std::fs::remove_file(&path);
     }
 }

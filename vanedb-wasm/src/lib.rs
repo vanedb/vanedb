@@ -84,6 +84,31 @@ struct ParsedFilter {
     predicate: Option<Function>,
 }
 
+fn filter_from_parsed<'a>(
+    parsed: Option<&'a ParsedFilter>,
+    pred_holder: &'a mut Option<Box<dyn Fn(u64) -> bool + Sync>>,
+) -> Option<Filter<'a>> {
+    if let Some(p) = parsed {
+        if let Some(ref allow) = p.allow {
+            return Some(Filter::Allow(allow.as_slice()));
+        } else if let Some(ref deny) = p.deny {
+            return Some(Filter::Deny(deny.as_slice()));
+        } else if let Some(ref func) = p.predicate {
+            let f_clone = func.clone();
+            *pred_holder = Some(Box::new(move |id: u64| {
+                let js_id = JsValue::from(BigInt::from(id));
+                let res = f_clone.call1(&JsValue::NULL, &js_id);
+                match res {
+                    Ok(v) => v.is_truthy(),
+                    Err(_) => false,
+                }
+            }));
+            return Some(Filter::Predicate(pred_holder.as_ref().unwrap().as_ref()));
+        }
+    }
+    None
+}
+
 fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsError> {
     if options.is_undefined() || options.is_null() {
         return Ok(None);
@@ -235,27 +260,8 @@ impl WasmStore {
             None => None,
         };
 
-        let pred_closure;
-        let mut filter = None;
-
-        if let Some(ref p) = parsed {
-            if let Some(ref allow) = p.allow {
-                filter = Some(Filter::Allow(allow.as_slice()));
-            } else if let Some(ref deny) = p.deny {
-                filter = Some(Filter::Deny(deny.as_slice()));
-            } else if let Some(ref func) = p.predicate {
-                let f_clone = func.clone();
-                pred_closure = Box::new(move |id: u64| {
-                    let js_id = JsValue::from(BigInt::from(id));
-                    let res = f_clone.call1(&JsValue::NULL, &js_id);
-                    match res {
-                        Ok(val) => val.is_truthy(),
-                        Err(_) => false,
-                    }
-                }) as Box<dyn Fn(u64) -> bool + Sync>;
-                filter = Some(Filter::Predicate(pred_closure.as_ref()));
-            }
-        }
+        let mut pred_closure = None;
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
 
         let mut params = SearchParams::new();
         if let Some(f) = filter {
@@ -407,8 +413,6 @@ impl WasmIndex {
     /// the way to spend that cost once. Measure recall and latency on your own
     /// data when choosing one.
     ///
-    /// `options` may be either a number (`ef_search`), or an options object containing
-    /// `{ efSearch?: number, maxEfSearch?: number, allow?: number[] | bigint[], deny?: number[] | bigint[], predicate?: (id: bigint) => boolean }`.
     /// Search for k nearest neighbors.
     ///
     /// `options` may be either a number (`ef_search`), or an options object containing
@@ -423,9 +427,6 @@ impl WasmIndex {
     ) -> Result<WasmSearchResults, JsError> {
         let k = count(k, "k")?;
         let mut params = SearchParams::new();
-
-        let pred_closure;
-        let mut filter = None;
 
         let parsed = match ef_search_or_options {
             Some(ref val) if val.is_object() => {
@@ -454,24 +455,8 @@ impl WasmIndex {
             None => None,
         };
 
-        if let Some(ref p) = parsed {
-            if let Some(ref allow) = p.allow {
-                filter = Some(Filter::Allow(allow.as_slice()));
-            } else if let Some(ref deny) = p.deny {
-                filter = Some(Filter::Deny(deny.as_slice()));
-            } else if let Some(ref func) = p.predicate {
-                let f_clone = func.clone();
-                pred_closure = Box::new(move |id: u64| {
-                    let js_id = JsValue::from(BigInt::from(id));
-                    let res = f_clone.call1(&JsValue::NULL, &js_id);
-                    match res {
-                        Ok(v) => v.is_truthy(),
-                        Err(_) => false,
-                    }
-                }) as Box<dyn Fn(u64) -> bool + Sync>;
-                filter = Some(Filter::Predicate(pred_closure.as_ref()));
-            }
-        }
+        let mut pred_closure = None;
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
 
         if let Some(f) = filter {
             params = params.filter(f);

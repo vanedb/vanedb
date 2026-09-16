@@ -710,33 +710,11 @@ impl ApproxIndex {
             .ef_search
             .unwrap_or_else(|| self.ef_search.load(Ordering::Relaxed))
             .max(k);
-
-        // If no filter is active, take the standard path with no widening loop
-        if params.filter.is_none() {
-            let (top, _visited) = Self::search_layer(
-                &inner.vectors,
-                self.dist_fn,
-                &inner.neighbors,
-                query,
-                curr,
-                base_ef,
-                0,
-                inner.count,
-                &inner.deleted,
-                None,
-                &inner.ext_ids,
-            );
-            let mut results: Vec<SearchResult> = top
-                .into_iter()
-                .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
-                .collect();
-            results.sort();
-            results.truncate(k);
-            return Ok(results);
-        }
-
-        // Filtered search: automatic beam widening up to max_ef_search
-        let max_ef = params.max_ef_search.unwrap_or(4 * base_ef).max(base_ef);
+        let max_ef = if params.filter.is_some() {
+            params.max_ef_search.unwrap_or(4 * base_ef).max(base_ef)
+        } else {
+            base_ef
+        };
         let mut current_ef = base_ef;
         let filter = params.filter;
 
@@ -755,8 +733,7 @@ impl ApproxIndex {
                 &inner.ext_ids,
             );
 
-            let accepted_count = top.len();
-            if accepted_count >= k || current_ef >= max_ef || visited_count >= max_ef {
+            if top.len() >= k || current_ef >= max_ef || visited_count >= max_ef {
                 let mut results: Vec<SearchResult> = top
                     .into_iter()
                     .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
@@ -765,19 +742,8 @@ impl ApproxIndex {
                 results.truncate(k);
                 return Ok(results);
             }
-
             // Beam widening: double beam up to max_ef_search
-            let next_ef = current_ef.saturating_mul(2).min(max_ef);
-            if next_ef <= current_ef {
-                let mut results: Vec<SearchResult> = top
-                    .into_iter()
-                    .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))
-                    .collect();
-                results.sort();
-                results.truncate(k);
-                return Ok(results);
-            }
-            current_ef = next_ef;
+            current_ef = (current_ef * 2).min(max_ef);
         }
     }
 
@@ -852,16 +818,14 @@ impl ApproxIndex {
                 //
                 // The `results.len() >= ef` conjunct is load-bearing when
                 // tombstones or filtered nodes are present: `results` holds accepted nodes only,
-                // while `candidates` still holds deleted or filtered ones, so a popped
+                // while `candidates` still holds deleted or unaccepted ones, so a popped
                 // candidate can be farther than the farthest result while
                 // the result set is nowhere near full. Breaking there abandons
-                // exactly the traversal kept for, and search
-                // silently returns a fraction of `k`.
+                // exactly the traversal kept for, and search silently returns a fraction of `k`.
                 //
                 // On the build path `deleted` is empty and `filter` is None, so every candidate is
                 // also a result; an unfull `results` therefore holds every
-                // visited node and `c_dist > f_dist` cannot hold. Construction
-                // is unchanged.
+                // visited node and `c_dist > f_dist` cannot hold. Construction is unchanged.
                 if results.len() >= ef {
                     if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
                         if compare_distances(c_dist, f_dist).is_gt() {
@@ -1324,5 +1288,38 @@ mod tests {
             .build()
             .unwrap();
         assert!(idx.search(&[1.0, 2.0], 5).is_err());
+    }
+
+    #[test]
+    fn filtered_search_with_beam_widening() {
+        let idx = ApproxIndex::builder(2, Metric::L2)
+            .capacity(200)
+            .seed(42)
+            .build()
+            .unwrap();
+        for i in 0..100u64 {
+            idx.add(i, &[i as f32, 0.0]).unwrap();
+        }
+        let allowed = [90, 91, 92, 93, 94];
+        let params = SearchParams::new()
+            .filter(Filter::Allow(&allowed))
+            .ef_search(5)
+            .max_ef_search(20);
+
+        let results = idx.search_with(&[0.0, 0.0], 10, &params).unwrap();
+        assert!(!results.is_empty());
+        for r in &results {
+            assert!(allowed.contains(&r.id));
+        }
+
+        // Test with empty index
+        let empty_idx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+        let empty_res = empty_idx.search_with(&[0.0, 0.0], 5, &params).unwrap();
+        assert!(empty_res.is_empty());
+
+        // Test invalid filter validation
+        let invalid_allow = [50, 10];
+        let bad_params = SearchParams::new().filter(Filter::Allow(&invalid_allow));
+        assert!(idx.search_with(&[0.0, 0.0], 5, &bad_params).is_err());
     }
 }

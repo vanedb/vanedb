@@ -26,11 +26,11 @@ pub type vanedb_rs_disk = DiskIndex;
 pub type vanedb_rs_filter_fn =
     Option<unsafe extern "C-unwind" fn(id: u64, user_data: *mut std::ffi::c_void) -> bool>;
 
-struct CFilterClosure<'a> {
-    func: Box<dyn Fn(u64) -> bool + Sync + 'a>,
+struct CFilterClosure {
+    func: Box<dyn Fn(u64) -> bool + Sync>,
 }
 
-impl<'a> CFilterClosure<'a> {
+impl CFilterClosure {
     fn new(
         cb: unsafe extern "C-unwind" fn(id: u64, user_data: *mut std::ffi::c_void) -> bool,
         user_data: *mut std::ffi::c_void,
@@ -50,7 +50,7 @@ impl<'a> CFilterClosure<'a> {
         }
     }
 
-    fn as_predicate(&'a self) -> &'a (dyn Fn(u64) -> bool + Sync) {
+    fn as_predicate(&self) -> &(dyn Fn(u64) -> bool + Sync) {
         self.func.as_ref()
     }
 }
@@ -503,7 +503,7 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
         let store = &*s;
         let query = slice::from_raw_parts(q, store.dimension());
 
-        let closure_holder;
+        let pred_closure;
         let c_filter = if !allow.is_null() && allow_len > 0 {
             Some(vanedb::approx::Filter::Allow(slice::from_raw_parts(
                 allow, allow_len,
@@ -513,9 +513,9 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
                 deny, deny_len,
             )))
         } else if let Some(cb) = filter {
-            closure_holder = Some(CFilterClosure::new(cb, user_data));
+            pred_closure = CFilterClosure::new(cb, user_data);
             Some(vanedb::approx::Filter::Predicate(
-                closure_holder.as_ref().unwrap().as_predicate(),
+                pred_closure.as_predicate(),
             ))
         } else {
             None
@@ -721,7 +721,7 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
         let idx = &*h;
         let query = slice::from_raw_parts(q, idx.dimension());
 
-        let closure_holder;
+        let pred_closure;
         let c_filter = if !allow.is_null() && allow_len > 0 {
             Some(vanedb::approx::Filter::Allow(slice::from_raw_parts(
                 allow, allow_len,
@@ -731,9 +731,9 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
                 deny, deny_len,
             )))
         } else if let Some(cb) = filter {
-            closure_holder = Some(CFilterClosure::new(cb, user_data));
+            pred_closure = CFilterClosure::new(cb, user_data);
             Some(vanedb::approx::Filter::Predicate(
-                closure_holder.as_ref().unwrap().as_predicate(),
+                pred_closure.as_predicate(),
             ))
         } else {
             None
@@ -955,7 +955,7 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
         let store = &*m;
         let query = slice::from_raw_parts(q, store.dimension());
 
-        let closure_holder;
+        let pred_closure;
         let c_filter = if !allow.is_null() && allow_len > 0 {
             Some(vanedb::approx::Filter::Allow(slice::from_raw_parts(
                 allow, allow_len,
@@ -965,9 +965,9 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
                 deny, deny_len,
             )))
         } else if let Some(cb) = filter {
-            closure_holder = Some(CFilterClosure::new(cb, user_data));
+            pred_closure = CFilterClosure::new(cb, user_data);
             Some(vanedb::approx::Filter::Predicate(
-                closure_holder.as_ref().unwrap().as_predicate(),
+                pred_closure.as_predicate(),
             ))
         } else {
             None
