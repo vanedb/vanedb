@@ -5,7 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 
-if [[ -e /opt/cursor || -e /exec-daemon || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
+if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache \
+   || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
    || "${CI:-}" == "true" || "${CI:-}" == "1" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
   echo "refusing: this is a CI/cloud shell — run on idle dedicated hardware" >&2
   exit 1

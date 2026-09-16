@@ -84,8 +84,8 @@ if [[ "${CI:-}" == "true" || "${CI:-}" == "1" \
    || "${GITHUB_ACTIONS:-}" == "true" || "${GITHUB_ACTIONS:-}" == "1" \
    || "${GITLAB_CI:-}" == "true" || "${CIRCLECI:-}" == "true" \
    || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
-   || -e /opt/cursor || -e /exec-daemon ]]; then
-  echo "refusing record_publish_run.sh under CI/cloud env (or Cursor cloud FS markers)" >&2
+   || -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
+  echo "refusing record_publish_run.sh under CI/cloud env (or Cursor/GHA FS markers)" >&2
   exit 1
 fi
 # Reject caller overrides that could bypass the preflight fixture/pin.

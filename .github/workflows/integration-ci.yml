@@ -273,17 +273,17 @@ jobs:
           )
           PUBLISH_EF = (16, 32, 50, 100)
 
-          def eng(name, *, delete=True, efs=PUBLISH_EF):
+          def eng(name, metric, *, efs=PUBLISH_EF):
               row = {
                   "engine": name,
                   "version": "0.0.0-test",
-                  "metric": "cosine",
+                  "metric": metric,
                   "rounds": 4,
                   "build_secs_median": 1.0,
                   "build_secs_spread": 0.01,
                   "peak_rss_bytes": 1024,
-                  "file_size_bytes": 2048 if delete else None,
-                  "delete_ok": True if delete else None,
+                  "file_size_bytes": 2048,
+                  "delete_ok": True,
                   "latency_ns_by_ef": [
                       {"ef": ef, "median_ns": 1000.0, "spread": 0.01} for ef in efs
                   ],
@@ -305,48 +305,51 @@ jobs:
                   row["recall_at_k_by_ef"] = [{"ef": 0, "recall_median": 0.9}]
               return row
 
-          report = {
-              "report_kind": "vanedb-compare-v1",
-              "fixture_role": "publish",
-              "hardware_label": "linux-avx2",
-              "hostname": "ci-synthetic",
-              "commit": "deadbeef",
-              "host_os": "linux",
-              "host_arch": "x86_64",
-              "host_has_avx2": True,
-              "host_android": False,
-              "metric": "cosine",
-              "fixture_n_docs": 100_000,
-              "fixture_n_queries": 1000,
-              "queries_measured": 1000,
-              "fixture_dim": 768,
-              "fixture_sha256": sha,
-              "recorded_at_utc": "2026-01-01T00:00:00Z",
-              "shared_runner": False,
-              "dedicated_attested": True,
-              "k": 10,
-              "params": {"m": 16, "ef_construction": 200, "seed": 42},
-              "results": [
-                  eng("vanedb"),
-                  eng("usearch"),
-                  eng("hnswlib"),
-                  eng("instant-distance"),
-                  eng("hnsw_rs"),
-              ],
-          }
+          def report(metric):
+              engines = ["vanedb", "usearch", "hnswlib", "instant-distance", "hnsw_rs"]
+              if metric == "l2":
+                  engines = engines + ["sqlite-vec"]
+              return {
+                  "report_kind": "vanedb-compare-v1",
+                  "fixture_role": "publish",
+                  "hardware_label": "linux-avx2",
+                  "hostname": "ci-synthetic",
+                  "commit": "deadbeef",
+                  "host_os": "linux",
+                  "host_arch": "x86_64",
+                  "host_has_avx2": True,
+                  "host_android": False,
+                  "metric": metric,
+                  "fixture_n_docs": 100_000,
+                  "fixture_n_queries": 1000,
+                  "queries_measured": 1000,
+                  "fixture_dim": 768,
+                  "fixture_sha256": sha,
+                  "recorded_at_utc": "2026-01-01T00:00:00Z",
+                  "shared_runner": False,
+                  "dedicated_attested": True,
+                  "k": 10,
+                  "params": {"m": 16, "ef_construction": 200, "seed": 42},
+                  "results": [eng(e, metric) for e in engines],
+              }
+
           td = Path(tempfile.mkdtemp())
           try:
-              jpath = td / "linux-avx2-cosine.json"
-              jpath.write_text(json.dumps(report))
+              cos = td / "linux-avx2-cosine.json"
+              l2 = td / "linux-avx2-l2.json"
+              cos.write_text(json.dumps(report("cosine")))
+              l2.write_text(json.dumps(report("l2")))
               cmp = td / "COMPARISON.md"
               shutil.copy("bench/COMPARISON.md", cmp)
               before = cmp.read_text()
               assert before.count("*Pending.*") == 6
+              # Cosine then L2 — must not abort on nested ### machine titles.
               p = subprocess.run(
                   [
                       "python3",
                       "bench/compare/scripts/fill_comparison_slot.py",
-                      str(jpath),
+                      str(cos),
+                      str(l2),
                       "--comparison",
                       str(cmp),
                   ],
@@ -355,16 +358,15 @@ jobs:
               )
               assert p.returncode == 0, p.stdout + p.stderr
               after = cmp.read_text()
-              assert after.count("*Pending.*") == 5, after.count("*Pending.*")
+              assert after.count("*Pending.*") == 4, after.count("*Pending.*")
               slot = after.split("### Linux x86-64 AVX2 (dedicated box)")[1].split(
                   "### Android"
               )[0]
-              cos = slot.split("#### Cosine")[1].split("#### Squared L2")[0]
-              assert "*Pending.*" not in cos and "vanedb" in cos and "usearch" in cos
-              assert "ci-synthetic" in cos
-              # Repo COMPARISON.md must remain untouched.
+              assert "*Pending.*" not in slot
+              assert "metric `cosine`" in slot and "metric `l2`" in slot
+              assert "sqlite-vec" in slot.split("#### Squared L2")[1]
               assert Path("bench/COMPARISON.md").read_text() == before
-              print("ok: fill_comparison_slot e2e via render gates")
+              print("ok: fill_comparison_slot e2e cosine+l2 via render gates")
           finally:
               shutil.rmtree(td, ignore_errors=True)
           PY

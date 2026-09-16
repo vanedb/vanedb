@@ -28,6 +28,9 @@ HW_SECTION = (
     ("linux-avx2", "### Linux x86-64 AVX2 (dedicated box)"),
     ("android-arm64-", "### Android ARM64 (device or emulator)"),
 )
+# Only these ### headings close a HW section — rendered machine titles also use
+# ### and must NOT truncate the section when Cosine is filled before L2.
+HW_HEADINGS = tuple(heading for _, heading in HW_SECTION)
 
 METRIC_SUB = {
     "cosine": "#### Cosine",
@@ -45,6 +48,24 @@ def section_for(hw: str, metric: str) -> tuple[str, str]:
     raise SystemExit(
         f"hardware_label={hw!r} does not map to a COMPARISON.md Results section"
     )
+
+
+def _end_at_known_hw_or_h2(text: str) -> int:
+    """Index of next HW-class ### sibling or ## heading; else len(text).
+
+    Must not treat arbitrary `###` (rendered machine titles inside a slot) as
+    section boundaries — that broke Cosine-then-L2 fills.
+    """
+    end = len(text)
+    idx = text.find("\n## ")
+    if idx != -1:
+        end = min(end, idx)
+    for heading in HW_HEADINGS:
+        needle = "\n" + heading
+        idx = text.find(needle)
+        if idx != -1:
+            end = min(end, idx)
+    return end
 
 
 def render_body(report: dict) -> str:
@@ -71,24 +92,22 @@ def render_body(report: dict) -> str:
 def replace_slot(text: str, section: str, subsection: str, body: str, force: bool) -> str:
     if section not in text:
         raise SystemExit(f"COMPARISON.md missing section {section!r}")
+    if section not in HW_HEADINGS:
+        raise SystemExit(f"section {section!r} is not a known HW Results heading")
     sec_start = text.index(section)
-    # Next ### sibling or ## after this section.
     rest = text[sec_start + len(section) :]
-    next_sec = len(rest)
-    for marker in ("\n### ", "\n## "):
-        idx = rest.find(marker)
-        if idx != -1:
-            next_sec = min(next_sec, idx)
+    next_sec = _end_at_known_hw_or_h2(rest)
     sec_block = rest[:next_sec]
     if subsection not in sec_block:
         raise SystemExit(f"section {section!r} missing subsection {subsection!r}")
     sub_start = sec_block.index(subsection)
     after_sub = sec_block[sub_start + len(subsection) :]
+    # End this metric slot at the next #### metric heading, or HW/## boundary.
     next_sub = len(after_sub)
-    for marker in ("\n#### ", "\n### ", "\n## "):
-        idx = after_sub.find(marker)
-        if idx != -1:
-            next_sub = min(next_sub, idx)
+    idx = after_sub.find("\n#### ")
+    if idx != -1:
+        next_sub = min(next_sub, idx)
+    next_sub = min(next_sub, _end_at_known_hw_or_h2(after_sub))
     old_body = after_sub[:next_sub]
     stripped = old_body.strip()
     if stripped != "*Pending.*" and not force:
@@ -96,18 +115,11 @@ def replace_slot(text: str, section: str, subsection: str, body: str, force: boo
             f"refusing to overwrite non-Pending slot under {section} / {subsection} "
             f"(got {stripped[:60]!r}…); pass --force to replace"
         )
-    # Keep a blank line after the heading, then body, then preserve trailing
-    # newlines that separated the next heading.
     trailing_nl = ""
-    if old_body.endswith("\n"):
-        trailing_nl = "\n" if old_body.endswith("\n\n") else ""
-        # Prefer exactly one blank line before the next heading when present.
-        if next_sub < len(after_sub):
-            trailing_nl = "\n"
+    if next_sub < len(after_sub):
+        trailing_nl = "\n"
     new_sub_block = subsection + "\n\n" + body.rstrip() + "\n" + trailing_nl
-    new_sec_block = (
-        sec_block[:sub_start] + new_sub_block + after_sub[next_sub:]
-    )
+    new_sec_block = sec_block[:sub_start] + new_sub_block + after_sub[next_sub:]
     return text[:sec_start] + section + new_sec_block + rest[next_sec:]
 
 

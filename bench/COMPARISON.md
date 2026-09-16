@@ -98,7 +98,8 @@ Android), missing `VANEDB_COMPARE_DEDICATED=1`, `--rounds < 2`, non-canonical
 `M`/`ef_construction`/`ef`/`k`/`seed`, engine cherry-picks, shrunk
 `--max-queries`, `--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`,
 shared CI/cloud runner envs **and** Cursor cloud filesystem markers
-`/opt/cursor` and `/exec-daemon` (clearing `CURSOR_AGENT` is not enough), and
+`/opt/cursor` and `/exec-daemon` plus GitHub-hosted `/opt/hostedtoolcache`
+(clearing `CURSOR_AGENT` / `CI` / `GITHUB_ACTIONS` is not enough), and
 a missing `metadata.json`. Smoke fixtures require `--allow-smoke` and cannot
 produce publishable markdown (classification is by `n_docs`/`n_queries` +
 metadata, not filename). JSON recorded without `dedicated_attested=true` (or

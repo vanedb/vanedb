@@ -111,7 +111,8 @@ pub fn refuse_noncanonical_params(g: &CanonicalParamsGate) -> Result<(), String>
 ///
 /// Env vars alone are not enough: `env -u CURSOR_AGENT` on a Cursor cloud VM
 /// would otherwise emit `shared_runner=false` pasteable JSON. Filesystem
-/// markers (`/opt/cursor`, `/exec-daemon`) cannot be unset that way.
+/// markers (`/opt/cursor`, `/exec-daemon`, `/opt/hostedtoolcache`) cannot be
+/// unset that way.
 pub fn shared_runner_env() -> bool {
     shared_runner_signals(
         |k| std::env::var(k).ok(),
@@ -144,6 +145,8 @@ where
         // Immutable host markers for Cursor cloud agent VMs (survive `env -u`).
         || path_exists("/opt/cursor")
         || path_exists("/exec-daemon")
+        // GitHub-hosted runner image marker (survives unsetting CI/GITHUB_ACTIONS).
+        || path_exists("/opt/hostedtoolcache")
 }
 
 /// RFC publish fixture dimensionality (nomic-embed-text-v1.5).
@@ -654,6 +657,10 @@ mod tests {
         );
         assert!(shared_runner_signals(|_| None, |p| p == "/opt/cursor"));
         assert!(shared_runner_signals(|_| None, |p| p == "/exec-daemon"));
+        assert!(shared_runner_signals(
+            |_| None,
+            |p| p == "/opt/hostedtoolcache"
+        ));
         assert!(shared_runner_signals(
             |k| {
                 if k == "CURSOR_AGENT" {
