@@ -36,12 +36,12 @@ def main():
             if default not in page:
                 raise SystemExit(f"packaged.html no longer imports {default}")
             page = page.replace(default, wanted)
-        if args.entry.endswith("web/index.js"):
-            if "const REQUIRE_PERSISTENCE = false;" not in page:
+        if not args.entry.endswith("web/index.js"):
+            if "const REQUIRE_PERSISTENCE = true;" not in page:
                 raise SystemExit("packaged.html is missing REQUIRE_PERSISTENCE")
             page = page.replace(
-                "const REQUIRE_PERSISTENCE = false;",
                 "const REQUIRE_PERSISTENCE = true;",
+                "const REQUIRE_PERSISTENCE = false;",
                 1,
             )
         (Path(temporary) / "index.html").write_text(page)

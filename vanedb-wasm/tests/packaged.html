@@ -19,7 +19,7 @@ function rejectsNumber(operation) {
     throw new Error('invalid number was accepted');
 }
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
-const REQUIRE_PERSISTENCE = false;
+const REQUIRE_PERSISTENCE = true;
 async function main() {
     await init();
     if (REQUIRE_PERSISTENCE) {

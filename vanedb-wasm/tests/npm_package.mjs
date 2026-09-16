@@ -193,4 +193,33 @@ await assert.rejects(() => esm.ApproxIndex.load(''), /non-empty string/);
   assert.equal(await esm.ApproxIndex.load('mem', custom), null);
 }
 
+assert.equal(typeof cjs.ApproxIndex.load, 'function', 'CJS must expose ApproxIndex.load');
+assert.equal(typeof cjs.ApproxIndex.prototype.save, 'function', 'CJS must expose save');
+{
+  const cjsDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-cjs-'));
+  const cjsStore = cjs.fileStorage(cjsDir);
+  const idx = new cjs.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(9n, Float32Array.from([1, 0]));
+  await idx.save('cjs.vndb', cjsStore);
+  idx.free();
+  const loaded = await cjs.ApproxIndex.load('cjs.vndb', cjsStore);
+  try {
+    assert.equal(loaded.size(), 1);
+    assert.deepEqual([...loaded.get(9n)], [1, 0]);
+  } finally { loaded.free(); }
+}
+
+{
+  const idx = new esm.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(3n, Float32Array.from([0, 1]));
+  await idx.save('corpus');
+  idx.free();
+  const loaded = await esm.ApproxIndex.load('corpus');
+  try {
+    assert.equal(loaded.size(), 1, 'default fileStorage must persist without an explicit adapter');
+    assert.deepEqual([...loaded.get(3n)], [0, 1]);
+  } finally { loaded.free(); }
+  assert.equal(await esm.ApproxIndex.load('no-such-default'), null);
+}
+
 console.log('npm package: ESM and CommonJS consumers both OK');
