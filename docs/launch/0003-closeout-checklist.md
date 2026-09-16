@@ -86,9 +86,10 @@ Or (after this PR’s `cut-demo-0.2.0.yml` is on `main`) Actions → **Cut demo
 path.
 
 To let a **future** cloud agent cut AC5 itself: install the Cursor GitHub App
-on `vanedb/obsidian-vane-search` with `contents:write` (and/or add
-`github.com/vanedb/obsidian-vane-search` to the Cloud Agent environment
-`repositoryDependencies`), then re-run an agent on this tip.
+on `vanedb/obsidian-vane-search` with `contents:write`, merge
+[#215](https://github.com/vanedb/vanedb/pull/215) (adds
+`repositoryDependencies`), then re-run an agent on this tip and execute
+`bash docs/launch/maintainer_cut_demo_0.2.0.sh`.
 
 Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
 run the script / workflow (or apply patch + tag `0.2.0`), reply on #198 / #212
