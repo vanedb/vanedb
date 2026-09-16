@@ -16,9 +16,9 @@ Embedding backends (pick one):
   --backend ollama      requires a local Ollama with `ollama pull nomic-embed-text`
   --backend openai      OPENAI_API_KEY + any OpenAI-compatible /v1/embeddings host
 
-Memory: embeddings are accumulated as contiguous float32 (≈310 MiB for the
-default size), not nested Python float lists. Streaming write + hashlib avoids
-a second full copy of the file.
+Memory: streams BeIR/nq parquet in text batches and appends float32 rows to the
+VNEF file while hashing. Peak RSS stays near model + one batch (not 100k×768
+Python floats). Set VANEDB_FIXTURE_BATCH (default 512) if a host still OOMs.
 
 The VNEF writer is duplicated in Rust (`fixture.rs`); keep the header layout
 in lockstep.
@@ -41,51 +41,54 @@ MAGIC = b"VNEF"
 VERSION = 1
 
 
-def write_vnef(
-    path: Path,
-    dim: int,
-    vectors: np.ndarray,
-    queries: np.ndarray,
-    ids: np.ndarray | None = None,
-) -> str:
-    """Write VNEF v1; return lowercase hex sha256 of the file bytes."""
-    if vectors.dtype != np.float32 or queries.dtype != np.float32:
-        raise ValueError("vectors/queries must be float32")
-    if vectors.ndim != 2 or queries.ndim != 2:
-        raise ValueError("vectors/queries must be 2-D")
-    if vectors.shape[1] != dim or queries.shape[1] != dim:
-        raise ValueError(f"expected dim {dim}, got {vectors.shape[1]}/{queries.shape[1]}")
+class VnefWriter:
+    """Stream VNEF v1 to disk: header first, then docs, queries, ids."""
 
-    n_docs = int(vectors.shape[0])
-    n_queries = int(queries.shape[0])
-    if ids is None:
-        ids = np.arange(n_docs, dtype=np.uint64)
-    else:
-        ids = np.asarray(ids, dtype=np.uint64)
-        if ids.shape != (n_docs,):
-            raise ValueError("ids length must equal n_docs")
+    def __init__(self, path: Path, dim: int, n_docs: int, n_queries: int) -> None:
+        self.path = path
+        self.dim = dim
+        self.n_docs = n_docs
+        self.n_queries = n_queries
+        self.h = hashlib.sha256()
+        self._docs_written = 0
+        self._queries_written = 0
+        self._f = path.open("wb")
+        header = MAGIC + struct.pack("<IIIIII", VERSION, dim, n_docs, n_queries, 1, 0)
+        self._write(header)
 
-    h = hashlib.sha256()
-    header = MAGIC + struct.pack("<IIIIII", VERSION, dim, n_docs, n_queries, 1, 0)
-    with path.open("wb") as f:
-        f.write(header)
-        h.update(header)
-        # Contiguous C-order float32 / uint64 payloads.
-        for chunk in (vectors, queries):
-            blob = np.ascontiguousarray(chunk).tobytes()
-            f.write(blob)
-            h.update(blob)
-        id_blob = np.ascontiguousarray(ids).tobytes()
-        f.write(id_blob)
-        h.update(id_blob)
-    return h.hexdigest()
+    def _write(self, blob: bytes) -> None:
+        self._f.write(blob)
+        self.h.update(blob)
+
+    def write_vectors(self, mat: np.ndarray, *, kind: str) -> None:
+        if mat.dtype != np.float32 or mat.ndim != 2 or mat.shape[1] != self.dim:
+            raise ValueError(f"expected float32 (*, {self.dim}), got {mat.dtype} {mat.shape}")
+        blob = np.ascontiguousarray(mat).tobytes()
+        self._write(blob)
+        if kind == "docs":
+            self._docs_written += mat.shape[0]
+        elif kind == "queries":
+            self._queries_written += mat.shape[0]
+        else:
+            raise ValueError(kind)
+
+    def finish(self, ids: np.ndarray | None = None) -> str:
+        if self._docs_written != self.n_docs:
+            raise SystemExit(f"wrote {self._docs_written} docs, expected {self.n_docs}")
+        if self._queries_written != self.n_queries:
+            raise SystemExit(f"wrote {self._queries_written} queries, expected {self.n_queries}")
+        if ids is None:
+            ids = np.arange(self.n_docs, dtype=np.uint64)
+        else:
+            ids = np.asarray(ids, dtype=np.uint64)
+            if ids.shape != (self.n_docs,):
+                raise ValueError("ids length must equal n_docs")
+        self._write(np.ascontiguousarray(ids).tobytes())
+        self._f.close()
+        return self.h.hexdigest()
 
 
-def load_nq_texts(n_docs: int, n_queries: int) -> tuple[list[str], list[str], str]:
-    """Pull plain-text passages + queries from BeIR/nq parquet on Hugging Face.
-
-    Returns (docs, queries, corpus_revision_note).
-    """
+def open_nq_parquet():
     try:
         from huggingface_hub import hf_hub_download
         import pyarrow.parquet as pq
@@ -111,56 +114,73 @@ def load_nq_texts(n_docs: int, n_queries: int) -> tuple[list[str], list[str], st
             "Pin network access or populate HF_HUB_CACHE."
         ) from e
 
-    corpus = pq.read_table(corpus_path, columns=["title", "text"])
-    if corpus.num_rows < n_docs:
-        raise SystemExit(f"corpus only had {corpus.num_rows} passages; need {n_docs}")
-    titles = corpus.column("title").to_pylist()[:n_docs]
-    texts = corpus.column("text").to_pylist()[:n_docs]
-    docs = [f"{(t or '').strip()} {(x or '').strip()}".strip() for t, x in zip(titles, texts)]
-    docs = [d for d in docs if d]
-    if len(docs) < n_docs:
-        raise SystemExit(f"after filtering empty rows, only {len(docs)} docs; need {n_docs}")
-    docs = docs[:n_docs]
-
-    qtab = pq.read_table(queries_path, columns=["text"])
-    if qtab.num_rows < n_queries:
-        raise SystemExit(f"queries only had {qtab.num_rows}; need {n_queries}")
-    queries = [((q or "").strip()) for q in qtab.column("text").to_pylist()[:n_queries]]
-    queries = [q for q in queries if q]
-    if len(queries) < n_queries:
-        raise SystemExit(f"after filtering empty queries, only {len(queries)}; need {n_queries}")
-    queries = queries[:n_queries]
-
     note = (
         "BeIR/nq dataset parquet "
         "corpus/corpus-00000-of-00001.parquet + queries/queries-00000-of-00001.parquet"
     )
-    return docs, queries, note
+    return pq, corpus_path, queries_path, note
 
 
-def embed_fastembed(texts: list[str], model: str, dim: int) -> np.ndarray:
-    """Embed into a contiguous float32 matrix without nested Python floats."""
+def iter_nq_docs(pq, corpus_path: str, n_docs: int, batch: int):
+    """Yield non-empty doc strings until n_docs collected; stream parquet batches."""
+    pf = pq.ParquetFile(corpus_path)
+    collected = 0
+    buf: list[str] = []
+    for batch_table in pf.iter_batches(columns=["title", "text"], batch_size=max(batch * 2, 1024)):
+        titles = batch_table.column("title").to_pylist()
+        texts = batch_table.column("text").to_pylist()
+        for t, x in zip(titles, texts):
+            if collected >= n_docs:
+                break
+            doc = f"{(t or '').strip()} {(x or '').strip()}".strip()
+            if not doc:
+                continue
+            buf.append(doc)
+            collected += 1
+            if len(buf) >= batch:
+                yield buf
+                buf = []
+        if collected >= n_docs:
+            break
+    if buf:
+        yield buf
+    if collected < n_docs:
+        raise SystemExit(f"after filtering empty rows, only {collected} docs; need {n_docs}")
+
+
+def load_nq_queries(pq, queries_path: str, n_queries: int) -> list[str]:
+    qtab = pq.read_table(queries_path, columns=["text"])
+    if qtab.num_rows < n_queries:
+        raise SystemExit(f"queries only had {qtab.num_rows}; need {n_queries}")
+    queries = [((q or "").strip()) for q in qtab.column("text").to_pylist()[: n_queries * 2]]
+    queries = [q for q in queries if q][:n_queries]
+    if len(queries) < n_queries:
+        raise SystemExit(f"after filtering empty queries, only {len(queries)}; need {n_queries}")
+    return queries
+
+
+def make_fastembed(model: str):
     from fastembed import TextEmbedding
 
-    eng = TextEmbedding(model_name=model)
+    return TextEmbedding(model_name=model)
+
+
+def embed_batch_fastembed(eng, texts: list[str], dim: int) -> np.ndarray:
     out = np.empty((len(texts), dim), dtype=np.float32)
     i = 0
-    # batch_size=256 + parallel=0 (all cores) for offline bulk encoding; keep
-    # peak RSS in check via float32 accumulation rather than Python float lists.
-    for vec in eng.embed(texts, batch_size=256, parallel=0):
+    # Small ORT batches: BeIR passages are long; large batches OOM on 16 GiB hosts.
+    for vec in eng.embed(texts, batch_size=min(32, len(texts))):
         row = np.asarray(vec, dtype=np.float32)
         if row.shape != (dim,):
             raise SystemExit(f"fastembed returned dim {row.shape[0]}, expected {dim}")
         out[i] = row
         i += 1
-        if i % 5000 == 0 or i == len(texts):
-            print(f"  embedded {i}/{len(texts)}", flush=True)
     if i != len(texts):
         raise SystemExit(f"fastembed yielded {i} vectors, expected {len(texts)}")
     return out
 
 
-def embed_ollama(texts: list[str], model: str, base: str, dim: int) -> np.ndarray:
+def embed_batch_ollama(texts: list[str], model: str, base: str, dim: int) -> np.ndarray:
     import urllib.request
 
     out = np.empty((len(texts), dim), dtype=np.float32)
@@ -177,21 +197,19 @@ def embed_ollama(texts: list[str], model: str, base: str, dim: int) -> np.ndarra
         if row.shape != (dim,):
             raise SystemExit(f"ollama returned dim {row.shape[0]}, expected {dim}")
         out[i] = row
-        if (i + 1) % 5000 == 0 or i + 1 == len(texts):
-            print(f"  embedded {i + 1}/{len(texts)}", flush=True)
     return out
 
 
-def embed_openai(
+def embed_batch_openai(
     texts: list[str], model: str, base: str, api_key: str, dim: int
 ) -> np.ndarray:
     import urllib.request
 
     out = np.empty((len(texts), dim), dtype=np.float32)
-    batch = 64
     filled = 0
-    for i in range(0, len(texts), batch):
-        chunk = texts[i : i + batch]
+    step = 64
+    for i in range(0, len(texts), step):
+        chunk = texts[i : i + step]
         body = json.dumps({"model": model, "input": chunk}).encode()
         req = urllib.request.Request(
             f"{base.rstrip('/')}/v1/embeddings",
@@ -211,7 +229,6 @@ def embed_openai(
                 raise SystemExit(f"openai returned dim {row.shape[0]}, expected {dim}")
             out[filled] = row
             filled += 1
-        print(f"  embedded {filled}/{len(texts)}", flush=True)
     return out
 
 
@@ -222,7 +239,6 @@ def update_sha256sums(sums: Path, name: str, digest: str, preserve: Path | None 
             parts = line.split()
             if len(parts) >= 2:
                 existing[parts[1].lstrip("*")] = parts[0]
-    # Also merge smoke hash from the committed fixtures dir when regenerating elsewhere.
     if preserve is not None and preserve.exists():
         for line in preserve.read_text().splitlines():
             parts = line.split()
@@ -249,46 +265,79 @@ def main() -> None:
     ap.add_argument("--ollama-base", default="http://127.0.0.1:11434")
     ap.add_argument("--openai-base", default="https://api.openai.com")
     ap.add_argument("--dim", type=int, default=768)
+    ap.add_argument(
+        "--text-batch",
+        type=int,
+        default=int(os.environ.get("VANEDB_FIXTURE_BATCH", "512")),
+        help="How many passages to hold/embed at once (lower if OOM)",
+    )
     args = ap.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    print(f"loading corpus ({args.n_docs} docs, {args.n_queries} queries)…", flush=True)
-    docs, queries, corpus_note = load_nq_texts(args.n_docs, args.n_queries)
+    print(
+        f"streaming corpus ({args.n_docs} docs, {args.n_queries} queries, "
+        f"text_batch={args.text_batch})…",
+        flush=True,
+    )
+    pq, corpus_path, queries_path, corpus_note = open_nq_parquet()
+    queries = load_nq_queries(pq, queries_path, args.n_queries)
 
     t0 = time.time()
     print(f"embedding with {args.backend} / {args.model}…", flush=True)
+    out_path = args.out_dir / "embeddings.vnef"
+    writer = VnefWriter(out_path, args.dim, args.n_docs, args.n_queries)
+
     if args.backend == "fastembed":
-        model = args.model
-        print(f"  docs…", flush=True)
-        doc_vecs = embed_fastembed(docs, model, args.dim)
-        print(f"  queries…", flush=True)
-        query_vecs = embed_fastembed(queries, model, args.dim)
+        eng = make_fastembed(args.model)
+
+        def embed_docs(texts: list[str]) -> np.ndarray:
+            return embed_batch_fastembed(eng, texts, args.dim)
+
+        def embed_queries(texts: list[str]) -> np.ndarray:
+            return embed_batch_fastembed(eng, texts, args.dim)
     elif args.backend == "ollama":
         model = "nomic-embed-text" if "nomic" in args.model else args.model
-        print(f"  docs…", flush=True)
-        doc_vecs = embed_ollama(docs, model, args.ollama_base, args.dim)
-        print(f"  queries…", flush=True)
-        query_vecs = embed_ollama(queries, model, args.ollama_base, args.dim)
+
+        def embed_docs(texts: list[str]) -> np.ndarray:
+            return embed_batch_ollama(texts, model, args.ollama_base, args.dim)
+
+        def embed_queries(texts: list[str]) -> np.ndarray:
+            return embed_batch_ollama(texts, model, args.ollama_base, args.dim)
     else:
         key = os.environ.get("OPENAI_API_KEY", "")
         if not key:
             raise SystemExit("OPENAI_API_KEY required for --backend openai")
-        print(f"  docs…", flush=True)
-        doc_vecs = embed_openai(docs, args.model, args.openai_base, key, args.dim)
-        print(f"  queries…", flush=True)
-        query_vecs = embed_openai(queries, args.model, args.openai_base, key, args.dim)
+
+        def embed_docs(texts: list[str]) -> np.ndarray:
+            return embed_batch_openai(texts, args.model, args.openai_base, key, args.dim)
+
+        def embed_queries(texts: list[str]) -> np.ndarray:
+            return embed_batch_openai(texts, args.model, args.openai_base, key, args.dim)
+
+    done = 0
+    print("  docs…", flush=True)
+    for batch_texts in iter_nq_docs(pq, corpus_path, args.n_docs, args.text_batch):
+        mat = embed_docs(batch_texts)
+        writer.write_vectors(mat, kind="docs")
+        done += mat.shape[0]
+        rate = done / max(time.time() - t0, 1e-6)
+        print(f"  embedded docs {done}/{args.n_docs} ({rate:.1f} vec/s)", flush=True)
+
+    print("  queries…", flush=True)
+    # Queries are small; still batch for API backends.
+    q_batch = args.text_batch
+    for i in range(0, len(queries), q_batch):
+        chunk = queries[i : i + q_batch]
+        mat = embed_queries(chunk)
+        writer.write_vectors(mat, kind="queries")
+        print(f"  embedded queries {min(i + q_batch, len(queries))}/{args.n_queries}", flush=True)
+
+    sha = writer.finish()
     elapsed = time.time() - t0
-
-    dim = int(doc_vecs.shape[1])
-    if dim != args.dim:
-        print(f"warning: model dim {dim} != --dim {args.dim}; using {dim}", file=sys.stderr)
-
-    out_path = args.out_dir / "embeddings.vnef"
-    sha = write_vnef(out_path, dim, doc_vecs, query_vecs)
     meta = {
         "model": args.model,
         "corpus": corpus_note,
-        "dim": dim,
+        "dim": args.dim,
         "n_docs": args.n_docs,
         "n_queries": args.n_queries,
         "metric_native": "cosine",
