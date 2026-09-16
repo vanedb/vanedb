@@ -28,6 +28,7 @@ Push binary + fixture:
 adb push bench/compare/target/aarch64-linux-android/release/compare /data/local/tmp/
 adb push bench/compare/fixtures/embeddings.vnef /data/local/tmp/
 adb push bench/compare/fixtures/SHA256SUMS /data/local/tmp/
+adb push bench/compare/fixtures/metadata.json /data/local/tmp/
 adb shell 'cd /data/local/tmp && VANEDB_COMPARE_HW=android-arm64-device \
   ./compare run --fixture embeddings.vnef --rounds 4 --markdown \
   --json-out device-$(date +%Y%m%d).json'

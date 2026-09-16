@@ -69,24 +69,34 @@ fn meta_forbids_publish(meta: &FixtureMeta) -> bool {
 }
 
 /// Classify by content (size + metadata), not filename.
+/// Missing metadata can never be `Publish` — fail closed for pasteable output.
 pub fn classify_fixture(fixture: &Fixture) -> FixtureRole {
-    if let Some(meta) = fixture.meta.as_ref() {
-        if meta_forbids_publish(meta) {
-            return if fixture.n_docs() <= 1024 {
+    match fixture.meta.as_ref() {
+        None => {
+            if fixture.n_docs() <= 1024 {
                 FixtureRole::Smoke
             } else {
                 FixtureRole::Dev
-            };
+            }
         }
-    }
-    let n = fixture.n_docs();
-    let nq = fixture.n_queries();
-    if n >= PUBLISH_MIN_DOCS && nq >= PUBLISH_MIN_QUERIES {
-        FixtureRole::Publish
-    } else if n <= 1024 {
-        FixtureRole::Smoke
-    } else {
-        FixtureRole::Dev
+        Some(meta) if meta_forbids_publish(meta) => {
+            if fixture.n_docs() <= 1024 {
+                FixtureRole::Smoke
+            } else {
+                FixtureRole::Dev
+            }
+        }
+        Some(_) => {
+            let n = fixture.n_docs();
+            let nq = fixture.n_queries();
+            if n >= PUBLISH_MIN_DOCS && nq >= PUBLISH_MIN_QUERIES {
+                FixtureRole::Publish
+            } else if n <= 1024 {
+                FixtureRole::Smoke
+            } else {
+                FixtureRole::Dev
+            }
+        }
     }
 }
 
@@ -408,6 +418,18 @@ mod tests {
         write_smoke_fixture(&path, 2048, 8, 8).unwrap();
         let loaded = load_fixture(&path).unwrap();
         assert_eq!(classify_fixture(&loaded), FixtureRole::Dev);
+        assert!(classify_fixture(&loaded).requires_allow_smoke());
+    }
+
+    #[test]
+    fn missing_meta_never_publish() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("orphan.vnef");
+        write_smoke_fixture(&path, 2048, 8, 8).unwrap();
+        // No metadata.json beside the file.
+        let loaded = load_fixture(&path).unwrap();
+        assert!(loaded.meta.is_none());
+        assert_ne!(classify_fixture(&loaded), FixtureRole::Publish);
         assert!(classify_fixture(&loaded).requires_allow_smoke());
     }
 

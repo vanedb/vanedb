@@ -136,3 +136,13 @@ jobs:
             exit 1
           fi
           echo "ok: markdown refused smoke"
+      - name: Markdown refuses force-sqlite-vec-cosine
+        run: |
+          if VANEDB_COMPARE_HW=ci-test cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --force-sqlite-vec-cosine --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-force.json"; then
+            echo "expected markdown refusal for force-sqlite-vec-cosine" >&2
+            exit 1
+          fi
+          echo "ok: markdown refused force-sqlite-vec-cosine"

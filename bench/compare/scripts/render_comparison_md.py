@@ -60,10 +60,35 @@ def main() -> int:
     if report.get("fixture_n_queries", 0) < 1000:
         print("refusing to render fixture_n_queries < 1000", file=sys.stderr)
         return 1
+    if not report.get("recorded_at_utc"):
+        print("refusing to render without recorded_at_utc", file=sys.stderr)
+        return 1
     rounds = max((r.get("rounds") or 0) for r in report.get("results", []))
     if rounds < 2:
         print("refusing to render rounds < 2", file=sys.stderr)
         return 1
+    # Publish JSON must include delete/save evidence for engines that support them.
+    for r in report["results"]:
+        if r["engine"] in ("vanedb", "usearch", "hnswlib", "sqlite-vec"):
+            if r.get("delete_ok") is None:
+                print(
+                    f"refusing to render {r['engine']} without delete_ok",
+                    file=sys.stderr,
+                )
+                return 1
+        if r["engine"] in ("vanedb", "usearch", "hnswlib", "sqlite-vec", "instant-distance"):
+            # instant-distance has no save; others that support save must report size
+            if r["engine"] != "instant-distance" and r["engine"] != "hnsw_rs":
+                if r.get("file_size_bytes") is None and r["engine"] in (
+                    "vanedb",
+                    "usearch",
+                    "sqlite-vec",
+                ):
+                    print(
+                        f"refusing to render {r['engine']} without file_size_bytes",
+                        file=sys.stderr,
+                    )
+                    return 1
     if any(r.get("engine") == "sqlite-vec" and metric == "cosine" for r in report["results"]):
         print(
             "refusing to render cosine report that includes sqlite-vec",

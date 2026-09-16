@@ -261,6 +261,23 @@ fn real_main() -> Result<(), String> {
                          (harness-side cosine scan is not a COMPARISON.md row; use --metric l2)"
                         .into());
                 }
+                if skip_delete {
+                    return Err(
+                        "refusing --markdown with --skip-delete (publish rows must exercise delete)"
+                            .into(),
+                    );
+                }
+                if skip_save {
+                    return Err(
+                        "refusing --markdown with --skip-save (publish rows must record file size)"
+                            .into(),
+                    );
+                }
+                if fixture.meta.is_none() {
+                    return Err(
+                        "refusing --markdown without metadata.json beside the fixture".into(),
+                    );
+                }
             }
 
             let ef_sweep = parse_ef_list(&ef)?;

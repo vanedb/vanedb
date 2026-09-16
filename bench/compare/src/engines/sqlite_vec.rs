@@ -85,8 +85,12 @@ impl Engine for SqliteVecEngine {
     ) -> Result<BuildStats, String> {
         ensure_vec_extension();
         let path = std::env::temp_dir().join(format!(
-            "vanedb-compare-sqlite-vec-{}.db",
-            std::process::id()
+            "vanedb-compare-sqlite-vec-{}-{}.db",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
         ));
         let _ = std::fs::remove_file(&path);
 

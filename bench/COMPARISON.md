@@ -102,19 +102,42 @@ VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/<t
 
 ## Results
 
+Fill **two** subsections under each hardware class: one for `--metric cosine`
+(sqlite-vec omitted) and one for `--metric l2` (includes native sqlite-vec).
+Paste the harness `--markdown` output (or `render_comparison_md.py`) under the
+matching heading; do not mix metrics in one table.
+
 ### Apple Silicon (dedicated laptop)
 
-*Pending.* Record date, commit, `VANEDB_COMPARE_HW`, and paste the harness
-markdown section here after an interleaved run on the full fixture.
+#### Cosine
+
+*Pending.*
+
+#### Squared L2
+
+*Pending.*
 
 ### Linux x86-64 AVX2 (dedicated box)
 
-*Pending.* Same discipline as above. Do not use CI runners.
+#### Cosine
+
+*Pending.*
+
+#### Squared L2
+
+*Pending.*
 
 ### Android ARM64 (device or emulator)
 
-*Pending.* If the run used an emulator, say so in the hardware label. Physical
-device preferred when available; emulator results are still useful when labelled.
+Label device vs emulator in `VANEDB_COMPARE_HW`. Physical device preferred.
+
+#### Cosine
+
+*Pending.*
+
+#### Squared L2
+
+*Pending.*
 
 ## Smoke verification (not a result)
 

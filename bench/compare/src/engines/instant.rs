@@ -116,7 +116,7 @@ impl Engine for InstantDistanceEngine {
             ));
         }
         notes.push(
-            "per-query ef is ignored; ef-sweep latency/recall rows duplicate construction ef_search"
+            "per-query ef is ignored; harness emits a single latency/recall row at construction ef_search"
                 .into(),
         );
 
