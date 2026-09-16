@@ -100,29 +100,43 @@ def main() -> int:
     if not hw or hw == "unlabelled":
         print("refusing to render unlabelled hardware_label", file=sys.stderr)
         return 1
-    if not (
-        hw.startswith("apple-")
-        or hw.startswith("linux-avx2")
-        or hw.startswith("android-arm64-")
-    ):
+    host_os = report.get("host_os")
+    host_arch = report.get("host_arch")
+    host_has_avx2 = report.get("host_has_avx2")
+    host_android = report.get("host_android")
+    if None in (host_os, host_arch, host_has_avx2, host_android):
+        print(
+            "refusing to render without host_os/host_arch/host_has_avx2/host_android "
+            "(harness ≥ vanedb-compare-v1 with host facts)",
+            file=sys.stderr,
+        )
+        return 1
+    if hw.startswith("android-arm64-"):
+        if host_android is not True:
+            print("refusing to render android-* JSON with host_android!=true", file=sys.stderr)
+            return 1
+    elif hw.startswith("apple-"):
+        if host_os != "macos" or host_arch != "aarch64":
+            print(
+                f"refusing to render apple-* JSON from host_os={host_os!r} arch={host_arch!r}",
+                file=sys.stderr,
+            )
+            return 1
+    elif hw.startswith("linux-avx2"):
+        if host_os != "linux" or host_has_avx2 is not True:
+            print(
+                f"refusing to render linux-avx2* JSON from host_os={host_os!r} "
+                f"host_has_avx2={host_has_avx2!r}",
+                file=sys.stderr,
+            )
+            return 1
+    else:
         print(
             f"refusing to render hardware_label={hw!r}; "
             "need apple-*, linux-avx2*, or android-arm64-*",
             file=sys.stderr,
         )
         return 1
-    # Mirror Rust: android-* JSON must not be rendered from a non-Android paste
-    # unless the report was recorded on-device (we cannot see the host here —
-    # require dedicated_attested + shared_runner=false already; still warn in notes).
-    # Hostname heuristic only: refuse obvious laptop/desktop names with android label.
-    if hw.startswith("android-arm64-"):
-        host = (report.get("hostname") or "").lower()
-        if any(x in host for x in ("macbook", "imac", "ubuntu", "fedora", "debian", "windows")):
-            print(
-                f"refusing to render android-* report with hostname={host!r}",
-                file=sys.stderr,
-            )
-            return 1
     metric = report.get("metric")
     if metric not in ("cosine", "l2"):
         print(f"refusing to render missing/unknown metric={metric!r}", file=sys.stderr)

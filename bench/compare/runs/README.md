@@ -8,9 +8,16 @@ JSON reports from dedicated-hardware runs go here. Name them
 directory (or attach it on the issue/PR). Re-render only via
 `scripts/render_comparison_md.py`, which refuses forged params, incomplete
 engine sets, fixture hashes not listed in `fixtures/SHA256SUMS`, JSON with
-`shared_runner=true`, and JSON without `dedicated_attested=true`.
+`shared_runner=true`, JSON without `dedicated_attested=true`, and JSON whose
+`host_*` facts contradict the HW label.
 
-Record publish runs with:
+Record publish runs with the helper (preferred):
+
+```bash
+bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
+```
+
+Or the raw form (host binds are still enforced by `--markdown`):
 
 ```bash
 VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
@@ -20,3 +27,4 @@ VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
 ```
 
 Raw timings from CI or shared cloud runners must not be committed or pasted.
+Android: use [`../ANDROID.md`](../ANDROID.md), not this helper.

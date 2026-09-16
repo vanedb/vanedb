@@ -61,7 +61,14 @@ the existing `bench/README.md` discipline.
 | Rounds | interleaved, ≥2 on dedicated hardware |
 | Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 (L2) |
 
-One command (from the **repository root**):
+Preferred command (binds HW label to the host OS/arch/CPU):
+
+```bash
+bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
+bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
+```
+
+Equivalent raw form (same host binds are enforced inside `--markdown`):
 
 ```bash
 VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 cargo run --release --locked \
@@ -73,14 +80,17 @@ VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 cargo run --release --lo
 ```
 
 `--markdown` refuses smoke/dev fixtures, unsigned files, basename other than
-`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, missing `VANEDB_COMPARE_DEDICATED=1`,
+`embeddings.vnef`, unset `VANEDB_COMPARE_HW`, HW labels that do not match the
+current host (`apple-*` ⇒ Darwin aarch64, `linux-avx2*` ⇒ Linux+AVX2,
+`android-arm64-*` ⇒ on-device Android), missing `VANEDB_COMPARE_DEDICATED=1`,
 `--rounds < 2`, non-canonical `M`/`ef_construction`/`ef`/`k`/`seed`, engine
 cherry-picks, shrunk `--max-queries`, `--force-sqlite-vec-cosine`,
 `--skip-delete`, `--skip-save`, shared CI/cloud runner envs, and a missing
 `metadata.json`. Smoke fixtures require `--allow-smoke` and cannot produce
 publishable markdown (classification is by `n_docs`/`n_queries` + metadata,
 not filename). JSON recorded without `dedicated_attested=true` (or with
-`shared_runner=true`) is also refused by `render_comparison_md.py`.
+`shared_runner=true`), or with host facts that contradict the HW label, is
+also refused by `render_comparison_md.py`.
 
 
 Generate the full fixture once (not in CI):

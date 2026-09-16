@@ -271,31 +271,89 @@ where
 }
 
 /// Allowed `VANEDB_COMPARE_HW` prefixes for the three #198 hardware classes.
+/// Labels are bound to the *current* host (OS/arch/CPU), not honour-system strings.
 pub fn refuse_bad_hw_label(hw: &str) -> Result<(), String> {
+    refuse_hw_label_on_host(hw, &HostFacts::detect())
+}
+
+#[derive(Clone, Debug)]
+pub struct HostFacts {
+    pub os: String,
+    pub arch: String,
+    pub has_avx2: bool,
+    pub android: bool,
+}
+
+impl HostFacts {
+    pub fn detect() -> Self {
+        Self {
+            os: std::env::consts::OS.to_string(),
+            arch: std::env::consts::ARCH.to_string(),
+            has_avx2: linux_has_avx2(),
+            android: android_host(),
+        }
+    }
+}
+
+pub fn refuse_hw_label_on_host(hw: &str, host: &HostFacts) -> Result<(), String> {
     if hw.starts_with("android-arm64-") {
-        if !android_host() {
-            return Err(
-                "refusing --markdown with android-* off an Android host \
+        if !host.android {
+            return Err("refusing --markdown with android-* off an Android host \
                  (need /system/build.prop, or follow bench/compare/ANDROID.md on-device)"
+                .into());
+        }
+        return Ok(());
+    }
+    if hw.starts_with("apple-") {
+        if host.os != "macos" {
+            return Err(format!(
+                "refusing --markdown with apple-* on os={}; need Darwin Apple Silicon",
+                host.os
+            ));
+        }
+        if host.arch != "aarch64" {
+            return Err(format!(
+                "refusing --markdown with apple-* on arch={}; need Apple Silicon (aarch64)",
+                host.arch
+            ));
+        }
+        return Ok(());
+    }
+    if hw.starts_with("linux-avx2") {
+        if host.os != "linux" {
+            return Err(format!(
+                "refusing --markdown with linux-avx2* on os={}; need Linux AVX2",
+                host.os
+            ));
+        }
+        if !host.has_avx2 {
+            return Err(
+                "refusing --markdown with linux-avx2*: host CPU has no avx2 \
+                 (or /proc/cpuinfo unreadable)"
                     .into(),
             );
         }
         return Ok(());
     }
-    let ok = hw.starts_with("apple-") || hw.starts_with("linux-avx2");
-    if !ok {
-        return Err(format!(
-            "refusing --markdown with VANEDB_COMPARE_HW={hw:?}; \
-             use a label starting with apple-, linux-avx2, or android-arm64- \
-             (e.g. apple-m4-pro, linux-avx2, android-arm64-device)"
-        ));
-    }
-    Ok(())
+    Err(format!(
+        "refusing --markdown with VANEDB_COMPARE_HW={hw:?}; \
+         use a label starting with apple-, linux-avx2, or android-arm64- \
+         (e.g. apple-m4-pro, linux-avx2, android-arm64-device)"
+    ))
 }
 
 fn android_host() -> bool {
     std::path::Path::new("/system/build.prop").exists()
         || std::path::Path::new("/system/bin/app_process").exists()
+}
+
+fn linux_has_avx2() -> bool {
+    if std::env::consts::OS != "linux" {
+        return false;
+    }
+    std::fs::read_to_string("/proc/cpuinfo")
+        .map(|s| s.split_whitespace().any(|t| t == "avx2"))
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -383,13 +441,48 @@ mod tests {
 
     #[test]
     fn bad_hw_label_refused() {
-        let err = refuse_bad_hw_label("cloud-box").unwrap_err();
-        assert!(err.contains("apple-"), "{err}");
-        refuse_bad_hw_label("linux-avx2").unwrap();
-        refuse_bad_hw_label("apple-m4-pro").unwrap();
-        // android-* requires an Android host filesystem; this CI/dev Linux box must refuse.
-        let err = refuse_bad_hw_label("android-arm64-emulator").unwrap_err();
-        assert!(err.contains("android"), "{err}");
+        let linux_avx2 = HostFacts {
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            has_avx2: true,
+            android: false,
+        };
+        let apple = HostFacts {
+            os: "macos".into(),
+            arch: "aarch64".into(),
+            has_avx2: false,
+            android: false,
+        };
+        let android = HostFacts {
+            os: "linux".into(),
+            arch: "aarch64".into(),
+            has_avx2: false,
+            android: true,
+        };
+        refuse_hw_label_on_host("linux-avx2", &linux_avx2).unwrap();
+        refuse_hw_label_on_host("apple-m4-pro", &apple).unwrap();
+        refuse_hw_label_on_host("android-arm64-device", &android).unwrap();
+        assert!(refuse_hw_label_on_host("apple-m4-pro", &linux_avx2)
+            .unwrap_err()
+            .contains("apple"));
+        assert!(refuse_hw_label_on_host("linux-avx2", &apple)
+            .unwrap_err()
+            .contains("linux-avx2"));
+        assert!(
+            refuse_hw_label_on_host("android-arm64-emulator", &linux_avx2)
+                .unwrap_err()
+                .contains("android")
+        );
+        assert!(refuse_hw_label_on_host("cloud-box", &linux_avx2)
+            .unwrap_err()
+            .contains("apple-"));
+        // Live host: this Linux AVX2 agent must refuse apple-* / android-*.
+        let live = HostFacts::detect();
+        if live.os == "linux" && live.has_avx2 {
+            refuse_bad_hw_label("linux-avx2").unwrap();
+            assert!(refuse_bad_hw_label("apple-m4-pro").is_err());
+            assert!(refuse_bad_hw_label("android-arm64-device").is_err());
+        }
     }
 
     #[test]

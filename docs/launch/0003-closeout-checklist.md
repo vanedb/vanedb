@@ -46,8 +46,11 @@ bash bench/compare/scripts/record_publish_run.sh apple-m4-pro cosine
 bash bench/compare/scripts/record_publish_run.sh apple-m4-pro l2
 ```
 
-The helper refuses cloud/CI shells, refuses `apple-*` off Darwin, refuses
-`linux-avx2*` without an AVX2 CPU flag, and **refuses `android-*`** (see below).
+The helper refuses cloud/CI shells, refuses `apple-*` off Darwin arm64, refuses
+`linux-avx2*` without a readable AVX2 `cpuinfo`, and **refuses `android-*`**
+(see below). The harness `--markdown` path applies the same host binds
+(OS/arch/AVX2/Android filesystem), so skipping the helper does not reopen
+cross-class labels.
 
 ### Android ARM64
 
