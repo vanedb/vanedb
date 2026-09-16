@@ -81,7 +81,9 @@ Contents API). One-shot for a maintainer with write access:
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
 ```
 
-Or Actions → **Cut demo 0.2.0** after setting secret `DEMO_REPO_TOKEN`.
+Or (after this PR’s `cut-demo-0.2.0.yml` is on `main`) Actions → **Cut demo
+0.2.0** with secret `DEMO_REPO_TOKEN`. Before that, the local script is the
+path.
 
 Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
 run the script / workflow (or apply patch + tag `0.2.0`), reply on #198 / #212
