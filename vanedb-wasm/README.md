@@ -56,7 +56,9 @@ equals the file size. `FlatIndex` stays in-memory only.
 
 The JavaScript package then hangs `save(name)` / `load(name)` on `ApproxIndex`
 over a small `Storage` adapter. IndexedDB is the browser default; the
-filesystem is the Node default. `load` of an unknown name resolves to `null`.
+filesystem is the Node default. `name` is a single path segment (`corpus`,
+not `data/corpus`) so the same call works in both. `load` of an unknown
+name resolves to `null`.
 Without a bundler, import from `./node_modules/@vanedb/wasm/web/index.js`
 as in the sample above; with a bundler or in Node, the bare specifier works.
 
