@@ -40,3 +40,12 @@ The publish fixture is ~310 MiB and must not be committed. Maintainer steps:
 
 5. Commit only `metadata.json` + `SHA256SUMS` (and docs URL). Keep
    `embeddings.vnef` gitignored.
+
+Helper (after a completed generator run under `/tmp/vnef-full`):
+
+```bash
+bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
+UPLOAD_RELEASE=1 bash bench/compare/scripts/finalize_fixture.sh /tmp/vnef-full
+```
+
+The helper refuses incomplete VNEF bodies and `pending` metadata.
