@@ -122,6 +122,59 @@ fn hnsw() {
         assert_eq!(n2, 1);
         assert_eq!(ids2[0], 10);
         vanedb_capi::vanedb_rs_index_free(h2);
+
+        let h3 = vanedb_capi::vanedb_rs_index_new(2, 0, 100, 16, 200, 42);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(h3, 10, v0.as_ptr()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(h3, 20, v1.as_ptr()), 0);
+        let mut needed = 0usize;
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(h3, std::ptr::null_mut(), 0, &mut needed),
+            0
+        );
+        assert!(needed > 4);
+        let mut too_small = vec![0u8; 4];
+        let mut wrote = too_small.len();
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(
+                h3,
+                too_small.as_mut_ptr(),
+                too_small.len(),
+                &mut wrote
+            ),
+            1
+        );
+        assert_eq!(wrote, needed);
+        let mut buf = vec![0u8; needed];
+        let mut wrote = buf.len();
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(
+                h3,
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut wrote
+            ),
+            0
+        );
+        assert_eq!(wrote, needed);
+        assert_eq!(&buf[..4], b"VNDB");
+        vanedb_capi::vanedb_rs_index_free(h3);
+
+        let h4 = vanedb_capi::vanedb_rs_index_load_from_buffer(buf.as_ptr(), wrote);
+        assert!(!h4.is_null());
+        let mut ids4 = [0u64; 1];
+        let mut ds4 = [0.0f32; 1];
+        let n4 = vanedb_capi::vanedb_rs_index_search(
+            h4,
+            q.as_ptr(),
+            1,
+            50,
+            ids4.as_mut_ptr(),
+            ds4.as_mut_ptr(),
+        );
+        assert_eq!(n4, 1);
+        assert_eq!(ids4[0], 10);
+        vanedb_capi::vanedb_rs_index_free(h4);
+        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 0).is_null());
         // negative paths
         assert!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42).is_null());
         assert_eq!(

@@ -85,7 +85,7 @@ fn hnsw_file_bytes(version: u32, data: &HnswDataMirror) -> Vec<u8> {
 fn hnsw_load_accepts_v1_full_capacity_files() {
     let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
     let p = write_tmp("v1_compat", &bytes);
-    let idx = ApproxIndex::load(&p).unwrap();
+    let idx = load_graph(&p).unwrap();
     assert_eq!(idx.size(), 2);
     assert_eq!(idx.capacity(), 4);
     assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
@@ -103,7 +103,7 @@ fn hnsw_load_rejects_non_finite_stored_vectors() {
     data.vectors[0] = f32::NAN;
     let bytes = hnsw_file_bytes(1, &data);
     let p = write_tmp("non_finite_vector", &bytes);
-    let err = match ApproxIndex::load(&p) {
+    let err = match load_graph(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(error) => error,
     };
@@ -117,7 +117,7 @@ fn hnsw_load_rejects_v2_with_capacity_sized_arrays() {
     // exactly `count` entries per array.
     let bytes = hnsw_file_bytes(2, &v1_full_capacity_payload());
     let p = write_tmp("v2_full_arrays", &bytes);
-    let err = match ApproxIndex::load(&p) {
+    let err = match load_graph(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -170,6 +170,31 @@ fn valid_hnsw_bytes(tag: &str) -> Vec<u8> {
     bytes
 }
 
+/// Load through both the path and byte entry points. They must agree: the
+/// corruption suite exists to protect the decoder, and `from_bytes` is that
+/// decoder without a filesystem.
+fn load_graph(path: &std::path::Path) -> std::result::Result<ApproxIndex, VaneError> {
+    let from_path = ApproxIndex::load(path);
+    let bytes = match fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(_) => return from_path,
+    };
+    let from_bytes = ApproxIndex::from_bytes(&bytes);
+    match (from_path, from_bytes) {
+        (Ok(index), Ok(_)) => Ok(index),
+        (Err(path_err), Err(byte_err)) => {
+            assert_eq!(
+                path_err.to_string(),
+                byte_err.to_string(),
+                "load and from_bytes must reject the same way"
+            );
+            Err(path_err)
+        }
+        (Ok(_), Err(err)) => panic!("load succeeded, from_bytes failed: {err}"),
+        (Err(err), Ok(_)) => panic!("from_bytes succeeded, load failed: {err}"),
+    }
+}
+
 fn write_tmp(name: &str, bytes: &[u8]) -> std::path::PathBuf {
     // pid-scoped: a fixed name in the shared temp dir made two concurrent runs
     // of this binary clobber each other's fixtures — it failed 8 of 10 paired
@@ -189,7 +214,7 @@ fn hnsw_load_rejects_invalid_magic() {
     let mut bytes = valid_hnsw_bytes("bad_magic");
     bytes[0..4].copy_from_slice(&0xDEADBEEFu32.to_le_bytes());
     let p = write_tmp("bad_magic", &bytes);
-    let err = match ApproxIndex::load(&p) {
+    let err = match load_graph(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -205,7 +230,7 @@ fn hnsw_load_rejects_unsupported_version() {
     let mut bytes = valid_hnsw_bytes("bad_version");
     bytes[4..8].copy_from_slice(&999u32.to_le_bytes());
     let p = write_tmp("bad_version", &bytes);
-    let err = match ApproxIndex::load(&p) {
+    let err = match load_graph(&p) {
         Ok(_) => panic!("load should have failed"),
         Err(e) => e,
     };
@@ -219,10 +244,7 @@ fn hnsw_load_rejects_unsupported_version() {
 #[test]
 fn hnsw_load_rejects_truncated_header() {
     let p = write_tmp("trunc_header", b"HNS"); // 3 bytes — shorter than 8-byte header
-    assert!(matches!(
-        ApproxIndex::load(&p),
-        Err(VaneError::Corrupt { .. })
-    ));
+    assert!(matches!(load_graph(&p), Err(VaneError::Corrupt { .. })));
     let _ = fs::remove_file(&p);
 }
 
@@ -233,10 +255,7 @@ fn hnsw_load_rejects_garbage_payload() {
     bytes.extend_from_slice(&HNSW_VERSION.to_le_bytes());
     bytes.extend_from_slice(&[0xFF; 32]);
     let p = write_tmp("garbage_payload", &bytes);
-    assert!(matches!(
-        ApproxIndex::load(&p),
-        Err(VaneError::Corrupt { .. })
-    ));
+    assert!(matches!(load_graph(&p), Err(VaneError::Corrupt { .. })));
     let _ = fs::remove_file(&p);
 }
 
@@ -250,7 +269,7 @@ fn hnsw_save_load_preserves_all_metrics() {
         let idx = ApproxIndex::builder(3, metric).capacity(4).build().unwrap();
         idx.add(1, &[1.0, 0.0, 0.0]).unwrap();
         idx.save(&path).unwrap();
-        let loaded = ApproxIndex::load(&path).unwrap();
+        let loaded = load_graph(&path).unwrap();
         assert_eq!(loaded.metric(), metric);
         let _ = fs::remove_file(&path);
     }
@@ -287,7 +306,7 @@ fn hnsw_save_load_preserves_rng_determinism() {
     }
     saved.save(&path).unwrap();
 
-    let loaded = ApproxIndex::load(&path).unwrap();
+    let loaded = load_graph(&path).unwrap();
     for i in 5..10u64 {
         loaded.add(i, &[i as f32, 0.0, 0.0, 0.0]).unwrap();
     }
@@ -673,7 +692,7 @@ fn hnsw_load_rejects_an_unallocatable_max_elements() {
     // terabytes. Must be an error, not an abort.
     let bytes = hnsw_file_bytes(2, &v2_huge_max_elements(1 << 40));
     let p = write_tmp("huge_max_elements", &bytes);
-    let err = ApproxIndex::load(&p).expect_err("must reject, not allocate");
+    let err = load_graph(&p).expect_err("must reject, not allocate");
     let msg = err.to_string();
     assert!(
         msg.contains("max_elements") || msg.contains("too large"),
@@ -694,7 +713,7 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_m", &bytes);
     assert!(
-        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        matches!(load_graph(&p), Err(VaneError::Corrupt { .. })),
         "m = 1 must be rejected on load"
     );
 
@@ -703,7 +722,7 @@ fn hnsw_load_rejects_invalid_graph_parameters() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("bad_efc", &bytes);
     assert!(
-        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        matches!(load_graph(&p), Err(VaneError::Corrupt { .. })),
         "ef_construction = 0 must be rejected on load"
     );
 }
@@ -738,7 +757,7 @@ fn hnsw_load_rejects_a_count_times_dim_overflow() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("count_dim_overflow", &bytes);
     assert!(
-        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        matches!(load_graph(&p), Err(VaneError::Corrupt { .. })),
         "count * dim overflow must be rejected, not wrapped"
     );
     let _ = fs::remove_file(&p);
@@ -760,7 +779,7 @@ fn hnsw_load_rejects_an_m_doubling_overflow() {
     let bytes = hnsw_file_bytes(2, &data);
     let p = write_tmp("m_doubling_overflow", &bytes);
     assert!(
-        matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+        matches!(load_graph(&p), Err(VaneError::Corrupt { .. })),
         "m * 2 overflow must be rejected, not wrapped"
     );
     let _ = fs::remove_file(&p);
@@ -796,7 +815,7 @@ fn hnsw_load_rejects_inconsistent_graph_structure() {
         }
         let p = write_tmp(case, &hnsw_file_bytes(1, &data));
         assert!(
-            matches!(ApproxIndex::load(&p), Err(VaneError::Corrupt { .. })),
+            matches!(load_graph(&p), Err(VaneError::Corrupt { .. })),
             "accepted {case}"
         );
         fs::remove_file(p).unwrap();
@@ -882,7 +901,7 @@ fn hnsw_load_accepts_the_checked_in_v1_fixture() {
     // file from an earlier release has stopped loading. This one cannot: the
     // bytes are frozen.
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hnsw_v1.bin");
-    let idx = ApproxIndex::load(&path).expect("the committed v1 fixture must load");
+    let idx = load_graph(&path).expect("the committed v1 fixture must load");
     assert_eq!(idx.size(), 2);
     assert_eq!(idx.capacity(), 4);
     assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);

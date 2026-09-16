@@ -100,4 +100,51 @@ assert.equal(viaRequire.size(), 1);
 viaRequire.free();
 checkUpsertAndSearch(cjs);
 
+const { readFileSync, mkdtempSync, writeFileSync } = await import('node:fs');
+const { spawnSync } = await import('node:child_process');
+const os = await import('node:os');
+const path = await import('node:path');
+
+assert.equal(typeof esm.fileStorage, 'function');
+assert.equal(typeof esm.indexedDbStorage, 'function');
+assert.equal(typeof cjs.fileStorage, 'function');
+
+const golden = new Uint8Array(readFileSync('l2_rng1.vndb'));
+const fromFixture = esm.ApproxIndex.fromBytes(golden);
+try {
+  assert.equal(fromFixture.size(), 3);
+  assert.deepEqual([...fromFixture.get(101n)], [1, 0]);
+  const hits = fromFixture.search(Float32Array.from([1, 0]), 1);
+  try { assert.equal(hits.ids[0], 101n); }
+  finally { hits.free(); }
+  const saved = fromFixture.toBytes();
+  assert.deepEqual([...saved], [...golden], 'wasm toBytes must reproduce the VNDB fixture');
+} finally { fromFixture.free(); }
+
+const persistDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-persist-'));
+const storage = esm.fileStorage(persistDir);
+const toSave = new esm.ApproxIndex(3, 'cosine', 16, 4, 16, 7);
+toSave.add(101n, Float32Array.from([1, 0, 0]));
+toSave.add(202n, Float32Array.from([0, 1, 0]));
+await toSave.save('restart.vndb', storage);
+toSave.free();
+assert.equal(await esm.ApproxIndex.load('missing.vndb', storage), null);
+
+const childScript = path.join(process.cwd(), 'restart-child.mjs');
+writeFileSync(childScript, `
+import { ApproxIndex, fileStorage } from '@vanedb/wasm';
+const storage = fileStorage(${JSON.stringify(persistDir)});
+const loaded = await ApproxIndex.load('restart.vndb', storage);
+if (!loaded) throw new Error('load after process restart returned null');
+if (loaded.size() !== 2) throw new Error('wrong size after restart: ' + loaded.size());
+if ([...loaded.get(101n)].join(',') !== '1,0,0') throw new Error('wrong vector after restart');
+loaded.free();
+`);
+const child = spawnSync(process.execPath, [childScript], {
+  cwd: process.cwd(),
+  encoding: 'utf8',
+  env: process.env,
+});
+assert.equal(child.status, 0, child.stderr || child.stdout || 'child failed');
+
 console.log('npm package: ESM and CommonJS consumers both OK');

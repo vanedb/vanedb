@@ -109,4 +109,17 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     seeded.free();
 }
 
+{
+    const index = new ApproxIndex(2, 'l2', 16, 4, 16, 7);
+    index.add(101n, Float32Array.from([1, 0]));
+    const bytes = index.toBytes();
+    assert.ok(bytes instanceof Uint8Array);
+    assert.deepEqual([...bytes.slice(0, 4)], [...Buffer.from('VNDB')]);
+    const loaded = ApproxIndex.fromBytes(bytes);
+    assert.equal(loaded.size(), 1);
+    assert.deepEqual([...loaded.get(101n)], [1, 0]);
+    loaded.free();
+    index.free();
+}
+
 console.log('Generated JavaScript bindings: passed');

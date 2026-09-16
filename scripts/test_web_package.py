@@ -37,6 +37,10 @@ def main():
                 raise SystemExit(f"packaged.html no longer imports {default}")
             page = page.replace(default, wanted)
         (Path(temporary) / "index.html").write_text(page)
+        shutil.copy2(
+            ROOT / "vanedb/tests/fixtures/vndb_graph/l2_rng1.vndb",
+            Path(temporary) / "l2_rng1.vndb",
+        )
         with ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=temporary)) as server:
             worker = Thread(target=server.serve_forever, daemon=True)
             worker.start()

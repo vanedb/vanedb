@@ -18,7 +18,7 @@ decision, until the corresponding RFC is accepted.
 |---|---|---|---|
 | 0 | [0003 Competitor benchmark and demo](rfcs/0003-competitor-benchmark-and-demo.md) | 0.2.0 | accepted |
 | 1 | [0004 Filtered search](rfcs/0004-filtered-search.md) | 0.2.0 | accepted |
-| 2 | [0006 WebAssembly persistence](rfcs/0006-wasm-persistence.md) | 0.2.0 | accepted |
+| 2 | [0006 WebAssembly persistence](rfcs/0006-wasm-persistence.md) | 0.2.0 | implemented |
 | 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | accepted |
 | 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | accepted |
 | 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | accepted |

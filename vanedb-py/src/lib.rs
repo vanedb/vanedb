@@ -491,6 +491,21 @@ impl PyIndex {
         Ok(Self { inner })
     }
 
+    /// Serializes the graph as a VNDB file. Compact first if tombstones
+    /// should not be included.
+    fn to_bytes(&self, py: Python<'_>) -> PyResult<Vec<u8>> {
+        py.detach(|| self.inner.to_bytes()).map_err(to_pyerr)
+    }
+
+    /// Reads a graph from a VNDB file (or a legacy Rust file) in memory.
+    #[staticmethod]
+    fn from_bytes(py: Python<'_>, bytes: Vec<u8>) -> PyResult<Self> {
+        let inner = py
+            .detach(move || ApproxIndex::from_bytes(&bytes))
+            .map_err(to_pyerr)?;
+        Ok(Self { inner })
+    }
+
     #[getter]
     fn ef_search(&self) -> usize {
         self.inner.get_ef_search()

@@ -31,10 +31,14 @@ NODE_CJS = """// Node, `require`: wasm-pack's nodejs target loads the module syn
 // so there is nothing to await. `init` exists only so browser and Node source
 // can be identical.
 const bindings = require('./vanedb_wasm.js');
+const storage = require('./storage.cjs');
+storage.installPersistence(bindings.ApproxIndex, storage.fileStorage());
 
 module.exports = Object.assign({}, bindings, {
   default: async function init() { return bindings; },
   initSync: function initSync() { return bindings; },
+  fileStorage: storage.fileStorage,
+  indexedDbStorage: storage.indexedDbStorage,
 });
 """
 
@@ -48,15 +52,26 @@ NODE_MJS_HEADER = """import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const bindings = require('./vanedb_wasm.js');
+const storage = require('./storage.cjs');
+storage.installPersistence(bindings.ApproxIndex, storage.fileStorage());
 
 export default async function init() { return bindings; }
 export function initSync() { return bindings; }
+export const fileStorage = storage.fileStorage;
+export const indexedDbStorage = storage.indexedDbStorage;
 """
 
-WEB_SHIM = """// Browser: re-export wasm-pack's web target unchanged. Its default export is
-// the async loader, which must resolve before any class is constructed.
+WEB_SHIM = """// Browser: re-export wasm-pack's web target, then hang save/load on
+// ApproxIndex over IndexedDB. The default export is the async loader, which
+// must resolve before any class is constructed.
 export { default, initSync } from './vanedb_wasm.js';
 export * from './vanedb_wasm.js';
+export { indexedDbStorage, fileStorage } from './storage.js';
+
+import { ApproxIndex } from './vanedb_wasm.js';
+import { indexedDbStorage } from './storage.js';
+import { installPersistence } from './persistence.js';
+installPersistence(ApproxIndex, indexedDbStorage());
 """
 
 
@@ -87,6 +102,43 @@ def npm_repository_url(repository):
         raise SystemExit("wasm-pack emitted an empty repository url")
     url = url.removeprefix("git+").removesuffix(".git")
     return f"git+{url}.git"
+
+
+PERSISTENCE_TYPES = """
+export interface Storage {
+  put(name: string, bytes: Uint8Array): Promise<void>;
+  get(name: string): Promise<Uint8Array | null>;
+  delete(name: string): Promise<void>;
+}
+
+export function indexedDbStorage(dbName?: string): Storage;
+export function fileStorage(directory?: string): Storage;
+"""
+
+
+def patch_persistence_types(path: Path) -> None:
+    """Hang save/load on ApproxIndex and export the Storage adapters."""
+    text = path.read_text(encoding="utf-8")
+    if "toBytes(): Uint8Array" not in text or "fromBytes(bytes: Uint8Array)" not in text:
+        raise SystemExit(
+            "index.d.ts is missing toBytes/fromBytes; wasm-bindgen renamed them "
+            "or they were not exported. Persistence types cannot be attached."
+        )
+    if "save(name: string" in text:
+        raise SystemExit("index.d.ts already declares save(); the patch would duplicate it")
+    patched = text.replace(
+        "    toBytes(): Uint8Array;",
+        "    toBytes(): Uint8Array;\n    save(name: string, storage?: Storage): Promise<void>;",
+        1,
+    )
+    patched = patched.replace(
+        "    static fromBytes(bytes: Uint8Array): ApproxIndex;",
+        "    static fromBytes(bytes: Uint8Array): ApproxIndex;\n    static load(name: string, storage?: Storage): Promise<ApproxIndex | null>;",
+        1,
+    )
+    if patched == text:
+        raise SystemExit("failed to attach save/load to ApproxIndex in index.d.ts")
+    path.write_text(patched + PERSISTENCE_TYPES)
 
 
 def main() -> None:
@@ -140,6 +192,11 @@ def main() -> None:
     if missing:
         raise SystemExit(f"the web build is missing {sorted(missing)}, exported by Node")
 
+    js_src = CRATE / "js"
+    shutil.copy2(js_src / "node-storage.cjs", out / "node" / "storage.cjs")
+    shutil.copy2(js_src / "web-storage.js", out / "web" / "storage.js")
+    shutil.copy2(js_src / "persistence.js", out / "web" / "persistence.js")
+
     # The root package.json declares "type": "module", which would make Node
     # parse wasm-pack's CommonJS output in node/ as ESM and fail on its first
     # `exports.` assignment. A nested package.json scopes that directory back
@@ -155,6 +212,7 @@ def main() -> None:
     # One .d.ts serves both: the classes are identical, and the web build's
     # extra init types are what the shim gives Node as well.
     shutil.copy2(web_dir / "vanedb_wasm.d.ts", out / "index.d.ts")
+    patch_persistence_types(out / "index.d.ts")
 
     # The declared type of `metric` is the property a review blocked on: taking
     # a `JsValue` to type-check at runtime silently regressed it from `string`
@@ -248,7 +306,13 @@ def main() -> None:
         "main": "./node/index.cjs",
         "module": "./web/index.js",
         "files": ["node/", "web/", "index.d.ts", "README.md", "LICENSE"],
-        "sideEffects": ["./web/index.js", "./web/vanedb_wasm.js"],
+        "sideEffects": [
+            "./web/index.js",
+            "./web/vanedb_wasm.js",
+            "./web/persistence.js",
+            "./node/index.cjs",
+            "./node/index.mjs",
+        ],
         "engines": {"node": ">=18"},
     }
     (out / "package.json").write_text(json.dumps(package, indent=2) + "\n")
