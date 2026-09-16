@@ -7,7 +7,9 @@ export function installPersistence(ApproxIndex, defaultStorage) {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('name must be a non-empty string');
     }
-    const bytes = this.toBytes();
+    // Copy off wasm linear memory before handing bytes to storage. WebKit
+    // cannot structured-clone a Uint8Array that views WebAssembly.Memory.
+    const bytes = this.toBytes().slice();
     await (storage ?? defaultStorage).put(name, bytes);
   };
   ApproxIndex.load = async function load(name, storage) {

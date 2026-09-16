@@ -18,7 +18,7 @@ function installPersistence(ApproxIndex, defaultStorage) {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error('name must be a non-empty string');
     }
-    const bytes = this.toBytes();
+    const bytes = this.toBytes().slice();
     await (storage ?? defaultStorage).put(name, bytes);
   };
   ApproxIndex.load = async function load(name, storage) {

@@ -52,6 +52,13 @@ def main():
                 subprocess.run(cli + ["run-code", "async (page) => { await page.locator('#result')"
                                       ".filter({ hasText: /^PASS:/ }).waitFor({ timeout: 30000 }); }"],
                                cwd=temporary, check=True, timeout=60)
+            except subprocess.CalledProcessError:
+                subprocess.run(
+                    cli + ["run-code", "async (page) => { "
+                           "console.log('acceptance #result:', await page.locator('#result').textContent()); }"],
+                    cwd=temporary, check=False, timeout=30,
+                )
+                raise
             finally:
                 try:
                     subprocess.run(cli + ["close"], cwd=temporary, check=False, timeout=60)

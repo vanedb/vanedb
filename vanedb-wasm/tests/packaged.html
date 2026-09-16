@@ -19,7 +19,7 @@ function rejectsNumber(operation) {
     throw new Error('invalid number was accepted');
 }
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
-try {
+async function main() {
     await init();
     if (typeof ApproxIndex.load === 'function') {
         const params = new URLSearchParams(location.search);
@@ -28,10 +28,18 @@ try {
             index.add(101n, new Float32Array([1, 0]));
             await index.save('reload-survival');
             index.free();
+            // WebKit can lose a just-completed IndexedDB put if navigation
+            // starts in the same turn as db.close().
+            await new Promise((resolve) => setTimeout(resolve, 0));
             const next = new URL(location.href);
             next.searchParams.set('persisted', '1');
             location.replace(next.toString());
-            await new Promise(() => {});
+            // Top-level modules cannot `return` to stop the rest of the file;
+            // if the navigation does not happen, fail instead of hanging the
+            // Playwright wait on "Running".
+            await new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('reload navigation did not happen')), 2000);
+            });
         }
         const loaded = await ApproxIndex.load('reload-survival');
         check(loaded !== null, 'IndexedDB load after reload returned null');
@@ -137,8 +145,9 @@ try {
         }
     }
     result.textContent = 'PASS: packaged browser bindings, both indexes, all metrics';
-} catch (error) {
+}
+main().catch((error) => {
     result.textContent = `FAIL: ${error.stack || error}`;
     throw error;
-}
+});
 </script>
