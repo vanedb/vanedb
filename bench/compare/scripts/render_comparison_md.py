@@ -64,7 +64,7 @@ def load_sums() -> dict[str, str]:
         parts = line.split()
         if len(parts) < 2:
             continue
-        digest, name = parts[0], parts[-1]
+        digest, name = parts[0], parts[-1].lstrip("*")
         out[name] = digest
     return out
 
