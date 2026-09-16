@@ -3,7 +3,7 @@
 | File | Role |
 |---|---|
 | `smoke.vnef` | Deterministic harness smoke (768-d, 256 docs, 16 queries). **Not for publication.** |
-| `embeddings.vnef` | Real `nomic-embed-text` (or EmbeddingGemma) 100k×768 + 1k queries. Generated once, never in CI. Too large for git; host as a release asset and verify with `SHA256SUMS`. |
+| `embeddings.vnef` | Real `nomic-embed-text-v1.5` 100k×768 + 1k queries with nomic task prefixes over BeIR/nq (pinned revision). Generated once, never in CI. Too large for git — see [`docs/launch/0003-fixture-hosting.md`](../../docs/launch/0003-fixture-hosting.md). |
 | `metadata.json` | Model, corpus, generator for `embeddings.vnef`. |
 | `SHA256SUMS` | Pins fixture bytes the harness will accept. |
 
@@ -28,6 +28,14 @@ Little-endian:
 # smoke (also: cargo run -- write-smoke)
 cargo run --release --manifest-path bench/compare/Cargo.toml -- write-smoke
 
-# full fixture (offline, once)
-python3 bench/compare/scripts/generate_fixture.py --backend fastembed
+# full fixture (offline, once) — see docs/launch/0003-fixture-hosting.md
+python3 bench/compare/scripts/generate_fixture.py --backend fastembed \
+  --out-dir bench/compare/fixtures --text-batch 64 --max-chars 1500
+# then host embeddings.vnef; commit metadata.json + SHA256SUMS only
+```
+
+Paste a dedicated-hardware JSON into COMPARISON.md with:
+
+```bash
+python3 bench/compare/scripts/render_comparison_md.py path/to/report.json
 ```
