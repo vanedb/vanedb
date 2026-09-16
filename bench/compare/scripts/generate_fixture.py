@@ -121,7 +121,7 @@ def open_nq_parquet():
     return pq, corpus_path, queries_path, note
 
 
-def iter_nq_docs(pq, corpus_path: str, n_docs: int, batch: int):
+def iter_nq_docs(pq, corpus_path: str, n_docs: int, batch: int, max_chars: int = 0):
     """Yield non-empty doc strings until n_docs collected; stream parquet batches."""
     pf = pq.ParquetFile(corpus_path)
     collected = 0
@@ -135,6 +135,8 @@ def iter_nq_docs(pq, corpus_path: str, n_docs: int, batch: int):
             doc = f"{(t or '').strip()} {(x or '').strip()}".strip()
             if not doc:
                 continue
+            if max_chars:
+                doc = truncate_text(doc, max_chars)
             buf.append(doc)
             collected += 1
             if len(buf) >= batch:
@@ -148,15 +150,25 @@ def iter_nq_docs(pq, corpus_path: str, n_docs: int, batch: int):
         raise SystemExit(f"after filtering empty rows, only {collected} docs; need {n_docs}")
 
 
-def load_nq_queries(pq, queries_path: str, n_queries: int) -> list[str]:
+def load_nq_queries(pq, queries_path: str, n_queries: int, max_chars: int = 0) -> list[str]:
     qtab = pq.read_table(queries_path, columns=["text"])
     if qtab.num_rows < n_queries:
         raise SystemExit(f"queries only had {qtab.num_rows}; need {n_queries}")
     queries = [((q or "").strip()) for q in qtab.column("text").to_pylist()[: n_queries * 2]]
     queries = [q for q in queries if q][:n_queries]
+    if max_chars:
+        queries = [truncate_text(q, max_chars) for q in queries]
     if len(queries) < n_queries:
         raise SystemExit(f"after filtering empty queries, only {len(queries)}; need {n_queries}")
     return queries
+
+
+def truncate_text(text: str, max_chars: int) -> str:
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text
+    # Prefer a word boundary so we don't feed truncated mid-token junk.
+    cut = text[:max_chars].rsplit(" ", 1)[0]
+    return cut or text[:max_chars]
 
 
 def make_fastembed(model: str):
@@ -166,10 +178,13 @@ def make_fastembed(model: str):
 
 
 def embed_batch_fastembed(eng, texts: list[str], dim: int) -> np.ndarray:
+    import gc
+
     out = np.empty((len(texts), dim), dtype=np.float32)
     i = 0
-    # Small ORT batches: BeIR passages are long; large batches OOM on 16 GiB hosts.
-    for vec in eng.embed(texts, batch_size=min(32, len(texts))):
+    # Tiny ORT batches: BeIR passages are long; ORT arena grows across batches
+    # on this host unless we keep pressure low and GC between text batches.
+    for vec in eng.embed(texts, batch_size=min(8, len(texts))):
         row = np.asarray(vec, dtype=np.float32)
         if row.shape != (dim,):
             raise SystemExit(f"fastembed returned dim {row.shape[0]}, expected {dim}")
@@ -177,6 +192,7 @@ def embed_batch_fastembed(eng, texts: list[str], dim: int) -> np.ndarray:
         i += 1
     if i != len(texts):
         raise SystemExit(f"fastembed yielded {i} vectors, expected {len(texts)}")
+    gc.collect()
     return out
 
 
@@ -268,19 +284,26 @@ def main() -> None:
     ap.add_argument(
         "--text-batch",
         type=int,
-        default=int(os.environ.get("VANEDB_FIXTURE_BATCH", "512")),
+        default=int(os.environ.get("VANEDB_FIXTURE_BATCH", "64")),
         help="How many passages to hold/embed at once (lower if OOM)",
+    )
+    ap.add_argument(
+        "--max-chars",
+        type=int,
+        default=int(os.environ.get("VANEDB_FIXTURE_MAX_CHARS", "2000")),
+        help="Truncate each passage/query to this many chars (0=disable). "
+        "Cuts ORT peak RSS on long BeIR NQ documents.",
     )
     args = ap.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     print(
         f"streaming corpus ({args.n_docs} docs, {args.n_queries} queries, "
-        f"text_batch={args.text_batch})…",
+        f"text_batch={args.text_batch}, max_chars={args.max_chars})…",
         flush=True,
     )
     pq, corpus_path, queries_path, corpus_note = open_nq_parquet()
-    queries = load_nq_queries(pq, queries_path, args.n_queries)
+    queries = load_nq_queries(pq, queries_path, args.n_queries, args.max_chars)
 
     t0 = time.time()
     print(f"embedding with {args.backend} / {args.model}…", flush=True)
@@ -316,12 +339,28 @@ def main() -> None:
 
     done = 0
     print("  docs…", flush=True)
-    for batch_texts in iter_nq_docs(pq, corpus_path, args.n_docs, args.text_batch):
+    for batch_texts in iter_nq_docs(
+        pq, corpus_path, args.n_docs, args.text_batch, args.max_chars
+    ):
         mat = embed_docs(batch_texts)
         writer.write_vectors(mat, kind="docs")
         done += mat.shape[0]
         rate = done / max(time.time() - t0, 1e-6)
         print(f"  embedded docs {done}/{args.n_docs} ({rate:.1f} vec/s)", flush=True)
+        # Recreate the ONNX session periodically — arena growth otherwise
+        # climbs toward OOM across a 100k run on 16 GiB hosts.
+        if args.backend == "fastembed" and done % (args.text_batch * 20) == 0:
+            import gc
+
+            eng = make_fastembed(args.model)
+
+            def embed_docs(texts: list[str], _eng=eng) -> np.ndarray:
+                return embed_batch_fastembed(_eng, texts, args.dim)
+
+            def embed_queries(texts: list[str], _eng=eng) -> np.ndarray:
+                return embed_batch_fastembed(_eng, texts, args.dim)
+
+            gc.collect()
 
     print("  queries…", flush=True)
     # Queries are small; still batch for API backends.
@@ -341,8 +380,14 @@ def main() -> None:
         "n_docs": args.n_docs,
         "n_queries": args.n_queries,
         "metric_native": "cosine",
-        "generator": f"scripts/generate_fixture.py --backend {args.backend}",
-        "notes": f"generated in {elapsed:.1f}s; never regenerate in CI",
+        "generator": (
+            f"scripts/generate_fixture.py --backend {args.backend} "
+            f"--text-batch {args.text_batch} --max-chars {args.max_chars}"
+        ),
+        "notes": (
+            f"generated in {elapsed:.1f}s; max_chars={args.max_chars}; "
+            "never regenerate in CI"
+        ),
     }
     (args.out_dir / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
     repo_sums = Path(__file__).resolve().parent.parent / "fixtures" / "SHA256SUMS"
