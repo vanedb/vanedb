@@ -297,7 +297,7 @@ def main() -> None:
     ap.add_argument(
         "--max-chars",
         type=int,
-        default=int(os.environ.get("VANEDB_FIXTURE_MAX_CHARS", "2000")),
+        default=int(os.environ.get("VANEDB_FIXTURE_MAX_CHARS", "1500")),
         help="Truncate each passage/query to this many chars (0=disable). "
         "Cuts ORT peak RSS on long BeIR NQ documents.",
     )

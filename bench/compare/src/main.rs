@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use vanedb_compare::engines::{BuildParams, EngineKind, MetricKind};
 use vanedb_compare::fixture::{
     classify_fixture, default_fixture_dir, load_fixture, verify_sha256sums, write_smoke_fixture,
-    FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS,
+    FixtureMeta, FixtureRole, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
 };
 use vanedb_compare::report::render_machine_section;
 use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
@@ -213,10 +213,12 @@ fn real_main() -> Result<(), String> {
             if markdown {
                 if role != FixtureRole::Publish {
                     return Err(format!(
-                        "refusing --markdown for fixture_role={} (n_docs={}). \
-                         Publish only checksummed embeddings.vnef with ≥{PUBLISH_MIN_DOCS} docs",
+                        "refusing --markdown for fixture_role={} (n_docs={}, n_queries={}). \
+                         Publish only checksummed embeddings.vnef with ≥{PUBLISH_MIN_DOCS} docs \
+                         and ≥{PUBLISH_MIN_QUERIES} queries",
                         role.as_str(),
-                        fixture.n_docs()
+                        fixture.n_docs(),
+                        fixture.n_queries()
                     ));
                 }
                 if !checksum_verified {
@@ -232,6 +234,32 @@ fn real_main() -> Result<(), String> {
                          (e.g. linux-avx2, apple-silicon, android-arm64-emulator)"
                             .into(),
                     );
+                }
+                if rounds < 2 {
+                    return Err(
+                        "refusing --markdown with --rounds < 2 (dedicated interleaved runs only)"
+                            .into(),
+                    );
+                }
+                if let Some(mq) = max_queries {
+                    if mq < fixture.n_queries() {
+                        return Err(format!(
+                            "refusing --markdown with --max-queries {mq} < fixture n_queries={} \
+                             (publish must use the full query set)",
+                            fixture.n_queries()
+                        ));
+                    }
+                }
+                if fixture.n_queries() < PUBLISH_MIN_QUERIES {
+                    return Err(format!(
+                        "refusing --markdown: fixture n_queries={} < {PUBLISH_MIN_QUERIES}",
+                        fixture.n_queries()
+                    ));
+                }
+                if force_sqlite_vec_cosine {
+                    return Err("refusing --markdown with --force-sqlite-vec-cosine \
+                         (harness-side cosine scan is not a COMPARISON.md row; use --metric l2)"
+                        .into());
                 }
             }
 

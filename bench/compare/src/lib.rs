@@ -8,5 +8,7 @@ pub mod report;
 pub mod run;
 
 pub use engines::{BuildParams, Engine, EngineKind, MetricKind};
-pub use fixture::{Fixture, FixtureMeta, FixtureRole, FIXTURE_MAGIC, PUBLISH_MIN_DOCS};
+pub use fixture::{
+    Fixture, FixtureMeta, FixtureRole, FIXTURE_MAGIC, PUBLISH_MIN_DOCS, PUBLISH_MIN_QUERIES,
+};
 pub use run::{run_comparison, RunConfig};

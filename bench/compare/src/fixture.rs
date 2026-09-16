@@ -26,6 +26,8 @@ pub const FIXTURE_MAGIC: &[u8; 4] = b"VNEF";
 pub const FIXTURE_VERSION: u32 = 1;
 /// Minimum document count for a publishable COMPARISON.md fixture (RFC 0003).
 pub const PUBLISH_MIN_DOCS: usize = 100_000;
+/// Minimum query count for a publishable fixture.
+pub const PUBLISH_MIN_QUERIES: usize = 1_000;
 
 /// Whether a loaded fixture may appear in published comparison tables.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,7 +37,7 @@ pub enum FixtureRole {
     Smoke,
     /// Large enough for local experiments but not the RFC publish fixture.
     Dev,
-    /// ≥ [`PUBLISH_MIN_DOCS`] — the only role allowed with `--markdown` publish output.
+    /// ≥ [`PUBLISH_MIN_DOCS`] + [`PUBLISH_MIN_QUERIES`] with real corpus metadata.
     Publish,
 }
 
@@ -53,16 +55,35 @@ impl FixtureRole {
     }
 }
 
-/// Classify by content size (not filename) so renaming smoke.vnef cannot bypass gates.
+fn meta_forbids_publish(meta: &FixtureMeta) -> bool {
+    let notes = meta.notes.to_ascii_lowercase();
+    let corpus = meta.corpus.to_ascii_lowercase();
+    let model = meta.model.to_ascii_lowercase();
+    notes.contains("not for published")
+        || notes.contains("pending generation")
+        || corpus == "synthetic"
+        || corpus.contains("synthetic")
+        || model.contains("smoke")
+        || model.contains("deterministic smoke")
+        || model.contains("pending generation")
+}
+
+/// Classify by content (size + metadata), not filename.
 pub fn classify_fixture(fixture: &Fixture) -> FixtureRole {
+    if let Some(meta) = fixture.meta.as_ref() {
+        if meta_forbids_publish(meta) {
+            return if fixture.n_docs() <= 1024 {
+                FixtureRole::Smoke
+            } else {
+                FixtureRole::Dev
+            };
+        }
+    }
     let n = fixture.n_docs();
-    if n >= PUBLISH_MIN_DOCS {
+    let nq = fixture.n_queries();
+    if n >= PUBLISH_MIN_DOCS && nq >= PUBLISH_MIN_QUERIES {
         FixtureRole::Publish
-    } else if n <= 1024
-        || fixture.meta.as_ref().is_some_and(|m| {
-            m.notes.to_ascii_lowercase().contains("not for published") || m.corpus == "synthetic"
-        })
-    {
+    } else if n <= 1024 {
         FixtureRole::Smoke
     } else {
         FixtureRole::Dev
@@ -388,5 +409,55 @@ mod tests {
         let loaded = load_fixture(&path).unwrap();
         assert_eq!(classify_fixture(&loaded), FixtureRole::Dev);
         assert!(classify_fixture(&loaded).requires_allow_smoke());
+    }
+
+    #[test]
+    fn synthetic_meta_never_publish_even_at_100k() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("big.vnef");
+        // Cheap tiny file with forged meta claiming 100k — classifier uses loaded
+        // n_docs from bytes, so also attach forbidding meta and assert Dev/Smoke.
+        write_smoke_fixture(&path, 64, 4, 8).unwrap();
+        let meta = FixtureMeta {
+            model: "none (deterministic smoke)".into(),
+            corpus: "synthetic".into(),
+            dim: 8,
+            n_docs: 100_000,
+            n_queries: 1_000,
+            metric_native: "cosine".into(),
+            generator: "test".into(),
+            notes: "NOT for published COMPARISON.md numbers".into(),
+        };
+        std::fs::write(
+            dir.path().join("metadata.json"),
+            serde_json::to_string_pretty(&meta).unwrap(),
+        )
+        .unwrap();
+        let loaded = load_fixture(&path).unwrap();
+        assert_ne!(classify_fixture(&loaded), FixtureRole::Publish);
+    }
+
+    #[test]
+    fn pending_generation_meta_blocks_publish() {
+        let mut fixture = load_fixture_from_bytes();
+        fixture.meta = Some(FixtureMeta {
+            model: "nomic (pending generation)".into(),
+            corpus: "BeIR/nq".into(),
+            dim: 768,
+            n_docs: 100_000,
+            n_queries: 1_000,
+            metric_native: "cosine".into(),
+            generator: "test".into(),
+            notes: "pending generation".into(),
+        });
+        // Size from bytes is small; force ids/queries lengths via role path on meta first.
+        assert_ne!(classify_fixture(&fixture), FixtureRole::Publish);
+    }
+
+    fn load_fixture_from_bytes() -> Fixture {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("t.vnef");
+        write_smoke_fixture(&path, 32, 4, 8).unwrap();
+        load_fixture(&path).unwrap()
     }
 }

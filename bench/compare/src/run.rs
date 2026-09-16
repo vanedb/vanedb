@@ -61,11 +61,13 @@ pub struct ComparisonReport {
     pub commit: String,
     pub hostname: String,
     pub hardware_label: String,
+    pub recorded_at_utc: String,
     pub fixture_role: FixtureRole,
     pub fixture_sha256: String,
     pub fixture_n_docs: usize,
     pub fixture_n_queries: usize,
     pub fixture_dim: usize,
+    pub metric: String,
     pub k: usize,
     pub params: ParamsOut,
     pub results: Vec<EngineResult>,
@@ -132,7 +134,7 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
             )?;
             accum.build_secs.push(stats.build_secs);
             if let Some(rss) = stats.peak_rss_bytes {
-                accum.peak_rss = Some(rss);
+                accum.peak_rss = Some(accum.peak_rss.map_or(rss, |p| p.max(rss)));
             }
             accum.notes.extend(stats.notes);
 
@@ -178,14 +180,16 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
                 let before = engine.search(victim_vec, cfg.k, cfg.params.ef_search)?;
                 if !before.contains(&victim) {
                     accum.notes.push(format!(
-                        "delete oracle weak: id {victim} not in top-{} of its own vector before delete",
+                        "delete oracle failed: id {victim} not in top-{} of its own vector before delete",
                         cfg.k
                     ));
+                    accum.delete_ok = Some(false);
+                } else {
+                    engine.remove(victim)?;
+                    let after = engine.search(victim_vec, cfg.k, cfg.params.ef_search)?;
+                    let ok = !after.contains(&victim);
+                    accum.delete_ok = Some(accum.delete_ok.unwrap_or(true) && ok);
                 }
-                engine.remove(victim)?;
-                let after = engine.search(victim_vec, cfg.k, cfg.params.ef_search)?;
-                let ok = !after.contains(&victim);
-                accum.delete_ok = Some(accum.delete_ok.unwrap_or(true) && ok);
             }
         }
     }
@@ -196,11 +200,13 @@ pub fn run_comparison(fixture: &Fixture, cfg: &RunConfig) -> Result<ComparisonRe
         commit: git_commit(),
         hostname: hostname(),
         hardware_label: std::env::var("VANEDB_COMPARE_HW").unwrap_or_else(|_| "unlabelled".into()),
+        recorded_at_utc: utc_now(),
         fixture_role: cfg.fixture_role,
         fixture_sha256: fixture.sha256.clone(),
         fixture_n_docs: fixture.n_docs(),
         fixture_n_queries: n_queries,
         fixture_dim: fixture.dim,
+        metric: cfg.metric.as_str().into(),
         k: cfg.k,
         params: ParamsOut {
             m: cfg.params.m,
@@ -308,6 +314,22 @@ fn hostname() -> String {
                 .map(|s| s.trim().to_string())
                 .unwrap_or_else(|_| "unknown".into())
         })
+}
+
+fn utc_now() -> String {
+    // Prefer GNU date; fall back to a coarse local stamp if unavailable.
+    std::process::Command::new("date")
+        .args(["-u", "+%Y-%m-%dT%H:%M:%SZ"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "unknown".into())
 }
 
 pub fn write_json_report(report: &ComparisonReport, path: &Path) -> Result<(), String> {

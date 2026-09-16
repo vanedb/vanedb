@@ -50,9 +50,30 @@ def main() -> int:
     if not hw or hw == "unlabelled":
         print("refusing to render unlabelled hardware_label", file=sys.stderr)
         return 1
+    metric = report.get("metric")
+    if metric not in ("cosine", "l2"):
+        print(f"refusing to render missing/unknown metric={metric!r}", file=sys.stderr)
+        return 1
+    if report.get("fixture_n_docs", 0) < 100_000:
+        print("refusing to render fixture_n_docs < 100000", file=sys.stderr)
+        return 1
+    if report.get("fixture_n_queries", 0) < 1000:
+        print("refusing to render fixture_n_queries < 1000", file=sys.stderr)
+        return 1
+    rounds = max((r.get("rounds") or 0) for r in report.get("results", []))
+    if rounds < 2:
+        print("refusing to render rounds < 2", file=sys.stderr)
+        return 1
+    if any(r.get("engine") == "sqlite-vec" and metric == "cosine" for r in report["results"]):
+        print(
+            "refusing to render cosine report that includes sqlite-vec",
+            file=sys.stderr,
+        )
+        return 1
 
-    print(f"### {hw} ({report.get('hostname', '?')})\n")
-    print(f"- Date/commit: recorded with commit `{report.get('commit', '?')}`")
+    when = report.get("recorded_at_utc", "unknown")
+    print(f"### {hw} ({report.get('hostname', '?')}) — metric `{metric}`\n")
+    print(f"- Date (UTC) / commit: `{when}` / `{report.get('commit', '?')}`")
     print(
         f"- Fixture: role={role}, dim={report['fixture_dim']}, "
         f"n_docs={report['fixture_n_docs']}, n_queries={report['fixture_n_queries']}, "

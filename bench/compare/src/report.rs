@@ -6,12 +6,12 @@ use crate::run::ComparisonReport;
 pub fn render_machine_section(report: &ComparisonReport) -> String {
     let mut out = String::new();
     out.push_str(&format!(
-        "### {} ({})\n\n",
-        report.hardware_label, report.hostname
+        "### {} ({}) — metric `{}`\n\n",
+        report.hardware_label, report.hostname, report.metric
     ));
     out.push_str(&format!(
-        "- Date/commit: recorded with commit `{}`\n",
-        report.commit
+        "- Date (UTC) / commit: `{}` / `{}`\n",
+        report.recorded_at_utc, report.commit
     ));
     out.push_str(&format!(
         "- Fixture: role={}, dim={}, n_docs={}, n_queries={}, sha256=`{}`\n",

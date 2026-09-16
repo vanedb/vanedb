@@ -107,3 +107,32 @@ jobs:
             --json-out "${{ runner.temp }}/compare-smoke.json"
           python3 bench/compare/scripts/assert_smoke_report.py \
             "${{ runner.temp }}/compare-smoke.json"
+      - name: Cosine default omits sqlite-vec
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke \
+            --rounds 1 \
+            --max-queries 2 \
+            --ef 50 \
+            --skip-save \
+            --skip-delete \
+            --json-out "${{ runner.temp }}/compare-cosine-default.json"
+          python3 - <<'PY'
+          import json
+          r=json.load(open("${{ runner.temp }}/compare-cosine-default.json"))
+          engines={row["engine"] for row in r["results"]}
+          assert "sqlite-vec" not in engines, engines
+          assert len(engines)==5, engines
+          print("ok: cosine default engines", sorted(engines))
+          PY
+      - name: Markdown refuses smoke even with allow-smoke
+        run: |
+          if cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 --ef 50 --skip-save --skip-delete \
+            --json-out "${{ runner.temp }}/should-fail.json"; then
+            echo "expected markdown refusal" >&2
+            exit 1
+          fi
+          echo "ok: markdown refused smoke"
