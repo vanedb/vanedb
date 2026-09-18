@@ -1,0 +1,56 @@
+diff --git a/README.md b/README.md
+index 06cd3fe..1054345 100644
+--- a/README.md
++++ b/README.md
+@@ -17,6 +17,19 @@ just keywords. No server, no daemon.
+ 
+ After enabling, set an embedding provider (below) before your first index.
+ 
++
++## Try it on a real vault
++
++Walkthrough for the RFC 0003 / vanedb#198 demo slice:
++
++1. Install via [BRAT](https://github.com/TfTHacker/obsidian42-brat) → Add beta plugin → `vanedb/obsidian-vane-search` (or install a `0.2.0` release).
++2. On the machine running Obsidian: `ollama pull nomic-embed-text`.
++3. Settings → Vane Search → choose the **Ollama** preset (`http://localhost:11434/v1`, 768-d).
++4. Run **Index vault**, then open the search view and enter one semantic query about a note you know exists.
++5. Expect a top hit that matches the note by meaning (not an exact keyword match).
++
++This path is local-first: note text stays on your machine when using Ollama.
++
+ ## Releasing (maintainers)
+ 
+ Releases are cut by pushing a git tag that exactly matches `manifest.json`'s
+diff --git a/manifest.json b/manifest.json
+index c8bf8e2..a3c6661 100644
+--- a/manifest.json
++++ b/manifest.json
+@@ -1,7 +1,7 @@
+ {
+   "id": "vane-search",
+   "name": "Vane Search",
+-  "version": "0.1.0",
++  "version": "0.2.0",
+   "minAppVersion": "1.11.4",
+   "description": "Semantic search for your vault, powered by VaneDB (WASM HNSW index). Local-first.",
+   "author": "Anton Tsvetkov",
+diff --git a/package.json b/package.json
+index 85ea556..5c3f915 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "vane-search",
+-  "version": "0.1.0",
++  "version": "0.2.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff --git a/versions.json b/versions.json
+index 9fe1bd5..aabb780 100644
+--- a/versions.json
++++ b/versions.json
+@@ -1 +1 @@
+-{ "0.1.0": "1.11.4" }
++{ "0.1.0": "1.11.4", "0.2.0": "1.11.4" }
