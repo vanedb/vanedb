@@ -1,7 +1,8 @@
 # Fill bench/COMPARISON.md cosine+L2 for the current host on operator-owned
-# dedicated hardware via GitHub Actions self-hosted runners (#198 AC3).
+# dedicated hardware via GitHub Actions self-hosted runners (#198 / #226 AC3).
 # Never use github-hosted runners — AGENTS.md forbids publishing those timings.
 # Does not run on push/PR. Requires a registered self-hosted runner.
+# Results land via PR (main is ruleset-protected; tip push would fail).
 name: Fill COMPARISON (self-hosted)
 
 on:
@@ -16,13 +17,14 @@ on:
         required: false
         default: ""
       commit_results:
-        description: "Commit COMPARISON.md + run JSON back to the ref"
+        description: "Open a PR with COMPARISON.md + run JSON (do not push main)"
         type: boolean
         required: false
         default: true
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   fill:
@@ -45,7 +47,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
-          # Needed when commit_results pushes back to a protected branch tip.
+          # Branch + PR (main is PR-protected); GITHUB_TOKEN can push feature branches.
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ensure Rust toolchain
@@ -83,8 +85,15 @@ jobs:
             bench/compare/runs/
           if-no-files-found: error
 
-      - name: Commit filled tables
+      # main requires PRs (ruleset pull_request) — never push tip directly.
+      # Use the REST API (python3) so we do not depend on `gh` on the runner.
+      - name: Open PR with filled tables
         if: ${{ inputs.commit_results }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -94,5 +103,40 @@ jobs:
             echo "No COMPARISON changes to commit (slots may already be filled)"
             exit 0
           fi
-          git commit -m "bench(compare): fill COMPARISON from self-hosted runner (#198 AC3)"
-          git push
+          BRANCH="bench/fill-comparison-${RUNNER_OS}-${RUN_ID}"
+          git switch -c "$BRANCH"
+          git commit -m "bench(compare): fill COMPARISON from self-hosted runner (#226)"
+          git push -u origin "HEAD:refs/heads/$BRANCH"
+          TITLE="bench(compare): fill COMPARISON from self-hosted (${RUNNER_OS})"
+          BODY=$(printf '%s\n' \
+            "Self-hosted fill for #226 / #198 AC3." \
+            "" \
+            "- Runner OS: \`${RUNNER_OS}\`" \
+            "- Workflow run: ${RUN_URL}" \
+            "" \
+            "Do not merge cloud/CI timings. Required CI Gate must be green.")
+          python3 - "$REPO" "$BRANCH" "$TITLE" "$BODY" <<'PY'
+          import json, os, sys, urllib.request
+          repo, branch, title, body = sys.argv[1:5]
+          token = os.environ["GH_TOKEN"]
+          payload = json.dumps({
+              "title": title,
+              "head": branch,
+              "base": "main",
+              "body": body,
+          }).encode()
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/pulls",
+              data=payload,
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "vanedb-fill-comparison",
+              },
+          )
+          with urllib.request.urlopen(req) as resp:
+              data = json.load(resp)
+          print(f"Opened PR: {data.get('html_url')}")
+          PY
