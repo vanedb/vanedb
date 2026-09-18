@@ -83,9 +83,10 @@ for a maintainer with write access (from a main checkout):
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
 ```
 
-Or (after this PR’s `cut-demo-0.2.0.yml` is on `main`) Actions → **Cut demo
-0.2.0** with secret `DEMO_REPO_TOKEN`. Until then, the local script on main
-is the path.
+Or Actions → **Cut demo 0.2.0** with secret `DEMO_REPO_TOKEN`
+(`cut-demo-0.2.0.yml` is on **main** via
+[#220](https://github.com/vanedb/vanedb/pull/220)). Local script on main also
+works without the secret if you have demo-repo write.
 
 To let a **future** cloud agent cut AC5 itself:
 [#215](https://github.com/vanedb/vanedb/pull/215) is **merged** (`ecec707` —

@@ -36,11 +36,11 @@ bash docs/launch/maintainer_cut_demo_0.2.0.sh
 # or: DEMO_REPO_TOKEN=... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
 ```
 
-**Actions alternative (after `cut-demo-0.2.0.yml` is on `main`, still on #212):**
-add repo secret `DEMO_REPO_TOKEN` (contents:write on
-`vanedb/obsidian-vane-search`), then Actions → **Cut demo 0.2.0** → Run
-workflow. Until then, use the local one-shot above (GitHub only registers
-`workflow_dispatch` from the default branch).
+**Actions alternative** (`cut-demo-0.2.0.yml` on **main** via
+[#220](https://github.com/vanedb/vanedb/pull/220)): add repo secret
+`DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), then
+Actions → **Cut demo 0.2.0** → Run workflow. Or use the local one-shot above
+with demo-repo write.
 
 Manual equivalent:
 
