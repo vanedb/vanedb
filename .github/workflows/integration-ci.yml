@@ -501,6 +501,19 @@ jobs:
             echo "ok: self-hosted + CI vars allowed"
           fi
           echo "ok: refuse_shared_runner.sh CI coverage"
+      - name: fill-comparison-self-hosted.yml lands via PR (not tip push)
+        # main is ruleset-protected; tip `git push` cannot land AC3 results.
+        run: |
+          set -euo pipefail
+          WF=.github/workflows/fill-comparison-self-hosted.yml
+          grep -q 'pull-requests: write' "$WF"
+          grep -q 'repos/.*/pulls' "$WF"
+          # Bare tip push (historical bug) — allow only `git push -u origin HEAD:refs/heads/...`
+          if grep -E '^\s*git push\s*$' "$WF"; then
+            echo "::error::$WF must not tip-push; open a PR instead" >&2
+            exit 1
+          fi
+          echo "ok: fill-comparison workflow opens a PR"
       - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.

@@ -45,7 +45,10 @@ L2_JSON="$(ls -1t bench/compare/runs/"${HW}"-l2-*.json 2>/dev/null | head -n 1 |
 if [[ -n "$COS_JSON" && -n "$L2_JSON" ]]; then
   echo "filling bench/COMPARISON.md from $COS_JSON + $L2_JSON…"
   python3 bench/compare/scripts/fill_comparison_slot.py "$COS_JSON" "$L2_JSON"
-  echo "Next: git add bench/COMPARISON.md bench/compare/runs/ && commit && push."
+  echo "Next: commit on a branch + open a PR (main is PR-protected); do not push tip."
+  echo "  git switch -c bench/fill-\$(uname -s)-\$(date +%Y%m%d) &&"
+  echo "  git add bench/COMPARISON.md bench/compare/runs/ &&"
+  echo "  git commit -m 'bench(compare): fill COMPARISON (#226)' && git push -u origin HEAD"
 else
   echo "Next: python3 bench/compare/scripts/fill_comparison_slot.py <cosine.json> <l2.json>"
   echo "Or paste --markdown output into bench/COMPARISON.md under matching headings."
