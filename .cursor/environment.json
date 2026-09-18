@@ -1,0 +1,6 @@
+{
+  "install": "scripts/agent-setup.sh",
+  "repositoryDependencies": [
+    "github.com/vanedb/obsidian-vane-search"
+  ]
+}
