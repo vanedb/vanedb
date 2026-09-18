@@ -87,7 +87,8 @@ def plan(root, version):
 
     per_file = defaultdict(list)
     for path, pattern, kind in SITES:
-        text = (root / path).read_text(encoding="utf-8", newline="")
+        with open(root / path, "r", encoding="utf-8", newline="") as f:
+            text = f.read()
         matches = list(re.finditer(pattern, text))
         if len(matches) != 1:
             return None, (f"{path}: {pattern!r} matched {len(matches)} times, "
@@ -103,13 +104,15 @@ def bump(root, version, quiet=False):
         return 1
     for path, edits in per_file.items():
         file = root / path
-        text = file.read_text(encoding="utf-8", newline="")
+        with open(file, "r", encoding="utf-8", newline="") as f:
+            text = f.read()
         # Highest offset first, so earlier spans stay valid as the text shifts.
         for (start, end), was, now, kind in sorted(edits, key=lambda e: -e[0][0]):
             text = text[:start] + now + text[end:]
             if not quiet:
                 print(f"  {was:>12} -> {now:<12} {path}  ({kind})")
-        file.write_text(text, encoding="utf-8", newline="")
+        with open(file, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
     return 0
 
 

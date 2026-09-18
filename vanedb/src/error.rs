@@ -50,6 +50,8 @@ pub enum VaneError {
     /// A parameter was outside its valid range, or an allocation it implies
     /// would overflow.
     InvalidParameter(&'static str),
+    /// A filter or predicate argument failed validation.
+    Validation(&'static str),
     /// The file does not exist, so "load it, or build it if it isn't there"
     /// can branch on the variant.
     FileNotFound {
@@ -131,6 +133,7 @@ impl std::fmt::Display for VaneError {
                 write!(f, "{input} must contain only finite values")
             }
             Self::InvalidParameter(msg) => write!(f, "invalid parameter: {msg}"),
+            Self::Validation(msg) => write!(f, "validation failed: {msg}"),
             Self::FileNotFound { context, source } | Self::Io { context, source } => {
                 write!(f, "{context}: {source}")
             }

@@ -8,6 +8,7 @@ use std::path::Path;
 
 use memmap2::Mmap;
 
+use crate::approx::SearchParams;
 use crate::distance::{self as d, Metric};
 use crate::error::{Result, VaneError};
 use crate::flat::SearchResult;
@@ -473,19 +474,46 @@ impl DiskIndex {
     ///
     /// Returns fewer than `k` results when the file holds fewer vectors.
     pub fn search(&self, query: &[f32], k: usize) -> Result<Vec<SearchResult>> {
+        self.search_with(query, k, &SearchParams::new())
+    }
+
+    /// [`search`](Self::search) with per-query options such as filters.
+    pub fn search_with(
+        &self,
+        query: &[f32],
+        k: usize,
+        params: &SearchParams<'_>,
+    ) -> Result<Vec<SearchResult>> {
         validate_query(query, self.dim, k)?;
+        if let Some(ref filter) = params.filter {
+            filter.validate()?;
+        }
 
         // Monomorphized per-metric scan + top-k selection instead of a full
         // sort through the dist_fn pointer — same treatment as
         // FlatIndex::search (O(n log n) -> O(n + k log k)).
+        let filter = params.filter;
         macro_rules! scan {
             ($dist:path) => {
-                // Bounded top-k over the stream; see flat/topk.rs.
-                crate::flat::topk::select(
-                    (0..self.num_vectors)
-                        .map(|i| SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i)))),
-                    k,
-                )
+                match filter {
+                    Some(f) => crate::flat::topk::select(
+                        (0..self.num_vectors).filter_map(|i| {
+                            let id = self.get_id(i);
+                            if f.accepts(id) {
+                                Some(SearchResult::new(id, $dist(query, self.get_vec(i))))
+                            } else {
+                                None
+                            }
+                        }),
+                        k,
+                    ),
+                    None => crate::flat::topk::select(
+                        (0..self.num_vectors).map(|i| {
+                            SearchResult::new(self.get_id(i), $dist(query, self.get_vec(i)))
+                        }),
+                        k,
+                    ),
+                }
             };
         }
         let results = match self.metric {
@@ -514,6 +542,7 @@ impl DiskIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Filter;
 
     #[test]
     fn builder_add_and_size() {
@@ -628,6 +657,18 @@ mod tests {
         // SAFETY: this test does not modify the file while it is mapped.
         let store = unsafe { DiskIndex::open(&path) }.unwrap();
         assert!(store.search(&[1.0, 2.0], 1).is_err());
+
+        // Test filtered search and validation on DiskIndex
+        let allowed = [1];
+        let p = SearchParams::new().filter(Filter::Allow(&allowed));
+        let hits = store.search_with(&[1.0, 2.0, 3.0], 1, &p).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].id, 1);
+
+        let bad_allowed = [5, 1];
+        let bad_p = SearchParams::new().filter(Filter::Allow(&bad_allowed));
+        assert!(store.search_with(&[1.0, 2.0, 3.0], 1, &bad_p).is_err());
+
         let _ = std::fs::remove_file(&path);
     }
 }

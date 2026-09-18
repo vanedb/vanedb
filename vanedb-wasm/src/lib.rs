@@ -1,7 +1,7 @@
-use js_sys::BigInt;
+use js_sys::{BigInt, Function, Reflect};
 use wasm_bindgen::prelude::*;
 
-use vanedb::approx::{ApproxIndex, SearchParams};
+use vanedb::approx::{ApproxIndex, Filter, SearchParams};
 use vanedb::distance::Metric;
 use vanedb::flat::{FlatIndex, SearchResult};
 
@@ -55,6 +55,105 @@ fn to_jserr(e: vanedb::VaneError) -> JsError {
 // Accept the JavaScript bigint before the Wasm i64 boundary can wrap it.
 fn one_id(id: BigInt) -> Result<u64, JsError> {
     u64::try_from(id).map_err(|_| JsError::new("id must be between 0 and 2**64 - 1"))
+}
+
+fn extract_id_list(val: &JsValue, name: &str) -> Result<Vec<u64>, JsError> {
+    if !val.is_object() {
+        return Err(JsError::new(&format!("{name} must be an array of IDs")));
+    }
+    let arr = js_sys::Array::from(val);
+    let mut ids = Vec::with_capacity(arr.length() as usize);
+    for item in arr.iter() {
+        let id_val = if item.is_bigint() {
+            one_id(BigInt::from(item))?
+        } else if let Some(n) = item.as_f64() {
+            count(n, "id")? as u64
+        } else {
+            return Err(JsError::new(&format!(
+                "{name} elements must be Numbers or BigInts"
+            )));
+        };
+        ids.push(id_val);
+    }
+    Ok(ids)
+}
+
+struct ParsedFilter {
+    allow: Option<Vec<u64>>,
+    deny: Option<Vec<u64>>,
+    predicate: Option<Function>,
+}
+
+fn filter_from_parsed<'a>(
+    parsed: Option<&'a ParsedFilter>,
+    pred_holder: &'a mut Option<Box<dyn Fn(u64) -> bool + Sync>>,
+) -> Option<Filter<'a>> {
+    if let Some(p) = parsed {
+        if let Some(ref allow) = p.allow {
+            return Some(Filter::Allow(allow.as_slice()));
+        } else if let Some(ref deny) = p.deny {
+            return Some(Filter::Deny(deny.as_slice()));
+        } else if let Some(ref func) = p.predicate {
+            let f_clone = func.clone();
+            *pred_holder = Some(Box::new(move |id: u64| {
+                let js_id = JsValue::from(BigInt::from(id));
+                let res = f_clone.call1(&JsValue::NULL, &js_id);
+                match res {
+                    Ok(v) => v.is_truthy(),
+                    Err(_) => false,
+                }
+            }));
+            return Some(Filter::Predicate(pred_holder.as_ref().unwrap().as_ref()));
+        }
+    }
+    None
+}
+
+fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsError> {
+    if options.is_undefined() || options.is_null() {
+        return Ok(None);
+    }
+    if !options.is_object() {
+        return Err(JsError::new("search options must be an object"));
+    }
+
+    let allow_val = Reflect::get(options, &JsValue::from_str("allow"))
+        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let allow = if !allow_val.is_undefined() && !allow_val.is_null() {
+        Some(extract_id_list(&allow_val, "allow")?)
+    } else {
+        None
+    };
+
+    let deny_val = Reflect::get(options, &JsValue::from_str("deny"))
+        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let deny = if !deny_val.is_undefined() && !deny_val.is_null() {
+        Some(extract_id_list(&deny_val, "deny")?)
+    } else {
+        None
+    };
+
+    let pred_val = Reflect::get(options, &JsValue::from_str("predicate"))
+        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let predicate = if !pred_val.is_undefined() && !pred_val.is_null() {
+        if pred_val.is_function() {
+            Some(Function::from(pred_val))
+        } else {
+            return Err(JsError::new("predicate must be a function"));
+        }
+    } else {
+        None
+    };
+
+    if allow.is_none() && deny.is_none() && predicate.is_none() {
+        return Ok(None);
+    }
+
+    Ok(Some(ParsedFilter {
+        allow,
+        deny,
+        predicate,
+    }))
 }
 
 // Preserve the number until validation: Wasm's i32 boundary would silently
@@ -145,14 +244,34 @@ impl WasmStore {
         self.inner.add_batch(ids, vectors).map_err(to_jserr)
     }
 
-    /// Search for k nearest neighbors.
+    /// Search for k nearest neighbors, with optional filter options.
     ///
     /// Ids come back as a `BigUint64Array` and distances as a `Float32Array`,
-    /// parallel by index. Ids are never narrowed to `f32`: values at or above
-    /// 2^24 are not exactly representable, so distinct records collided and
-    /// callers could act on the wrong record (#39).
-    pub fn search(&self, query: &[f32], k: f64) -> Result<WasmSearchResults, JsError> {
-        let results = self.inner.search(query, count(k, "k")?).map_err(to_jserr)?;
+    /// parallel by index.
+    pub fn search(
+        &self,
+        query: &[f32],
+        k: f64,
+        #[wasm_bindgen(unchecked_param_type = "object")] options: Option<JsValue>,
+    ) -> Result<WasmSearchResults, JsError> {
+        let k = count(k, "k")?;
+        let parsed = match options {
+            Some(ref opt) => parse_filter_options(opt)?,
+            None => None,
+        };
+
+        let mut pred_closure = None;
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
+
+        let mut params = SearchParams::new();
+        if let Some(f) = filter {
+            params = params.filter(f);
+        }
+
+        let results = self
+            .inner
+            .search_with(query, k, &params)
+            .map_err(to_jserr)?;
         Ok(WasmSearchResults::from(results))
     }
 
@@ -294,24 +413,59 @@ impl WasmIndex {
     /// the way to spend that cost once. Measure recall and latency on your own
     /// data when choosing one.
     ///
-    /// Below `k` it is raised to `k`, so `0` is the narrowest legal override,
-    /// not a request to fall back to the index's setting — omit the argument
-    /// for that. The C ABI reads `0` the other way, and this matches Python.
+    /// Search for k nearest neighbors.
+    ///
+    /// `options` may be either a number (`ef_search`), or an options object containing
+    /// `{ efSearch?: number, maxEfSearch?: number, allow?: number[] | bigint[], deny?: number[] | bigint[], predicate?: (id: bigint) => boolean }`.
     pub fn search(
         &self,
         query: &[f32],
         k: f64,
-        ef_search: Option<f64>,
+        #[wasm_bindgen(unchecked_param_type = "number | object")] ef_search_or_options: Option<
+            JsValue,
+        >,
     ) -> Result<WasmSearchResults, JsError> {
         let k = count(k, "k")?;
-        let results = match ef_search {
-            Some(ef) => {
-                let params = SearchParams::new().ef_search(count(ef, "ef_search")?);
-                self.inner.search_with(query, k, &params)
+        let mut params = SearchParams::new();
+
+        let parsed = match ef_search_or_options {
+            Some(ref val) if val.is_object() => {
+                let ef_val = Reflect::get(val, &JsValue::from_str("efSearch"))
+                    .or_else(|_| Reflect::get(val, &JsValue::from_str("ef_search")))
+                    .unwrap_or(JsValue::UNDEFINED);
+                if let Some(num) = ef_val.as_f64() {
+                    params = params.ef_search(count(num, "ef_search")?);
+                }
+
+                let max_ef_val = Reflect::get(val, &JsValue::from_str("maxEfSearch"))
+                    .or_else(|_| Reflect::get(val, &JsValue::from_str("max_ef_search")))
+                    .unwrap_or(JsValue::UNDEFINED);
+                if let Some(num) = max_ef_val.as_f64() {
+                    params = params.max_ef_search(count(num, "max_ef_search")?);
+                }
+
+                parse_filter_options(val)?
             }
-            None => self.inner.search(query, k),
+            Some(ref val) => {
+                if let Some(num) = val.as_f64() {
+                    params = params.ef_search(count(num, "ef_search")?);
+                }
+                None
+            }
+            None => None,
+        };
+
+        let mut pred_closure = None;
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
+
+        if let Some(f) = filter {
+            params = params.filter(f);
         }
-        .map_err(to_jserr)?;
+
+        let results = self
+            .inner
+            .search_with(query, k, &params)
+            .map_err(to_jserr)?;
         Ok(WasmSearchResults::from(results))
     }
 

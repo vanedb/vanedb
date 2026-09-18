@@ -6,6 +6,7 @@ the runtime module, because a stub that drifts is worse than no stub.
 """
 
 import os
+from collections.abc import Callable
 from typing import Any, TypeAlias
 
 __version__: str
@@ -25,6 +26,9 @@ BatchLike: TypeAlias = Any
 #: A 1-D uint64 or int64 buffer, or a sequence of ints. Negative ids raise
 #: ValueError.
 IdsLike: TypeAlias = Any
+
+#: A callable predicate taking an id (int) and returning bool.
+FilterCallable: TypeAlias = Callable[[int], bool]
 
 #: A filesystem path: `str` or any `os.PathLike`, `pathlib.Path` included.
 PathLike: TypeAlias = str | os.PathLike[str]
@@ -58,7 +62,15 @@ class FlatIndex:
     def remove(self, id: int) -> None:
         """Raises KeyError if no vector is stored under `id`."""
 
-    def search(self, query: VectorLike, k: int) -> list[tuple[int, float]]: ...
+    def search(
+        self,
+        query: VectorLike,
+        k: int,
+        *,
+        filter: FilterCallable | None = ...,
+        allow_ids: IdsLike | None = ...,
+        deny_ids: IdsLike | None = ...,
+    ) -> list[tuple[int, float]]: ...
 
 class ApproxIndex:
     """Approximate k-NN over an HNSW graph, with persistence."""
@@ -112,6 +124,10 @@ class ApproxIndex:
         k: int,
         *,
         ef_search: int | None = ...,
+        max_ef_search: int | None = ...,
+        filter: FilterCallable | None = ...,
+        allow_ids: IdsLike | None = ...,
+        deny_ids: IdsLike | None = ...,
     ) -> list[tuple[int, float]]: ...
     def save(self, path: PathLike) -> None: ...
     @staticmethod
@@ -151,7 +167,15 @@ class DiskIndex:
         """Raises KeyError if no vector is stored under `id`."""
 
     def contains(self, id: int) -> bool: ...
-    def search(self, query: VectorLike, k: int) -> list[tuple[int, float]]: ...
+    def search(
+        self,
+        query: VectorLike,
+        k: int,
+        *,
+        filter: FilterCallable | None = ...,
+        allow_ids: IdsLike | None = ...,
+        deny_ids: IdsLike | None = ...,
+    ) -> list[tuple[int, float]]: ...
     @staticmethod
     def open(path: PathLike) -> DiskIndex:
         """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""

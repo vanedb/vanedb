@@ -121,6 +121,74 @@ fn hnsw() {
         );
         assert_eq!(n2, 1);
         assert_eq!(ids2[0], 10);
+
+        // Test filtered search on loaded index
+        let allowed = [20u64];
+        let mut ids_filt = [0u64; 2];
+        let mut ds_filt = [0.0f32; 2];
+        let n_filt = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids_filt[0], 20);
+
+        unsafe extern "C-unwind" fn filter_cb(id: u64, _user_data: *mut std::ffi::c_void) -> bool {
+            id == 10
+        }
+        let n_cb = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            Some(filter_cb),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_cb, 1);
+        assert_eq!(ids_filt[0], 10);
+
+        unsafe extern "C-unwind" fn filter_panic(
+            _id: u64,
+            _user_data: *mut std::ffi::c_void,
+        ) -> bool {
+            panic!("callback panic test");
+        }
+        let n_panic = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            Some(filter_panic),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_panic, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_PANIC
+        );
+
         vanedb_capi::vanedb_rs_index_free(h2);
         // negative paths
         assert!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42).is_null());
@@ -173,6 +241,25 @@ fn mmap() {
             vanedb_capi::vanedb_rs_disk_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10);
+
+        // Filtered search on disk index
+        let allowed = [20u64];
+        let n_filt = vanedb_capi::vanedb_rs_disk_search_filtered(
+            m,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids[0], 20);
+
         vanedb_capi::vanedb_rs_disk_free(m);
         // negative path
         assert_eq!(
@@ -255,6 +342,63 @@ fn store() {
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10); // (0,0) nearest to (0.1,0.1)
         assert!(ds[0] <= ds[1]);
+
+        // Filtered search on store
+        let allowed = [20u64];
+        let n_filt = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids[0], 20);
+
+        let denied = [10u64];
+        let n_deny = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            denied.as_ptr(),
+            denied.len(),
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_deny, 1);
+        assert_eq!(ids[0], 20);
+
+        // Unsorted allow list fails validation
+        let unsorted = [50u64, 10];
+        let n_bad = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            unsorted.as_ptr(),
+            unsorted.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_bad, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_INVALID_PARAMETER
+        );
+
         vanedb_capi::vanedb_rs_store_free(s);
         // negative paths (parity with C++ null guards)
         assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null()); // dim=0 => Err => null

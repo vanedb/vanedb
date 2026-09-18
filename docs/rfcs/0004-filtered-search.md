@@ -1,6 +1,6 @@
 # RFC 0004: Filtered search
 
-- Status: accepted (2026-09-13)
+- Status: implemented (2026-09-13)
 - Milestone: 0.2.0
 - Tracking issue: #199
 - Supersedes / superseded by: none
@@ -130,21 +130,21 @@ A filter is never an error on an empty index.
 
 ## Acceptance criteria
 
-- [ ] `Filter` and `SearchParams::filter` / `max_ef_search` in Rust with
+- [x] `Filter` and `SearchParams::filter` / `max_ef_search` in Rust with
       docs and examples.
-- [ ] `tests/search_correctness.rs` extended: filtered exact search equals the
+- [x] `tests/search_correctness.rs` extended: filtered exact search equals the
       `f64` reference restricted to the allowed set, for all three metrics and
       the existing twelve dimensions.
-- [ ] Graph test: recall@10 of filtered search at 50%, 10% and 1% selectivity
+- [x] Graph test: recall@10 of filtered search at 50%, 10% and 1% selectivity
       measured against exact filtered search; the widening cap documented with
       the measured recall at each selectivity.
-- [ ] Tombstoned entries are never returned regardless of filter.
-- [ ] Python, WebAssembly and C ABI surfaces with tests; the ctypes example
+- [x] Tombstoned entries are never returned regardless of filter.
+- [x] Python, WebAssembly and C ABI surfaces with tests; the ctypes example
       gains a filtered call.
-- [ ] Interleaved A-B-A bench shows no regression on unfiltered
+- [x] Interleaved A-B-A bench shows no regression on unfiltered
       `index_search`, `store_search`, `disk_search` (within noise floor).
-- [ ] README replaces the "over-fetch and filter client-side" advice.
-- [ ] `CHANGELOG.md` entry.
+- [x] README replaces the "over-fetch and filter client-side" advice.
+- [x] `CHANGELOG.md` entry.
 
 ## Evidence required before the claim
 

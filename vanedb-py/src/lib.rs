@@ -6,9 +6,9 @@ use pyo3::exceptions::{
 };
 use pyo3::prelude::*;
 
-use ::vanedb::approx::ApproxIndex;
+use ::vanedb::approx::{ApproxIndex, Filter, SearchParams};
 use ::vanedb::distance::Metric;
-use ::vanedb::flat::FlatIndex;
+use ::vanedb::flat::{FlatIndex, SearchResult};
 use ::vanedb::VaneError;
 use ::vanedb::{DiskIndex, DiskIndexBuilder};
 
@@ -182,6 +182,88 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
     Ok(ids)
 }
 
+/// Extracted filter representation from Python keyword arguments.
+enum PyFilterHolder<'a> {
+    None,
+    Allow(Vec<u64>),
+    Deny(Vec<u64>),
+    Predicate(Box<dyn Fn(u64) -> bool + Sync + 'a>),
+}
+
+fn extract_py_filter<'a>(
+    _py: Python<'a>,
+    filter: Option<&Bound<'a, PyAny>>,
+    allow_ids: Option<&Bound<'a, PyAny>>,
+    deny_ids: Option<&Bound<'a, PyAny>>,
+) -> PyResult<PyFilterHolder<'a>> {
+    let mut count = 0;
+    if filter.is_some() {
+        count += 1;
+    }
+    if allow_ids.is_some() {
+        count += 1;
+    }
+    if deny_ids.is_some() {
+        count += 1;
+    }
+    if count > 1 {
+        return Err(PyValueError::new_err(
+            "specify at most one of filter, allow_ids, or deny_ids",
+        ));
+    }
+
+    if let Some(allow_obj) = allow_ids {
+        let ids = ids_u64(allow_obj)?;
+        return Ok(PyFilterHolder::Allow(ids));
+    }
+    if let Some(deny_obj) = deny_ids {
+        let ids = ids_u64(deny_obj)?;
+        return Ok(PyFilterHolder::Deny(ids));
+    }
+    if let Some(filter_obj) = filter {
+        if !filter_obj.is_callable() {
+            return Err(PyTypeError::new_err("filter must be a callable"));
+        }
+        let callable = filter_obj.clone().unbind();
+        let pred = move |id: u64| {
+            Python::attach(|py| {
+                let res = callable.call1(py, (id,));
+                match res {
+                    Ok(val) => val.is_truthy(py).unwrap_or(false),
+                    Err(_) => false,
+                }
+            })
+        };
+        return Ok(PyFilterHolder::Predicate(Box::new(pred)));
+    }
+
+    Ok(PyFilterHolder::None)
+}
+
+fn run_search_with_filter(
+    py: Python<'_>,
+    py_filter: &PyFilterHolder<'_>,
+    base_params: SearchParams<'_>,
+    search_fn: impl Fn(&SearchParams<'_>) -> ::vanedb::Result<Vec<SearchResult>> + Send + Sync,
+) -> PyResult<Vec<(u64, f32)>> {
+    let results = match py_filter {
+        PyFilterHolder::None => py.detach(|| search_fn(&base_params)).map_err(to_pyerr)?,
+        PyFilterHolder::Allow(ids) => {
+            let params = base_params.clone().filter(Filter::Allow(ids));
+            py.detach(|| search_fn(&params)).map_err(to_pyerr)?
+        }
+        PyFilterHolder::Deny(ids) => {
+            let params = base_params.clone().filter(Filter::Deny(ids));
+            py.detach(|| search_fn(&params)).map_err(to_pyerr)?
+        }
+        PyFilterHolder::Predicate(pred) => {
+            let params = base_params.filter(Filter::Predicate(pred.as_ref()));
+            search_fn(&params).map_err(to_pyerr)?
+        }
+    };
+    Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+}
+
 fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
     if ids.len() != rows {
         return Err(PyValueError::new_err(format!(
@@ -315,15 +397,21 @@ impl PyStore {
     }
 
     /// k-NN search. Accepts a 1-D float32 buffer (numpy) or any float sequence.
+    #[pyo3(signature = (query, k, *, filter=None, allow_ids=None, deny_ids=None))]
     fn search(
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
         #[pyo3(from_py_with = one_usize)] k: usize,
+        filter: Option<&Bound<'_, PyAny>>,
+        allow_ids: Option<&Bound<'_, PyAny>>,
+        deny_ids: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
-        let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
+        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
@@ -437,26 +525,34 @@ impl PyIndex {
     /// property -- and because every search releases the GIL, a concurrent
     /// thread can observe that mutation. The C ABI takes the same parameter
     /// per call for the same reason.
-    #[pyo3(signature = (query, k, *, ef_search=None))]
+    #[pyo3(signature = (query, k, *, ef_search=None, max_ef_search=None, filter=None, allow_ids=None, deny_ids=None))]
     fn search(
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
         #[pyo3(from_py_with = one_usize)] k: usize,
         ef_search: Option<&Bound<'_, PyAny>>,
+        max_ef_search: Option<&Bound<'_, PyAny>>,
+        filter: Option<&Bound<'_, PyAny>>,
+        allow_ids: Option<&Bound<'_, PyAny>>,
+        deny_ids: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let ef = ef_search.map(one_usize).transpose()?;
-        let results = py
-            .detach(|| match ef {
-                Some(ef) => {
-                    let params = ::vanedb::SearchParams::new().ef_search(ef);
-                    self.inner.search_with(&q, k, &params)
-                }
-                None => self.inner.search(&q, k),
-            })
-            .map_err(to_pyerr)?;
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        let max_ef = max_ef_search.map(one_usize).transpose()?;
+        let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
+
+        let mut base_params = ::vanedb::SearchParams::new();
+        if let Some(e) = ef {
+            base_params = base_params.ef_search(e);
+        }
+        if let Some(m) = max_ef {
+            base_params = base_params.max_ef_search(m);
+        }
+
+        run_search_with_filter(py, &py_filter, base_params, |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get_vector(
@@ -687,15 +783,21 @@ impl PyDiskStore {
         Ok(Self { inner })
     }
 
+    #[pyo3(signature = (query, k, *, filter=None, allow_ids=None, deny_ids=None))]
     fn search(
         &self,
         py: Python<'_>,
         query: &Bound<'_, PyAny>,
         #[pyo3(from_py_with = one_usize)] k: usize,
+        filter: Option<&Bound<'_, PyAny>>,
+        allow_ids: Option<&Bound<'_, PyAny>>,
+        deny_ids: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
-        let results = py.detach(|| self.inner.search(&q, k)).map_err(to_pyerr)?;
-        Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
+        let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
+        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+            self.inner.search_with(&q, k, p)
+        })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
