@@ -1,8 +1,11 @@
 use proptest::prelude::*;
 use vanedb::distance::{self, Metric};
 
+/// Arbitrary vectors via scaled integers. Open `f32` ranges can panic inside
+/// proptest 1.11's float sampler on aarch64 (`float_samplers` step assert).
 fn arb_vector(dim: usize) -> impl Strategy<Value = Vec<f32>> {
-    prop::collection::vec(-100.0f32..100.0, dim)
+    prop::collection::vec(-10_000i32..10_000, dim)
+        .prop_map(|v| v.into_iter().map(|x| x as f32 * 0.01).collect())
 }
 
 proptest! {
