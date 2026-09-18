@@ -53,10 +53,11 @@ bash bench/compare/scripts/record_both_metrics.sh linux-avx2
 ```
 
 Or Actions → **Fill COMPARISON (self-hosted)** (`fill-comparison-self-hosted.yml`
-is on the **default branch**) on a registered `runs-on: self-hosted` runner
-(never `ubuntu-latest` / `macos-latest`). The harness and helpers treat
-`RUNNER_ENVIRONMENT=self-hosted` without `/opt/hostedtoolcache` as dedicated;
-GitHub-hosted images still refuse.
+on the **default branch**) on a registered `runs-on: self-hosted` runner
+(never `ubuntu-latest` / `macos-latest`). The workflow opens a PR with
+`COMPARISON.md` + run JSON (`main` is ruleset-protected — tip push cannot
+land). The harness and helpers treat `RUNNER_ENVIRONMENT=self-hosted` without
+`/opt/hostedtoolcache` as dedicated; GitHub-hosted images still refuse.
 
 The helper refuses cloud/CI shells (except the self-hosted exception above),
 refuses `apple-*` off Darwin arm64, refuses `linux-avx2*` without a readable
