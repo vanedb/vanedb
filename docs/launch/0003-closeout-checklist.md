@@ -85,11 +85,14 @@ Or (after this PR’s `cut-demo-0.2.0.yml` is on `main`) Actions → **Cut demo
 0.2.0** with secret `DEMO_REPO_TOKEN`. Before that, the local script is the
 path.
 
-To let a **future** cloud agent cut AC5 itself: install the Cursor GitHub App
-on `vanedb/obsidian-vane-search` with `contents:write`, merge
-[#215](https://github.com/vanedb/vanedb/pull/215) (adds
-`repositoryDependencies`), then re-run an agent on this tip and execute
-`bash docs/launch/maintainer_cut_demo_0.2.0.sh`.
+To let a **future** cloud agent cut AC5 itself:
+[#215](https://github.com/vanedb/vanedb/pull/215) is **merged** (`ecec707` —
+`.cursor/environment.json` `repositoryDependencies` includes
+`github.com/vanedb/obsidian-vane-search`). Remaining: install the Cursor
+GitHub App on `vanedb/obsidian-vane-search` with `contents:write`, then
+**start a new** cloud agent (this run’s token will not pick up App scope)
+and execute `bash docs/launch/maintainer_cut_demo_0.2.0.sh`. Until the App
+has write, `cursor[bot]` still gets push **403** on the demo repo.
 
 Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
 run the script / workflow (or apply patch + tag `0.2.0`), reply on #198 / #212
