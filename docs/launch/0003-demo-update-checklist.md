@@ -27,7 +27,8 @@ bumps `package.json` / `manifest.json` / `versions.json` to `0.2.0` and adds
 README section **"Try it on a real vault"** (BRAT → Ollama nomic → index →
 one semantic query).
 
-**One-shot** (needs push access to the demo repo; cloud agents get 403):
+**One-shot** (on **main** via [#219](https://github.com/vanedb/vanedb/pull/219);
+needs push access to the demo repo; cloud agents get 403):
 
 ```bash
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
@@ -35,10 +36,11 @@ bash docs/launch/maintainer_cut_demo_0.2.0.sh
 # or: DEMO_REPO_TOKEN=... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
 ```
 
-**Actions alternative (after this workflow file is on `main`):** add repo secret
-`DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), then
-Actions → **Cut demo 0.2.0** → Run workflow. Until then, use the local one-shot
-above (GitHub only registers `workflow_dispatch` from the default branch).
+**Actions alternative (after `cut-demo-0.2.0.yml` is on `main`, still on #212):**
+add repo secret `DEMO_REPO_TOKEN` (contents:write on
+`vanedb/obsidian-vane-search`), then Actions → **Cut demo 0.2.0** → Run
+workflow. Until then, use the local one-shot above (GitHub only registers
+`workflow_dispatch` from the default branch).
 
 Manual equivalent:
 
