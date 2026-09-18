@@ -98,4 +98,4 @@ echo
 echo "Pushed tag $TAG. Release workflow will attach main.js + manifest.json + LICENSE."
 echo "Watch: https://github.com/vanedb/obsidian-vane-search/actions"
 echo "Expected URL: https://github.com/vanedb/obsidian-vane-search/releases/tag/$TAG"
-echo "Reply on https://github.com/vanedb/vanedb/pull/212 with that URL when green."
+echo "Reply on https://github.com/vanedb/vanedb/issues/226 with that URL when green."
