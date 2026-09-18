@@ -13,7 +13,7 @@ jobs:
   cut:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Require DEMO_REPO_TOKEN
         env:
