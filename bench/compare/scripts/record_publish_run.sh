@@ -78,16 +78,11 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$OUT_DIR/${HW}-${METRIC}-${STAMP}.json"
 export VANEDB_COMPARE_HW="$HW"
 export VANEDB_COMPARE_DEDICATED=1
-# Refuse to run if this shell looks like CI/cloud (belt + suspenders).
-# FS markers survive `env -u CURSOR_AGENT` on Cursor cloud VMs.
-if [[ "${CI:-}" == "true" || "${CI:-}" == "1" \
-   || "${GITHUB_ACTIONS:-}" == "true" || "${GITHUB_ACTIONS:-}" == "1" \
-   || "${GITLAB_CI:-}" == "true" || "${CIRCLECI:-}" == "true" \
-   || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
-   || -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
-  echo "refusing record_publish_run.sh under CI/cloud env (or Cursor/GHA FS markers)" >&2
-  exit 1
-fi
+# Refuse shared CI/cloud (belt + suspenders). Matches publish.rs::shared_runner_signals
+# — GHA self-hosted without /opt/hostedtoolcache is allowed.
+# shellcheck source=refuse_shared_runner.sh
+source "$(cd "$(dirname "$0")" && pwd)/refuse_shared_runner.sh"
+compare_refuse_if_shared_runner || exit 1
 # Reject caller overrides that could bypass the preflight fixture/pin.
 for arg in "$@"; do
   case "$arg" in

@@ -24,7 +24,11 @@ VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
 
 `--markdown` requires `VANEDB_COMPARE_HW`, `VANEDB_COMPARE_DEDICATED=1`,
 dim=768, and the in-repo `embeddings.vnef` SUMS pin. Shared CI/cloud runners
-(and Cursor cloud FS markers) are refused. Android: see [`ANDROID.md`](ANDROID.md).
+(and Cursor cloud FS markers) are refused; GitHub Actions *self-hosted*
+runners without `/opt/hostedtoolcache` are allowed. Android: see
+[`ANDROID.md`](ANDROID.md). One-shot host fill:
+`maintainer_fill_host_comparison.sh`, or Actions → **Fill COMPARISON
+(self-hosted)**.
 
 Smoke / CI only (never paste into COMPARISON.md):
 

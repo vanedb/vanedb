@@ -113,6 +113,13 @@ pub fn refuse_noncanonical_params(g: &CanonicalParamsGate) -> Result<(), String>
 /// would otherwise emit `shared_runner=false` pasteable JSON. Filesystem
 /// markers (`/opt/cursor`, `/exec-daemon`, `/opt/hostedtoolcache`) cannot be
 /// unset that way.
+///
+/// **Exception:** GitHub Actions *self-hosted* runners
+/// (`RUNNER_ENVIRONMENT=self-hosted`) without `/opt/hostedtoolcache` are
+/// treated as operator-owned dedicated hardware. `CI`/`GITHUB_ACTIONS` are
+/// still set there; those alone must not refuse `--markdown` when the host
+/// bind + `VANEDB_COMPARE_DEDICATED=1` also hold. GitHub-hosted images keep
+/// refusing via `/opt/hostedtoolcache` and `RUNNER_ENVIRONMENT=github-hosted`.
 pub fn shared_runner_env() -> bool {
     shared_runner_signals(
         |k| std::env::var(k).ok(),
@@ -134,19 +141,29 @@ where
     };
     // Presence flags: empty string must not count (CI YAML `VAR: ""` still sets the key).
     let present = |k: &str| env_var(k).map(|v| !v.is_empty()).unwrap_or(false);
+    // Immutable host markers for Cursor cloud agent VMs (survive `env -u`).
+    if present("CURSOR_AGENT")
+        || present("CODESPACES")
+        || path_exists("/opt/cursor")
+        || path_exists("/exec-daemon")
+    {
+        return true;
+    }
+    // GitHub-hosted runner image marker (survives unsetting CI/GITHUB_ACTIONS).
+    if path_exists("/opt/hostedtoolcache") {
+        return true;
+    }
+    // Operator-owned GHA self-hosted: CI vars are set, but timings are dedicated.
+    let runner_env = env_var("RUNNER_ENVIRONMENT").unwrap_or_default();
+    if runner_env.eq_ignore_ascii_case("self-hosted") {
+        return false;
+    }
     truthy("CI")
         || truthy("GITHUB_ACTIONS")
         || truthy("GITLAB_CI")
         || truthy("CIRCLECI")
         || truthy("BUILDKITE")
         || truthy("TF_BUILD")
-        || present("CURSOR_AGENT")
-        || present("CODESPACES")
-        // Immutable host markers for Cursor cloud agent VMs (survive `env -u`).
-        || path_exists("/opt/cursor")
-        || path_exists("/exec-daemon")
-        // GitHub-hosted runner image marker (survives unsetting CI/GITHUB_ACTIONS).
-        || path_exists("/opt/hostedtoolcache")
 }
 
 /// RFC publish fixture dimensionality (nomic-embed-text-v1.5).
@@ -681,6 +698,37 @@ mod tests {
                 }
             },
             |_| false
+        ));
+        // GITHUB_ACTIONS alone is shared…
+        assert!(shared_runner_signals(
+            |k| {
+                if k == "GITHUB_ACTIONS" {
+                    Some("true".into())
+                } else {
+                    None
+                }
+            },
+            |_| false
+        ));
+        // …unless RUNNER_ENVIRONMENT=self-hosted (dedicated operator runner).
+        assert!(
+            !shared_runner_signals(
+                |k| match k {
+                    "GITHUB_ACTIONS" | "CI" => Some("true".into()),
+                    "RUNNER_ENVIRONMENT" => Some("self-hosted".into()),
+                    _ => None,
+                },
+                |_| false
+            ),
+            "self-hosted GHA must not look like a shared runner"
+        );
+        // Self-hosted claim must not override github-hosted FS marker.
+        assert!(shared_runner_signals(
+            |k| match k {
+                "RUNNER_ENVIRONMENT" => Some("self-hosted".into()),
+                _ => None,
+            },
+            |p| p == "/opt/hostedtoolcache"
         ));
     }
 

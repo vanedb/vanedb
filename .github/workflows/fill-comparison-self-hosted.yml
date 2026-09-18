@@ -1,0 +1,98 @@
+# Fill bench/COMPARISON.md cosine+L2 for the current host on operator-owned
+# dedicated hardware via GitHub Actions self-hosted runners (#198 AC3).
+# Never use github-hosted runners — AGENTS.md forbids publishing those timings.
+# Does not run on push/PR. Requires a registered self-hosted runner.
+name: Fill COMPARISON (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      hw_label:
+        description: "Optional VANEDB_COMPARE_HW override (empty = auto-detect)"
+        required: false
+        default: ""
+      ref:
+        description: "Git ref to check out (empty = workflow branch)"
+        required: false
+        default: ""
+      commit_results:
+        description: "Commit COMPARISON.md + run JSON back to the ref"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  fill:
+    # Explicit self-hosted only — never ubuntu-latest / macos-latest.
+    runs-on: self-hosted
+    timeout-minutes: 360
+    steps:
+      - name: Refuse github-hosted / Cursor markers
+        run: |
+          set -euo pipefail
+          if [[ -e /opt/hostedtoolcache || -e /opt/cursor || -e /exec-daemon ]]; then
+            echo "::error::FS markers indicate a shared runner; refuse AC3 fill"
+            exit 1
+          fi
+          if [[ "${RUNNER_ENVIRONMENT:-}" != "self-hosted" ]]; then
+            echo "::error::RUNNER_ENVIRONMENT=${RUNNER_ENVIRONMENT:-unset} (need self-hosted)"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+          # Needed when commit_results pushes back to a protected branch tip.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure Rust toolchain
+        run: |
+          set -euo pipefail
+          if ! command -v rustc >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            # shellcheck disable=SC1091
+            source "$HOME/.cargo/env"
+          fi
+          rustc --version
+          cargo --version
+
+      - name: Fill host comparison (cosine + L2)
+        env:
+          VANEDB_COMPARE_HW: ${{ inputs.hw_label }}
+        run: |
+          set -euo pipefail
+          if [[ -f "$HOME/.cargo/env" ]]; then
+            # shellcheck disable=SC1091
+            source "$HOME/.cargo/env"
+          fi
+          # Empty override must not export an empty HW label.
+          if [[ -z "${VANEDB_COMPARE_HW:-}" ]]; then
+            unset VANEDB_COMPARE_HW
+          fi
+          bash bench/compare/scripts/maintainer_fill_host_comparison.sh
+
+      - name: Upload COMPARISON + run JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: comparison-fill-${{ runner.os }}-${{ github.run_id }}
+          path: |
+            bench/COMPARISON.md
+            bench/compare/runs/
+          if-no-files-found: error
+
+      - name: Commit filled tables
+        if: ${{ inputs.commit_results }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bench/COMPARISON.md bench/compare/runs/
+          if git diff --cached --quiet; then
+            echo "No COMPARISON changes to commit (slots may already be filled)"
+            exit 0
+          fi
+          git commit -m "bench(compare): fill COMPARISON from self-hosted runner (#198 AC3)"
+          git push

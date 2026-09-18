@@ -5,12 +5,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 
-if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache \
-   || -n "${CURSOR_AGENT:-}" || -n "${CODESPACES:-}" \
-   || "${CI:-}" == "true" || "${CI:-}" == "1" || "${GITHUB_ACTIONS:-}" == "true" ]]; then
-  echo "refusing: this is a CI/cloud shell — run on idle dedicated hardware" >&2
-  exit 1
-fi
+# Matches publish.rs::shared_runner_signals — GHA self-hosted without
+# /opt/hostedtoolcache is operator-owned dedicated hardware (AC3 path).
+# shellcheck source=refuse_shared_runner.sh
+source "$(cd "$(dirname "$0")" && pwd)/refuse_shared_runner.sh"
+compare_refuse_if_shared_runner || exit 1
 
 URL="${VANEDB_COMPARE_FIXTURE_URL:-https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef}"
 if [[ ! -f bench/compare/fixtures/embeddings.vnef ]]; then

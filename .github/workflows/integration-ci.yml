@@ -469,8 +469,50 @@ jobs:
           set -e
           echo "$out"
           test "$rc" -ne 0
-          echo "$out" | grep -q 'CI/cloud'
+          echo "$out" | grep -Eqi 'CI/cloud|hostedtoolcache|shared|Cursor|Codespaces'
           echo "ok: maintainer_fill refused CI/cloud shell"
+      - name: refuse_shared_runner.sh — github-hosted / CI refuse; self-hosted allow
+        run: |
+          set -euo pipefail
+          SCR=bench/compare/scripts/refuse_shared_runner.sh
+          # Live github-hosted (or any CI with hostedtoolcache / CI=true): must refuse.
+          set +e
+          out=$(bash "$SCR" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          # Simulated clean self-hosted: no FS markers in a temp view — exercise
+          # the self-hosted branch by unsetting CI markers that would otherwise
+          # fire after the exception. RUNNER_ENVIRONMENT=self-hosted alone must
+          # clear the CI/GITHUB_ACTIONS refuse (Rust unit tests cover FS order).
+          # shellcheck disable=SC2034
+          (
+            # Subshell: pretend we are not on a Cursor/GHA-hosted image by only
+            # testing the env-var path when FS markers are absent. If this runner
+            # has /opt/hostedtoolcache, skip the allow assertion (github-hosted).
+            if [[ -e /opt/hostedtoolcache || -e /opt/cursor || -e /exec-daemon ]]; then
+              echo "ok: skip self-hosted-allow on github-hosted FS markers"
+              exit 0
+            fi
+            export CI=true GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=self-hosted
+            unset CURSOR_AGENT CODESPACES || true
+            bash "$SCR"
+            echo "ok: self-hosted + CI vars allowed"
+          )
+          # Self-hosted claim must not override hostedtoolcache when present.
+          if [[ -e /opt/hostedtoolcache ]]; then
+            export RUNNER_ENVIRONMENT=self-hosted
+            set +e
+            out2=$(bash "$SCR" 2>&1)
+            rc2=$?
+            set -e
+            echo "$out2"
+            test "$rc2" -ne 0
+            echo "$out2" | grep -q hostedtoolcache
+            echo "ok: self-hosted claim refused when hostedtoolcache present"
+          fi
+          echo "ok: refuse_shared_runner.sh CI coverage"
       - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.

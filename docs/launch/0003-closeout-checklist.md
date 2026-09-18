@@ -23,8 +23,10 @@ before dedicated HW `--markdown` runs.
 ## 2. Dedicated hardware tables (AC3) — **blocked for cloud agents**
 
 `bench/COMPARISON.md` still has six `*Pending.*` cells (cosine+L2 × Apple /
-Linux AVX2 / Android). This cloud agent has **0** connected self-hosted
-workers and must not paste timings from shared runners (`AGENTS.md`).
+Linux AVX2 / Android). This cloud agent has **0** connected Cursor
+self-hosted workers and must not paste timings from shared runners
+(`AGENTS.md`). Operator-owned **GitHub Actions self-hosted** runners are an
+allowed path (see below).
 
 ### Apple Silicon / Linux AVX2 (host binary)
 
@@ -43,11 +45,16 @@ bash bench/compare/scripts/record_publish_run.sh apple-m4-pro l2
 bash bench/compare/scripts/record_both_metrics.sh linux-avx2
 ```
 
-The helper refuses cloud/CI shells, refuses `apple-*` off Darwin arm64, refuses
-`linux-avx2*` without a readable AVX2 `cpuinfo`, and **refuses `android-*`**
-(see below). The harness `--markdown` path applies the same host binds
-(OS/arch/AVX2/Android filesystem), so skipping the helper does not reopen
-cross-class labels.
+Or Actions → **Fill COMPARISON (self-hosted)** (`fill-comparison-self-hosted.yml`)
+on a registered `runs-on: self-hosted` runner (never `ubuntu-latest` /
+`macos-latest`). The harness and helpers treat `RUNNER_ENVIRONMENT=self-hosted`
+without `/opt/hostedtoolcache` as dedicated; GitHub-hosted images still refuse.
+
+The helper refuses cloud/CI shells (except the self-hosted exception above),
+refuses `apple-*` off Darwin arm64, refuses `linux-avx2*` without a readable
+AVX2 `cpuinfo`, and **refuses `android-*`** (see below). The harness
+`--markdown` path applies the same host binds (OS/arch/AVX2/Android
+filesystem), so skipping the helper does not reopen cross-class labels.
 
 ### Android ARM64
 

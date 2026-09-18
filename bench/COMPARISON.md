@@ -99,8 +99,11 @@ Android), missing `VANEDB_COMPARE_DEDICATED=1`, `--rounds < 2`, non-canonical
 `--max-queries`, `--force-sqlite-vec-cosine`, `--skip-delete`, `--skip-save`,
 shared CI/cloud runner envs **and** Cursor cloud filesystem markers
 `/opt/cursor` and `/exec-daemon` plus GitHub-hosted `/opt/hostedtoolcache`
-(clearing `CURSOR_AGENT` / `CI` / `GITHUB_ACTIONS` is not enough), and
-a missing `metadata.json`. Smoke fixtures require `--allow-smoke` and cannot
+(clearing `CURSOR_AGENT` / `CI` / `GITHUB_ACTIONS` is not enough). Exception:
+GitHub Actions *self-hosted* runners (`RUNNER_ENVIRONMENT=self-hosted`)
+without `/opt/hostedtoolcache` are treated as operator-owned dedicated
+hardware (CI vars alone do not refuse). Also refused: a missing
+`metadata.json`. Smoke fixtures require `--allow-smoke` and cannot
 produce publishable markdown (classification is by `n_docs`/`n_queries` +
 metadata, not filename). JSON recorded without `dedicated_attested=true` (or
 with `shared_runner=true`), or with host facts that contradict the HW label, is
