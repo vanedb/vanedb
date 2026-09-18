@@ -71,19 +71,21 @@ metrics record.
 
 ## 3. Demo (AC5) — **maintainer apply required**
 
-Applyable patch is in-tree:
+Applyable patch + one-shot are on **main** via
+[#219](https://github.com/vanedb/vanedb/pull/219) (`eb5bf4d`):
 [`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
-(verified `git apply` + **98/98** tests + production `main.js` build). This
-agent cannot push/fork `vanedb/obsidian-vane-search` (403 on git push and
-Contents API). One-shot for a maintainer with write access:
+(verified `git apply` + **98/98** tests + production `main.js` build) and
+`docs/launch/maintainer_cut_demo_0.2.0.sh`. This agent cannot push/fork
+`vanedb/obsidian-vane-search` (403 on git push and Contents API). One-shot
+for a maintainer with write access (from a main checkout):
 
 ```bash
 bash docs/launch/maintainer_cut_demo_0.2.0.sh
 ```
 
 Or (after this PR’s `cut-demo-0.2.0.yml` is on `main`) Actions → **Cut demo
-0.2.0** with secret `DEMO_REPO_TOKEN`. Before that, the local script is the
-path.
+0.2.0** with secret `DEMO_REPO_TOKEN`. Until then, the local script on main
+is the path.
 
 To let a **future** cloud agent cut AC5 itself:
 [#215](https://github.com/vanedb/vanedb/pull/215) is **merged** (`ecec707` —
