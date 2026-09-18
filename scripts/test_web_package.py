@@ -36,7 +36,19 @@ def main():
             if default not in page:
                 raise SystemExit(f"packaged.html no longer imports {default}")
             page = page.replace(default, wanted)
+        if not args.entry.endswith("web/index.js"):
+            if "const REQUIRE_PERSISTENCE = true;" not in page:
+                raise SystemExit("packaged.html is missing REQUIRE_PERSISTENCE")
+            page = page.replace(
+                "const REQUIRE_PERSISTENCE = true;",
+                "const REQUIRE_PERSISTENCE = false;",
+                1,
+            )
         (Path(temporary) / "index.html").write_text(page)
+        shutil.copy2(
+            ROOT / "vanedb/tests/fixtures/vndb_graph/l2_rng1.vndb",
+            Path(temporary) / "l2_rng1.vndb",
+        )
         with ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=temporary)) as server:
             worker = Thread(target=server.serve_forever, daemon=True)
             worker.start()
@@ -48,6 +60,13 @@ def main():
                 subprocess.run(cli + ["run-code", "async (page) => { await page.locator('#result')"
                                       ".filter({ hasText: /^PASS:/ }).waitFor({ timeout: 30000 }); }"],
                                cwd=temporary, check=True, timeout=60)
+            except subprocess.CalledProcessError:
+                subprocess.run(
+                    cli + ["run-code", "async (page) => { "
+                           "console.log('acceptance #result:', await page.locator('#result').textContent()); }"],
+                    cwd=temporary, check=False, timeout=30,
+                )
+                raise
             finally:
                 try:
                     subprocess.run(cli + ["close"], cwd=temporary, check=False, timeout=60)

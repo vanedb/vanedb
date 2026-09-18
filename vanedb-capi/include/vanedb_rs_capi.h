@@ -307,8 +307,39 @@ int32_t vanedb_rs_index_save(vanedb_rs_index *h, const char *path);
 vanedb_rs_index *vanedb_rs_index_load(const char *path);
 
 /**
+ * Writes a VNDB graph into `buf`.
+ *
+ * `written` must be non-null. On success it receives the number of bytes
+ * written. If `buf` is null and `cap` is 0, this is a size query: it
+ * serializes into a counter (no output buffer) and stores the required
+ * length. If `buf` is non-null but `cap` is smaller than needed, it fails
+ * with `VANEDB_RS_INVALID_PARAMETER` and still stores the required length
+ * so the caller can allocate and retry.
+ *
  * # Safety
- * The handle must have come from `vanedb_rs_index_new` or `vanedb_rs_index_load`
+ * `h` must be a live handle from `vanedb_rs_index_new`,
+ * `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer` (or null).
+ * `written` must be a valid pointer. If `buf` is non-null it must have
+ * room for `cap` bytes.
+ */
+int32_t vanedb_rs_index_save_to_buffer(vanedb_rs_index *h,
+                                       uint8_t *buf,
+                                       uintptr_t cap,
+                                       uintptr_t *written);
+
+/**
+ * Reads a VNDB graph (or a legacy Rust file) from `buf`.
+ *
+ * # Safety
+ * `buf` must point to `len` valid bytes. Returns an owning handle (or null)
+ * that must be freed with `vanedb_rs_index_free`.
+ */
+vanedb_rs_index *vanedb_rs_index_load_from_buffer(const uint8_t *buf, uintptr_t len);
+
+/**
+ * # Safety
+ * The handle must have come from `vanedb_rs_index_new`,
+ * `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer`
  * and not been freed already (or be null, which is a no-op).
  */
 void vanedb_rs_index_free(vanedb_rs_index *h);

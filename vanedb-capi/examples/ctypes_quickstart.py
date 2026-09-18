@@ -63,6 +63,30 @@ def bind(lib: ctypes.CDLL) -> None:
         ctypes.c_void_p, f32p, usize, ctypes.POINTER(u64), f32p
     ]
 
+    lib.vanedb_rs_index_new.restype = ctypes.c_void_p
+    lib.vanedb_rs_index_new.argtypes = [
+        usize, ctypes.c_uint32, usize, usize, usize, u64
+    ]
+    lib.vanedb_rs_index_free.restype = None
+    lib.vanedb_rs_index_free.argtypes = [ctypes.c_void_p]
+    lib.vanedb_rs_index_add.restype = ctypes.c_int32
+    lib.vanedb_rs_index_add.argtypes = [ctypes.c_void_p, u64, f32p]
+    lib.vanedb_rs_index_save_to_buffer.restype = ctypes.c_int32
+    lib.vanedb_rs_index_save_to_buffer.argtypes = [
+        ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), usize,
+        ctypes.POINTER(usize),
+    ]
+    lib.vanedb_rs_index_load_from_buffer.restype = ctypes.c_void_p
+    lib.vanedb_rs_index_load_from_buffer.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8), usize,
+    ]
+    lib.vanedb_rs_index_search.restype = usize
+    lib.vanedb_rs_index_search.argtypes = [
+        ctypes.c_void_p, f32p, usize, usize, ctypes.POINTER(u64), f32p
+    ]
+    lib.vanedb_rs_index_len.restype = usize
+    lib.vanedb_rs_index_len.argtypes = [ctypes.c_void_p]
+
 
 def message(lib: ctypes.CDLL) -> str:
     pointer = lib.vanedb_rs_last_error_message()
@@ -84,6 +108,7 @@ def main() -> int:
     print("vanedb", lib.vanedb_rs_version().decode())
 
     dim = 3
+    floats = ctypes.c_float * dim
     store = lib.vanedb_rs_store_new(dim, L2)
     if not store:
         print(f"construction failed: code {lib.vanedb_rs_last_error()} "
@@ -116,6 +141,44 @@ def main() -> int:
         print("nearest:", [(ids[i], round(distances[i], 4)) for i in range(found)])
     finally:
         lib.vanedb_rs_store_free(store)
+
+    # The same VNDB file as path save/load, without a filesystem.
+    index = lib.vanedb_rs_index_new(dim, L2, 16, 4, 16, 42)
+    if not index:
+        print(f"index construction failed: code {lib.vanedb_rs_last_error()} "
+              f"{message(lib)!r}")
+        return 1
+    try:
+        floats = ctypes.c_float * dim
+        assert lib.vanedb_rs_index_add(index, 1, floats(1.0, 0.0, 0.0)) == OK
+        needed = ctypes.c_size_t(0)
+        assert lib.vanedb_rs_index_save_to_buffer(index, None, 0, ctypes.byref(needed)) == OK
+        buf = (ctypes.c_uint8 * needed.value)()
+        wrote = ctypes.c_size_t(needed.value)
+        assert lib.vanedb_rs_index_save_to_buffer(
+            index, buf, needed.value, ctypes.byref(wrote)
+        ) == OK
+        print("serialized", wrote.value, "bytes")
+    finally:
+        lib.vanedb_rs_index_free(index)
+
+    loaded = lib.vanedb_rs_index_load_from_buffer(buf, wrote.value)
+    if not loaded:
+        print(f"buffer load failed: code {lib.vanedb_rs_last_error()} "
+              f"{message(lib)!r}")
+        return 1
+    try:
+        assert lib.vanedb_rs_index_len(loaded) == 1
+        ids = (ctypes.c_uint64 * 1)()
+        distances = (ctypes.c_float * 1)()
+        found = lib.vanedb_rs_index_search(
+            loaded, floats(1.0, 0.0, 0.0), 1, 0, ids, distances
+        )
+        assert found == 1 and ids[0] == 1
+        print("loaded from buffer; nearest:", ids[0])
+    finally:
+        lib.vanedb_rs_index_free(loaded)
+
     print("OK")
     return 0
 

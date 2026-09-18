@@ -19,8 +19,55 @@ function rejectsNumber(operation) {
     throw new Error('invalid number was accepted');
 }
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
-try {
+const REQUIRE_PERSISTENCE = true;
+async function main() {
     await init();
+    if (REQUIRE_PERSISTENCE) {
+        check(typeof ApproxIndex.load === 'function', 'merged package must expose ApproxIndex.load');
+        check(typeof ApproxIndex.prototype.save === 'function', 'merged package must expose save');
+    }
+    if (typeof ApproxIndex.load === 'function') {
+        const params = new URLSearchParams(location.search);
+        if (!params.has('persisted')) {
+            const index = new ApproxIndex(2, 'l2', 8, 4, 16, 7);
+            index.add(101n, new Float32Array([1, 0]));
+            await index.save('reload-survival');
+            index.free();
+            const next = new URL(location.href);
+            next.searchParams.set('persisted', '1');
+            location.replace(next.toString());
+            // If the navigation does not happen, fail instead of hanging the
+            // Playwright wait on "Running".
+            await new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('reload navigation did not happen')), 2000);
+            });
+        }
+        const loaded = await ApproxIndex.load('reload-survival');
+        check(loaded !== null, 'IndexedDB load after reload returned null');
+        try {
+            check(loaded.size() === 1, 'IndexedDB load lost the vector');
+            check([...loaded.get(101n)].join(',') === '1,0', 'IndexedDB load wrong vector');
+        } finally { loaded.free(); }
+        check(await ApproxIndex.load('no-such-index') === null, 'unknown name must resolve to null');
+    }
+    {
+        const response = await fetch('./l2_rng1.vndb');
+        check(response.ok, 'conformance fixture was not served');
+        const fixture = new Uint8Array(await response.arrayBuffer());
+        const fromRust = ApproxIndex.fromBytes(fixture);
+        try {
+            check(fromRust.size() === 3, 'Rust fixture loaded with the wrong size');
+            check([...fromRust.get(101n)].join(',') === '1,0', 'Rust fixture vector mismatch');
+            const hits = fromRust.search(new Float32Array([1, 0]), 1);
+            try { check(hits.ids[0] === 101n, 'Rust fixture search disagreed'); }
+            finally { hits.free(); }
+            const saved = fromRust.toBytes();
+            check(saved.length === fixture.length, 'browser save changed the fixture length');
+            for (let i = 0; i < fixture.length; i += 1) {
+                check(saved[i] === fixture[i], `browser save diverged at byte ${i}`);
+            }
+        } finally { fromRust.free(); }
+    }
     for (const value of invalidNumbers) {
         rejectsNumber(() => new FlatIndex(value, 'l2'));
         for (const position of [0, 2, 3, 4]) {
@@ -81,6 +128,16 @@ try {
                     }
                     index.compact();
                     check(index.tombstones() === 0 && index.size() === 3, 'compact lost upserted entries');
+                    const bytes = index.toBytes();
+                    check(bytes instanceof Uint8Array && bytes.length > 4, 'toBytes did not return a file');
+                    check(String.fromCharCode(...bytes.slice(0, 4)) === 'VNDB', 'toBytes is not a VNDB file');
+                    const reloaded = ApproxIndex.fromBytes(bytes);
+                    try {
+                        check(reloaded.size() === 3, 'fromBytes lost entries');
+                        const again = reloaded.search(new Float32Array([1, 0, 0]), 1);
+                        try { check(again.ids[0] === 2n, 'fromBytes search disagreed'); }
+                        finally { again.free(); }
+                    } finally { reloaded.free(); }
                     index.remove(2n);
                 }
                 index.remove(id);
@@ -89,8 +146,9 @@ try {
         }
     }
     result.textContent = 'PASS: packaged browser bindings, both indexes, all metrics';
-} catch (error) {
+}
+main().catch((error) => {
     result.textContent = `FAIL: ${error.stack || error}`;
     throw error;
-}
+});
 </script>

@@ -46,6 +46,63 @@ Keep the `web/` directory's JavaScript and `.wasm` files together so `init()`
 can fetch the module. Browsers cannot resolve bare npm names without a bundler
 or an import map.
 
+## Persistence
+
+`ApproxIndex.toBytes()` returns a `Uint8Array` that is a VNDB file — a copy
+out of WebAssembly memory, the same bytes `save` would write on disk in Rust
+or Python. `ApproxIndex.fromBytes(bytes)` reads one; `bytes` is a `Uint8Array` or
+`ArrayBuffer`. Compact first if tombstones should not be stored; the length
+equals the file size. `FlatIndex` stays in-memory only.
+
+The JavaScript package then hangs `save(name)` / `load(name)` on `ApproxIndex`
+over a small `Storage` adapter. IndexedDB is the browser default; the
+filesystem is the Node default. `name` is a single path segment (`corpus`,
+not `data/corpus`) so the same call works in both. `load` of an unknown
+name resolves to `null`.
+Without a bundler, import from `./node_modules/@vanedb/wasm/web/index.js`
+as in the sample above; with a bundler or in Node, the bare specifier works.
+
+Browser:
+
+```js
+import init, { ApproxIndex } from '@vanedb/wasm';
+
+await init();
+const index = new ApproxIndex(3, 'cosine', 100, 16, 200);
+index.add(101n, new Float32Array([1, 0, 0]));
+await index.save('corpus');
+index.free();
+
+// Later, including after a page reload:
+const loaded = await ApproxIndex.load('corpus');
+console.log(loaded.size()); // 1
+loaded.free();
+```
+
+Node, the same calls, writing `corpus` as a file in the working directory:
+
+```js
+import init, { ApproxIndex } from '@vanedb/wasm';
+
+await init();
+const index = new ApproxIndex(3, 'cosine', 100, 16, 200);
+index.add(101n, new Float32Array([1, 0, 0]));
+await index.save('corpus');
+index.free();
+
+const loaded = await ApproxIndex.load('corpus');
+console.log(loaded.size()); // 1
+loaded.free();
+```
+
+Pass `{ put, get, delete }` as a second argument to use another store, or
+construct `indexedDbStorage(dbName?)` / `fileStorage(directory?)` explicitly.
+Bytes saved in a browser load in Rust, Python and C, and the reverse.
+
+The published package's WebAssembly module is 76 KB gzipped (204 KB unpacked);
+the JavaScript loader and storage helpers are 8 KB gzipped (60 KB unpacked).
+CI prints the exact figures from `scripts/check_npm_package.py` on every build.
+
 ## Indexes
 
 `new ApproxIndex(dimension, metric, capacity, m, ef_construction, seed?)` —
@@ -88,8 +145,6 @@ Measure recall and latency on your own data when choosing one.
 Neither exists on `FlatIndex`, which is exact and has no beam. JavaScript
 ignores surplus arguments, so `flatIndex.search(query, k, 64)` runs without
 complaint and the width does nothing.
-
-Persistence (`save`/`load`) and disk mapping are not exposed by this package.
 
 ## Values
 

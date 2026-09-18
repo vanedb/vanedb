@@ -118,6 +118,11 @@ class ApproxIndex:
     def load(path: PathLike) -> ApproxIndex:
         """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""
 
+    def to_bytes(self) -> bytes: ...
+    @staticmethod
+    def from_bytes(data: bytes) -> ApproxIndex:
+        """Raises ValueError if the bytes are not a valid graph."""
+
 class DiskIndexBuilder:
     """Builds a file that DiskIndex can memory-map."""
 

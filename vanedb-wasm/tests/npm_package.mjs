@@ -100,4 +100,126 @@ assert.equal(viaRequire.size(), 1);
 viaRequire.free();
 checkUpsertAndSearch(cjs);
 
+const { readFileSync, mkdtempSync, writeFileSync } = await import('node:fs');
+const { spawnSync } = await import('node:child_process');
+const os = await import('node:os');
+const path = await import('node:path');
+
+assert.equal(typeof esm.fileStorage, 'function');
+assert.equal(typeof esm.indexedDbStorage, 'function');
+assert.equal(typeof cjs.fileStorage, 'function');
+assert.throws(
+  () => esm.indexedDbStorage(),
+  /not available in Node/,
+  'the Node build must not pretend IndexedDB exists',
+);
+assert.throws(
+  () => cjs.indexedDbStorage(),
+  /not available in Node/,
+);
+
+const golden = new Uint8Array(readFileSync('l2_rng1.vndb'));
+const fromFixture = esm.ApproxIndex.fromBytes(golden);
+try {
+  assert.equal(fromFixture.size(), 3);
+  assert.deepEqual([...fromFixture.get(101n)], [1, 0]);
+  const hits = fromFixture.search(Float32Array.from([1, 0]), 1);
+  try { assert.equal(hits.ids[0], 101n); }
+  finally { hits.free(); }
+  const saved = fromFixture.toBytes();
+  assert.deepEqual([...saved], [...golden], 'wasm toBytes must reproduce the VNDB fixture');
+  const owned = golden.buffer.slice(golden.byteOffset, golden.byteOffset + golden.byteLength);
+  const fromAb = esm.ApproxIndex.fromBytes(owned);
+  try { assert.equal(fromAb.size(), 3); }
+  finally { fromAb.free(); }
+  assert.throws(
+    () => esm.ApproxIndex.fromBytes({}),
+    /Uint8Array or ArrayBuffer/,
+    'a non-buffer must not be reported as a corrupt file',
+  );
+} finally { fromFixture.free(); }
+
+const persistDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-persist-'));
+const storage = esm.fileStorage(persistDir);
+const toSave = new esm.ApproxIndex(3, 'cosine', 16, 4, 16, 7);
+toSave.add(101n, Float32Array.from([1, 0, 0]));
+toSave.add(202n, Float32Array.from([0, 1, 0]));
+await toSave.save('restart.vndb', storage);
+toSave.free();
+assert.equal(await esm.ApproxIndex.load('missing.vndb', storage), null);
+
+const childScript = path.join(process.cwd(), 'restart-child.mjs');
+writeFileSync(childScript, `
+import { ApproxIndex, fileStorage } from '@vanedb/wasm';
+const storage = fileStorage(${JSON.stringify(persistDir)});
+const loaded = await ApproxIndex.load('restart.vndb', storage);
+if (!loaded) throw new Error('load after process restart returned null');
+if (loaded.size() !== 2) throw new Error('wrong size after restart: ' + loaded.size());
+if ([...loaded.get(101n)].join(',') !== '1,0,0') throw new Error('wrong vector after restart');
+loaded.free();
+`);
+const child = spawnSync(process.execPath, [childScript], {
+  cwd: process.cwd(),
+  encoding: 'utf8',
+  env: process.env,
+});
+assert.equal(child.status, 0, child.stderr || child.stdout || 'child failed');
+
+await assert.rejects(() => storage.put('../escape', new Uint8Array([1])), /file name/);
+const nameless = new esm.ApproxIndex(2, 'l2', 8, 4, 16);
+try {
+  await assert.rejects(() => nameless.save(''), /non-empty string/);
+  await assert.rejects(() => nameless.save('../escape', storage), /file name/);
+} finally { nameless.free(); }
+await assert.rejects(() => esm.ApproxIndex.load(''), /non-empty string/);
+
+{
+  const mem = new Map();
+  const custom = {
+    async put(name, bytes) { mem.set(name, bytes); },
+    async get(name) { return mem.has(name) ? mem.get(name) : null; },
+    async delete(name) { mem.delete(name); },
+  };
+  const idx = new esm.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(7n, Float32Array.from([0, 1]));
+  await idx.save('mem', custom);
+  idx.free();
+  const loaded = await esm.ApproxIndex.load('mem', custom);
+  try {
+    assert.equal(loaded.size(), 1);
+    assert.deepEqual([...loaded.get(7n)], [0, 1]);
+  } finally { loaded.free(); }
+  await custom.delete('mem');
+  assert.equal(await esm.ApproxIndex.load('mem', custom), null);
+}
+
+assert.equal(typeof cjs.ApproxIndex.load, 'function', 'CJS must expose ApproxIndex.load');
+assert.equal(typeof cjs.ApproxIndex.prototype.save, 'function', 'CJS must expose save');
+{
+  const cjsDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-cjs-'));
+  const cjsStore = cjs.fileStorage(cjsDir);
+  const idx = new cjs.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(9n, Float32Array.from([1, 0]));
+  await idx.save('cjs.vndb', cjsStore);
+  idx.free();
+  const loaded = await cjs.ApproxIndex.load('cjs.vndb', cjsStore);
+  try {
+    assert.equal(loaded.size(), 1);
+    assert.deepEqual([...loaded.get(9n)], [1, 0]);
+  } finally { loaded.free(); }
+}
+
+{
+  const idx = new esm.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+  idx.add(3n, Float32Array.from([0, 1]));
+  await idx.save('corpus');
+  idx.free();
+  const loaded = await esm.ApproxIndex.load('corpus');
+  try {
+    assert.equal(loaded.size(), 1, 'default fileStorage must persist without an explicit adapter');
+    assert.deepEqual([...loaded.get(3n)], [0, 1]);
+  } finally { loaded.free(); }
+  assert.equal(await esm.ApproxIndex.load('no-such-default'), null);
+}
+
 console.log('npm package: ESM and CommonJS consumers both OK');

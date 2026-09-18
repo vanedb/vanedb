@@ -58,6 +58,7 @@ with TemporaryDirectory() as directory:
     index.save(path)
     restored = ApproxIndex.load(path)
     assert restored.search(query, 1) == hits
+    assert ApproxIndex.from_bytes(index.to_bytes()).search(query, 1) == hits
 ```
 
 Every path argument — `ApproxIndex.save`/`load`, `DiskIndexBuilder.save` and

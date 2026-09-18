@@ -36,6 +36,8 @@ def test_corrupt_index_file_raises_valueerror_not_filenotfound(tmp_path):
     with pytest.raises(ValueError) as excinfo:
         vanedb.ApproxIndex.load(str(path))
     assert not isinstance(excinfo.value, FileNotFoundError)
+    with pytest.raises(ValueError):
+        vanedb.ApproxIndex.from_bytes(path.read_bytes())
 
 
 def test_a_dimension_mismatch_is_still_a_valueerror():
