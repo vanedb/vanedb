@@ -13,7 +13,7 @@ description = "Competitor benchmark harness for VaneDB (RFC 0003)"
 
 [dependencies]
 vanedb = { path = "../../vanedb", features = ["disk"] }
-usearch = "=2.21.0"
+usearch = "=2.26.2"
 instant-distance = "=0.6.1"
 hnsw_rs = "=0.3.4"
 rusqlite = { version = "=0.32.1", features = ["bundled"] }
