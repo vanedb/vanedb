@@ -1,5 +1,8 @@
 # Closing #198 / #226 — maintainer closeout
 
+One-shot status / fill / cut driver:
+`bash docs/launch/maintainer_closeout_226.sh` (`--fill`, `--cut`, or `--all`).
+
 Harness + fixture landed on **main** via
 [#212](https://github.com/vanedb/vanedb/pull/212) (`bead8c0`). ARM64 proptest
 flake fix: [#227](https://github.com/vanedb/vanedb/pull/227) (`9a555bc`,
