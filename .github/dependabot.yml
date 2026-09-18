@@ -17,6 +17,10 @@ updates:
     directory: "/bench"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/bench/compare"
+    schedule:
+      interval: "weekly"
   - package-ecosystem: "pip"
     directory: "/cpp"
     schedule:

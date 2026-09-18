@@ -1,0 +1,10 @@
+{
+  "model": "none (deterministic smoke)",
+  "corpus": "synthetic",
+  "dim": 768,
+  "n_docs": 256,
+  "n_queries": 16,
+  "metric_native": "cosine",
+  "generator": "compare write-smoke",
+  "notes": "NOT for published COMPARISON.md numbers"
+}

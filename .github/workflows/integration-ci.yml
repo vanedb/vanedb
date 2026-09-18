@@ -21,12 +21,34 @@ jobs:
           toolchain: stable
       - name: Check benchmark formatting
         run: cargo fmt --manifest-path bench/Cargo.toml --all -- --check
+      - name: Check competitor-harness formatting
+        run: cargo fmt --manifest-path bench/compare/Cargo.toml --all -- --check
       - name: Check fixed legacy graph files
         run: shasum -a 256 -c conformance/legacy_graph/SHA256SUMS
       - name: Check portable graph files
         run: shasum -a 256 -c conformance/graph/SHA256SUMS
+      - name: Check competitor fixture checksums
+        # Only verify files that exist (embeddings.vnef is hosted, not committed).
+        working-directory: bench/compare/fixtures
+        run: |
+          set -euo pipefail
+          verified=0
+          while read -r digest name; do
+            [[ -z "${digest:-}" || "$digest" =~ ^# ]] && continue
+            name="${name#\*}"
+            [[ -f "$name" ]] || continue
+            echo "$digest  $name" | shasum -a 256 -c -
+            verified=$((verified + 1))
+          done < SHA256SUMS
+          test "$verified" -ge 1
+          # smoke.vnef must always be present and listed.
+          grep -E '(^|[[:space:]\*])smoke\.vnef$' SHA256SUMS >/dev/null
+          test -f smoke.vnef
+          echo "ok: verified $verified present fixture checksum(s)"
       - name: Lint shared harness
         run: cargo clippy --manifest-path bench/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Lint competitor harness
+        run: cargo clippy --manifest-path bench/compare/Cargo.toml --all-targets --locked -- -D warnings
 
   harness:
     name: Build and test both C ABIs (${{ matrix.os }})
@@ -69,3 +91,432 @@ jobs:
             echo "the harness left files in the working tree"
             exit 1
           fi
+
+  compare-smoke:
+    name: Competitor harness smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - name: Test competitor harness
+        run: cargo test --manifest-path bench/compare/Cargo.toml --locked
+      - name: Smoke-run every engine on the smoke fixture
+        # Correctness only: shared-runner timings are discarded by policy
+        # (bench/COMPARISON.md). max-queries keeps the job short.
+        # Default --ef sweep (16,32,50,100) so sqlite-vec / instant-distance
+        # single-row collapse is non-vacuous vs HNSW peers.
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke \
+            --force-sqlite-vec-cosine \
+            --rounds 1 \
+            --max-queries 4 \
+            --skip-save \
+            --json-out "${{ runner.temp }}/compare-smoke.json"
+          python3 bench/compare/scripts/assert_smoke_report.py \
+            "${{ runner.temp }}/compare-smoke.json"
+      - name: Smoke L2 includes native sqlite-vec
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke \
+            --metric l2 \
+            --rounds 1 \
+            --max-queries 2 \
+            --ef 50 \
+            --skip-save \
+            --json-out "${{ runner.temp }}/compare-smoke-l2.json"
+          python3 - <<'PY'
+          import json
+          r=json.load(open("${{ runner.temp }}/compare-smoke-l2.json"))
+          assert r["metric"]=="l2", r["metric"]
+          engines={row["engine"] for row in r["results"]}
+          assert "sqlite-vec" in engines, engines
+          assert len(engines)==6, engines
+          print("ok: l2 smoke engines", sorted(engines))
+          PY
+      - name: Cosine default omits sqlite-vec
+        run: |
+          cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke \
+            --rounds 1 \
+            --max-queries 2 \
+            --ef 50 \
+            --skip-save \
+            --skip-delete \
+            --json-out "${{ runner.temp }}/compare-cosine-default.json"
+          python3 - <<'PY'
+          import json
+          r=json.load(open("${{ runner.temp }}/compare-cosine-default.json"))
+          engines={row["engine"] for row in r["results"]}
+          assert "sqlite-vec" not in engines, engines
+          assert len(engines)==5, engines
+          print("ok: cosine default engines", sorted(engines))
+          PY
+      - name: Markdown smoke-role refuse (unit; GITHUB_ACTIONS is immutable on Actions)
+        # Actions forbids overwriting GITHUB_*; clearing CI markers in step env
+        # cannot reach the role gate on runners. Cover the message in unit tests.
+        run: |
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            refuse_non_publish_role_smoke -- --nocapture
+          echo "ok: smoke-role refuse covered by unit test"
+      - name: Markdown cloud FS markers + dim + repo SUMS pin (unit)
+        # Cursor cloud can `env -u CURSOR_AGENT`; FS markers must still refuse.
+        # Beside-file SUMS / non-768 fixtures must not authorize --markdown.
+        # libtest filters are literal substrings — never use `|` OR here.
+        run: |
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            shared_runner_fs_markers_survive_cleared_env -- --nocapture
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            non_publish_dim_refused -- --nocapture
+          cargo test --manifest-path bench/compare/Cargo.toml --locked \
+            unpinned_repo_sha_refused -- --nocapture
+          echo "ok: cloud FS / dim / repo-pin gates covered by unit tests"
+      - name: Render refuses queries_measured shrink
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys, tempfile
+          from pathlib import Path
+          report = {
+              "report_kind": "vanedb-compare-v1",
+              "fixture_role": "publish",
+              "hardware_label": "linux-avx2",
+              "host_os": "linux",
+              "host_arch": "x86_64",
+              "host_has_avx2": True,
+              "host_android": False,
+              "metric": "l2",
+              "fixture_n_docs": 100_000,
+              "fixture_n_queries": 1000,
+              "queries_measured": 4,
+              "fixture_dim": 768,
+              "recorded_at_utc": "2026-01-01T00:00:00Z",
+              "shared_runner": False,
+              "dedicated_attested": True,
+              "k": 10,
+              "params": {"m": 16, "ef_construction": 200, "seed": 42},
+              "fixture_sha256": "0" * 64,
+              "results": [],
+          }
+          path = Path(tempfile.mkstemp(suffix=".json")[1])
+          path.write_text(json.dumps(report))
+          p = subprocess.run(
+              ["python3", "bench/compare/scripts/render_comparison_md.py", str(path)],
+              capture_output=True,
+              text=True,
+          )
+          path.unlink(missing_ok=True)
+          assert p.returncode != 0, p.stdout + p.stderr
+          assert "queries_measured" in p.stderr, p.stderr
+          print("ok: render refused queries_measured shrink")
+          PY
+      - name: fill_comparison_slot replaces Pending only
+        run: |
+          python3 - <<'PY'
+          import importlib.util
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location(
+              "fill", "bench/compare/scripts/fill_comparison_slot.py"
+          )
+          fill = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(fill)
+          sample = Path("bench/COMPARISON.md").read_text()
+          body = "### linux-avx2 (host) — metric `l2`\n\n| Engine |\n|---|\n| vanedb |\n"
+          out = fill.replace_slot(
+              sample,
+              "### Linux x86-64 AVX2 (dedicated box)",
+              "#### Squared L2",
+              body,
+              False,
+          )
+          slot = out.split("### Linux x86-64 AVX2 (dedicated box)")[1].split("### Android")[0]
+          l2 = slot.split("#### Squared L2")[1]
+          assert "vanedb" in l2 and "*Pending.*" not in l2
+          cos = slot.split("#### Cosine")[1].split("#### Squared L2")[0]
+          assert cos.strip() == "*Pending.*"
+          try:
+              fill.replace_slot(
+                  out,
+                  "### Linux x86-64 AVX2 (dedicated box)",
+                  "#### Squared L2",
+                  body,
+                  False,
+              )
+              raise SystemExit("expected refuse overwrite")
+          except SystemExit as e:
+              assert "non-Pending" in str(e)
+          # Dry-run path must not write.
+          before = Path("bench/COMPARISON.md").read_text()
+          assert before == sample
+          print("ok: fill_comparison_slot Pending-only replace")
+          PY
+      - name: fill_comparison_slot e2e via render gates
+        run: |
+          python3 - <<'PY'
+          import json, shutil, subprocess, tempfile
+          from pathlib import Path
+
+          sums = Path("bench/compare/fixtures/SHA256SUMS").read_text()
+          sha = next(
+              line.split()[0]
+              for line in sums.splitlines()
+              if line.strip().endswith("embeddings.vnef")
+          )
+          PUBLISH_EF = (16, 32, 50, 100)
+
+          def eng(name, metric, *, efs=PUBLISH_EF):
+              row = {
+                  "engine": name,
+                  "version": "0.0.0-test",
+                  "metric": metric,
+                  "rounds": 4,
+                  "build_secs_median": 1.0,
+                  "build_secs_spread": 0.01,
+                  "peak_rss_bytes": 1024,
+                  "file_size_bytes": 2048,
+                  "delete_ok": True,
+                  "latency_ns_by_ef": [
+                      {"ef": ef, "median_ns": 1000.0, "spread": 0.01} for ef in efs
+                  ],
+                  "recall_at_k_by_ef": [
+                      {"ef": ef, "recall_median": 0.9} for ef in efs
+                  ],
+                  "notes": [],
+              }
+              if name == "instant-distance":
+                  row["latency_ns_by_ef"] = [{"ef": 50, "median_ns": 1000.0, "spread": 0.01}]
+                  row["recall_at_k_by_ef"] = [{"ef": 50, "recall_median": 0.9}]
+                  row["delete_ok"] = None
+                  row["file_size_bytes"] = None
+              if name == "hnsw_rs":
+                  row["delete_ok"] = None
+                  row["file_size_bytes"] = None
+              if name == "sqlite-vec":
+                  row["latency_ns_by_ef"] = [{"ef": 0, "median_ns": 1000.0, "spread": 0.01}]
+                  row["recall_at_k_by_ef"] = [{"ef": 0, "recall_median": 0.9}]
+              return row
+
+          def report(metric):
+              engines = ["vanedb", "usearch", "hnswlib", "instant-distance", "hnsw_rs"]
+              if metric == "l2":
+                  engines = engines + ["sqlite-vec"]
+              return {
+                  "report_kind": "vanedb-compare-v1",
+                  "fixture_role": "publish",
+                  "hardware_label": "linux-avx2",
+                  "hostname": "ci-synthetic",
+                  "commit": "deadbeef",
+                  "host_os": "linux",
+                  "host_arch": "x86_64",
+                  "host_has_avx2": True,
+                  "host_android": False,
+                  "metric": metric,
+                  "fixture_n_docs": 100_000,
+                  "fixture_n_queries": 1000,
+                  "queries_measured": 1000,
+                  "fixture_dim": 768,
+                  "fixture_sha256": sha,
+                  "recorded_at_utc": "2026-01-01T00:00:00Z",
+                  "shared_runner": False,
+                  "dedicated_attested": True,
+                  "k": 10,
+                  "params": {"m": 16, "ef_construction": 200, "seed": 42},
+                  "results": [eng(e, metric) for e in engines],
+              }
+
+          td = Path(tempfile.mkdtemp())
+          try:
+              cos = td / "linux-avx2-cosine.json"
+              l2 = td / "linux-avx2-l2.json"
+              cos.write_text(json.dumps(report("cosine")))
+              l2.write_text(json.dumps(report("l2")))
+              cmp = td / "COMPARISON.md"
+              shutil.copy("bench/COMPARISON.md", cmp)
+              before = cmp.read_text()
+              assert before.count("*Pending.*") == 6
+              # Cosine then L2 — must not abort on nested ### machine titles.
+              p = subprocess.run(
+                  [
+                      "python3",
+                      "bench/compare/scripts/fill_comparison_slot.py",
+                      str(cos),
+                      str(l2),
+                      "--comparison",
+                      str(cmp),
+                  ],
+                  capture_output=True,
+                  text=True,
+              )
+              assert p.returncode == 0, p.stdout + p.stderr
+              after = cmp.read_text()
+              assert after.count("*Pending.*") == 4, after.count("*Pending.*")
+              slot = after.split("### Linux x86-64 AVX2 (dedicated box)")[1].split(
+                  "### Android"
+              )[0]
+              assert "*Pending.*" not in slot
+              assert "metric `cosine`" in slot and "metric `l2`" in slot
+              assert "sqlite-vec" in slot.split("#### Squared L2")[1]
+              assert Path("bench/COMPARISON.md").read_text() == before
+              print("ok: fill_comparison_slot e2e cosine+l2 via render gates")
+          finally:
+              shutil.rmtree(td, ignore_errors=True)
+          PY
+      - name: Markdown refuses force-sqlite-vec-cosine
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --force-sqlite-vec-cosine --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-force.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'force-sqlite-vec-cosine'
+          echo "ok: markdown refused force-sqlite-vec-cosine (not masked by role)"
+      - name: Markdown refuses skip-delete
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --skip-delete --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-skip-del.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'skip-delete'
+          echo "ok: markdown refused skip-delete"
+      - name: Markdown refuses skip-save
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --skip-save --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-skip-save.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'skip-save'
+          echo "ok: markdown refused skip-save"
+      - name: Markdown refuses non-canonical ef sweep
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 --ef 50 \
+            --json-out "${{ runner.temp }}/should-fail-ef.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q '\-\-ef'
+          echo "ok: markdown refused non-canonical --ef"
+      - name: Markdown refuses engine cherry-pick
+        run: |
+          set +e
+          out=$(cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 --engine vanedb \
+            --json-out "${{ runner.temp }}/should-fail-engine.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'incomplete engine set'
+          echo "ok: markdown refused engine cherry-pick"
+      - name: Markdown refuses missing dedicated attestation
+        run: |
+          set +e
+          out=$(env -u VANEDB_COMPARE_DEDICATED cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 \
+            --json-out "${{ runner.temp }}/should-fail-dedicated.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'VANEDB_COMPARE_DEDICATED'
+          echo "ok: markdown refused missing VANEDB_COMPARE_DEDICATED"
+      - name: Markdown refuses shared CI runner even when attested
+        run: |
+          set +e
+          out=$(VANEDB_COMPARE_DEDICATED=1 cargo run --release --manifest-path bench/compare/Cargo.toml --locked -- run \
+            --fixture bench/compare/fixtures/smoke.vnef \
+            --allow-smoke --markdown --rounds 2 \
+            --json-out "${{ runner.temp }}/should-fail-ci.json" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'shared CI/cloud'
+          echo "ok: markdown refused shared CI/cloud runner"
+      - name: maintainer_fill_host_comparison.sh refuses CI/cloud
+        run: |
+          set +e
+          out=$(bash bench/compare/scripts/maintainer_fill_host_comparison.sh 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          echo "$out" | grep -Eqi 'CI/cloud|hostedtoolcache|shared|Cursor|Codespaces'
+          echo "ok: maintainer_fill refused CI/cloud shell"
+      - name: refuse_shared_runner.sh — github-hosted / CI refuse; self-hosted allow
+        run: |
+          set -euo pipefail
+          SCR=bench/compare/scripts/refuse_shared_runner.sh
+          # Live github-hosted (or any CI with hostedtoolcache / CI=true): must refuse.
+          set +e
+          out=$(bash "$SCR" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -ne 0
+          # Self-hosted claim must not override hostedtoolcache when present.
+          if [[ -e /opt/hostedtoolcache ]]; then
+            set +e
+            out2=$(env RUNNER_ENVIRONMENT=self-hosted bash "$SCR" 2>&1)
+            rc2=$?
+            set -e
+            echo "$out2"
+            test "$rc2" -ne 0
+            echo "$out2" | grep -q hostedtoolcache
+            echo "ok: self-hosted claim refused when hostedtoolcache present"
+          elif [[ -e /opt/cursor || -e /exec-daemon ]]; then
+            echo "ok: skip self-hosted-allow on Cursor FS markers"
+          else
+            # Clean host: CI vars + self-hosted must be allowed (Rust units cover FS order).
+            env CI=true GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=self-hosted \
+              bash "$SCR"
+            echo "ok: self-hosted + CI vars allowed"
+          fi
+          echo "ok: refuse_shared_runner.sh CI coverage"
+      - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
+        # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
+        # Official release still needs a maintainer push to obsidian-vane-search.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          BARE=$(mktemp -d)
+          SRC=$(mktemp -d)
+          git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$SRC/repo"
+          git clone --bare "$SRC/repo" "$BARE/repo.git"
+          git --git-dir="$SRC/repo/.git" --work-tree="$SRC/repo" \
+            push "$BARE/repo.git" HEAD:refs/heads/main
+          DEMO_URL="file://$BARE/repo.git" \
+            bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
+          git --git-dir="$BARE/repo.git" rev-parse "refs/tags/0.2.0"
+          ver=$(git --git-dir="$BARE/repo.git" show 0.2.0:manifest.json \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
+          test "$ver" = "0.2.0"
+          echo "ok: demo cut script tagged 0.2.0 against local bare remote"
