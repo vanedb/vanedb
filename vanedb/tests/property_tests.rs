@@ -49,9 +49,12 @@ proptest! {
             "Cosine distance to a scaled copy out of [0, 2]: {parallel}");
     }
 
+    // Sample via scaled integers: open f32 ranges (0.1..100.0) can panic inside
+    // proptest's float sampler on aarch64 (proptest 1.11 float_samplers assert).
     #[test]
     fn cosine_self_distance_near_zero(
-        a in prop::collection::vec(0.1f32..100.0, 64)
+        a in prop::collection::vec(1i32..10_000, 64)
+            .prop_map(|v| v.into_iter().map(|x| x as f32 * 0.01).collect::<Vec<_>>())
     ) {
         let dist_fn = distance::distance_fn(Metric::Cosine);
         let d = dist_fn(&a, &a);
