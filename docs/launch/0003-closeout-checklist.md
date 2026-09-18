@@ -6,8 +6,9 @@ flake fix: [#227](https://github.com/vanedb/vanedb/pull/227) (`9a555bc`,
 Required CI Gate green).
 
 **#198 was auto-closed by the #212 merge** while AC3/AC5 were still open.
-Residual tracking: [#226](https://github.com/vanedb/vanedb/issues/226). This change
-reopens #198 so acceptance stays on the original issue. **Do not close #226 / #198** until
+Residual tracking: [#226](https://github.com/vanedb/vanedb/issues/226) (preferred while
+#198 stays closed — GitHub has no auto-reopen keyword; maintainers can reopen #198
+manually if desired). **Do not close #226 / #198** until
 every box below has evidence.
 
 ## 1. Publish fixture (AC2) — **done on main**
