@@ -482,35 +482,23 @@ jobs:
           set -e
           echo "$out"
           test "$rc" -ne 0
-          # Simulated clean self-hosted: no FS markers in a temp view — exercise
-          # the self-hosted branch by unsetting CI markers that would otherwise
-          # fire after the exception. RUNNER_ENVIRONMENT=self-hosted alone must
-          # clear the CI/GITHUB_ACTIONS refuse (Rust unit tests cover FS order).
-          # shellcheck disable=SC2034
-          (
-            # Subshell: pretend we are not on a Cursor/GHA-hosted image by only
-            # testing the env-var path when FS markers are absent. If this runner
-            # has /opt/hostedtoolcache, skip the allow assertion (github-hosted).
-            if [[ -e /opt/hostedtoolcache || -e /opt/cursor || -e /exec-daemon ]]; then
-              echo "ok: skip self-hosted-allow on github-hosted FS markers"
-              exit 0
-            fi
-            export CI=true GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=self-hosted
-            unset CURSOR_AGENT CODESPACES || true
-            bash "$SCR"
-            echo "ok: self-hosted + CI vars allowed"
-          )
           # Self-hosted claim must not override hostedtoolcache when present.
           if [[ -e /opt/hostedtoolcache ]]; then
-            export RUNNER_ENVIRONMENT=self-hosted
             set +e
-            out2=$(bash "$SCR" 2>&1)
+            out2=$(env RUNNER_ENVIRONMENT=self-hosted bash "$SCR" 2>&1)
             rc2=$?
             set -e
             echo "$out2"
             test "$rc2" -ne 0
             echo "$out2" | grep -q hostedtoolcache
             echo "ok: self-hosted claim refused when hostedtoolcache present"
+          elif [[ -e /opt/cursor || -e /exec-daemon ]]; then
+            echo "ok: skip self-hosted-allow on Cursor FS markers"
+          else
+            # Clean host: CI vars + self-hosted must be allowed (Rust units cover FS order).
+            env CI=true GITHUB_ACTIONS=true RUNNER_ENVIRONMENT=self-hosted \
+              bash "$SCR"
+            echo "ok: self-hosted + CI vars allowed"
           fi
           echo "ok: refuse_shared_runner.sh CI coverage"
       - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
