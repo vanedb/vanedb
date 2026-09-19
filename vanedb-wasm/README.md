@@ -99,9 +99,10 @@ Pass `{ put, get, delete }` as a second argument to use another store, or
 construct `indexedDbStorage(dbName?)` / `fileStorage(directory?)` explicitly.
 Bytes saved in a browser load in Rust, Python and C, and the reverse.
 
-The published package's WebAssembly module is 76 KB gzipped (204 KB unpacked);
-the JavaScript loader and storage helpers are 8 KB gzipped (60 KB unpacked).
-CI prints the exact figures from `scripts/check_npm_package.py` on every build.
+The current CI build measures the WebAssembly module at 78,292 bytes gzipped
+(208,994 bytes unpacked), and the JavaScript loader and storage helpers at
+8,930 bytes gzipped (64,392 bytes unpacked). CI prints the exact figures from
+`scripts/check_npm_package.py` on every build.
 
 ## Indexes
 
