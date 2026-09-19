@@ -1,7 +1,7 @@
 # Reproducible tooling for Python release workflows. Dependabot updates this
 # file deliberately; build and test dependencies remain governed by each
 # package's supported dependency ranges.
-build==1.6.0
+build==1.6.1
 packaging==26.3
 pip==26.2.1
 PyYAML==6.0.3
