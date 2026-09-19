@@ -4,6 +4,10 @@ Rigorous, reproducible head-to-head benchmark of the two VaneDB
 implementations in this repository: C++ in [`../cpp`](../cpp) and Rust in
 [`../vanedb`](../vanedb).
 
+For the **competitor** arm (USearch, hnswlib, instant-distance, hnsw_rs,
+sqlite-vec) see [`compare/`](compare/) and [`COMPARISON.md`](COMPARISON.md).
+That arm is a separate Cargo workspace and is not mixed into this harness.
+
 ## Status
 
 Criterion benches cover every operation in [`src/coverage.rs`](src/coverage.rs),
