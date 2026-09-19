@@ -51,14 +51,14 @@ module.exports = Object.assign({}, bindings, {
 NODE_MJS_HEADER = """import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const bindings = require('./vanedb_wasm.js');
-const storage = require('./storage.cjs');
-storage.installPersistence(bindings.ApproxIndex, storage.fileStorage());
+// Share initialization with require() so importing both entry points cannot
+// replace the persistence methods or rebind their default storage directory.
+const bindings = require('./index.cjs');
 
-export default async function init() { return bindings; }
-export function initSync() { return bindings; }
-export const fileStorage = storage.fileStorage;
-export const indexedDbStorage = storage.indexedDbStorage;
+export default bindings.default;
+export const initSync = bindings.initSync;
+export const fileStorage = bindings.fileStorage;
+export const indexedDbStorage = bindings.indexedDbStorage;
 """
 
 WEB_SHIM = """// Browser: re-export wasm-pack's web target, then hang save/load on

@@ -562,4 +562,82 @@ mod legacy_fixtures {
         assert_eq!(via_cursor.to_bytes().unwrap(), original);
         assert_eq!(via_cursor.search(&[1.0, 0.0], 1).unwrap()[0].id, 101);
     }
+
+    #[derive(Default)]
+    struct TestWriter {
+        bytes: Vec<u8>,
+        fail_write: bool,
+        fail_flush: bool,
+        flushed: bool,
+    }
+
+    impl Write for TestWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.fail_write && self.bytes.len() >= 7 {
+                return Err(std::io::ErrorKind::BrokenPipe.into());
+            }
+            let n = bytes.len().min(3);
+            self.bytes.extend_from_slice(&bytes[..n]);
+            Ok(n)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.flushed = true;
+            if self.fail_flush {
+                return Err(std::io::ErrorKind::PermissionDenied.into());
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn save_to_retries_short_writes_and_flushes() {
+        let index = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+        index.add(101, &[1.0, 0.0]).unwrap();
+        let expected = index.to_bytes().unwrap();
+        let mut writer = TestWriter::default();
+        index.save_to(&mut writer).unwrap();
+        assert_eq!(writer.bytes, expected);
+        assert!(writer.flushed);
+    }
+
+    #[test]
+    fn save_to_preserves_write_and_flush_errors() {
+        let index = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+        for (fail_write, context, kind) in [
+            (true, "write", std::io::ErrorKind::BrokenPipe),
+            (false, "flush", std::io::ErrorKind::PermissionDenied),
+        ] {
+            let mut writer = TestWriter {
+                fail_write,
+                fail_flush: !fail_write,
+                ..TestWriter::default()
+            };
+            let error = index.save_to(&mut writer).unwrap_err();
+            assert!(matches!(error, VaneError::Io { context: actual, source }
+                if actual == context && source.kind() == kind));
+            assert!(!writer.bytes.is_empty());
+            assert_eq!(writer.flushed, !fail_write);
+        }
+    }
+
+    #[test]
+    fn load_from_preserves_reader_errors_after_valid_bytes() {
+        struct FailingReader;
+        impl Read for FailingReader {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::ConnectionReset.into())
+            }
+        }
+
+        let bytes = ApproxIndex::builder(2, Metric::L2)
+            .build()
+            .unwrap()
+            .to_bytes()
+            .unwrap();
+        let reader = std::io::Cursor::new(bytes).chain(FailingReader);
+        let error = ApproxIndex::load_from(reader).unwrap_err();
+        assert!(matches!(error, VaneError::Io { context: "read", source }
+            if source.kind() == std::io::ErrorKind::ConnectionReset));
+    }
 }

@@ -165,6 +165,39 @@ const child = spawnSync(process.execPath, [childScript], {
 });
 assert.equal(child.status, 0, child.stderr || child.stdout || 'child failed');
 
+// A fresh process for each import order: loading the other entry point must
+// not rebind the shared class's default storage after a cwd change.
+const mixedScript = path.join(process.cwd(), 'mixed-modules-child.mjs');
+writeFileSync(mixedScript, `
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const firstIsEsm = process.argv[2] === 'esm';
+const first = firstIsEsm ? await import('@vanedb/wasm') : require('@vanedb/wasm');
+const index = new first.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+try {
+  index.add(42n, Float32Array.of(1, 0));
+  await index.save('shared-default');
+} finally { index.free(); }
+process.chdir(process.argv[3]);
+const second = firstIsEsm ? require('@vanedb/wasm') : await import('@vanedb/wasm');
+assert.equal(first.ApproxIndex, second.ApproxIndex);
+const loaded = await second.ApproxIndex.load('shared-default');
+assert.ok(loaded, 'loading the second entry point changed the default storage directory');
+try { assert.deepEqual([...loaded.get(42n)], [1, 0]); }
+finally { loaded.free(); }
+`);
+for (const first of ['esm', 'cjs']) {
+  const originalCwd = mkdtempSync(path.join(process.cwd(), 'mixed-original-'));
+  const changedCwd = mkdtempSync(path.join(process.cwd(), 'mixed-changed-'));
+  const mixed = spawnSync(process.execPath, [mixedScript, first, changedCwd], {
+    cwd: originalCwd,
+    encoding: 'utf8',
+    env: process.env,
+  });
+  assert.equal(mixed.status, 0, mixed.stderr || mixed.stdout || first + ' first failed');
+}
+
 await assert.rejects(() => storage.put('../escape', new Uint8Array([1])), /file name/);
 const nameless = new esm.ApproxIndex(2, 'l2', 8, 4, 16);
 try {
