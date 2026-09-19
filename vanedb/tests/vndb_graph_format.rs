@@ -173,6 +173,29 @@ fn rewriting_what_was_read_reproduces_the_fixture_byte_for_byte() {
 }
 
 #[test]
+fn from_bytes_and_to_bytes_agree_with_the_path_apis() {
+    for name in FIXTURES {
+        let original = std::fs::read(fixture(name)).unwrap();
+        let from_bytes =
+            ApproxIndex::from_bytes(&original).unwrap_or_else(|e| panic!("{name} from_bytes: {e}"));
+        let from_path = ApproxIndex::load(fixture(name)).unwrap();
+        assert_eq!(from_bytes.len(), from_path.len(), "{name}");
+        assert_eq!(from_bytes.to_bytes().unwrap(), original, "{name}");
+        if name == "empty.vndb" || name == "all_deleted.vndb" {
+            continue;
+        }
+        let query = [1.0f32, 0.0];
+        let a = from_bytes.search(&query, 2).unwrap();
+        let b = from_path.search(&query, 2).unwrap();
+        assert_eq!(
+            a.iter().map(|r| r.id).collect::<Vec<_>>(),
+            b.iter().map(|r| r.id).collect::<Vec<_>>(),
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn an_empty_and_an_all_deleted_graph_are_distinguishable() {
     // Both have no live vectors; they must not be the same file, or the
     // format cannot express "had entries, all removed".

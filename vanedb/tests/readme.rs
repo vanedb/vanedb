@@ -75,6 +75,10 @@ fn documented_methods_exist() {
         "search_with",
         "save",
         "load",
+        "save_to",
+        "load_from",
+        "to_bytes",
+        "from_bytes",
         "get",
         "get_vector",
         "remove",
@@ -213,6 +217,10 @@ fn every_listed_method_still_exists() {
         fn paths(index: &ApproxIndex) {
             let _ = index.save(std::path::Path::new(""));
             let _ = ApproxIndex::load(std::path::Path::new(""));
+            let _ = index.save_to(std::io::sink());
+            let _ = index.to_bytes();
+            let _ = ApproxIndex::from_bytes(b"");
+            let _ = ApproxIndex::load_from(std::io::empty());
         }
         let _ = (
             ApproxIndex::m,

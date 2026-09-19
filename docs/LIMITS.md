@@ -78,7 +78,6 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 - Filtered search, payloads or metadata (RFCs 0004, 0009).
 - Quantized or compressed vectors (RFC 0005).
 - Approximate search over a corpus larger than RAM (RFC 0008).
-- Persistence from WebAssembly (RFC 0006).
 - Mobile SDKs beyond the C ABI (RFC 0007).
 - GPU acceleration of any index (RFC 0001; the Metal feature exposes distance
   scans only).

@@ -2,6 +2,7 @@
 #include "vanedb_rs_capi.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define CHECK(expr) do { if (!(expr)) { \
@@ -59,6 +60,22 @@ static void exercise(uint32_t metric, const char *directory) {
     CHECK(memcmp(vector, replacement, sizeof(vector)) == 0);
     CHECK(vanedb_rs_index_search(graph, replacement, 2, 16, found, distances) == 1);
     CHECK(found[0] == ids[0] && fabsf(distances[0] - expected_distance) < 1e-6f);
+    {
+        uintptr_t needed = 0, wrote = 0;
+        uint8_t *buf;
+        vanedb_rs_index *from_buf;
+        CHECK(vanedb_rs_index_save_to_buffer(graph, NULL, 0, &needed) == 0);
+        CHECK(needed > 4);
+        buf = (uint8_t *)malloc(needed);
+        CHECK(buf != NULL);
+        wrote = needed;
+        CHECK(vanedb_rs_index_save_to_buffer(graph, buf, needed, &wrote) == 0);
+        CHECK(wrote == needed);
+        from_buf = vanedb_rs_index_load_from_buffer(buf, wrote);
+        CHECK(from_buf != NULL && vanedb_rs_index_len(from_buf) == 1);
+        vanedb_rs_index_free(from_buf);
+        free(buf);
+    }
     vanedb_rs_index_free(graph);
     CHECK(remove(path) == 0);
 

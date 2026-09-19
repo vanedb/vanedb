@@ -1,6 +1,6 @@
 # RFC 0006: WebAssembly persistence
 
-- Status: accepted (2026-09-13)
+- Status: implemented (0.2.0)
 - Milestone: 0.2.0
 - Tracking issue: #201
 - Supersedes / superseded by: none
@@ -87,7 +87,9 @@ export const fileStorage: (directory?: string) => Storage;      // Node default
 - The default adapter is chosen at import time by runtime detection, the same
   mechanism the package already uses to pick the Node or browser wasm loader.
 - `indexedDbStorage`: one database, one object store, bytes stored as a
-  `Blob`. No dependencies.
+  JS-owned `ArrayBuffer` copy. wasm-bindgen's `Uint8Array` views
+  `WebAssembly.Memory`; WebKit cannot structured-clone that buffer, and a
+  `Blob` put on WebKitGTK never completes. No dependencies.
 - `fileStorage`: `name` is a file inside `directory` (default: the current
   working directory), written through a temporary file and rename, mirroring
   the core's atomic write.
@@ -132,22 +134,22 @@ visible.
 
 ## Acceptance criteria
 
-- [ ] `save_to` / `load_from` / `to_bytes` / `from_bytes` in the core, with
+- [x] `save_to` / `load_from` / `to_bytes` / `from_bytes` in the core, with
       the corruption suite running against the byte path.
-- [ ] `toBytes` / `fromBytes` in the wasm module, tested in Node and in
+- [x] `toBytes` / `fromBytes` in the wasm module, tested in Node and in
       headless Chrome, Firefox and WebKit through the existing packaged-browser
       job.
-- [ ] `save(name)` / `load(name)` with the `Storage` interface, the IndexedDB
+- [x] `save(name)` / `load(name)` with the `Storage` interface, the IndexedDB
       adapter and the file adapter; browser test that survives a page reload;
       Node test that survives a process restart; `load` of an unknown name
       resolves to `null`.
-- [ ] Round trip: bytes saved in the browser load in Rust and reproduce the
+- [x] Round trip: bytes saved in the browser load in Rust and reproduce the
       same search results on the conformance fixture, and a Rust-written
       fixture loads in the browser.
-- [ ] Python `to_bytes` / `from_bytes`; C ABI buffer functions with a ctypes
+- [x] Python `to_bytes` / `from_bytes`; C ABI buffer functions with a ctypes
       example.
-- [ ] Bundle sizes (gzipped, unpacked) measured in CI and shown in the README.
-- [ ] README's "persistence is not exposed" sentence removed; the JavaScript
+- [x] Bundle sizes (gzipped, unpacked) measured in CI and shown in the README.
+- [x] README's "persistence is not exposed" sentence removed; the JavaScript
       guide shows `save`/`load` in a browser and in Node; `CHANGELOG.md` entry.
 
 ## Evidence required before the claim

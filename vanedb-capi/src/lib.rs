@@ -637,8 +637,111 @@ pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> *mut vaned
     })
 }
 
+struct CountingWriter {
+    n: usize,
+}
+
+impl std::io::Write for CountingWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.n = self.n.checked_add(buf.len()).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "serialized length overflow",
+            )
+        })?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// Writes a VNDB graph into `buf`.
+///
+/// `written` must be non-null. On success it receives the number of bytes
+/// written. If `buf` is null and `cap` is 0, this is a size query: it
+/// serializes into a counter (no output buffer) and stores the required
+/// length. If `buf` is non-null but `cap` is smaller than needed, it fails
+/// with `VANEDB_RS_INVALID_PARAMETER` and still stores the required length
+/// so the caller can allocate and retry.
+///
 /// # Safety
-/// The handle must have come from `vanedb_rs_index_new` or `vanedb_rs_index_load`
+/// `h` must be a live handle from `vanedb_rs_index_new`,
+/// `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer` (or null).
+/// `written` must be a valid pointer. If `buf` is non-null it must have
+/// room for `cap` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_save_to_buffer(
+    h: *mut vanedb_rs_index,
+    buf: *mut u8,
+    cap: usize,
+    written: *mut usize,
+) -> i32 {
+    guard(1, || {
+        if h.is_null() {
+            return null_arg(1);
+        }
+        if written.is_null() {
+            return null_arg(1);
+        }
+        if buf.is_null() && cap != 0 {
+            return null_arg(1);
+        }
+        let idx = &*h;
+        if buf.is_null() {
+            let mut counter = CountingWriter { n: 0 };
+            return match idx.save_to(&mut counter) {
+                Ok(()) => {
+                    *written = counter.n;
+                    0
+                }
+                Err(e) => fail(e, 1),
+            };
+        }
+        match idx.to_bytes() {
+            Ok(bytes) => {
+                *written = bytes.len();
+                if cap < bytes.len() {
+                    set_code(
+                        VANEDB_RS_INVALID_PARAMETER,
+                        &format!("buffer too small: need {} bytes, cap is {cap}", bytes.len()),
+                    );
+                    return 1;
+                }
+                ptr::copy_nonoverlapping(bytes.as_ptr(), buf, bytes.len());
+                0
+            }
+            Err(e) => fail(e, 1),
+        }
+    })
+}
+
+/// Reads a VNDB graph (or a legacy Rust file) from `buf`.
+///
+/// # Safety
+/// `buf` must point to `len` valid bytes. Returns an owning handle (or null)
+/// that must be freed with `vanedb_rs_index_free`.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_load_from_buffer(
+    buf: *const u8,
+    len: usize,
+) -> *mut vanedb_rs_index {
+    guard(std::ptr::null_mut(), || {
+        if buf.is_null() {
+            return null_arg(std::ptr::null_mut());
+        }
+        let bytes = slice::from_raw_parts(buf, len);
+        match ApproxIndex::from_bytes(bytes) {
+            Ok(h) => Box::into_raw(Box::new(h)),
+            Err(e) => fail(e, std::ptr::null_mut()),
+        }
+    })
+}
+
+/// # Safety
+/// The handle must have come from `vanedb_rs_index_new`,
+/// `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer`
 /// and not been freed already (or be null, which is a no-op).
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_free(h: *mut vanedb_rs_index) {
