@@ -167,7 +167,22 @@ jobs:
           python-version: '3.11'
       # Use the release action and explicit manylinux target. Older maturin
       # cannot combine this target with the redundant `--compatibility pypi`.
+      # maturin-action fetches GitHub release tarballs; those occasionally 504
+      # with a tiny HTML body (`gzip: stdin: not in gzip format`). One automatic
+      # retry avoids a manual re-run when tip CI is otherwise green.
       - name: Build the wheel
+        id: build-wheel
+        continue-on-error: true
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: ${{ matrix.maturin-version }}
+          target: x86_64
+          manylinux: '2_17'
+          args: >-
+            --release --locked --out dist
+            --manifest-path vanedb-py/Cargo.toml -i python3.11
+      - name: Build the wheel (retry)
+        if: steps.build-wheel.outcome == 'failure'
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           maturin-version: ${{ matrix.maturin-version }}
@@ -291,7 +306,7 @@ jobs:
           github.actor != 'dependabot[bot]' &&
           (github.event_name != 'pull_request' ||
           github.event.pull_request.head.repo.full_name == github.repository)
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           files: lcov.info
           flags: rust

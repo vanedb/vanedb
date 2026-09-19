@@ -41,8 +41,20 @@ def main():
             run("xcrun", "simctl", "bootstatus", device, "-b")
             run("xcrun", "simctl", "spawn", device, binary, temporary)
         finally:
-            subprocess.run(["xcrun", "simctl", "shutdown", device], check=False, timeout=60)
-            run("xcrun", "simctl", "delete", device)
+            # simctl shutdown can hang on shared runners after the test already
+            # passed; do not fail the job on a cleanup timeout.
+            try:
+                subprocess.run(
+                    ["xcrun", "simctl", "shutdown", device],
+                    check=False,
+                    timeout=60,
+                )
+            except subprocess.TimeoutExpired:
+                print(f"warning: simctl shutdown timed out for {device}; forcing delete", flush=True)
+            try:
+                run("xcrun", "simctl", "delete", device, timeout=60)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+                print(f"warning: simctl delete failed for {device}: {e}", flush=True)
 
 
 if __name__ == "__main__":

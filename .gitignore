@@ -23,6 +23,12 @@ vanedb-py/python/vanedb/*.dylib
 # a format-compatibility test, and `*.bin` above silently ate the first one.
 !vanedb/tests/fixtures/**/*.bin
 !conformance/**/*.bin
+# Competitor-fixture format (RFC 0003); smoke is committed, full embeddings are not.
+!bench/compare/fixtures/**/*.vnef
+bench/compare/fixtures/embeddings.vnef
+bench/compare/target/
+bench/compare/runs/*
+!bench/compare/runs/README.md
 
 # The virtual environment the guides and CLAUDE.md tell you to create at the
 # repository root for the Python bindings. Following the documented workflow
