@@ -6,24 +6,27 @@
 #   bash docs/launch/maintainer_closeout_226.sh --fill    # + Apple/Linux fill
 #   bash docs/launch/maintainer_closeout_226.sh --cut     # + demo 0.2.0 cut
 #   bash docs/launch/maintainer_closeout_226.sh --all     # fill then cut
+#   bash docs/launch/maintainer_closeout_226.sh --cut --dry-run  # validate cut, no push
 #
 # AC3 Android still needs ANDROID.md (this driver refuses android labels).
 # Cloud/CI shells are refused by the fill helper. Demo cut needs write or
-# DEMO_REPO_TOKEN. Official AC5 URL must be obsidian-vane-search 0.2.0
-# (vanedb demo-0.2.0-staging is not enough).
+# DEMO_REPO_TOKEN (or --dry-run to validate apply/tag only). Official AC5 URL
+# must be obsidian-vane-search 0.2.0 (vanedb demo-0.2.0-staging is not enough).
 set -euo pipefail
 
 DO_FILL=0
 DO_CUT=0
 SKIP_TESTS=0
+DRY_RUN=0
 for arg in "$@"; do
   case "$arg" in
     --fill) DO_FILL=1 ;;
     --cut) DO_CUT=1 ;;
     --all) DO_FILL=1; DO_CUT=1 ;;
     --skip-tests) SKIP_TESTS=1 ;;
+    --dry-run) DRY_RUN=1 ;;
     -h|--help)
-      sed -n '1,16p' "$0"
+      sed -n '1,17p' "$0"
       exit 0
       ;;
     *)
@@ -85,6 +88,9 @@ if [[ "$DO_CUT" -eq 1 ]]; then
     cut_args=()
     if [[ "$SKIP_TESTS" -eq 1 ]]; then
       cut_args+=(--skip-tests)
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      cut_args+=(--dry-run)
     fi
     bash docs/launch/maintainer_cut_demo_0.2.0.sh "${cut_args[@]}"
   fi
