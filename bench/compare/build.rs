@@ -7,6 +7,14 @@ fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     let vendor = manifest_dir.join("vendor");
 
+    // Android 15+ 16 KiB page configs (same bake as vanedb-capi for cdylibs).
+    // Needed when cross-compiling the `compare` binary with raw `cargo build
+    // --target aarch64-linux-android` (cargo-ndk injects these for NDK ≤27).
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-arg-bins=-Wl,-z,max-page-size=16384");
+        println!("cargo:rustc-link-arg-bins=-Wl,-z,common-page-size=16384");
+    }
+
     // Prefer a host g++ when available: some images ship a clang that is
     // selected as `c++` but cannot find libstdc++ headers/libs.
     if env::var_os("CXX").is_none() && PathBuf::from("/usr/bin/g++").exists() {
