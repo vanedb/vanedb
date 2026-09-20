@@ -2,8 +2,9 @@
 
 The 0.1.1 scope is the Rust engine and its Python, C and WebAssembly bindings,
 with CPU search. The experimental macOS `gpu-metal` feature exposes distance
-scans and accelerates no index (#208); finish-versus-delete is decided after
-0.3.0. The C++ engine remains frozen reference code.
+scans, accelerates no index and no binding exposes it (#208);
+finish-versus-delete is decided after 0.3.0 (#257). The C++ engine remains
+frozen reference code.
 
 [`LIMITS.md`](LIMITS.md) records what 0.1.1 can hold and what it does not do.
 

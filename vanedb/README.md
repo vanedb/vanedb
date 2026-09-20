@@ -98,8 +98,8 @@ to obtain an independent vector.
   very small nonzero components are routed to the CPU kernels to preserve
   rankings, and every initialization or execution failure returns `VaneError`
   with no automatic CPU fallback. Its parameters and errors are documented on
-  the type. Whether the feature is finished into index acceleration or removed
-  is decided after 0.3.0; the current state is recorded in the
+  its methods. Whether the feature is finished into index acceleration or
+  removed is decided after 0.3.0 (#257); the current state is recorded in the
   [limits page](https://github.com/vanedb/vanedb/blob/main/docs/LIMITS.md).
 
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,

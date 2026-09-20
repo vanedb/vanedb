@@ -166,8 +166,9 @@ The Rust crate has two Cargo features. `disk` adds `DiskIndex`. `gpu-metal` is
 experimental and macOS-only: it exposes a standalone `MetalCompute` API for
 uploading vectors and running distance scans on the GPU, and it does not
 accelerate any index — every index builds and searches on the CPU with or
-without it, and no binding exposes it. [`docs/LIMITS.md`](docs/LIMITS.md)
-records exactly what it does and does not do.
+without it, and no binding exposes it. Whether it is finished into index
+acceleration or removed is decided after 0.3.0 (#257).
+[`docs/LIMITS.md`](docs/LIMITS.md) records exactly what it does and does not do.
 
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
 `upsert`, `tombstones`, `compact` and persistence (`toBytes` / `fromBytes`,

@@ -90,7 +90,7 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
   feature changes nothing about how any index builds or searches, and no
   binding exposes it. It has no benchmark showing a gain over the CPU kernels.
   Whether it is finished into index acceleration or removed is decided after
-  0.3.0.
+  0.3.0 (#257).
 
 ## Open questions this page cannot answer yet
 
