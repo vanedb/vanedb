@@ -6,7 +6,9 @@
 # Cloud agents without demo-repo write cannot push (403). Unblock with
 # DEMO_REPO_TOKEN, or install the Cursor GitHub App on
 # vanedb/obsidian-vane-search (contents:write) and boot a new agent after
-# #215 repositoryDependencies. Use --dry-run to validate without pushing.
+# #215 repositoryDependencies — when the demo repo is in
+# /installation/repositories this script uses `gh auth token` automatically.
+# Use --dry-run to validate without pushing.
 #
 # Usage (from any clone of vanedb, or with VANEDB_ROOT set):
 #   bash docs/launch/maintainer_cut_demo_0.2.0.sh
@@ -24,7 +26,7 @@ for arg in "$@"; do
     --skip-tests) SKIP_TESTS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     -h|--help)
-      sed -n '1,18p' "$0"
+      sed -n '1,19p' "$0"
       exit 0
       ;;
     *)
@@ -39,7 +41,26 @@ VANEDB_ROOT="${VANEDB_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PATCH="$VANEDB_ROOT/docs/launch/0003-obsidian-vane-search-0.2.0.patch"
 TAG="0.2.0"
 
-if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
+# Prefer explicit DEMO_REPO_TOKEN. Else, when DEMO_URL is unset and the Cursor
+# App installation includes the demo repo, use `gh auth token` so clone+push
+# authenticate. Do not fall back to ambient GH_TOKEN when the demo repo is
+# missing from /installation/repositories — that vanedb-only credential 403s
+# even a public HTTPS clone.
+if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && command -v gh >/dev/null 2>&1; then
+  if gh api /installation/repositories --jq \
+      'any(.repositories[]; .full_name == "vanedb/obsidian-vane-search")' \
+      2>/dev/null | grep -qx true; then
+    tok="$(gh auth token 2>/dev/null || true)"
+    if [[ -n "$tok" ]]; then
+      DEMO_REPO_TOKEN="$tok"
+      echo "==> DEMO_REPO_TOKEN: using Cursor App installation token (demo repo in App scope)"
+    fi
+  fi
+fi
+
+# Honor a pre-set DEMO_URL (CI bare-remote tests use file://…). Only synthesize
+# the HTTPS URL when the caller did not override it.
+if [[ -n "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]]; then
   DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/vanedb/obsidian-vane-search.git"
 elif [[ -z "${DEMO_URL:-}" ]]; then
   DEMO_URL="https://github.com/vanedb/obsidian-vane-search.git"
