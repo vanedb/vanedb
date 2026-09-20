@@ -46,15 +46,18 @@ TAG="0.2.0"
 # authenticate. Do not fall back to ambient GH_TOKEN when the demo repo is
 # missing from /installation/repositories — that vanedb-only credential 403s
 # even a public HTTPS clone.
-if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && command -v gh >/dev/null 2>&1; then
-  if gh api /installation/repositories --jq \
-      'any(.repositories[]; .full_name == "vanedb/obsidian-vane-search")' \
-      2>/dev/null | grep -qx true; then
-    tok="$(gh auth token 2>/dev/null || true)"
-    if [[ -n "$tok" ]]; then
-      DEMO_REPO_TOKEN="$tok"
-      echo "==> DEMO_REPO_TOKEN: using Cursor App installation token (demo repo in App scope)"
-    fi
+# Paginate: default page size can miss the demo repo when many are installed.
+app_demo_in_scope() {
+  command -v gh >/dev/null 2>&1 || return 1
+  gh api --paginate /installation/repositories --jq '.repositories[].full_name' \
+    2>/dev/null | grep -Fxq 'vanedb/obsidian-vane-search'
+}
+
+if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && app_demo_in_scope; then
+  tok="$(gh auth token 2>/dev/null || true)"
+  if [[ -n "$tok" ]]; then
+    DEMO_REPO_TOKEN="$tok"
+    echo "==> DEMO_REPO_TOKEN: using Cursor App installation token (demo repo in App scope)"
   fi
 fi
 

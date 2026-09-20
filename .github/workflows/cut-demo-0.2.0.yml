@@ -6,6 +6,10 @@ name: Cut demo 0.2.0
 on:
   workflow_dispatch:
 
+concurrency:
+  group: cut-demo-0.2.0
+  cancel-in-progress: false
+
 permissions:
   contents: read
 

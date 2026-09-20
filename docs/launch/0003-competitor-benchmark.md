@@ -45,10 +45,11 @@ after** dedicated-machine runs fill `bench/COMPARISON.md` (currently pending).
 CI / cloud timings are discarded by policy and must never appear in the post.
 
 **Demo:** Obsidian vault search powered by the WASM build —
-https://github.com/vanedb/obsidian-vane-search — *(runnable “Try it on a real
-vault” walkthrough still tracked under #198).* Index a vault and run one
+https://github.com/vanedb/obsidian-vane-search — *(official 0.2.0 walkthrough
+still tracked under [#242](https://github.com/vanedb/vanedb/issues/242); use
+`docs/launch/maintainer_closeout_226.sh --cut`).* Index a vault and run one
 semantic search locally (Ollama + nomic-embed-text, or any OpenAI-compatible
-embeddings endpoint) once the demo checklist lands.
+embeddings endpoint) once that release is live.
 
 What we are looking for once the tables are filled: whether those dedicated-HW
 results match what you see on your hardware, and which gap (filtering,
@@ -58,15 +59,13 @@ quantization, mobile SDKs, wasm persistence) would unblock a real project.
 
 ## Demo update checklist (`obsidian-vane-search`, separate repo)
 
-This agent does not have push access to `vanedb/obsidian-vane-search`. Maintainer
-steps for the 0.2.0 demo slice:
+Prefer the one-shot / Actions path in
+[`0003-demo-update-checklist.md`](0003-demo-update-checklist.md) (patch + cut
+`0.2.0`). Manual summary:
 
-1. Bump `package.json` / `manifest.json` / `versions.json` to `0.2.0` when
-   shipping against the VaneDB 0.2.0 line (or keep `0.1.x` until wasm
-   persistence / filtered search land — do not claim 0.2.0 features early).
-2. README: add a "Try it on a real vault" section with the shortest path —
-   install → Ollama `nomic-embed-text` → index → one search screenshot or
-   transcript.
-3. Link that section from vanedb's top-level README (already pointed at the
-   repo in this PR).
-4. Cut a GitHub Release so BRAT / manual install work.
+1. Apply `0003-obsidian-vane-search-0.2.0.patch` (bumps to `0.2.0` + vault
+   walkthrough README).
+2. Cut official tag/release `0.2.0` on `vanedb/obsidian-vane-search`
+   (`maintainer_cut_demo_0.2.0.sh` or Actions → **Cut demo 0.2.0**).
+3. Reply on [#242](https://github.com/vanedb/vanedb/issues/242) with the release
+   URL (vanedb `demo-0.2.0-staging` does not count).
