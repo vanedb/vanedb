@@ -14,7 +14,8 @@
 # Cloud/CI shells are refused by the fill helper. Demo cut needs write via
 # DEMO_REPO_TOKEN, or Cursor GitHub App on vanedb/obsidian-vane-search
 # (contents:write) plus a new agent boot after #215 repositoryDependencies
-# (or --dry-run to validate apply/tag only). Official AC5 URL must be
+# (cut auto-uses `gh auth token` when /installation/repositories includes the
+# demo repo; or --dry-run to validate apply/tag only). Official AC5 URL must be
 # obsidian-vane-search 0.2.0 (vanedb demo-0.2.0-staging is not enough).
 set -euo pipefail
 
@@ -67,6 +68,16 @@ if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
   echo "    DEMO_REPO_TOKEN: set"
 else
   echo "    DEMO_REPO_TOKEN: unset"
+fi
+# App path: cut auto-uses `gh auth token` only when the demo repo is in scope.
+if command -v gh >/dev/null 2>&1; then
+  if gh api /installation/repositories --jq \
+      'any(.repositories[]; .full_name == "vanedb/obsidian-vane-search")' \
+      2>/dev/null | grep -qx true; then
+    echo "    Cursor App scope: includes obsidian-vane-search (--cut can use App token)"
+  elif gh api /installation/repositories >/dev/null 2>&1; then
+    echo "    Cursor App scope: missing obsidian-vane-search (install App or set DEMO_REPO_TOKEN)"
+  fi
 fi
 if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
   echo "    host: shared runner markers present (AC3 --fill will refuse)"
