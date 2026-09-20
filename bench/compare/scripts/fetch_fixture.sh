@@ -20,6 +20,17 @@ if ! grep -E '(^| )embeddings\.vnef$' "$FIXTURES/SHA256SUMS" >/dev/null; then
   exit 1
 fi
 # Verify only the embeddings line so a missing smoke file in this checkout is fine.
-awk '$2=="embeddings.vnef" || $2=="*embeddings.vnef" {print}' "$FIXTURES/SHA256SUMS" \
-  | (cd "$FIXTURES" && shasum -a 256 -c -)
+line="$(awk '$2=="embeddings.vnef" || $2=="*embeddings.vnef" {print; exit}' "$FIXTURES/SHA256SUMS")"
+if [[ -z "$line" ]]; then
+  echo "embeddings.vnef is not listed in SHA256SUMS" >&2
+  exit 1
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  printf '%s\n' "$line" | (cd "$FIXTURES" && sha256sum -c -)
+elif command -v shasum >/dev/null 2>&1; then
+  printf '%s\n' "$line" | (cd "$FIXTURES" && shasum -a 256 -c -)
+else
+  echo "need sha256sum or shasum to verify the fixture" >&2
+  exit 1
+fi
 echo "ok: $FIXTURES/embeddings.vnef"

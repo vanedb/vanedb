@@ -93,6 +93,14 @@ if [[ "$DO_CUT" -eq 1 ]]; then
       cut_args+=(--dry-run)
     fi
     bash docs/launch/maintainer_cut_demo_0.2.0.sh "${cut_args[@]}"
+    # Re-query after cut so the summary reflects a successful publish.
+    if command -v gh >/dev/null 2>&1; then
+      demo_tag="$(gh release list -R vanedb/obsidian-vane-search --limit 20 2>/dev/null \
+        | awk -F'\t' '$1 == "0.2.0" || $3 == "0.2.0" {print "0.2.0"; exit}')" || true
+    fi
+    if [[ -z "$demo_tag" && "$DRY_RUN" -eq 1 ]]; then
+      echo "    (dry-run: official 0.2.0 still missing until a real cut)"
+    fi
   fi
 fi
 

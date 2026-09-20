@@ -308,10 +308,7 @@ fn real_main() -> Result<(), String> {
                 }
             }
 
-            let out_dir = out_dir.unwrap_or_else(|| {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out")
-            });
-            std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+            let out_dir = resolve_out_dir(out_dir)?;
 
             let cfg = RunConfig {
                 engines,
@@ -354,6 +351,31 @@ fn real_main() -> Result<(), String> {
                 print!("{}", render_machine_section(&report));
             }
             Ok(())
+        }
+    }
+}
+
+/// Prefer `target/compare-out` under the crate (host builds). When that path is
+/// not creatable — typical for a cross-compiled binary on Android — fall back
+/// to `./compare-out` under the process cwd so on-device runs still work.
+fn resolve_out_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
+    if let Some(p) = explicit {
+        std::fs::create_dir_all(&p).map_err(|e| format!("create {}: {e}", p.display()))?;
+        return Ok(p);
+    }
+    let preferred = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out");
+    match std::fs::create_dir_all(&preferred) {
+        Ok(()) => Ok(preferred),
+        Err(e) => {
+            let fallback = PathBuf::from("compare-out");
+            eprintln!(
+                "warning: cannot create {}: {e}; using ./{}",
+                preferred.display(),
+                fallback.display()
+            );
+            std::fs::create_dir_all(&fallback)
+                .map_err(|e2| format!("create {}: {e2}", fallback.display()))?;
+            Ok(fallback)
         }
     }
 }

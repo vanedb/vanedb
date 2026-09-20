@@ -61,6 +61,22 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Preflight host packages (C++ / Python)
+        run: |
+          set -euo pipefail
+          missing=()
+          command -v python3 >/dev/null 2>&1 || missing+=(python3)
+          if ! command -v g++ >/dev/null 2>&1 && ! command -v clang++ >/dev/null 2>&1; then
+            missing+=("g++-or-clang++")
+          fi
+          if [[ "${#missing[@]}" -ne 0 ]]; then
+            echo "::error::self-hosted runner missing: ${missing[*]} (usearch/hnswlib need a C++17 toolchain; PR step needs python3)"
+            exit 1
+          fi
+          python3 --version
+          (command -v g++ >/dev/null && g++ --version | head -1) || true
+          (command -v clang++ >/dev/null && clang++ --version | head -1) || true
+
       - name: Fill host comparison (cosine + L2)
         env:
           VANEDB_COMPARE_HW: ${{ inputs.hw_label }}
