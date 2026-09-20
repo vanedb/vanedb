@@ -86,6 +86,8 @@ if app_demo_in_scope; then
   echo "    Cursor App scope: includes obsidian-vane-search (--cut can use App token)"
 elif command -v gh >/dev/null 2>&1 && gh api /installation/repositories >/dev/null 2>&1; then
   echo "    Cursor App scope: missing obsidian-vane-search (install App or set DEMO_REPO_TOKEN)"
+  # vanedb org id 272005268 — Configure → add obsidian-vane-search (contents:write)
+  echo "    App configure: https://github.com/apps/cursor/installations/new/permissions?target_id=272005268"
 fi
 if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
   echo "    host: shared runner markers present (AC3 --fill will refuse)"
@@ -145,9 +147,12 @@ echo "==> remaining: Pending=$pending_after; demo_0.2.0=${demo_tag:-missing}"
 if [[ "$pending_after" -ne 0 ]]; then
   echo "    AC3: fill Apple/Linux here or via Actions → Fill COMPARISON (self-hosted);"
   echo "         Android: bench/compare/ANDROID.md"
+  echo "         Fill workflow: https://github.com/vanedb/vanedb/actions/workflows/fill-comparison-self-hosted.yml"
 fi
 if [[ -z "$demo_tag" ]]; then
   echo "    AC5: DEMO_REPO_TOKEN=… $0 --cut"
   echo "         or Cursor App on vanedb/obsidian-vane-search (contents:write) + new agent + $0 --cut"
   echo "         or Actions → Cut demo 0.2.0 (repo secret DEMO_REPO_TOKEN)"
+  echo "         Cut workflow: https://github.com/vanedb/vanedb/actions/workflows/cut-demo-0.2.0.yml"
+  echo "         Secret: https://github.com/vanedb/vanedb/settings/secrets/actions"
 fi
