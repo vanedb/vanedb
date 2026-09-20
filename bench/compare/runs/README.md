@@ -5,7 +5,10 @@ JSON reports from dedicated-hardware runs go here. Name them
 
 **Evidence rule for #198:** before pasting into
 [`../../COMPARISON.md`](../../COMPARISON.md), keep the matching JSON in this
-directory (or attach it on the issue/PR). Re-render only via
+directory (or attach it on the issue/PR). Files here are gitignored except
+this README — commit them with `git add -f bench/compare/runs/*.json` (the
+self-hosted fill workflow and `maintainer_fill_host_comparison.sh` tip do
+this). Re-render only via
 `scripts/render_comparison_md.py`, which refuses forged params, incomplete
 engine sets, fixture hashes not listed in `fixtures/SHA256SUMS`, JSON with
 `shared_runner=true`, JSON without `dedicated_attested=true`, and JSON whose
