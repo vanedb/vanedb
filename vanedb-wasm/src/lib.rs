@@ -529,4 +529,20 @@ impl WasmIndex {
         self.inner.set_ef_search(count(ef, "ef_search")?);
         Ok(())
     }
+
+    /// Serializes the graph as a VNDB file. The returned `Uint8Array` is a
+    /// copy out of wasm memory; its length equals the file size. Compact
+    /// first if tombstones should not be written.
+    #[wasm_bindgen(js_name = toBytes)]
+    pub fn to_bytes(&self) -> Result<Vec<u8>, JsError> {
+        self.inner.to_bytes().map_err(to_jserr)
+    }
+
+    /// Reads a VNDB graph — or a legacy Rust file — from `bytes`.
+    #[wasm_bindgen(js_name = fromBytes)]
+    pub fn from_bytes(bytes: &[u8]) -> Result<WasmIndex, JsError> {
+        Ok(Self {
+            inner: ApproxIndex::from_bytes(bytes).map_err(to_jserr)?,
+        })
+    }
 }

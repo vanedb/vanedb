@@ -436,3 +436,30 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
         5
     );
 }
+
+/// Persistence is the reason a browser application does not rebuild on every
+/// load. The bytes are a VNDB file, so they load in Rust, Python and C.
+#[wasm_bindgen_test]
+fn to_bytes_round_trips_through_from_bytes() {
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, Some(7.0)).unwrap();
+    index.add(101u64.into(), &[1.0, 0.0]).unwrap();
+    index.add(202u64.into(), &[0.0, 1.0]).unwrap();
+    index.set_ef_search(32.0).unwrap();
+
+    let bytes = index.to_bytes().unwrap();
+    assert!(bytes.starts_with(b"VNDB"), "wasm save must be a VNDB file");
+    let loaded = WasmIndex::from_bytes(&bytes).unwrap();
+    assert_eq!(loaded.size(), 2);
+    assert_eq!(loaded.dimension(), 2);
+    assert_eq!(loaded.metric(), "l2");
+    assert_eq!(loaded.ef_search(), 32);
+    assert_eq!(loaded.get(101u64.into()).unwrap(), vec![1.0, 0.0]);
+    assert_eq!(loaded.search(&[1.0, 0.0], 1.0, None).unwrap().ids()[0], 101);
+    assert_eq!(loaded.to_bytes().unwrap(), bytes);
+}
+
+#[wasm_bindgen_test]
+fn from_bytes_rejects_corrupt_input() {
+    assert!(WasmIndex::from_bytes(b"not a vanedb file").is_err());
+    assert!(WasmIndex::from_bytes(&[]).is_err());
+}

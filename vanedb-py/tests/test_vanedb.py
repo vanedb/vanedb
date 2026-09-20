@@ -131,6 +131,12 @@ def test_hnsw_save_load():
         r1 = idx.search([5.5] * 4, 3)
         r2 = loaded.search([5.5] * 4, 3)
         assert [r[0] for r in r1] == [r[0] for r in r2]
+
+        payload = idx.to_bytes()
+        assert payload[:4] == b"VNDB"
+        from_bytes = vanedb.ApproxIndex.from_bytes(payload)
+        assert [r[0] for r in from_bytes.search([5.5] * 4, 3)] == [r[0] for r in r1]
+        assert from_bytes.to_bytes() == payload
     finally:
         os.unlink(path)
 

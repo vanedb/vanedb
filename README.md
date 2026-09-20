@@ -64,6 +64,19 @@ all-or-nothing and releases the GIL while the index builds. The same batch
 API is exposed in the wasm bindings (`Float32Array`/`BigUint64Array`) and
 the C ABI (`vanedb_rs_*_add_batch`).
 
+## Demo
+
+[Vane Search](https://github.com/vanedb/obsidian-vane-search) is a local-first
+Obsidian plugin that indexes a vault with VaneDB's WASM build and searches by
+meaning. Pair it with Ollama + `nomic-embed-text` (or any OpenAI-compatible
+embeddings endpoint) once you follow the plugin README. The #198 “Try it on a
+real vault” walkthrough / 0.2.0 demo slice is still maintainer-tracked (see
+[`docs/launch/0003-demo-update-checklist.md`](docs/launch/0003-demo-update-checklist.md)).
+Full #198 closeout (fixture host + dedicated HW tables + demo release):
+[`docs/launch/0003-closeout-checklist.md`](docs/launch/0003-closeout-checklist.md).
+Competitor methodology (and dedicated-hardware results, when filled) live in
+[`bench/COMPARISON.md`](bench/COMPARISON.md).
+
 ## API
 
 Three indexes. All answer the same question — which stored vectors are nearest
@@ -136,8 +149,9 @@ if file size matters.
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
-`upsert`, `tombstones` and `compact` on `ApproxIndex`; persistence is not exposed.
-Approximate search accepts a
+`upsert`, `tombstones`, `compact` and persistence (`toBytes` / `fromBytes`,
+plus `save(name)` / `load(name)` over IndexedDB in the browser and the
+filesystem in Node) on `ApproxIndex`. Approximate search accepts a
 per-query beam override as `search(query, k, ef_search)`, leaving the
 `ef_search` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
@@ -215,7 +229,7 @@ This does not guarantee identical future graph topology after insertions.
 | [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
 | [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
 | [`cpp/`](cpp) | Frozen C++ reference engine and local Python bindings |
-| [`bench/`](bench) | Reproducible cross-engine benchmark harness |
+| [`bench/`](bench) | Cross-engine (C++/Rust) harness and [`competitor comparison`](bench/COMPARISON.md) |
 | [`conformance/`](conformance) | Shared behavioral and persistence contract |
 
 The Rust engine in [`vanedb/`](vanedb) is the one that ships. The header-only

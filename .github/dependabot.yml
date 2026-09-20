@@ -17,6 +17,20 @@ updates:
     directory: "/bench"
     schedule:
       interval: "weekly"
+  - package-ecosystem: "cargo"
+    directory: "/bench/compare"
+    schedule:
+      interval: "weekly"
+    # The competitor engines are pinned `=x.y.z` on purpose: COMPARISON.md
+    # records the exact version each published row was measured against, so
+    # bumping one silently makes the harness measure something the document
+    # does not describe. Re-measuring against a newer competitor is a
+    # deliberate act with its own PR and its own rows, not a dependency update.
+    ignore:
+      - dependency-name: "usearch"
+      - dependency-name: "instant-distance"
+      - dependency-name: "hnsw_rs"
+      - dependency-name: "rusqlite"
   - package-ecosystem: "pip"
     directory: "/cpp"
     schedule:

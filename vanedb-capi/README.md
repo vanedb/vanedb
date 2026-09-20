@@ -78,6 +78,13 @@ Allocate output buffers for at least `k` IDs and distances. Free each handle
 once with its matching `*_free` function. The generated header documents
 pointer validity, ownership and buffer requirements for every function.
 
+`vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer` write and
+read the same VNDB file as the path functions, without a filesystem. Passing
+a null buffer and a zero capacity queries the required size; a short buffer
+fails and still reports that size so the caller can allocate and retry.
+[`examples/ctypes_quickstart.py`](examples/ctypes_quickstart.py) shows the
+round trip.
+
 The graph search's `ef_search` argument applies only to that call, so concurrent
 queries can choose different recall/speed settings. Pass `0` to search at the
 handle's own setting, which `vanedb_rs_index_ef_search()` reports. Note that

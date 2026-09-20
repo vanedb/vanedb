@@ -28,8 +28,9 @@
 //!
 //! Both formats have fixed-width little-endian fields. `DiskIndex` writes
 //! `VNDB` v1; [`ApproxIndex::save`] writes the shared `VNDB` v2 graph format.
-//! Rust and the supplementary C++ engine preserve vectors, links, IDs and
-//! tombstones across graph load/save. Further insertions may differ across
+//! [`ApproxIndex::to_bytes`] / [`ApproxIndex::from_bytes`] are the same file
+//! without a path. Rust and the supplementary C++ engine preserve vectors,
+//! links, IDs and tombstones across graph load/save. Further insertions may differ across
 //! engines. The Rust loader also reads legacy Rust v1/v2 graphs; save to a new
 //! path to migrate, retaining the original and source vectors for verification.
 //! Older readers cannot open VNDB v2. During 0.x, APIs and persistence formats

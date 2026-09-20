@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, Read, Write};
 use std::path::Path;
 use std::sync::atomic::AtomicUsize;
 
@@ -75,6 +75,13 @@ fn u32_to_metric(v: u32) -> Result<Metric> {
     }
 }
 
+fn write_graph(index: &ApproxIndex, inner: &Inner, mut writer: impl Write) -> Result<()> {
+    super::graph_format::write(&mut writer, index, inner)
+        .map_err(|e| VaneError::from_io("write", e))?;
+    writer.flush().map_err(|e| VaneError::from_io("flush", e))?;
+    Ok(())
+}
+
 impl ApproxIndex {
     /// Writes a shared VNDB v2 graph to `path`, preserving stored slots and
     /// links.
@@ -89,15 +96,16 @@ impl ApproxIndex {
     ///
     /// Written beside the destination and renamed in after an fsync, so an
     /// interrupted write cannot replace a good index with a partial one.
+    ///
+    /// Pathless callers can use [`save_to`](Self::save_to) or
+    /// [`to_bytes`](Self::to_bytes); this is those plus the atomic replace.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
         let inner = self.inner.read();
         let path = path.as_ref();
         let temp = crate::atomic_write::AtomicFile::new(path);
         let file = fs::File::create(temp.path()).map_err(|e| VaneError::from_io("create", e))?;
         let mut f = BufWriter::new(file);
-        super::graph_format::write(&mut f, self, &inner)
-            .map_err(|e| VaneError::from_io("write", e))?;
-        f.flush().map_err(|e| VaneError::from_io("flush", e))?;
+        write_graph(self, &inner, &mut f)?;
         // Durability: fsync data + metadata before rename so a crash mid-write
         // can't leave a half-written file in place. Mirrors fsync_file in
         // vanedb-cpp src/core/detail/file_utils.h.
@@ -109,6 +117,26 @@ impl ApproxIndex {
         temp.commit(path)
     }
 
+    /// Writes a shared VNDB v2 graph to `writer`.
+    ///
+    /// Same bytes [`save`](Self::save) would put on disk, without a path or an
+    /// fsync. Tombstoned slots are written as well; compact first if the
+    /// stream should not carry them.
+    pub fn save_to(&self, writer: impl Write) -> Result<()> {
+        let inner = self.inner.read();
+        write_graph(self, &inner, writer)
+    }
+
+    /// Serializes the graph as a VNDB v2 file in memory.
+    ///
+    /// The length equals the file [`save`](Self::save) would write. Compact
+    /// first if tombstones should not be included.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        self.save_to(&mut bytes)?;
+        Ok(bytes)
+    }
+
     /// Reads an index written by [`save`](Self::save).
     ///
     /// Accepts shared VNDB v2 graphs and legacy Rust v1/v2 files. Structural
@@ -116,6 +144,22 @@ impl ApproxIndex {
     /// graph from another engine may produce different topology.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let bytes = fs::read(path.as_ref()).map_err(|e| VaneError::from_io("read", e))?;
+        Self::from_bytes(&bytes)
+    }
+
+    /// Reads an index from `reader`, applying every header, length and
+    /// overflow check [`load`](Self::load) does.
+    pub fn load_from(mut reader: impl Read) -> Result<Self> {
+        let mut bytes = Vec::new();
+        reader
+            .read_to_end(&mut bytes)
+            .map_err(|e| VaneError::from_io("read", e))?;
+        Self::from_bytes(&bytes)
+    }
+
+    /// Reads an index from a VNDB v2 graph or a legacy Rust v1/v2 file in
+    /// memory. The bytes are exactly a saved file.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < HEADER_LEN {
             return Err(VaneError::corrupt("file too small for header"));
         }
@@ -123,7 +167,7 @@ impl ApproxIndex {
         let (version, data, persisted_rng) = if magic
             == u32::from_le_bytes(*super::graph_format::MAGIC)
         {
-            let (data, rng) = super::graph_format::read(&bytes)?;
+            let (data, rng) = super::graph_format::read(bytes)?;
             (VERSION, data, Some(rng))
         } else {
             if magic != MAGIC {
@@ -501,5 +545,99 @@ mod legacy_fixtures {
             assert_eq!(reloaded.inner.read().levels, index.inner.read().levels);
             assert_eq!(reloaded.get_vector(303).unwrap(), [0.25, 0.75]);
         }
+    }
+
+    #[test]
+    fn to_bytes_matches_save_and_round_trips() {
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vndb_graph");
+        let original = fs::read(fixtures.join("l2_rng1.vndb")).unwrap();
+        let index = ApproxIndex::from_bytes(&original).unwrap();
+        assert_eq!(index.to_bytes().unwrap(), original);
+
+        let mut via_writer = Vec::new();
+        index.save_to(&mut via_writer).unwrap();
+        assert_eq!(via_writer, original);
+
+        let via_cursor = ApproxIndex::load_from(std::io::Cursor::new(original.as_slice())).unwrap();
+        assert_eq!(via_cursor.to_bytes().unwrap(), original);
+        assert_eq!(via_cursor.search(&[1.0, 0.0], 1).unwrap()[0].id, 101);
+    }
+
+    #[derive(Default)]
+    struct TestWriter {
+        bytes: Vec<u8>,
+        fail_write: bool,
+        fail_flush: bool,
+        flushed: bool,
+    }
+
+    impl Write for TestWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if self.fail_write && self.bytes.len() >= 7 {
+                return Err(std::io::ErrorKind::BrokenPipe.into());
+            }
+            let n = bytes.len().min(3);
+            self.bytes.extend_from_slice(&bytes[..n]);
+            Ok(n)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.flushed = true;
+            if self.fail_flush {
+                return Err(std::io::ErrorKind::PermissionDenied.into());
+            }
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn save_to_retries_short_writes_and_flushes() {
+        let index = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+        index.add(101, &[1.0, 0.0]).unwrap();
+        let expected = index.to_bytes().unwrap();
+        let mut writer = TestWriter::default();
+        index.save_to(&mut writer).unwrap();
+        assert_eq!(writer.bytes, expected);
+        assert!(writer.flushed);
+    }
+
+    #[test]
+    fn save_to_preserves_write_and_flush_errors() {
+        let index = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+        for (fail_write, context, kind) in [
+            (true, "write", std::io::ErrorKind::BrokenPipe),
+            (false, "flush", std::io::ErrorKind::PermissionDenied),
+        ] {
+            let mut writer = TestWriter {
+                fail_write,
+                fail_flush: !fail_write,
+                ..TestWriter::default()
+            };
+            let error = index.save_to(&mut writer).unwrap_err();
+            assert!(matches!(error, VaneError::Io { context: actual, source }
+                if actual == context && source.kind() == kind));
+            assert!(!writer.bytes.is_empty());
+            assert_eq!(writer.flushed, !fail_write);
+        }
+    }
+
+    #[test]
+    fn load_from_preserves_reader_errors_after_valid_bytes() {
+        struct FailingReader;
+        impl Read for FailingReader {
+            fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::ConnectionReset.into())
+            }
+        }
+
+        let bytes = ApproxIndex::builder(2, Metric::L2)
+            .build()
+            .unwrap()
+            .to_bytes()
+            .unwrap();
+        let reader = std::io::Cursor::new(bytes).chain(FailingReader);
+        let error = ApproxIndex::load_from(reader).unwrap_err();
+        assert!(matches!(error, VaneError::Io { context: "read", source }
+            if source.kind() == std::io::ErrorKind::ConnectionReset));
     }
 }

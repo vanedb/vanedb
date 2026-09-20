@@ -1,0 +1,10 @@
+{
+  "model": "nomic-ai/nomic-embed-text-v1.5",
+  "corpus": "BeIR/nq dataset revision b7253e6c379163d024ddb1d6948152a91a2e3b46 corpus/corpus-00000-of-00001.parquet + queries/queries-00000-of-00001.parquet",
+  "dim": 768,
+  "n_docs": 100000,
+  "n_queries": 1000,
+  "metric_native": "cosine",
+  "generator": "scripts/generate_fixture.py --backend fastembed --text-batch 64 --max-chars 1500",
+  "notes": "generated in 9005.3s; max_chars=1500; beir_nq_revision=b7253e6c379163d024ddb1d6948152a91a2e3b46; nomic_prefixes=yes; never regenerate in CI"
+}

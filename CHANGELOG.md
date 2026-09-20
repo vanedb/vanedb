@@ -17,6 +17,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   - Python (`vanedb-py`): `filter=`, `allow_ids=`, and `deny_ids=` keyword arguments.
   - WebAssembly (`vanedb-wasm`): `{ allow, deny, predicate, efSearch, maxEfSearch }` options.
   - C ABI (`vanedb-capi`): `vanedb_rs_store_search_filtered`, `vanedb_rs_index_search_filtered`, and `vanedb_rs_disk_search_filtered`.
+- `ApproxIndex::save_to`, `load_from`, `to_bytes` and `from_bytes`. Path
+  `save`/`load` wrap these; the bytes are a VNDB v2 file (or a legacy Rust
+  graph on load). The corruption suite runs against the byte path.
+- WebAssembly `ApproxIndex.toBytes()` / `fromBytes()`, and on the
+  `@vanedb/wasm` package asynchronous `save(name)` / `load(name)` over a
+  `Storage` adapter. IndexedDB is the browser default; the filesystem is the
+  Node default. `load` of an unknown name resolves to `null`.
+- Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
+  `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
 
 ## [0.1.1] - 2026-09-10
 
