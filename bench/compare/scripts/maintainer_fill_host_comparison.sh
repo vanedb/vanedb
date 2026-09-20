@@ -22,7 +22,7 @@ cargo build --release --locked --manifest-path bench/compare/Cargo.toml
 
 HW=""
 case "$(uname -s)/$(uname -m)" in
-  Darwin/arm64|Darwin/aarch64) HW="${VANEDB_COMPARE_HW:-apple-m4-pro}" ;;
+  Darwin/arm64|Darwin/aarch64) HW="${VANEDB_COMPARE_HW:-apple-silicon}" ;;
   Linux/*)
     if grep -qw avx2 /proc/cpuinfo 2>/dev/null; then
       HW="${VANEDB_COMPARE_HW:-linux-avx2}"
