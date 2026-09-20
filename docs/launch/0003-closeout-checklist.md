@@ -1,4 +1,4 @@
-# Closing #198 / #226 — maintainer closeout
+# Closing #198 / residual tracking — maintainer closeout
 
 One-shot status / fill / cut driver:
 `bash docs/launch/maintainer_closeout_226.sh` (`--fill`, `--cut`, or `--all`).
@@ -9,15 +9,25 @@ flake fix: [#227](https://github.com/vanedb/vanedb/pull/227) (`9a555bc`,
 Required CI Gate green).
 
 **#198 was auto-closed by the #212 merge** while AC3/AC5 were still open.
-Residual tracking: [#226](https://github.com/vanedb/vanedb/issues/226) (preferred while
-#198 stays closed — GitHub has no auto-reopen keyword; maintainers can reopen #198
-manually if desired). **Do not close #226 / #198** until
-every box below has evidence.
+[#226](https://github.com/vanedb/vanedb/issues/226) tracked the residual until
+[#238](https://github.com/vanedb/vanedb/pull/238) merged — GitHub's merge
+auto-link treated a negated “close #\…” phrase in that PR body as a closing
+keyword and marked #226 completed. Active residual issue:
+**[#242](https://github.com/vanedb/vanedb/issues/242)**. Maintainers may also
+reopen #198 / #226 manually if desired. GitHub has no auto-reopen keyword.
+
+**PR / commit wording:** never write `close` / `closes` / `fix` / `fixes` /
+`resolve` / `resolves` next to `#198`, `#226`, or `#242` (including negations
+like “does not …” + those verbs + `#N`). Reference issues as “related to #242”
+or “vanedb#242” until both boxes below have evidence URLs, then shut the issue
+from the GitHub UI (not via merge keywords).
 
 ## 1. Publish fixture (AC2) — **done on main**
 
-Release asset:
+Release assets:
 `https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef`
+and
+`https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/SHA256SUMS`
 
 Pinned sha256 `4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`
 in `bench/compare/fixtures/SHA256SUMS`. Metadata committed. Fetch verify:
@@ -113,7 +123,8 @@ install the Cursor GitHub App on that repo with `contents:write`, then **start a
 new** cloud agent (existing run tokens do not pick up App scope).
 
 Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
-reply on #226 (or reopened #198) with the official release URL.
+reply on [#242](https://github.com/vanedb/vanedb/issues/242) with the official
+release URL.
 
 Staging artifacts (vanedb prerelease, **not** official demo release):
 https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
@@ -127,6 +138,7 @@ provisional tense to past tense with the real numbers.
 
 ## 5. Gate — **Required CI Gate green on main**
 
-Re-check **Required CI Gate** on `main` after every COMPARISON paste. Do **not**
-close #226 / #198 while six `*Pending.*` cells remain or while the official demo
+Re-check **Required CI Gate** on `main` after every COMPARISON paste. Leave
+[#242](https://github.com/vanedb/vanedb/issues/242) (and #198 / #226 if
+reopened) open while six `*Pending.*` cells remain or while the official demo
 `0.2.0` release URL is missing (staging on vanedb is not AC5).

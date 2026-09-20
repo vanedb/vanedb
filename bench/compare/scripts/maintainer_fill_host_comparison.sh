@@ -48,7 +48,7 @@ if [[ -n "$COS_JSON" && -n "$L2_JSON" ]]; then
   echo "Next: commit on a branch + open a PR (main is PR-protected); do not push tip."
   echo "  git switch -c bench/fill-\$(uname -s)-\$(date +%Y%m%d) &&"
   echo "  git add bench/COMPARISON.md bench/compare/runs/ &&"
-  echo "  git commit -m 'bench(compare): fill COMPARISON (#226)' && git push -u origin HEAD"
+  echo "  git commit -m 'bench(compare): fill COMPARISON (vanedb#242)' && git push -u origin HEAD"
 else
   echo "Next: python3 bench/compare/scripts/fill_comparison_slot.py <cosine.json> <l2.json>"
   echo "Or paste --markdown output into bench/COMPARISON.md under matching headings."

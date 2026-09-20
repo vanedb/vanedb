@@ -3,7 +3,7 @@
 This agent cannot push to https://github.com/vanedb/obsidian-vane-search
 (no write permission). Maintainer request:
 https://github.com/vanedb/obsidian-vane-search/issues/18 — apply the ready
-patch below, cut a release, and reply on vanedb#226 with the release
+patch below, cut a release, and reply on vanedb#242 with the release
 URL.
 
 ## Verified on tip (agent)
@@ -57,7 +57,7 @@ git tag 0.2.0 && git push --follow-tags
 The demo repo's `release` workflow publishes `main.js` + `manifest.json` +
 `LICENSE` when the tag matches `manifest.json` version.
 
-## Evidence required on #226 (residual of #198)
+## Evidence required on #242 (residual of #198)
 
 1. Release URL for `0.2.0` (or successor).
 2. Confirmation the "Try it on a real vault" walkthrough is in that release's
