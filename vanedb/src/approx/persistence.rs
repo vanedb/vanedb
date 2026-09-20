@@ -122,6 +122,12 @@ impl ApproxIndex {
     /// Same bytes [`save`](Self::save) would put on disk, without a path or an
     /// fsync. Tombstoned slots are written as well; compact first if the
     /// stream should not carry them.
+    ///
+    /// Holds the index's read lock until `writer` has accepted every byte, so
+    /// a slow sink stalls writers for the duration; serialise to a `Vec` first
+    /// if that matters. The graph is written field by field, so an unbuffered
+    /// writer pays a call per field -- wrap it in
+    /// [`BufWriter`].
     pub fn save_to(&self, writer: impl Write) -> Result<()> {
         let inner = self.inner.read();
         write_graph(self, &inner, writer)
@@ -148,7 +154,13 @@ impl ApproxIndex {
     }
 
     /// Reads an index from `reader`, applying every header, length and
-    /// overflow check [`load`](Self::load) does.
+    /// overflow check [`load`](Self::load) does -- and no more: see
+    /// [`from_bytes`](Self::from_bytes) for what the format cannot detect.
+    ///
+    /// Buffers the whole stream before checking anything, as `load` does for
+    /// a file. The header checks bound what a well-formed file may declare,
+    /// not how much an untrusted stream may send; wrap a socket in
+    /// [`Read::take`] with a ceiling of your own.
     pub fn load_from(mut reader: impl Read) -> Result<Self> {
         let mut bytes = Vec::new();
         reader
@@ -159,6 +171,20 @@ impl ApproxIndex {
 
     /// Reads an index from a VNDB v2 graph or a legacy Rust v1/v2 file in
     /// memory. The bytes are exactly a saved file.
+    ///
+    /// # What corruption is and is not detected
+    ///
+    /// Every structural check applies -- magic, version, declared lengths
+    /// against the actual length, degree and level bounds, finite floats --
+    /// and a file that fails one is refused with [`VaneError::Corrupt`]. The
+    /// format carries no checksum, so a flipped bit that leaves a stored
+    /// float finite, or an id or link within range, is not detected: such a
+    /// file loads and yields a subtly different graph. An exhaustive sweep of
+    /// a small graph found roughly a third of single-bit flips accepted this
+    /// way. Callers moving bytes over an unreliable channel should verify
+    /// them -- a SHA-256 beside the payload is enough. This is a property of
+    /// the on-disk format shared by [`load`](Self::load), and is the same on
+    /// every binding, since all of them decode through this function.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < HEADER_LEN {
             return Err(VaneError::corrupt("file too small for header"));

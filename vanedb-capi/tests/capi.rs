@@ -174,7 +174,72 @@ fn hnsw() {
         assert_eq!(n4, 1);
         assert_eq!(ids4[0], 10);
         vanedb_capi::vanedb_rs_index_free(h4);
+
+        // The byte contract, pinned by error code rather than by "returned
+        // non-zero". The behaviours below were all correct when a review
+        // probed them by hand; nothing asserted them.
+        let code = || vanedb_capi::vanedb_rs_last_error();
         assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 0).is_null());
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_NULL_ARGUMENT);
+        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 16).is_null());
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_NULL_ARGUMENT);
+        // Non-null but empty is a corrupt file, not a null argument.
+        let empty = [0u8; 1];
+        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(empty.as_ptr(), 0).is_null());
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_CORRUPT);
+        // Truncation by one byte is corruption, through the same decoder `load` uses.
+        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(buf.as_ptr(), wrote - 1).is_null());
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_CORRUPT);
+        // A flipped magic byte too.
+        let mut bad_magic = buf.clone();
+        bad_magic[0] ^= 0xff;
+        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(bad_magic.as_ptr(), wrote).is_null());
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_CORRUPT);
+
+        // save_to_buffer: the too-small path is INVALID_PARAMETER and reports
+        // the size needed; a null `written` or a null buffer with a nonzero
+        // capacity is NULL_ARGUMENT and writes nothing.
+        let h5 = vanedb_capi::vanedb_rs_index_load_from_buffer(buf.as_ptr(), wrote);
+        assert!(!h5.is_null());
+        let mut small = vec![0u8; 4];
+        let mut small_written = 0usize;
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(
+                h5,
+                small.as_mut_ptr(),
+                small.len(),
+                &mut small_written
+            ),
+            1
+        );
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_INVALID_PARAMETER);
+        assert_eq!(
+            small_written, needed,
+            "too-small must report the size needed"
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(
+                h5,
+                buf.as_mut_ptr(),
+                buf.len(),
+                std::ptr::null_mut()
+            ),
+            1
+        );
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_NULL_ARGUMENT);
+        let mut untouched = 0usize;
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_save_to_buffer(
+                h5,
+                std::ptr::null_mut(),
+                8,
+                &mut untouched
+            ),
+            1
+        );
+        assert_eq!(code(), vanedb_capi::VANEDB_RS_NULL_ARGUMENT);
+        assert_eq!(untouched, 0, "a rejected call must not touch `written`");
+        vanedb_capi::vanedb_rs_index_free(h5);
         // negative paths
         assert!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42).is_null());
         assert_eq!(

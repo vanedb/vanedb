@@ -68,13 +68,16 @@ static void exercise(uint32_t metric, const char *directory) {
         CHECK(needed > 4);
         buf = (uint8_t *)malloc(needed);
         CHECK(buf != NULL);
-        wrote = needed;
+        wrote = 0;
         CHECK(vanedb_rs_index_save_to_buffer(graph, buf, needed, &wrote) == 0);
         CHECK(wrote == needed);
         from_buf = vanedb_rs_index_load_from_buffer(buf, wrote);
         CHECK(from_buf != NULL && vanedb_rs_index_len(from_buf) == 1);
-        vanedb_rs_index_free(from_buf);
+        /* Free the source buffer first: the handle decoded it and keeps no
+           reference, so the index must still answer afterwards. */
         free(buf);
+        buf = NULL;
+        vanedb_rs_index_free(from_buf);
     }
     vanedb_rs_index_free(graph);
     CHECK(remove(path) == 0);

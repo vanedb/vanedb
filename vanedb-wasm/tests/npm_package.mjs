@@ -165,11 +165,20 @@ const child = spawnSync(process.execPath, [childScript], {
 });
 assert.equal(child.status, 0, child.stderr || child.stdout || 'child failed');
 
-// A fresh process for each import order: loading the other entry point must
-// not rebind the shared class's default storage after a cwd change.
+// A fresh process for each import order. Two properties, pinned separately
+// because an earlier version conflated them through a single chdir:
+//
+//  1. Loading the other entry point must not rebind the shared class or its
+//     default storage: what `first` saved, `second` loads from the same place.
+//  2. The default directory is the working directory *at the time of each
+//     call*, the way every relative path in Node resolves -- not the directory
+//     the package happened to be imported from. After `chdir`, a load from the
+//     new directory finds nothing, and a save lands there.
 const mixedScript = path.join(process.cwd(), 'mixed-modules-child.mjs');
 writeFileSync(mixedScript, `
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const firstIsEsm = process.argv[2] === 'esm';
@@ -179,13 +188,25 @@ try {
   index.add(42n, Float32Array.of(1, 0));
   await index.save('shared-default');
 } finally { index.free(); }
-process.chdir(process.argv[3]);
 const second = firstIsEsm ? require('@vanedb/wasm') : await import('@vanedb/wasm');
 assert.equal(first.ApproxIndex, second.ApproxIndex);
+
+// 1. Same directory, other entry point: shared default storage.
 const loaded = await second.ApproxIndex.load('shared-default');
-assert.ok(loaded, 'loading the second entry point changed the default storage directory');
+assert.ok(loaded, 'loading the second entry point changed the default storage');
 try { assert.deepEqual([...loaded.get(42n)], [1, 0]); }
 finally { loaded.free(); }
+
+// 2. The default follows the working directory per call, not per import.
+const originalCwd = process.cwd();
+process.chdir(process.argv[3]);
+assert.equal(await second.ApproxIndex.load('shared-default'), null,
+  'the default directory was captured at import rather than resolved per call');
+const moved = new second.ApproxIndex(2, 'l2', 8, 4, 16, 7);
+try { moved.add(7n, Float32Array.of(0, 1)); await moved.save('after-chdir'); }
+finally { moved.free(); }
+assert.ok(existsSync(path.join(process.argv[3], 'after-chdir')), 'save after chdir did not land in the new directory');
+assert.ok(!existsSync(path.join(originalCwd, 'after-chdir')), 'save after chdir landed in the import-time directory');
 `);
 for (const first of ['esm', 'cjs']) {
   const originalCwd = mkdtempSync(path.join(process.cwd(), 'mixed-original-'));

@@ -58,7 +58,11 @@ the corruption test suite runs against `from_bytes` as well as `load`.
 ```ts
 class ApproxIndex {
   toBytes(): Uint8Array;                        // a VNDB file
-  static fromBytes(bytes: Uint8Array): ApproxIndex;
+  // Accepts an ArrayBuffer as well, for the common case of bytes that came
+  // from fetch() or a file read. Pass a Node Buffer as-is, not `.buffer`:
+  // a small Buffer is a view into an 8 KiB pool, and its `.buffer` is the
+  // whole pool, which fails the magic check loudly.
+  static fromBytes(bytes: Uint8Array | ArrayBuffer): ApproxIndex;
 }
 ```
 
@@ -69,15 +73,15 @@ first. `FlatIndex` stays in-memory only, as in every binding.
 ### JavaScript package layer
 
 ```ts
-interface Storage {
+interface StorageAdapter {
   put(name: string, bytes: Uint8Array): Promise<void>;
   get(name: string): Promise<Uint8Array | null>;
   delete(name: string): Promise<void>;
 }
 
 class ApproxIndex {
-  save(name: string, storage?: Storage): Promise<void>;
-  static load(name: string, storage?: Storage): Promise<ApproxIndex | null>;
+  save(name: string, storage?: StorageAdapter): Promise<void>;
+  static load(name: string, storage?: StorageAdapter): Promise<ApproxIndex | null>;
 }
 
 export const indexedDbStorage: (dbName?: string) => Storage;   // browser default
@@ -143,7 +147,7 @@ visible.
 - [x] `toBytes` / `fromBytes` in the wasm module, tested in Node and in
       headless Chrome, Firefox and WebKit through the existing packaged-browser
       job.
-- [x] `save(name)` / `load(name)` with the `Storage` interface, the IndexedDB
+- [x] `save(name)` / `load(name)` with the `StorageAdapter` interface, the IndexedDB
       adapter and the file adapter; browser test that survives a page reload;
       Node test that survives a process restart; `load` of an unknown name
       resolves to `null`.

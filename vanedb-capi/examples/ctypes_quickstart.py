@@ -115,7 +115,6 @@ def main() -> int:
               f"{message(lib)!r}")
         return 1
     try:
-        floats = ctypes.c_float * dim
         assert lib.vanedb_rs_store_add(store, 1, floats(1.0, 0.0, 0.0)) == OK
         assert lib.vanedb_rs_store_add(store, 2, floats(0.0, 1.0, 0.0)) == OK
         print("stored", lib.vanedb_rs_store_len(store), "vectors")
@@ -149,7 +148,6 @@ def main() -> int:
               f"{message(lib)!r}")
         return 1
     try:
-        floats = ctypes.c_float * dim
         assert lib.vanedb_rs_index_add(index, 1, floats(1.0, 0.0, 0.0)) == OK
         needed = ctypes.c_size_t(0)
         assert lib.vanedb_rs_index_save_to_buffer(index, None, 0, ctypes.byref(needed)) == OK

@@ -498,10 +498,22 @@ impl PyIndex {
     }
 
     /// Reads a graph from a VNDB file (or a legacy Rust file) in memory.
+    ///
+    /// Takes any bytes-like object through the buffer protocol -- `bytes`,
+    /// `bytearray`, `memoryview`, a NumPy `uint8` array -- in one copy.
+    /// Extracting a `Vec<u8>` directly took the sequence protocol for
+    /// anything but `bytes` and `bytearray`, which was seven times slower for
+    /// a `memoryview` and twenty for NumPy on a 7 MB index.
     #[staticmethod]
-    fn from_bytes(py: Python<'_>, data: Vec<u8>) -> PyResult<Self> {
+    fn from_bytes(py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let buffer = PyBuffer::<u8>::get(data).map_err(|_| {
+            PyTypeError::new_err(
+                "from_bytes requires a bytes-like object (bytes, bytearray, memoryview)",
+            )
+        })?;
+        let bytes = buffer.to_vec(py)?;
         let inner = py
-            .detach(move || ApproxIndex::from_bytes(&data))
+            .detach(move || ApproxIndex::from_bytes(&bytes))
             .map_err(to_pyerr)?;
         Ok(Self { inner })
     }

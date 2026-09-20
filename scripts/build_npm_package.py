@@ -106,14 +106,18 @@ def npm_repository_url(repository):
 
 
 PERSISTENCE_TYPES = """
-export interface Storage {
+/** Where `save(name)` and `load(name)` keep bytes. The two shipped adapters are
+ *  defaults; this seam is the contract. `delete` is never called by the
+ *  package itself -- it exists so an application can remove an index it
+ *  saved through the same adapter, without knowing the adapter's layout. */
+export interface StorageAdapter {
   put(name: string, bytes: Uint8Array): Promise<void>;
   get(name: string): Promise<Uint8Array | null>;
   delete(name: string): Promise<void>;
 }
 
-export function indexedDbStorage(dbName?: string): Storage;
-export function fileStorage(directory?: string): Storage;
+export function indexedDbStorage(dbName?: string): StorageAdapter;
+export function fileStorage(directory?: string): StorageAdapter;
 """
 
 
@@ -140,12 +144,12 @@ def patch_persistence_types(path: Path) -> None:
         raise SystemExit("index.d.ts already declares save(); the patch would duplicate it")
     patched = text.replace(
         "    toBytes(): Uint8Array;",
-        "    toBytes(): Uint8Array;\n    save(name: string, storage?: Storage): Promise<void>;",
+        "    toBytes(): Uint8Array;\n    save(name: string, storage?: StorageAdapter): Promise<void>;",
         1,
     )
     patched = patched.replace(
         "    static fromBytes(bytes: Uint8Array): ApproxIndex;",
-        "    static fromBytes(bytes: Uint8Array | ArrayBuffer): ApproxIndex;\n    static load(name: string, storage?: Storage): Promise<ApproxIndex | null>;",
+        "    static fromBytes(bytes: Uint8Array | ArrayBuffer): ApproxIndex;\n    static load(name: string, storage?: StorageAdapter): Promise<ApproxIndex | null>;",
         1,
     )
     if patched == text:

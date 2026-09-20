@@ -487,3 +487,25 @@ def test_metric_works_as_a_dict_key():
     for value, metric in enumerate(metrics):
         assert hash(metric) == hash(value), f"{metric!r} must hash as {value}"
 
+
+def test_from_bytes_takes_any_bytes_like_object():
+    """`from_bytes` reads through the buffer protocol, not the sequence protocol.
+
+    Extracting a `Vec[u8]` directly accepted a `memoryview` or a NumPy array
+    only by iterating it as a sequence of ints -- seven and twenty times slower
+    than `bytes` on a 7 MB index -- and also accepted a `list[int]`, which is
+    not bytes-like and which the stub never promised. One buffer-protocol path
+    treats every bytes-like object alike and refuses everything else.
+    """
+    np = pytest.importorskip("numpy")
+    index = vanedb.ApproxIndex(4, vanedb.Metric.L2, capacity=8, seed=3)
+    index.add_batch([1, 2], [[1.0, 0, 0, 0], [0, 1.0, 0, 0]])
+    blob = index.to_bytes()
+    assert blob.startswith(b"VNDB")
+    for data in (blob, bytearray(blob), memoryview(blob), np.frombuffer(blob, dtype=np.uint8)):
+        restored = vanedb.ApproxIndex.from_bytes(data)
+        assert restored.to_bytes() == blob, type(data).__name__
+    for not_bytes_like in ("VNDB", [86, 78, 68, 66], 42, None):
+        with pytest.raises(TypeError):
+            vanedb.ApproxIndex.from_bytes(not_bytes_like)
+

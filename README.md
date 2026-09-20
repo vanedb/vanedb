@@ -204,6 +204,13 @@ file; new opens see the replacement.
 
 `ApproxIndex` now writes the shared [VNDB v2 graph format](conformance/graph/README.md).
 Both engines preserve its vectors, links, IDs and deleted slots across load/save.
+The same bytes are available without a path on every binding — Rust
+`to_bytes`/`from_bytes` and `save_to`/`load_from`, Python `to_bytes`/`from_bytes`,
+C `vanedb_rs_index_save_to_buffer`/`load_from_buffer`, and WebAssembly
+`toBytes()`/`fromBytes()` plus `save(name)`/`load(name)` over IndexedDB or the
+filesystem — so an index can travel over a socket or into browser storage. The
+format carries no checksum: a corruption that leaves every field in range loads
+as a subtly different graph, so verify bytes that crossed an unreliable channel.
 Further insertions can produce different graphs across engines. Rust still reads
 legacy Rust v1/v2 files; C++ still reads legacy C++ v1/v2/v3 files. To migrate,
 load a legacy file in its original engine and save to a new path; older readers

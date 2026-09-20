@@ -120,7 +120,7 @@ class ApproxIndex:
 
     def to_bytes(self) -> bytes: ...
     @staticmethod
-    def from_bytes(data: bytes) -> ApproxIndex:
+    def from_bytes(data: bytes | bytearray | memoryview) -> ApproxIndex:
         """Raises ValueError if the bytes are not a valid graph."""
 
 class DiskIndexBuilder:

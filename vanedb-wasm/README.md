@@ -55,7 +55,7 @@ or Python. `ApproxIndex.fromBytes(bytes)` reads one; `bytes` is a `Uint8Array` o
 equals the file size. `FlatIndex` stays in-memory only.
 
 The JavaScript package then hangs `save(name)` / `load(name)` on `ApproxIndex`
-over a small `Storage` adapter. IndexedDB is the browser default; the
+over a small `StorageAdapter`. IndexedDB is the browser default; the
 filesystem is the Node default. `name` is a single path segment (`corpus`,
 not `data/corpus`) so the same call works in both. `load` of an unknown
 name resolves to `null`.
@@ -79,7 +79,8 @@ console.log(loaded.size()); // 1
 loaded.free();
 ```
 
-Node, the same calls, writing `corpus` as a file in the working directory:
+Node, the same calls, writing `corpus` as a file in the working directory at
+the time of the call (pass `fileStorage(dir)` to pin one):
 
 ```js
 import init, { ApproxIndex } from '@vanedb/wasm';

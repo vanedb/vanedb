@@ -330,6 +330,10 @@ int32_t vanedb_rs_index_save_to_buffer(vanedb_rs_index *h,
 /**
  * Reads a VNDB graph (or a legacy Rust file) from `buf`.
  *
+ * The handle does not retain `buf`: the bytes are decoded into the index and
+ * the caller may free or reuse the buffer as soon as this returns, whether
+ * it returned a handle or null.
+ *
  * # Safety
  * `buf` must point to `len` valid bytes. Returns an owning handle (or null)
  * that must be freed with `vanedb_rs_index_free`.

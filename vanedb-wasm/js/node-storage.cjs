@@ -17,13 +17,19 @@ function assertFileName(name) {
 }
 
 
-function fileStorage(directory = process.cwd()) {
+// `directory` omitted means the process's working directory *at the time of
+// each call*, not at import. The package installs `fileStorage()` as the
+// default when it is first required, and a service that `chdir`s afterwards
+// would otherwise keep writing wherever it happened to start.
+function fileStorage(directory) {
+  const dir = () => directory ?? process.cwd();
   return {
     async put(name, bytes) {
       assertFileName(name);
-      const dest = path.join(directory, name);
+      const base = dir();
+      const dest = path.join(base, name);
       const temp = path.join(
-        directory,
+        base,
         `.${name}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`,
       );
       try {
@@ -44,7 +50,7 @@ function fileStorage(directory = process.cwd()) {
     async get(name) {
       assertFileName(name);
       try {
-        return new Uint8Array(await fs.readFile(path.join(directory, name)));
+        return new Uint8Array(await fs.readFile(path.join(dir(), name)));
       } catch (error) {
         if (error && error.code === 'ENOENT') return null;
         throw error;
@@ -53,7 +59,7 @@ function fileStorage(directory = process.cwd()) {
     async delete(name) {
       assertFileName(name);
       try {
-        await fs.unlink(path.join(directory, name));
+        await fs.unlink(path.join(dir(), name));
       } catch (error) {
         if (!error || error.code !== 'ENOENT') throw error;
       }
