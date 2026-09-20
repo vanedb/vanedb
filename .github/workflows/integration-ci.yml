@@ -252,7 +252,7 @@ jobs:
                   False,
               )
               raise SystemExit("expected refuse overwrite")
-          except SystemExit as e:
+          except fill.SlotNotPending as e:
               assert "non-Pending" in str(e)
           # Dry-run path must not write.
           before = Path("bench/COMPARISON.md").read_text()
