@@ -12,23 +12,30 @@ A labelled Android ARM64 result is an acceptance criterion of #198.
 rustup target add aarch64-linux-android
 # Point at your NDK (example paths — adjust version):
 export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/26.1.10909125}"
-# Host prebuilt triple: linux-x86_64 | darwin-x86_64 | darwin-arm64
+# Host prebuilt triple: linux-x86_64 | darwin-x86_64
+# (NDK ships darwin-x86_64 even on Apple Silicon; darwin-arm64 is uncommon.)
 NDK_HOST="${NDK_HOST:-linux-x86_64}"
-# Darwin example: NDK_HOST=darwin-arm64
+# Darwin: NDK_HOST=darwin-x86_64
 export CC_aarch64_linux_android="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin/aarch64-linux-android24-clang"
 export CXX_aarch64_linux_android="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin/aarch64-linux-android24-clang++"
 export AR_aarch64_linux_android="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$NDK_HOST/bin/llvm-ar"
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
 
 # hnswlib / usearch need a C++17 toolchain; prefer the NDK clang++ above.
+# `bench/compare/build.rs` bakes -Wl,-z,max-page-size=16384 for Android bins
+# (Android 15 16 KiB pages). `cargo ndk` is fine too if you prefer it.
 cargo build --release --locked --manifest-path bench/compare/Cargo.toml \
   --target aarch64-linux-android
+# Optional: confirm 16 KiB LOAD alignment before push
+python3 scripts/check_android_elf.py \
+  bench/compare/target/aarch64-linux-android/release/compare
 ```
 
 Push binary + fixture (include the **committed** repo `SHA256SUMS` pin):
 
 ```bash
 adb push bench/compare/target/aarch64-linux-android/release/compare /data/local/tmp/
+adb shell chmod 700 /data/local/tmp/compare
 adb push bench/compare/fixtures/embeddings.vnef /data/local/tmp/
 adb push bench/compare/fixtures/SHA256SUMS /data/local/tmp/
 adb push bench/compare/fixtures/metadata.json /data/local/tmp/
