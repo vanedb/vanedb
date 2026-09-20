@@ -56,6 +56,13 @@ An approximate search widens its beam when fewer than `k` results match, up to
 `max_ef_search` (default four times the initial beam). This cap is a recall/work
 tradeoff, not a guarantee of `k` results or a strict bound on distance evaluations.
 
+As a rule of thumb, set `ef_search` on the order of `k` divided by the
+fraction of ids the filter accepts, then raise `max_ef_search` so the cap
+stays several times the beam. Raising only the cap does not improve the
+quality of results that already fill `k`, because widening stops there.
+Measured recall at several selectivities is in
+[the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
+
 Distance kernels select NEON or AVX2 at runtime and fall back to scalar code.
 Capacity is a reserve hint for the growable graph index, not an insertion limit.
 Removed and replaced entries occupy storage until compaction rebuilds the graph.

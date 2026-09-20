@@ -154,6 +154,11 @@ supported. The options object's `efSearch` and `maxEfSearch` apply to that
 query alone. Approximate filtering can return fewer than `k` matches;
 `maxEfSearch` caps beam widening, by default at four times the initial beam,
 and does not impose a hard limit on nodes visited.
+As a rule of thumb, set `efSearch` on the order of `k` divided by the
+fraction of ids the filter accepts, then raise `maxEfSearch`; raising only
+the cap does not improve results that already fill `k`. Measured recall at
+several selectivities is in
+[the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 ## Deleting
 

@@ -17,6 +17,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   - Python (`vanedb-py`): `filter=`, `allow_ids=`, and `deny_ids=` keyword arguments.
   - WebAssembly (`vanedb-wasm`): `{ allow, deny, predicate, efSearch, maxEfSearch }` options.
   - C ABI (`vanedb-capi`): `vanedb_rs_store_search_filtered`, `vanedb_rs_index_search_filtered`, and `vanedb_rs_disk_search_filtered`.
+- `VaneError::Validation`, a new public variant for a filter argument that
+  fails validation, such as an allow or deny list that is not strictly
+  ascending; the C ABI reports it as `VANEDB_RS_INVALID_PARAMETER` and
+  Python raises `ValueError`.
 - `ApproxIndex::save_to`, `load_from`, `to_bytes` and `from_bytes`. Path
   `save`/`load` wrap these; the bytes are a VNDB v2 file (or a legacy Rust
   graph on load). The corruption suite runs against the byte path.
