@@ -265,7 +265,7 @@ Run in order; each step has an observable result.
 
 | Symptom | Cause and fix |
 |---|---|
-| `pip install vanedb` finds no matching distribution | Check Python 3.11+ and the [supported platforms](../README.md). Upgrade pip or build from a checkout with Rust installed. |
+| `pip install vanedb` finds no matching distribution | Check Python 3.11+ and the [supported platforms](PLATFORMS.md). Upgrade pip or build from a checkout with Rust installed. |
 | `URLError: <urlopen error [Errno 61] Connection refused>` on port 11434 | Ollama is not running. Start it: `ollama serve`. |
 | Ollama returns `model ... not found` | `ollama pull nomic-embed-text` first. |
 | `401` from OpenAI | Check `OPENAI_API_KEY` and project access. For quota or billing errors, check the API account's limits. |

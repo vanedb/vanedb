@@ -18,6 +18,9 @@ for consumer acceptance:
 | Windows x64 | Imported DLLs listed in the metadata, including VCRUNTIME140 and Universal CRT; a minimum Windows release has not been verified |
 
 CI rejects an increased glibc requirement or a changed macOS deployment target.
+Support tiers and floors for every platform are in
+[`docs/PLATFORMS.md`](../docs/PLATFORMS.md), which also records that the
+macOS Intel archive ends when GitHub's last Intel runner retires in August 2027.
 These are inspected binary requirements, not proof of runtime support on the
 oldest OS. Consumer acceptance runs on the recorded CI host. In particular, the
 Windows PE subsystem version does not establish the application's minimum OS.
@@ -165,4 +168,5 @@ working consumer; CI runs it against a built library on every change.
 shared object matches the header it compiled against. This is a 0.x ABI: it may
 change in a minor release. See the
 [repository guide](https://github.com/vanedb/vanedb#persistence) for persistence
-limitations and platform verification.
+limitations, and [`docs/PLATFORMS.md`](../docs/PLATFORMS.md) for platform
+verification.
