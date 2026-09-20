@@ -36,6 +36,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   the tested version over a declared floor of 18) and a dated change log.
   The README summarises and links it, `SECURITY.md` links it, and a test
   fails when the README names a platform the page does not.
+- The `gpu-metal` feature is documented as experimental (#208): it exposes the
+  standalone `MetalCompute` scan API on macOS and accelerates no index. The
+  crate README no longer presents it as a capability; `docs/LIMITS.md` records
+  what it does and does not do. The feature, its tests and its CI jobs are
+  unchanged.
 
 ### Deprecated
 
