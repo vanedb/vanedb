@@ -22,6 +22,18 @@ like “does not …” + those verbs + `#N`). Reference issues as “related to
 or “vanedb#242” until both boxes below have evidence URLs, then shut the issue
 from the GitHub UI (not via merge keywords).
 
+### Evidence matrix (goal / #198)
+
+| Criterion | Status | Where to verify |
+|---|---|---|
+| Tip Required CI Gate green | **done** | `origin/main` (post-#212 lineage); Gate must stay green after COMPARISON pastes |
+| Hostable `embeddings.vnef` + `SHA256SUMS` | **done** | [compare-fixture-v1](https://github.com/vanedb/vanedb/releases/tag/compare-fixture-v1) |
+| Six dedicated-HW COMPARISON tables | **open** | `bench/COMPARISON.md` still has six `*Pending.*` — Apple / Linux AVX2 / Android × cosine+L2; never cloud/CI |
+| Official Obsidian demo `0.2.0` | **open** | Missing tag; [staging](https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging) ≠ AC5 |
+| ≥5 CTO→user→staff→senior→QA→AI PM rounds | **done** | ≥7 rounds posted on [#212](https://github.com/vanedb/vanedb/pull/212) (e.g. Rounds 23–34) |
+
+Do not mark the goal or residual issues done while any row above is **open**.
+
 ## 1. Publish fixture (AC2) — **done on main**
 
 Release assets:
