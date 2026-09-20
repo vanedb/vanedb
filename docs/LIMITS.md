@@ -82,8 +82,15 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 - Quantized or compressed vectors (RFC 0005).
 - Approximate search over a corpus larger than RAM (RFC 0008).
 - Mobile SDKs beyond the C ABI (RFC 0007).
-- GPU acceleration of any index (RFC 0001; the Metal feature exposes distance
-  scans only).
+- GPU acceleration of any index (RFC 0001, #208). The experimental `gpu-metal`
+  Cargo feature builds only on macOS and exposes `vanedb::gpu::MetalCompute`:
+  a standalone API that uploads a caller-supplied vector matrix to a Metal
+  buffer and runs L2, cosine and dot-product distance scans against it.
+  `FlatIndex`, `ApproxIndex` and `DiskIndex` never call it; enabling the
+  feature changes nothing about how any index builds or searches, and no
+  binding exposes it. It has no benchmark showing a gain over the CPU kernels.
+  Whether it is finished into index acceleration or removed is decided after
+  0.3.0.
 
 ## Open questions this page cannot answer yet
 
