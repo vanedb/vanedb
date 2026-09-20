@@ -42,7 +42,8 @@ bash docs/launch/maintainer_cut_demo_0.2.0.sh
 Actions → **Cut demo 0.2.0** → Run workflow. Or use the local one-shot above
 with demo-repo write.
 
-Manual equivalent:
+Manual equivalent (match the one-shot — demo `main` is PR-protected; use an
+annotated tag so the release workflow sees `refs/tags/0.2.0`):
 
 ```bash
 git clone https://github.com/vanedb/obsidian-vane-search.git
@@ -50,10 +51,15 @@ cd obsidian-vane-search
 git apply /path/to/vanedb/docs/launch/0003-obsidian-vane-search-0.2.0.patch
 # or: curl -fsSL https://raw.githubusercontent.com/vanedb/vanedb/<tip>/docs/launch/0003-obsidian-vane-search-0.2.0.patch | git apply
 npm test && npm run build
-git commit -am "chore(release): 0.2.0 demo slice for vanedb#198"
-git tag 0.2.0 && git push --follow-tags
+git add README.md manifest.json package.json versions.json
+git commit -m "chore(release): 0.2.0 demo slice for vanedb#198"
+git tag -a 0.2.0 -m "obsidian-vane-search 0.2.0 (vanedb#198)"
+git push -u origin "HEAD:refs/heads/release/0.2.0-vanedb-198"
+git push origin refs/tags/0.2.0
 ```
 
+Prefer `bash docs/launch/maintainer_cut_demo_0.2.0.sh` (or Actions → **Cut demo
+0.2.0**) over the manual block.
 The demo repo's `release` workflow publishes `main.js` + `manifest.json` +
 `LICENSE` when the tag matches `manifest.json` version.
 
