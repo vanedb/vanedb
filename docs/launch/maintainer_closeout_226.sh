@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Remaining #226 / #198 closeout driver (AC3 host fill + AC5 demo cut).
+# Remaining #198 AC3/AC5 closeout driver (host fill + demo cut).
+# Residual tracking issue: https://github.com/vanedb/vanedb/issues/242
+# (#226 was auto-closed by a merge keyword; do not use close/fix/#N in PRs.)
 #
 # Reports gaps, then optionally runs the existing one-shots:
 #   bash docs/launch/maintainer_closeout_226.sh           # status only
@@ -51,7 +53,7 @@ if command -v gh >/dev/null 2>&1; then
     | awk -F'\t' '$1 == "0.2.0" || $3 == "0.2.0" {print "0.2.0"; exit}')" || true
 fi
 
-echo "==> #226 closeout status (repo=$VANEDB_ROOT)"
+echo "==> #242 closeout status (repo=$VANEDB_ROOT)"
 echo "    COMPARISON Pending cells: $pending (need 0)"
 if [[ -n "$demo_tag" ]]; then
   echo "    Official demo 0.2.0: present"
@@ -66,7 +68,7 @@ else
 fi
 
 if [[ "$pending" -eq 0 && -n "$demo_tag" ]]; then
-  echo "==> AC3 + AC5 look done. Reply on https://github.com/vanedb/vanedb/issues/226 with evidence."
+  echo "==> AC3 + AC5 look done. Reply on https://github.com/vanedb/vanedb/issues/242 with evidence."
   exit 0
 fi
 

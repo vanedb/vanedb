@@ -1,5 +1,5 @@
 # Fill bench/COMPARISON.md cosine+L2 for the current host on operator-owned
-# dedicated hardware via GitHub Actions self-hosted runners (#198 / #226 AC3).
+# dedicated hardware via GitHub Actions self-hosted runners (#198 / #242 AC3).
 # Never use github-hosted runners — AGENTS.md forbids publishing those timings.
 # Does not run on push/PR. Requires a registered self-hosted runner.
 # Results land via PR (main is ruleset-protected; tip push would fail).
@@ -114,23 +114,26 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bench/COMPARISON.md bench/compare/runs/
+          git add bench/COMPARISON.md
+          # runs/*.json is gitignored; force-add publish evidence for the PR.
+          git add -f bench/compare/runs/*.json
           if git diff --cached --quiet; then
             echo "No COMPARISON changes to commit (slots may already be filled)"
             exit 0
           fi
           BRANCH="bench/fill-comparison-${RUNNER_OS}-${RUN_ID}"
           git switch -c "$BRANCH"
-          git commit -m "bench(compare): fill COMPARISON from self-hosted runner (#226)"
+          git commit -m "bench(compare): fill COMPARISON from self-hosted runner (vanedb#242)"
           git push -u origin "HEAD:refs/heads/$BRANCH"
           TITLE="bench(compare): fill COMPARISON from self-hosted (${RUNNER_OS})"
           BODY=$(printf '%s\n' \
-            "Self-hosted fill for #226 / #198 AC3." \
+            "Self-hosted fill related to vanedb#242 / #198 AC3." \
             "" \
             "- Runner OS: \`${RUNNER_OS}\`" \
             "- Workflow run: ${RUN_URL}" \
             "" \
-            "Do not merge cloud/CI timings. Required CI Gate must be green.")
+            "Do not merge cloud/CI timings. Required CI Gate must be green." \
+            "Leave #242 open until all six slots and official demo 0.2.0 are evidenced.")
           python3 - "$REPO" "$BRANCH" "$TITLE" "$BODY" <<'PY'
           import json, os, sys, urllib.request
           repo, branch, title, body = sys.argv[1:5]
