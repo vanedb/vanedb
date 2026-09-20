@@ -127,16 +127,20 @@ bash docs/launch/maintainer_cut_demo_0.2.0.sh
 
 Or Actions → **Cut demo 0.2.0** with secret `DEMO_REPO_TOKEN`
 (`cut-demo-0.2.0.yml` on **main** via [#220](https://github.com/vanedb/vanedb/pull/220)).
+App-scoped agents can also cut after [#246](https://github.com/vanedb/vanedb/pull/246)
+(`gh auth token` when `/installation/repositories` includes the demo repo).
 
 To let a **future** cloud agent cut AC5 itself:
 [#215](https://github.com/vanedb/vanedb/pull/215) merged
 `repositoryDependencies` for `github.com/vanedb/obsidian-vane-search`. Remaining:
-install the Cursor GitHub App on that repo with `contents:write`, then **start a
-new** cloud agent (existing run tokens do not pick up App scope).
+install the Cursor GitHub App on that repo with `contents:write`, ensure the
+agent's environment actually lists that dependency (a Personal env that only
+scopes `vanedb/vanedb` overrides the committed `.cursor/environment.json`),
+then **start a new** cloud agent (existing run tokens do not pick up App scope).
 
-Maintainer request: https://github.com/vanedb/obsidian-vane-search/issues/18 —
-reply on [#242](https://github.com/vanedb/vanedb/issues/242) with the official
-release URL.
+Ignore obsolete demo-repo #18 push guidance (lightweight tag + follow-tags onto
+protected `main`); prefer the one-shot / Actions paths above. Reply on
+[#242](https://github.com/vanedb/vanedb/issues/242) with the official release URL.
 
 Staging artifacts (vanedb prerelease, **not** official demo release):
 https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging

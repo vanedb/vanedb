@@ -9,7 +9,7 @@ Cloud agents without demo-repo write get 403 on push. Unblock with one of:
    demo repo.
 
 Ignore obsolete push steps on [obsidian-vane-search#18](https://github.com/vanedb/obsidian-vane-search/issues/18)
-(`git push --follow-tags` onto protected `main`); prefer the one-shot below.
+(lightweight tag + follow-tags onto protected `main`); prefer the one-shot below.
 Reply on vanedb#242 with the official release URL when done.
 
 ## Verified on tip (agent)

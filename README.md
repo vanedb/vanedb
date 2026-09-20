@@ -69,10 +69,11 @@ the C ABI (`vanedb_rs_*_add_batch`).
 [Vane Search](https://github.com/vanedb/obsidian-vane-search) is a local-first
 Obsidian plugin that indexes a vault with VaneDB's WASM build and searches by
 meaning. Pair it with Ollama + `nomic-embed-text` (or any OpenAI-compatible
-embeddings endpoint) once you follow the plugin README. The #198 “Try it on a
-real vault” walkthrough / 0.2.0 demo slice is still maintainer-tracked (see
+embeddings endpoint) once you follow the plugin README. The residual #242
+“Try it on a real vault” walkthrough / official 0.2.0 demo slice is still
+maintainer-tracked (see
 [`docs/launch/0003-demo-update-checklist.md`](docs/launch/0003-demo-update-checklist.md)).
-Full #198 closeout (fixture host + dedicated HW tables + demo release):
+Full #198/#242 closeout (fixture host + dedicated HW tables + demo release):
 [`docs/launch/0003-closeout-checklist.md`](docs/launch/0003-closeout-checklist.md).
 Competitor methodology (and dedicated-hardware results, when filled) live in
 [`bench/COMPARISON.md`](bench/COMPARISON.md).
