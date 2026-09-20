@@ -534,6 +534,9 @@ jobs:
             exit 1
           fi
           grep -q '#242 closeout status' "$CLOSE"
+          grep -q 'Cursor App on vanedb/obsidian-vane-search' "$CLOSE"
+          grep -q 'shared runner markers' "$CLOSE"
+          grep -q 'Cursor GitHub App' "$CUT"
           grep -q 'vanedb#242' "$DEMO"
           if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
             echo "::error::merge closing keywords next to residual issue numbers" >&2

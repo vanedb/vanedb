@@ -3,8 +3,10 @@
 #
 # Requires: git push access to vanedb/obsidian-vane-search, network, Node 20+
 # (unless --skip-tests; the demo repo Release workflow still builds assets).
-# Cloud agents without demo-repo write cannot push (403); use DEMO_REPO_TOKEN
-# or --dry-run to validate apply/test/tag without pushing.
+# Cloud agents without demo-repo write cannot push (403). Unblock with
+# DEMO_REPO_TOKEN, or install the Cursor GitHub App on
+# vanedb/obsidian-vane-search (contents:write) and boot a new agent after
+# #215 repositoryDependencies. Use --dry-run to validate without pushing.
 #
 # Usage (from any clone of vanedb, or with VANEDB_ROOT set):
 #   bash docs/launch/maintainer_cut_demo_0.2.0.sh

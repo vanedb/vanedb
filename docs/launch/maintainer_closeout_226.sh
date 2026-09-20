@@ -11,9 +11,11 @@
 #   bash docs/launch/maintainer_closeout_226.sh --cut --dry-run  # validate cut, no push
 #
 # AC3 Android still needs ANDROID.md (this driver refuses android labels).
-# Cloud/CI shells are refused by the fill helper. Demo cut needs write or
-# DEMO_REPO_TOKEN (or --dry-run to validate apply/tag only). Official AC5 URL
-# must be obsidian-vane-search 0.2.0 (vanedb demo-0.2.0-staging is not enough).
+# Cloud/CI shells are refused by the fill helper. Demo cut needs write via
+# DEMO_REPO_TOKEN, or Cursor GitHub App on vanedb/obsidian-vane-search
+# (contents:write) plus a new agent boot after #215 repositoryDependencies
+# (or --dry-run to validate apply/tag only). Official AC5 URL must be
+# obsidian-vane-search 0.2.0 (vanedb demo-0.2.0-staging is not enough).
 set -euo pipefail
 
 DO_FILL=0
@@ -28,7 +30,7 @@ for arg in "$@"; do
     --skip-tests) SKIP_TESTS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     -h|--help)
-      sed -n '1,17p' "$0"
+      sed -n '1,19p' "$0"
       exit 0
       ;;
     *)
@@ -65,6 +67,11 @@ if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
   echo "    DEMO_REPO_TOKEN: set"
 else
   echo "    DEMO_REPO_TOKEN: unset"
+fi
+if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
+  echo "    host: shared runner markers present (AC3 --fill will refuse)"
+else
+  echo "    host: no shared-runner FS markers (fill may proceed if dedicated)"
 fi
 
 if [[ "$pending" -eq 0 && -n "$demo_tag" ]]; then
@@ -116,5 +123,7 @@ if [[ "$pending_after" -ne 0 ]]; then
   echo "         Android: bench/compare/ANDROID.md"
 fi
 if [[ -z "$demo_tag" ]]; then
-  echo "    AC5: DEMO_REPO_TOKEN=… $0 --cut   or Actions → Cut demo 0.2.0"
+  echo "    AC5: DEMO_REPO_TOKEN=… $0 --cut"
+  echo "         or Cursor App on vanedb/obsidian-vane-search (contents:write) + new agent + $0 --cut"
+  echo "         or Actions → Cut demo 0.2.0 (repo secret DEMO_REPO_TOKEN)"
 fi
