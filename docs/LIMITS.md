@@ -26,18 +26,22 @@ a limit are named beside it.
 
 | Index | Resident bytes | Notes |
 |---|---|---|
-| `FlatIndex` | `n × (4d + 8)` plus id map | vectors plus `u64` ids; the id map is a hash map over `u64` |
-| `ApproxIndex` (M = 16 default) | `n × (4d + 8 + 4 + 1)` for vectors, ids, level, tombstone; plus links: `n × (2M × 8 + ~M × 8 × 0.06)` ≈ `n × 280` bytes; plus per-node `Vec` headers | links are `Vec<Vec<Vec<usize>>>` today: 24 bytes of header per layer per node on top of the `usize` slot numbers; RFC 0013 stores `u32` slots on disk and RFC 0008 moves the resident copy to a flat `u32` layout |
+| `FlatIndex` | `n × (4d + 8)` plus id map | vectors plus `u64` ids; the id map is a hash map over `u64` costing `17 × B(n) + 16` bytes, 19 to 39 per entry, with `B(n) = next_power_of_two(⌈8n / 7⌉)` (computed; matched to the byte by the allocator check in the [capacity study](research/capacity.md) §4.4). Exact for `add_batch`; `add` grows the vectors by `Vec` doubling |
+| `ApproxIndex` (M = 16 default) | `n × (4d + 8 + 4 + 1)` for vectors, ids, level, tombstone; plus links: `n × (2M × 8 + ~M × 8 × 0.06)` ≈ `n × 280` bytes; plus per-node `Vec` headers (measured ~297 bytes per node on random vectors at n = 8192, capacity study §4.4) | links are `Vec<Vec<Vec<usize>>>` today: 24 bytes of header per layer per node on top of the `usize` slot numbers; RFC 0013 stores `u32` slots on disk and RFC 0008 moves the resident copy to a flat `u32` layout |
 | `DiskIndexBuilder` (build) | `n × (4d + 8)` | buffers every vector until `save`; RFC 0008 streams it |
-| `DiskIndex` (open) | page cache only; the id map (`n × ~16` bytes) is resident | read-only memory mapping of the file |
+| `DiskIndex` (open) | page cache only; the id map (`17 × B(n) + 16` bytes, 19 to 39 per entry; computed, checked against the allocator in the capacity study §4.4) is resident | read-only memory mapping of the file |
 
 Worked examples at `d = 768` (nomic-embed-text, EmbeddingGemma):
 
 | n | `FlatIndex` | `ApproxIndex` vectors + links | `DiskIndex` resident |
 |---|---|---|---|
-| 100k | ~310 MB | ~310 MB + ~28 MB | ~2 MB |
-| 1M | ~3.1 GB | ~3.1 GB + ~280 MB | ~16 MB |
-| 10M | ~31 GB | ~31 GB + ~2.8 GB | ~160 MB |
+| 100k | ~310 MB | ~310 MB + ~28 MB | ~2.2 MB |
+| 1M | ~3.1 GB | ~3.1 GB + ~280 MB | ~36 MB |
+| 10M | ~31 GB | ~31 GB + ~2.8 GB | ~285 MB |
+
+`DiskIndex` resident figures are the id map alone (computed from the hash
+table's bucket rule; the same formula was measured at 34.0 bytes per entry
+for n = 8192 and 27.9 for n = 10,000 in the capacity study §4.4).
 
 These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 32×) and RFC 0008 (vectors paged from disk, links resident) exist.
@@ -87,8 +91,7 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 
 ## Open questions this page cannot answer yet
 
-Recorded in #210, the [capacity study](research/2026-09-capacity-study.md):
-what corpus sizes and memory budgets the target users actually have per
-segment (mobile, browser, desktop RAG, gateway), what capacity each competitor
-supports at what memory cost, and the measured latency and recall trade-off
-for the mapped and quantized designs in RFCs 0005 and 0008.
+Answered in part by the [capacity study](research/capacity.md) (#210):
+corpus sizes and budgets per segment, competitor capacity, and computed
+per-vector costs. Still open: the measured latency and recall trade-off for
+the mapped and quantized designs in RFCs 0005 and 0008 (study §8.1).

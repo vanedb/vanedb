@@ -19,7 +19,7 @@ measurements the issue asks for in its question 3 are recorded as open
 
 ## 1. Scope and method
 
-- **Segments.** The five client segments the task names: browser extension,
+- **Segments.** The five client segments this study uses: browser extension,
   Obsidian or note vault, mobile app, desktop RAG, embedded device. They map
   onto the issue's four (browser tab; desktop RAG / note-taking plugin; mobile
   app; edge gateway / industrial) with the note vault split out because the
@@ -38,6 +38,10 @@ measurements the issue asks for in its question 3 are recorded as open
   `FlatIndex`, `ApproxIndex` and `DiskIndex` instances.
 - **Competitors** are described from their own repositories and
   documentation (section 5). Every claim carries its URL and the date read.
+- **Units.** Index and file sizes in section 4 are decimal (MB = 10^6 bytes,
+  GB = 10^9). Platform budgets in section 3 and the capacity tables in
+  sections 6 and 7 are binary (MiB, GiB), because platforms state their
+  limits that way; 1 GiB / 3,421 B = 314k vectors where 1 GB would give 292k.
 - **Network access.** This study was written from a sandbox whose egress
   proxy blocks most vendor documentation hosts (Apple, Android, MDN,
   Chromium, Obsidian's forum, LanceDB, Chroma, ObjectBox, Turso, arXiv,
@@ -51,7 +55,7 @@ measurements the issue asks for in its question 3 are recorded as open
 
 | Segment | Typical vectors | Upper bound seen | Dims in use | Updates | Evidence |
 |---|---:|---:|---|---|---|
-| Browser extension (bookmarks, history) | 1k to 20k | 100k to 1M (full history with several passages per page) | 384 in extensions; Chrome's own history embeddings use a larger model | incremental, one item at a time | `findmark` embeds bookmarks with `Xenova/all-MiniLM-L6-v2` at 384 dims and stores "~2 MB for thousands of bookmarks" after int8 quantization ([README](https://github.com/daveshenal/findmark), read 2026-09-20). Chrome ships local history embeddings since 2024; its dimension and passages-per-page appear in a third-party analysis that could not be opened **(snippet only; not verified)**. Upper bound assumed from ~100 pages a day × 3 to 10 passages × 1 to 3 years. |
+| Browser extension (bookmarks, history) | 1k to 20k | 100k to 1M (full history with several passages per page) | 384 in extensions; Chrome's own history embeddings use a larger model | incremental, one item at a time | `findmark` embeds bookmarks with `Xenova/all-MiniLM-L6-v2` at 384 dims and stores "~2 MB for thousands of bookmarks" after int8 quantization ([README](https://github.com/daveshenal/findmark), read 2026-09-20). Chrome ships local history embeddings since 2024 **(snippet only; not verified)**; its dimension and passages-per-page appear in a third-party analysis that could not be opened **(snippet only; not verified)**. Upper bound assumed from ~100 pages a day × 3 to 10 passages × 1 to 3 years. |
 | Obsidian / note vault | 5k to 50k chunks (1k to 10k notes × 3 to 10 chunks) | 500k to 1M chunks (vaults past 100k notes exist) | 384 default in Smart Connections; 768 or 1536 in `obsidian-vane-search` | incremental, per saved note | Smart Connections' bundled local model is `TaylorAI/bge-micro-v2`, 384 dims ([adapter source](https://github.com/brianpetro/jsbrains/blob/main/smart-embed-model/adapters/transformers.js), read 2026-09-20). `obsidian-vane-search` defaults to OpenAI `text-embedding-3-small` at 1536 dims with `nomic-embed-text` at 768 as the local option ([README](https://github.com/vanedb/obsidian-vane-search), read 2026-09-20). Obsidian forum threads report vaults of ~1k notes as "fairly large" and power users past 10k notes, with stress tests near 280k files **(snippet only; not verified)**. |
 | Mobile app (offline RAG, personal knowledge, on-device search) | 1k to 50k chunks | 100k to 500k (an offline manual or message archive) | 384 (gte-small, bge-small) and 768 (EmbeddingGemma, Gecko); EmbeddingGemma can truncate to 512/256/128 **(not verified; model card not fetched)** | incremental; often rebuilt when the model changes | An on-device first-aid RAG paper reports ~8,000 chunks embedded with a small encoder, int8-quantized, in a flat index under a 2 GB app budget **(snippet only; not verified)**. Google's AI Edge RAG SDK stores vectors in SQLite (`SqliteVectorStore`) **(page not fetched; not verified)**. Turso positions its React Native binding for "vector search and personal knowledge graphs on mobile" ([Turso blog, cited in `MARKET_ANALYSIS.md`](../MARKET_ANALYSIS.md); host blocked on 2026-09-20). |
 | Desktop RAG (Ollama-style, single laptop) | 10k to 300k chunks | 1M to 10M (a mail archive or a code base; Chroma's guidance stops at ~7M) | 768 (nomic-embed-text) dominant; 384 for speed; 1024 to 1536 with hosted models | batch ingest, then incremental | Local RAG tutorials pair `nomic-embed-text` with Chroma or LanceDB on "a 16 GB machine" **(snippet only; not verified)**. Chroma's single-node guidance gives a capacity formula and says it tested to ~7M embeddings **(snippet only; not verified)**, which bounds what the Python audience has tried. |
@@ -76,8 +80,8 @@ DiskANN-style design.
 | Platform | Hard limit | Practical budget for an index | Source and status |
 |---|---|---|---|
 | Browser tab, wasm32 | Linear memory is 32-bit addressed: 65,536 pages × 64 KiB = 4 GiB **(computed from the wasm32 address space; the Chrome and MDN pages were blocked)**. Memory64 lifts it (Chrome 133, Firefox 134) **(snippet only; not verified)**, but `@vanedb/wasm` targets wasm32. | 256 MB on a phone browser, 1 GB on desktop | EdgeVec, the closest browser competitor, states a "~1GB practical limit" for client-side search ([README](https://github.com/matte1782/edgevec), read 2026-09-20). Chrome's V8 heap is capped near 4 GB by pointer compression **(snippet only; not verified)**; iOS Safari web content is killed at device-dependent limits of roughly 0.6 to 2 GB **(snippet only; not verified)**. |
-| iOS app | Jetsam `per-process-limit`, device-class dependent. A recorded kill on an iPhone 14 (6 GB) lists `lifetimeMax` 134,272 pages × 16,384 bytes ≈ 2.05 GB ([home-assistant/iOS #4475](https://github.com/home-assistant/iOS/issues/4475), read 2026-09-20). `com.apple.developer.kernel.increased-memory-limit` raises the cap on capable devices; an iPhone 17 Pro killed a process "with 11 GB of the device's 12 GB still free" without it ([boardsesh #5524](https://github.com/boardsesh/boardsesh/pull/5524), read 2026-09-20). | 500 MB to 1 GB for the index inside a 2 GB foreground cap; far less in extensions ("Extensions have a much lower limit", WWDC18 notes) | The jetsam footprint counts dirty and compressed pages; clean memory is not counted ([WWDC 2018 session 416 notes](https://gist.github.com/SheldonWangRJT/5d2ea69f78a905c76e0c36dfc994e85c), read 2026-09-20). A read-only file mapping is clean until written, so **mapped f32 vectors (RFC 0008) do not count toward the iOS footprint**; resident quantized vectors (RFC 0005) do. |
-| Android app | No fixed native cap. `lmkd` kills by `oom_adj_score` under memory pressure; `isLowRamDevice()` marks devices with about 1 GB or less; `getMemoryClass()` bounds only the Java heap (baseline 16 MB) **(snippet only; not verified — developer.android.com and source.android.com blocked)**. | 256 MB on low-RAM devices, 1 GB mid-range, 2 GB flagship background-safe | A mobile RAG systems paper cites "approximately 2 GB per application" as the Android constraint **(snippet only; not verified)**. Mapped file pages are reclaimable and count toward RSS but not toward the pressure that kills the process first. |
+| iOS app | Jetsam `per-process-limit`, device-class dependent. A recorded kill on an iPhone 14 (6 GB) lists `lifetimeMax` 134,272 pages × 16,384 bytes ≈ 2.05 GB ([home-assistant/iOS #4475](https://github.com/home-assistant/iOS/issues/4475), read 2026-09-20). `com.apple.developer.kernel.increased-memory-limit` raises the cap on capable devices; an iPhone 17 Pro killed a process "with 11 GB of the device's 12 GB still free" without it ([boardsesh #5524](https://github.com/boardsesh/boardsesh/pull/5524), read 2026-09-20). | 500 MB to 1 GB for the index inside a 2 GB foreground cap; far less in extensions ("Extensions have a much lower limit", WWDC18 notes) | The jetsam footprint counts dirty and compressed pages; clean memory is not counted ([WWDC 2018 session 416 notes](https://gist.github.com/SheldonWangRJT/5d2ea69f78a905c76e0c36dfc994e85c), read 2026-09-20 — **a third-party gist of the session notes; Apple's own transcript could not be fetched. This rule is load-bearing for section 7 and should be confirmed against Apple's page**). A read-only file mapping is clean until written, so **mapped f32 vectors (RFC 0008) should not count toward the iOS footprint** (inferred from that rule); resident quantized vectors (RFC 0005) do. |
+| Android app | No fixed native cap. `lmkd` kills by `oom_adj_score` under memory pressure; `isLowRamDevice()` marks devices with about 1 GB or less; `getMemoryClass()` bounds only the Java heap (baseline 16 MB) **(snippet only; not verified — developer.android.com and source.android.com blocked)**. | 256 MB on low-RAM devices, 1 GB mid-range, 2 GB flagship background-safe | A mobile RAG systems paper cites "approximately 2 GB per application" as the Android constraint **(snippet only; not verified)**. **(assumed)** Mapped file pages are reclaimable page cache and count toward RSS; whether `lmkd`'s pressure signal weights them like anonymous memory was not verified. |
 | Desktop (laptop with a local LLM) | Process address space is not the limit; physical RAM is 8 to 32 GB. | 1 to 4 GB for the index once a 4 to 8 GB quantized LLM is loaded; up to 16 GB on a workstation | Chroma's guidance: reserve "at least a gigabyte for the system's other needs" beyond the index **(snippet only; not verified)**. Local RAG tutorials target 16 GB machines **(snippet only; not verified)**. |
 | Embedded / gateway | Unified memory shared with the GPU on Jetson; 2 to 16 GB on Raspberry Pi 5 and 4 to 64 GB across the Jetson Orin range **(not verified; Wikipedia blocked)**. | 1 to 4 GB | `nanodb` runs its 275k-image index on an AGX Orin ([README](https://github.com/dusty-nv/jetson-containers/blob/master/packages/vectordb/nanodb/README.md), read 2026-09-20). |
 
@@ -99,14 +103,21 @@ trailing 16-byte control group. Per entry that is
     H(n) = (17 × B(n) + 16) / n,   B(n) = next_power_of_two(⌈8n / 7⌉)
 
 which oscillates between 19.4 and 38.9 bytes as `n` crosses each power of two:
-22.3 B at n = 100k, 35.7 B at 1M, 28.5 B at 10M. `LIMITS.md` says
-"`n × ~16` bytes" for the `DiskIndex` id map; the true figure is up to 2.4×
-that (open question 8.3).
+22.3 B at n = 100k, 35.7 B at 1M, 28.5 B at 10M. `LIMITS.md` previously
+said "`n × ~16` bytes" for the `DiskIndex` id map, up to 2.4× too low; it is
+corrected alongside this study, and open question 8.3 covers reducing it.
 
 `FlatIndex` (`flat/mod.rs`): `ids: Vec<u64>`, `data: Vec<f32>`,
 `id_to_index: HashMap<u64, usize>`.
 
     flat(n, d) = n × (4d + 8) + 17 × B(n) + 16
+
+Exact for one `add_batch` into an empty store, which reserves exactly.
+`add` grows `ids` and `data` by `push` / `extend_from_slice`, which double
+capacity, so an incrementally built `FlatIndex` can hold up to 2× the
+exact-fit bytes for those two fields; `ApproxIndex`'s `ext_ids`, `levels` and
+`deleted` grow the same way once past the builder's `capacity` hint. This is
+the same `Vec` doubling noted for `DiskIndexBuilder` below.
 
 `ApproxIndex` (`approx/mod.rs`, `approx/storage.rs`): vectors in
 `ChunkedVectors` (chunks of `reserve_exact` size, so no doubling waste beyond
@@ -161,7 +172,7 @@ Id-map cost taken at its n = 1M value (35.7 B); links at the measured
 | 10M | 31.1 GB | 34.1 GB | 285 MB | 30.8 GB |
 
 Against the budgets of section 3, today's resident indexes at 768-d hold about
-78k vectors in 256 MB, 310k in 1 GB and 630k in 2 GB. That covers every
+78k vectors in 256 MiB, 314k in 1 GiB and 628k in 2 GiB. That covers every
 segment's *typical* corpus and none of the upper bounds.
 
 ### 4.4 Sanity check against the allocator (measured byte counts, not timings)
@@ -303,21 +314,32 @@ flat `u32` layout (the RFC's "about 140" is the full-degree case).
 | int8 resident, f32 dropped | 0005 | ~1,120 (`768 + 4` norm for cosine + 13 + 36 + 300 links) | 112 MB | 1.12 GB | 11.2 GB | unchanged plus quantization pass | "small, documented per metric" | new kernels (i8 dot on NEON `sdot`, AVX2 `vpmaddubsw`), `quant_params` section |
 | Binary resident, no rescoring | 0005 | ~450 | 45 MB | 450 MB | 4.5 GB | unchanged | large loss; RFC says "use with rescoring" | popcount kernels |
 | Binary resident + **resident** f32 rescoring | 0005 alone | ~3,520 | 352 MB | 3.5 GB | 35 GB | unchanged | ≈ f32 at rescoring factor 4 to 16 | no memory saving: the f32 copy is resident |
-| Mapped f32 + resident `u32` links | 0008 | ~170 (+ page cache) | 17 MB | 170 MB | 1.7 GB | unchanged; needs a v3 file (0013) | identical to resident (same graph) | `open_mapped`, `ReadOnly` error in every binding, cold-cache spike, mmap safety |
+| Mapped f32 + resident `u32` links | 0008 | ~169 (+ page cache) | 17 MB | 169 MB | 1.7 GB | unchanged; needs a v3 file (0013) | identical to resident (same graph) | `open_mapped`, `ReadOnly` error in every binding, cold-cache spike, mmap safety |
 | Binary resident navigation + **mapped** f32 rescoring | 0005 + 0008 | ~265 (+ page cache) | 27 MB | 265 MB | 2.7 GB | unchanged | ≈ f32 with rescoring | both of the above |
 | int8 resident navigation + mapped f32 rescoring | 0005 + 0008 | ~940 (+ page cache) | 94 MB | 940 MB | 9.4 GB | unchanged | ≈ f32 | both |
 | Streaming `DiskIndexBuilder` (exact scan) | 0008, first half | build peak `n × 8` ids instead of `n × (4d + 8)` | 0.8 MB | 8 MB | 80 MB | unchanged | exact | small: two-file write and rename |
 | IVF over mapped `DiskIndex` (fallback) | 0008 fallback | centroids only | few MB | few MB | tens of MB | k-means pass | lower at equal latency | a `clusters` section, sequential reads |
 
-Corpus a budget holds, from the column above (d = 768; divide by 2 for
-d = 1536, multiply by 2 for d = 384):
+Corpus a budget holds. Per-vector resident bytes scale differently with the
+dimension: resident f32 is `4d + 349`, int8 is `d + 353`, mapped f32 is
+**169 at every d** (links, level, tombstone and id map only; the vectors are
+paged), and binary navigation with mapped rescoring is `d/8 + 169`. Budgets
+are binary (256 MiB, 1 GiB, 2 GiB, 4 GiB).
 
-| Budget | Resident f32 | int8 (0005) | Mapped f32 (0008) | Binary + mapped rescoring (0005 + 0008) |
-|---|---:|---:|---:|---:|
-| 256 MB | 78k | 240k | 1.6M | 1.0M |
-| 1 GB | 310k | 960k | 6.3M | 4.0M |
-| 2 GB | 630k | 1.9M | 12.6M | 8.1M |
-| 4 GB | 1.26M | 3.8M | 25M | 16M |
+| Budget | d | Resident f32 | int8 (0005) | Mapped f32 (0008) | Binary + mapped rescoring (0005 + 0008) |
+|---|---:|---:|---:|---:|---:|
+| 256 MiB | 384 | 142k | 364k | 1.6M | 1.2M |
+| 256 MiB | 768 | 78k | 239k | 1.6M | 1.0M |
+| 256 MiB | 1536 | 41k | 142k | 1.6M | 744k |
+| 1 GiB | 384 | 570k | 1.46M | 6.4M | 4.9M |
+| 1 GiB | 768 | 314k | 958k | 6.4M | 4.1M |
+| 1 GiB | 1536 | 165k | 568k | 6.4M | 2.97M |
+| 2 GiB | 384 | 1.14M | 2.91M | 12.7M | 9.9M |
+| 2 GiB | 768 | 628k | 1.92M | 12.7M | 8.1M |
+| 2 GiB | 1536 | 331k | 1.14M | 12.7M | 5.95M |
+| 4 GiB | 384 | 2.28M | 5.83M | 25.4M | 19.8M |
+| 4 GiB | 768 | 1.26M | 3.83M | 25.4M | 16.2M |
+| 4 GiB | 1536 | 661k | 2.27M | 25.4M | 11.9M |
 
 Three observations.
 
@@ -327,14 +349,19 @@ Three observations.
    `unsafe` open, no read-only mode, no v3 dependency beyond the encoding
    sections. It also serves the browser, where RFC 0008 cannot apply at all
    (no file mapping in wasm) and where the tightest budget lives.
-2. **Mapping is the bigger 15×, but only with rescoring.** Binary
-   navigation without rescoring loses too much recall to ship as a default;
-   binary with a *resident* f32 copy saves nothing. The design that reaches
-   1M at 768-d inside 256 MB and 10M inside 2 GB is precisely RFC 0008's
-   "navigate on quantized, rescore from the mapping", which needs RFC 0005
-   first. RFC 0008 without 0005 (mapped f32, resident links) gives the same
-   footprint on paper but pays a page fault per visited node during the
-   walk, which is the cold-cache risk its own spike exists to measure.
+2. **Mapping is the bigger 15×, and the ordering is about page faults, not
+   bytes.** On paper mapped f32 alone (RFC 0008) holds the most at 768-d:
+   1.6M in 256 MiB and 12.7M in 2 GiB, against 1.0M and 8.1M for binary
+   navigation with mapped rescoring. But a mapped-f32 walk reads one f32 row
+   per visited node, roughly `ef_search × (levels + 1)` random page touches
+   per query, so a cold cache costs a page fault per visited node; that is
+   the risk RFC 0008's spike measures against the 20 ms p99 gate. Binary
+   navigation keeps the walk in resident memory and touches the mapping only
+   for the `rescore × k` final candidates, so its cold-cache cost is bounded
+   by `k` rather than by `ef`. Binary without rescoring loses too much recall
+   to ship as a default, and binary with a *resident* f32 copy saves nothing;
+   the design worth shipping is therefore RFC 0008's "navigate on quantized,
+   rescore from the mapping", which needs RFC 0005 first.
 3. **The `DiskIndexBuilder` half of RFC 0008 is independent of all of this.**
    It fixes a contradiction in the shipped product (the "larger than RAM"
    index needs RAM to build), touches no graph, and has no spike gate.
@@ -348,21 +375,29 @@ Three observations.
   768-d, and those are exactly the budgets int8 fixes. Quantized storage
   therefore unblocks users at 0.3.0 without waiting for a device spike, and
   it is what USearch, EdgeVec and Turso are compared on. The existing
-  roadmap order (0013, then 0005 at 0.3.0; 0008 at 0.4.0) is confirmed by
-  the numbers rather than merely by preference.
+  roadmap order (0013 and 0005 share order 5 at 0.3.0, 0013 landing first
+  per its own milestone note; 0008 is order 8 at 0.4.0) is confirmed by the
+  numbers rather than merely by preference.
 - The mapped graph earns its place only at the segments' *upper* bounds:
   desktop RAG and embedded capture between 1M and 10M vectors, and mobile
   archives between 500k and 1M on a 1 GB budget. Those exist but are not the
-  first user. It is worth doing after 0005 because binary navigation with
-  mapped rescoring is the only design in section 6 that holds 10M at 768-d
-  in 2 GB, and because iOS does not charge clean file mappings to the jetsam
-  footprint, which makes the mapped copy nearly free on the platform with
-  the hardest cap.
-- **Thresholds, at d = 768.** Resident f32 wins below ~310k vectors on a
-  1 GB budget (nothing to change). int8 wins from there to ~960k on 1 GB, or
-  ~1.9M on 2 GB. Above ~1M on 1 GB, or ~2M on 2 GB, only the mapped designs
-  hold the corpus, and the quantized-navigation variant holds it with exact
-  rescoring. Halve the thresholds at 1536-d, double them at 384-d.
+  first user. Of the mapped designs in section 6, mapped f32 alone holds
+  12.7M at 768-d in 2 GiB and binary navigation with mapped rescoring holds
+  8.1M; it is worth doing after 0005 because only the latter bounds the
+  cold-cache page faults by the rescoring set rather than by the beam
+  (section 6, observation 2), and because iOS does not appear to charge clean
+  file mappings to the jetsam footprint (section 3, secondary source), which
+  would make the mapped copy nearly free on the platform with the hardest
+  cap.
+- **Thresholds, at d = 768, binary budgets.** Resident f32 wins below ~314k
+  vectors on 1 GiB (nothing to change). int8 wins from there to ~958k on
+  1 GiB, or ~1.9M on 2 GiB. Above ~1M on 1 GiB, or ~2M on 2 GiB, only the
+  mapped designs hold the corpus, and the quantized-navigation variant holds
+  it with exact rescoring. The resident f32 thresholds scale with `1/d`
+  (halve at 1536-d, double at 384-d) and int8 nearly so; the mapped f32
+  design is dimension-independent at 169 B per vector, and binary with
+  mapped rescoring moves only with `d/8`; the per-dimension table in
+  section 6 gives each row.
 - **Split RFC 0008.** Land the streaming `DiskIndexBuilder` on its own (it
   has no gate, and RFC 0010's write-path work is adjacent), and keep the
   mapped graph gated on (a) RFC 0005 shipped, so the spike can measure
@@ -389,7 +424,7 @@ Three observations.
    fill layer 0 closer to the 2M cap. Re-run the allocator check on the
    fixture once it is hosted.
 3. **The id map costs 19 to 39 bytes per vector in every index, including
-   `DiskIndex`,** and `LIMITS.md` understates it. At 10M vectors that is
+   `DiskIndex`** (now stated in `LIMITS.md`). At 10M vectors that is
    190 to 390 MB of resident memory on an index whose vectors are otherwise
    paged. A sorted `u64` array with binary search (8 B per vector,
    `O(log n)` lookups) or a `u32` slot table would cut it 2 to 5×; this is
@@ -402,12 +437,10 @@ Three observations.
 5. **Android per-app figures** rest on a snippet. Record `ActivityManager`
    memory classes and an `lmkd` kill threshold on the emulator that CI already
    runs, so the mobile SDK RFC (0007) can quote a measured budget.
-6. **File and deliverable naming.** Issue #210 names the deliverable
-   `docs/research/capacity.md` and RFC 0008 repeats it; this study lives at
-   `docs/research/2026-09-capacity-study.md` per the task that produced it.
-   The RFC 0008 amendment (a separate PR, per the one-document rule) should
-   point here and move the RFC to `accepted` for the streaming builder and
-   `gated` for the mapped graph.
+6. **RFC 0008 amendment.** RFC 0008's capacity-study section already names
+   this page. Amending the RFC with these findings and its status (streaming
+   builder to `accepted`; mapped graph gated on RFC 0005 and the spike) is a
+   separate PR, per the one-document rule.
 
 ## 9. Sources
 
