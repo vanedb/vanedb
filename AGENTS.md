@@ -63,7 +63,7 @@ rustup target add wasm32-unknown-unknown   # plus wasm-pack and node
 cd vanedb-wasm && wasm-pack test --node --locked
 ```
 
-Feature caveats: `gpu-metal` builds/tests only on macOS. CUDA is not
+Feature caveats: `gpu-metal` builds/tests only on macOS (#208). CUDA is not
 implemented; do not reintroduce a stub or claim support. What is planned, and
 the evidence each claim needs, lives in [the roadmap](docs/ROADMAP.md) only.
 Mobile CI builds iOS ARM64 and Android ARM64/x86-64, then runs C ABI

@@ -22,6 +22,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = []
 disk = ["dep:memmap2"]
+# Experimental, macOS only: a standalone `MetalCompute` scan API. It does
+# not accelerate any index (docs/LIMITS.md, #208).
 gpu-metal = ["dep:metal", "dep:objc"]
 
 [dependencies]
