@@ -1,7 +1,9 @@
 # VaneDB roadmap
 
 The 0.1.1 scope is the Rust engine and its Python, C and WebAssembly bindings,
-with CPU search and the existing macOS Metal feature. The C++ engine remains
+with CPU search. The experimental macOS `gpu-metal` feature exposes distance
+scans, accelerates no index and no binding exposes it (#208);
+finish-versus-delete is decided after 0.3.0 (#257). The C++ engine remains
 frozen reference code.
 
 [`LIMITS.md`](LIMITS.md) records what 0.1.1 can hold and what it does not do.
@@ -27,7 +29,7 @@ decision, until the corresponding RFC is accepted.
 | 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
 | 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | accepted |
 | 7 | [0007 Mobile SDKs](rfcs/0007-mobile-sdks.md) | 0.3.0 | accepted |
-| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | draft; direction accepted, gated on the capacity study |
+| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | draft; direction accepted, gated on the [capacity study](research/capacity.md) |
 | 9 | [0009 Optional payload column](rfcs/0009-payload-column.md) | 0.4.0 | accepted |
 | after the above | [0001 CUDA after the initial release](rfcs/0001-cuda-after-initial-release.md) | none assigned | accepted; ordering amendment accepted 2026-09-13 |
 

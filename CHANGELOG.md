@@ -67,6 +67,14 @@ has a bug. No file-format change. The conformance table is
   `VANEDB_RS_NOT_FOUND` status, and `vanedb_rs_index_ef_search` /
   `_set_ef_search` already exist; the regenerated header is identical.
 
+### Changed
+
+- The `gpu-metal` feature is documented as experimental (#208): it exposes the
+  standalone `MetalCompute` scan API on macOS and accelerates no index. The
+  crate README no longer presents it as a capability; `docs/LIMITS.md` records
+  what it does and does not do. The feature, its tests and its CI jobs are
+  unchanged.
+
 ## [0.1.1] - 2026-09-10
 
 The first supported release. It is a 0.x release: as stated above, APIs and
