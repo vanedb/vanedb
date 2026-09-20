@@ -150,12 +150,15 @@ def test_the_geometry_accessors_are_properties_not_methods(name):
     assert inspect.isdatadescriptor(getattr(ApproxIndex, name))
 
 
-def test_a_missing_id_raises_keyerror_on_every_read_and_remove(tmp_path):
-    """A lookup miss is KeyError in Python. It used to be ValueError, which
-    could not be separated from a dimension mismatch without parsing English.
+def test_a_lookup_miss_is_none_and_a_removal_miss_is_valueerror(tmp_path):
+    """A lookup miss is a value, not an error (RFC 0011): `get` and
+    `get_vector` return `None` on every index type, the way `dict.get` and
+    every keyed store in the roadmap's precedent survey do. `remove` of a
+    missing id stays an error, because a caller that removes what is not
+    there has a bug and `remove` is not named `get` -- and with `KeyError`
+    gone from the binding it is a `ValueError`, the validation bucket.
 
-    All seven affected methods, including the three alias paths this change
-    introduces -- they are new code, and this is the test named after them.
+    All eight reads and both removes, including the alias spellings.
     """
     flat = FlatIndex(2, Metric.L2)
     flat.add(1, [1.0, 2.0])
@@ -169,28 +172,23 @@ def test_a_missing_id_raises_keyerror_on_every_read_and_remove(tmp_path):
     builder.save(path)
     disk = DiskIndex.open(path)
 
-    calls = [
-        ("FlatIndex.get", lambda: flat.get(99)),
-        ("FlatIndex.get_vector", lambda: flat.get_vector(99)),
-        ("FlatIndex.remove", lambda: flat.remove(99)),
-        ("ApproxIndex.get", lambda: approx.get(99)),
-        ("ApproxIndex.get_vector", lambda: approx.get_vector(99)),
-        ("ApproxIndex.remove", lambda: approx.remove(99)),
-        ("DiskIndex.get", lambda: disk.get(99)),
-        ("DiskIndex.get_vector", lambda: disk.get_vector(99)),
-    ]
-    for name, call in calls:
-        with pytest.raises(KeyError, match="99") as excinfo:
-            call()
-        # The breaking half, asserted on a real exception rather than on
-        # CPython's class hierarchy: a miss is no longer a ValueError. This is
-        # also what would fail if someone later made the exception inherit both.
-        assert not isinstance(excinfo.value, ValueError), name
+    for index in (flat, approx, disk):
+        name = type(index).__name__
+        assert index.get(1) == [1.0, 2.0], name
+        assert index.get_vector(1) == [1.0, 2.0], name
+        assert index.get(99) is None, name
+        assert index.get_vector(99) is None, name
+        assert not index.contains(99), name
+
+    for index in (flat, approx):
+        with pytest.raises(ValueError, match="99") as excinfo:
+            index.remove(99)
+        assert not isinstance(excinfo.value, KeyError), type(index).__name__
 
 
 def test_validation_failures_are_still_valueerror():
-    """Only the lookup miss moved. A wrong dimension is still a ValueError,
-    so the two are now distinguishable by type."""
+    """A wrong dimension, a duplicate id and a zero `k` are ValueError, as
+    they have always been; a lookup miss is no exception at all."""
     flat = FlatIndex(2, Metric.L2)
     flat.add(1, [1.0, 2.0])
 
@@ -200,25 +198,66 @@ def test_validation_failures_are_still_valueerror():
         flat.add(1, [1.0, 2.0])          # duplicate id
     with pytest.raises(ValueError):
         flat.search([1.0, 2.0], 0)
-    # (A `not isinstance(ValueError(), KeyError)` line used to sit here. It
-    # asserted CPython's builtin hierarchy, which no vanedb change can affect.
-    # The real claim — that a miss is no longer a ValueError — is asserted on a
-    # real exception in test_a_missing_id_raises_keyerror_on_every_read_and_remove.)
 
 
-def test_keyerror_carries_the_message_not_just_the_id():
-    """`str()` on a KeyError renders its argument with surrounding quotes, so
-    asserting `"42" in str(e)` is satisfied by a bare `KeyError(42)` -- exactly
-    the case this is supposed to rule out. Assert the payload instead.
-
-    The quoting itself is unavoidable: `tp_str` comes from KeyError, so a real
-    traceback reads `KeyError: 'vector not found: 42'`. Every KeyError in
-    Python looks like that.
-    """
+def test_the_vocabulary_of_rfc_0011(tmp_path):
+    """The Python column of `conformance/vocabulary/README.md`, in one place:
+    a lookup miss is `None` under both read spellings; the count is
+    `len(index)` with `size()` kept as an alias; emptiness is truth testing;
+    the beam default is the `ef_search` property; `contains` stays; `remove`
+    of a missing id stays an error."""
     flat = FlatIndex(2, Metric.L2)
-    with pytest.raises(KeyError) as excinfo:
-        flat.get(42)
-    assert excinfo.value.args[0] == "vector not found: 42"
+    approx = ApproxIndex(2, Metric.L2, capacity=4)
+    builder = DiskIndexBuilder(2, Metric.L2)
+    for empty in (flat, approx, builder):
+        assert len(empty) == 0 and empty.size() == 0
+        assert not empty, type(empty).__name__
+    for index in (flat, approx, builder):
+        index.add(7, [1.0, 0.0])
+        assert len(index) == index.size() == 1
+        assert index, type(index).__name__
+    path = str(tmp_path / "vocabulary.vndb")
+    builder.save(path)
+    disk = DiskIndex.open(path)
+    assert len(disk) == disk.size() == 1 and disk
+    for index in (flat, approx, disk):
+        assert index.get(7) == index.get_vector(7) == [1.0, 0.0]
+        assert index.get(8) is index.get_vector(8) is None
+        assert index.contains(7) and not index.contains(8)
+    with pytest.raises(ValueError):
+        approx.remove(8)
+    assert approx.ef_search == 50, "documented default"
+    approx.ef_search = 64
+    assert approx.ef_search == 64
+
+
+def test_metric_is_an_int_enum():
+    """`Metric` used to be a PyO3 class with `eq_int` and nothing else: no
+    `.name`, no `.value`, not iterable, unlike every other enum a Python user
+    has met. It is an `enum.IntEnum` now (RFC 0011), so all of that comes from
+    the standard library, and the wire values still pin the on-disk field."""
+    import enum
+
+    assert issubclass(Metric, enum.IntEnum)
+    assert [m.name for m in Metric] == ["L2", "COSINE", "DOT"]
+    assert [m.value for m in Metric] == [0, 1, 2]
+    assert Metric(1) is Metric.COSINE
+    assert Metric["DOT"] is Metric.DOT
+    assert Metric.L2 == 0 and isinstance(Metric.L2, int)
+    assert {Metric.COSINE: "c"}[1] == "c", "hashes like its value"
+    assert Metric.__module__ == "vanedb", "pickles by importable name"
+    with pytest.raises(ValueError):
+        Metric(7)
+
+    # The constructors take a member or its integer value, the way an IntEnum
+    # itself does, and report the member back.
+    assert FlatIndex(2, Metric.COSINE).metric is Metric.COSINE
+    assert FlatIndex(2, 1).metric is Metric.COSINE
+    assert ApproxIndex(2).metric is Metric.L2
+    with pytest.raises(ValueError):
+        FlatIndex(2, 7)
+    with pytest.raises(TypeError):
+        FlatIndex(2, "cosine")
 
 
 def test_distances_are_real_values_not_zero(tmp_path):

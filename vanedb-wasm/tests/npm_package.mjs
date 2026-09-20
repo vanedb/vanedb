@@ -68,17 +68,18 @@ function checkUpsertAndSearch({ ApproxIndex }) {
       assert.equal(index.size(), 3);
       assert.equal(index.tombstones(), 1);
     }
-    index.ef_search = 1;
+    index.efSearch = 1;
     for (const ef of [undefined, null, 0, 64, 2 ** 32 - 1]) {
       const hits = index.search(query, 2, ef);
       try { assert.deepEqual([...hits.ids], [added, 11n]); }
       finally { hits.free(); }
-      assert.equal(index.ef_search, 1, 'per-query beam leaves the default alone');
+      assert.equal(index.efSearch, 1, 'per-query beam leaves the default alone');
     }
     for (const ef of [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32]) {
-      assert.throws(() => index.search(query, 2, ef), /ef_search must be an integer/);
-      assert.equal(index.ef_search, 1);
+      assert.throws(() => index.search(query, 2, ef), /efSearch must be an integer/);
+      assert.equal(index.efSearch, 1);
     }
+    assert.equal(index.get(12n), undefined, 'a lookup miss is undefined, not an error');
     index.compact();
     assert.equal(index.tombstones(), 0);
     assert.deepEqual([...index.get(10n)], [20]);

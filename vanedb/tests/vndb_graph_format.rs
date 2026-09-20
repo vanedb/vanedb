@@ -68,7 +68,7 @@ fn the_header_matches_the_field_table() {
     assert_eq!(index.capacity(), 4, "capacity hint, offset 32");
     assert_eq!(index.m(), 5, "M, offset 40");
     assert_eq!(index.ef_construction(), 16, "ef_construction, offset 48");
-    assert_eq!(index.get_ef_search(), 32, "ef_search, offset 56");
+    assert_eq!(index.ef_search(), 32, "ef_search, offset 56");
     assert_eq!(index.seed(), 42, "seed, offset 64");
     assert_eq!(index.metric(), Metric::L2, "metric, offset 12");
 }
@@ -107,7 +107,7 @@ fn the_fixture_contents_match_the_field_table() {
     ] {
         assert!(index.contains(id), "id {id} from the table is missing");
         assert_eq!(
-            index.get(id).unwrap(),
+            index.get(id).unwrap().unwrap(),
             vector.to_vec(),
             "vector for id {id}"
         );

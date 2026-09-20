@@ -57,6 +57,6 @@ verified on the hardware it claims does not ship with the claim.
 | [0008](0008-streaming-disk-build-and-mapped-graph.md) | Streaming disk build and mapped graph | draft; direction accepted, gated on #210 | 0.4.0 | #203 #210 |
 | [0009](0009-payload-column.md) | Optional payload column | accepted | 0.4.0 | #204 |
 | [0010](0010-write-path-gaps.md) | Write-path gaps | accepted | 0.2.0 | #77 #109 |
-| [0011](0011-api-vocabulary-before-1-0.md) | API vocabulary before 1.0 | accepted | 0.2.0 | #206 |
+| [0011](0011-api-vocabulary-before-1-0.md) | API vocabulary before 1.0 | implemented | 0.2.0 | #206 |
 | [0012](0012-platform-support-policy.md) | Platform support policy | accepted | 0.2.0 | #207 |
 | [0013](0013-vndb-v3-container.md) | VNDB v3 container format | accepted | 0.3.0 | #209 |

@@ -39,7 +39,7 @@ fn main() {
         for i in 0..N {
             idx.add(i as u64, &vectors[i * DIM..(i + 1) * DIM]).unwrap();
         }
-        println!("round {round}: {:?} (size {})", start.elapsed(), idx.size());
+        println!("round {round}: {:?} (size {})", start.elapsed(), idx.len());
         last = Some(idx);
     }
 

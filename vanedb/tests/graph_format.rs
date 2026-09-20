@@ -70,13 +70,13 @@ fn graph_fixtures_roundtrip_byte_for_byte_and_support_mutation() {
                     if name.starts_with("dot") { -1.0 } else { 0.0 }
                 );
             }
-            assert_eq!(index.get_vector(u64::MAX).unwrap(), [0.8, 0.2]);
+            assert_eq!(index.get_vector(u64::MAX).unwrap().unwrap(), [0.8, 0.2]);
         }
         index.add(303, &[0.25, 0.75]).unwrap();
         index.save(&saved).unwrap();
         let reloaded = ApproxIndex::load(&saved).unwrap();
         fs::remove_file(&saved).unwrap();
-        assert_eq!(reloaded.get_vector(303).unwrap(), [0.25, 0.75]);
+        assert_eq!(reloaded.get_vector(303).unwrap().unwrap(), [0.25, 0.75]);
         assert_eq!(reloaded.len(), index.len());
     }
 }

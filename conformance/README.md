@@ -22,6 +22,13 @@ The current conformance cases cover paired findings from both engines:
   The architecture-neutral symbolic cases live in `index_derived_sizes.tsv`;
 - HNSW persistence with inconsistent external-id maps.
 
+## Binding vocabulary
+
+The four bindings of the Rust engine share one API vocabulary — what a
+lookup miss returns, how the count is spelled, the shape of the search-beam
+setting — settled by RFC 0011. [vocabulary/README.md](vocabulary/README.md)
+is the table, and it names the test that asserts each binding's column.
+
 ## Distance semantics
 
 **Cosine.** The distance depends only on direction, so it must not change when

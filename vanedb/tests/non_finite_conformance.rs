@@ -62,13 +62,13 @@ fn hnsw_rejects_non_finite_vectors_queries_and_batches() {
             .build()
             .unwrap();
         assert_non_finite_error(index.add(1, &[value, 0.0]), "vector");
-        assert_eq!(index.size(), 0, "{name} add mutated the index");
+        assert_eq!(index.len(), 0, "{name} add mutated the index");
 
         assert_non_finite_error(
             index.add_batch(&[1, 2], &[0.0, 0.0, value, 0.0]),
             "vector batch",
         );
-        assert_eq!(index.size(), 0, "{name} batch mutated the index");
+        assert_eq!(index.len(), 0, "{name} batch mutated the index");
 
         index.add(2, &[0.0, 0.0]).unwrap();
         let error = index.search(&[value, 0.0], 1).unwrap_err();
@@ -85,7 +85,7 @@ fn mmap_builder_rejects_non_finite_vectors() {
     for (name, value) in cases() {
         let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
         assert_non_finite_error(builder.add(1, &[value, 0.0]), "vector");
-        assert_eq!(builder.size(), 0, "{name} add mutated the builder");
+        assert_eq!(builder.len(), 0, "{name} add mutated the builder");
     }
 }
 

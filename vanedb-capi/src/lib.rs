@@ -1339,10 +1339,13 @@ pub unsafe extern "C" fn vanedb_rs_store_get(
             return null_arg(1);
         }
         match (*s).get(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            // The core reports a miss as a value (RFC 0011); the C ABI keeps
+            // reporting it as `VANEDB_RS_NOT_FOUND`, unchanged.
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1423,10 +1426,11 @@ pub unsafe extern "C" fn vanedb_rs_index_get_vector(
             return null_arg(1);
         }
         match (*h).get_vector(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1516,13 +1520,7 @@ pub unsafe extern "C" fn vanedb_rs_index_compact(h: *const vanedb_rs_index) -> i
 /// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_len(d: *const vanedb_rs_disk) -> usize {
-    guard(0, || {
-        if d.is_null() {
-            null_arg(0)
-        } else {
-            (*d).size()
-        }
-    })
+    guard(0, || if d.is_null() { null_arg(0) } else { (*d).len() })
 }
 
 /// Vector dimension of the mapped file, or 0 if `d` is null.
@@ -1572,10 +1570,11 @@ pub unsafe extern "C" fn vanedb_rs_disk_get(
             return null_arg(1);
         }
         match (*d).get(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1728,7 +1727,7 @@ pub unsafe extern "C" fn vanedb_rs_index_ef_search(h: *const vanedb_rs_index) ->
         if h.is_null() {
             null_arg(0)
         } else {
-            (*h).get_ef_search()
+            (*h).ef_search()
         }
     })
 }

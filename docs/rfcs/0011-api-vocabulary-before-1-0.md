@@ -1,6 +1,6 @@
 # RFC 0011: API vocabulary before 1.0
 
-- Status: accepted
+- Status: implemented (0.2.0, unreleased)
 - Milestone: 0.2.0
 - Tracking issue: #206; folds #85 and #86
 - Supersedes / superseded by: none
@@ -38,7 +38,7 @@ binding.
 
 | Concept | Rust | Python | WebAssembly | C ABI |
 |---|---|---|---|---|
-| Lookup miss | `get(id) -> Result<Option<&[f32]>>` (`Option<Cow>` on `DiskIndex`) | `get(id) -> list[float] \| None`; `KeyError` removed | `get(id)` returns `undefined` | unchanged: `VANEDB_RS_NOT_FOUND` status |
+| Lookup miss | `get(id) -> Result<Option<Vec<f32>>>` (`Option<Cow>` on `DiskIndex`; see the decisions below) | `get(id) -> list[float] \| None`; `KeyError` removed | `get(id)` returns `undefined` | unchanged: `VANEDB_RS_NOT_FOUND` status |
 | `get_vector` | alias of `get`, kept on every type (#85 settled the pair) | same | same | same |
 | Count | `len()`; `size()` removed | `len(index)`; `size()` kept as an alias, documented as such | `size()` (Map/Set convention) | `_len` accessors added on all three handles |
 | Empty | `is_empty()` | truth testing (`not index`) | `size() === 0` | `_len() == 0` |
@@ -53,6 +53,25 @@ Rules that follow:
 - `remove(id)` on a missing id stays an error: a caller that removes what is
   not there has a bug, and `remove` is not named `get`.
 - No binding gains a method the others cannot express.
+
+## Decisions recorded
+
+- 2026-09-20, implementation: the Rust `get` returns `Result<Option<Vec<f32>>>`
+  on `FlatIndex` and `ApproxIndex`, not `Option<&[f32]>` as first written.
+  Both keep their vectors behind a `RwLock`, so a slice cannot be borrowed
+  out of `&self` without handing the caller a lock guard; the owned copy 0.1.1
+  shipped stays, wrapped in `Option`. `DiskIndex` borrows from its mapping
+  and returns `Option<Cow<'_, [f32]>>` as the table says.
+- 2026-09-20, implementation: with `KeyError` gone from the Python binding,
+  `remove` of a missing id raises `ValueError`, the validation bucket it left
+  in 0.1.1. The Errors row above describes the shape a later change may give
+  the exceptions; nothing in this RFC's acceptance criteria or migration
+  section asks for it, and this implementation does not add exception
+  classes.
+- 2026-09-20, implementation: the C ABI already carried every accessor the
+  table names (`_len` on all three handles, `_ef_search`/`_set_ef_search`),
+  so that column is asserted, not changed, and the regenerated header is
+  identical.
 
 ## The precedent survey (moved from the roadmap)
 
@@ -85,16 +104,17 @@ each with a one-line migration. No file-format change.
 
 ## Acceptance criteria
 
-- [ ] Rust: `get`/`get_vector` return `Option`; `size()` removed; `len()`
+- [x] Rust: `get`/`get_vector` return `Option`; `size()` removed; `len()`
       and `is_empty()` on all three types; docs updated.
-- [ ] Python: `get` returns `None`; `KeyError` no longer raised by any method;
+- [x] Python: `get` returns `None`; `KeyError` no longer raised by any method;
       `Metric` has `.name`, `.value`, iteration; stubs updated.
-- [ ] WebAssembly: `get` returns `undefined`; `efSearch` property; TypeScript
+- [x] WebAssembly: `get` returns `undefined`; `efSearch` property; TypeScript
       declarations updated.
-- [ ] C ABI: `_len` accessors added; header regenerated; nothing removed.
-- [ ] Conformance: the binding-parity test table in `conformance/` lists the
-      vocabulary above and each binding's test asserts its column.
-- [ ] `CHANGELOG.md` entries; README API section updated; #85, #86 and the
+- [x] C ABI: `_len` accessors added; header regenerated; nothing removed.
+- [x] Conformance: the binding-parity test table in `conformance/` lists the
+      vocabulary above and each binding's test asserts its column
+      (`conformance/vocabulary/README.md`).
+- [x] `CHANGELOG.md` entries; README API section updated; #85, #86 and the
       roadmap's open question closed by the PR.
 
 ## Evidence required before the claim

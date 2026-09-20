@@ -26,7 +26,7 @@ fn the_builder_defaults_are_the_ones_the_docs_name() {
         "documented default ef_construction"
     );
     assert_eq!(index.seed(), 42, "documented default seed");
-    assert_eq!(index.get_ef_search(), 50, "documented default ef_search");
+    assert_eq!(index.ef_search(), 50, "documented default ef_search");
 }
 
 /// `m(0)` is an error and `ef_construction(1)` is a silent clamp. Two sibling
@@ -75,11 +75,7 @@ fn a_beam_narrower_than_k_is_raised_to_k() {
     let mut answers = Vec::new();
     for ef in [0usize, 1, 5, 10] {
         index.set_ef_search(ef);
-        assert_eq!(
-            index.get_ef_search(),
-            ef,
-            "the stored value is what was set"
-        );
+        assert_eq!(index.ef_search(), ef, "the stored value is what was set");
         let hits: Vec<u64> = index
             .search(&[0.0], 10)
             .unwrap()
@@ -114,7 +110,7 @@ fn ef_search_survives_a_save_and_load() {
 
     let loaded = ApproxIndex::load(&path).unwrap();
     assert_eq!(
-        loaded.get_ef_search(),
+        loaded.ef_search(),
         321,
         "the tuned beam must travel with the file"
     );

@@ -1,5 +1,6 @@
 import vanedb
 import copy
+import enum
 import os
 import pickle
 import sys
@@ -260,7 +261,7 @@ def test_approx_index_delete():
     assert not idx.contains(7)
     assert all(hit[0] != 7 for hit in idx.search([7.0, 0.0], 5))
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError):
         idx.remove(7)
 
     # The id is free again.
@@ -419,6 +420,11 @@ def test_classes_report_their_module():
         vanedb.DiskIndexBuilder,
     ):
         assert cls.__module__ == "vanedb", f"{cls.__name__} says {cls.__module__}"
+        if isinstance(cls, enum.EnumMeta):
+            # `EnumType.__repr__` is `<enum 'Metric'>` and names no module;
+            # the importable name is what pickle and introspection use.
+            assert f"{cls.__module__}.{cls.__qualname__}" == "vanedb.Metric"
+            continue
         assert "vanedb." in repr(cls), repr(cls)
 
     index = vanedb.FlatIndex(2, vanedb.Metric.L2)
@@ -436,13 +442,9 @@ def test_metric_survives_a_pickle_round_trip():
     `loads` failed. That is the worse of the two failures, because by then the
     bytes have been written somewhere.
     """
-    # Enumerated, not listed: a fourth variant would arrive with a hand-written
-    # name in `__reduce__`, and a hardcoded tuple here would not pickle it.
-    metrics = [
-        getattr(vanedb.Metric, name)
-        for name in dir(vanedb.Metric)
-        if not name.startswith("_")
-    ]
+    # Enumerated, not listed: a fourth variant must be covered without a
+    # hand-written tuple here. `Metric` is an `enum.IntEnum`, so it iterates.
+    metrics = list(vanedb.Metric)
     assert len(metrics) == 3, f"expected three metrics, found {metrics}"
     for protocol in range(pickle.HIGHEST_PROTOCOL + 1):
         for metric in metrics:

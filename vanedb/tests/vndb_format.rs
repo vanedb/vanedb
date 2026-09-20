@@ -47,13 +47,13 @@ fn every_metric_fixture_loads_with_its_contents_intact() {
             .unwrap_or_else(|e| panic!("{name} failed to open: {e}"));
 
         assert_eq!(index.dimension(), DIM, "{name}");
-        assert_eq!(index.size(), IDS.len(), "{name}");
+        assert_eq!(index.len(), IDS.len(), "{name}");
         assert_eq!(index.metric(), metric, "{name}: metric decoded wrongly");
 
         for (i, id) in IDS.iter().enumerate() {
             assert!(index.contains(*id), "{name}: missing id {id}");
             assert_eq!(
-                index.get(*id).unwrap(),
+                index.get(*id).unwrap().unwrap(),
                 rows()[i],
                 "{name}: vector for id {id} decoded wrongly"
             );
