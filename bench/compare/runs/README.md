@@ -25,8 +25,9 @@ Or the raw form (host binds are still enforced by `--markdown`):
 ```bash
 VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 \
   cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
-  --fixture bench/compare/fixtures/embeddings.vnef --rounds 4 --markdown \
-  --json-out runs/linux-avx2-cosine-$(date +%Y%m%d).json
+  --fixture bench/compare/fixtures/embeddings.vnef --metric cosine --rounds 4 \
+  --markdown \
+  --json-out bench/compare/runs/linux-avx2-cosine-$(date +%Y%m%d).json
 ```
 
 Raw timings from CI or shared cloud runners must not be committed or pasted.
