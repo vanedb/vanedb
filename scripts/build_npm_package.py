@@ -32,7 +32,8 @@ NODE_CJS = """// Node, `require`: wasm-pack's nodejs target loads the module syn
 // can be identical.
 const bindings = require('./vanedb_wasm.js');
 const storage = require('./storage.cjs');
-storage.installPersistence(bindings.ApproxIndex, storage.fileStorage());
+const { installPersistence } = require('./persistence.cjs');
+installPersistence(bindings.ApproxIndex, storage.fileStorage());
 
 module.exports = Object.assign({}, bindings, {
   default: async function init() { return bindings; },
@@ -116,6 +117,17 @@ export function fileStorage(directory?: string): Storage;
 """
 
 
+
+def persistence_as_commonjs(esm: str) -> str:
+    """Turn `js/persistence.js` into CommonJS by rewriting its one export."""
+    if "import " in esm:
+        raise SystemExit("persistence.js gained an import; the CommonJS transform assumes none")
+    exports = re.findall(r"^export function (\w+)", esm, re.M)
+    if exports != ["installPersistence"]:
+        raise SystemExit(f"persistence.js exports {exports}, expected only installPersistence")
+    body = re.sub(r"^export function ", "function ", esm, flags=re.M)
+    return body.rstrip("\n") + "\n\nmodule.exports = { installPersistence };\n"
+
 def patch_persistence_types(path: Path) -> None:
     """Hang save/load on ApproxIndex and export the Storage adapters."""
     text = path.read_text(encoding="utf-8")
@@ -196,6 +208,15 @@ def main() -> None:
     shutil.copy2(js_src / "node-storage.cjs", out / "node" / "storage.cjs")
     shutil.copy2(js_src / "web-storage.js", out / "web" / "storage.js")
     shutil.copy2(js_src / "persistence.js", out / "web" / "persistence.js")
+    # The Node `require` entry is CommonJS and cannot import the ESM helper, so
+    # the CommonJS twin is generated here from the one source rather than
+    # maintained by hand. A hand-kept copy had already drifted from the
+    # original before this existed. The source has exactly one export and no
+    # imports, which is what makes a textual transform safe; the assertion
+    # keeps that true.
+    (out / "node" / "persistence.cjs").write_text(
+        persistence_as_commonjs((js_src / "persistence.js").read_text(encoding="utf-8"))
+    )
 
     # The root package.json declares "type": "module", which would make Node
     # parse wasm-pack's CommonJS output in node/ as ESM and fail on its first

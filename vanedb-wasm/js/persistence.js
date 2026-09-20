@@ -9,11 +9,12 @@ export function installPersistence(ApproxIndex, defaultStorage) {
   };
   ApproxIndex.prototype.save = async function save(name, storage) {
     assertIndexName(name);
-    // Copy off wasm linear memory before handing bytes to storage. WebKit
-    // cannot structured-clone a Uint8Array that views WebAssembly.Memory,
-    // and Buffer#slice is a view rather than a copy.
-    const copy = new Uint8Array(this.toBytes());
-    await (storage ?? defaultStorage).put(name, copy);
+    // `toBytes()` is already a JS-owned copy: wasm-bindgen returns a
+    // `Vec<u8>` as `getArrayU8FromWasm0(..).slice()` and then frees the wasm
+    // side, so nothing here aliases linear memory. An earlier version copied
+    // again on a misdiagnosis of a WebKitGTK hang that was really the Blob
+    // put path, fixed in web-storage.js. Hand the bytes straight to storage.
+    await (storage ?? defaultStorage).put(name, this.toBytes());
   };
   ApproxIndex.load = async function load(name, storage) {
     assertIndexName(name);

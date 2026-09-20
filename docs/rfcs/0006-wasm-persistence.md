@@ -86,10 +86,14 @@ export const fileStorage: (directory?: string) => Storage;      // Node default
 
 - The default adapter is chosen at import time by runtime detection, the same
   mechanism the package already uses to pick the Node or browser wasm loader.
-- `indexedDbStorage`: one database, one object store, bytes stored as a
-  JS-owned `ArrayBuffer` copy. wasm-bindgen's `Uint8Array` views
-  `WebAssembly.Memory`; WebKit cannot structured-clone that buffer, and a
-  `Blob` put on WebKitGTK never completes. No dependencies.
+- `indexedDbStorage`: database `vanedb` version 1, object store `indexes`,
+  key = index name, value = `ArrayBuffer`. That layout is a persistence
+  contract once it is on a user's machine: changing it needs a version bump
+  and an `onupgradeneeded` migration. The value is an `ArrayBuffer` rather
+  than a `Blob` because a `Blob` put on WebKitGTK never completes. The bytes
+  from `toBytes()` are already a JS-owned copy -- wasm-bindgen returns a
+  `Vec<u8>` via `.slice()` -- so nothing about this is a wasm-memory
+  workaround, and no copy is needed on the save path. No dependencies.
 - `fileStorage`: `name` is a file inside `directory` (default: the current
   working directory), written through a temporary file and rename, mirroring
   the core's atomic write.
