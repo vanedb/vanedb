@@ -1,6 +1,6 @@
 # RFC 0012: Platform support policy
 
-- Status: accepted (2026-09-15)
+- Status: implemented (0.2.0, unreleased; #47 closure tracked in #207)
 - Milestone: 0.2.0
 - Tracking issue: #207; resolves #47
 - Supersedes / superseded by: none
@@ -76,6 +76,13 @@ in `PLATFORMS.md`.
   native x86-64 macOS wheels or C archives after the `macos-15-intel` runner
   retires in August 2027, no cross-compiled or `universal2` substitute, sdist
   and source builds remain supported.
+- 2026-09-20: `docs/PLATFORMS.md` published, README and `SECURITY.md` link
+  it, `vanedb/tests/platforms.rs` holds the two in sync. Two qualifications
+  the page records where the table above simplifies: the full Python wheel
+  matrix is tested by the release workflow rather than on every pull request
+  (a pull request tests one Linux x86-64 wheel on Python 3.11), and musl
+  Python wheels are already in the tested tier while the musl C ABI stays in
+  the source tier until RFC 0002 stage 4.
 
 ## Alternatives rejected
 
@@ -93,13 +100,14 @@ keep source installs. Both publish workflows change together (#47's rule).
 
 ## Acceptance criteria
 
-- [ ] `docs/PLATFORMS.md` published with the tiers, floors, exit date, and a
+- [x] `docs/PLATFORMS.md` published with the tiers, floors, exit date, and a
       dated change log.
-- [ ] README platform paragraph replaced by a summary and a link.
-- [ ] CI test: README platform names appear in `PLATFORMS.md`.
+- [x] README platform paragraph replaced by a summary and a link.
+- [x] CI test: README platform names appear in `PLATFORMS.md`
+      (`vanedb/tests/platforms.rs`).
 - [ ] #47 closed with the decision recorded; the publish-workflow change is a
       separate issue scheduled before August 2027.
-- [ ] `SECURITY.md` links `PLATFORMS.md` for "supported versions" context.
+- [x] `SECURITY.md` links `PLATFORMS.md` for "supported versions" context.
 
 ## Evidence required before the claim
 

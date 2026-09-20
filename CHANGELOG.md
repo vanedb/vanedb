@@ -27,6 +27,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 - Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
   `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
 
+### Changed
+
+- Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only
+  place a tier is asserted. It records what CI proves on each platform, the
+  floors (Rust 1.85, glibc 2.34 for C archives, macOS 11.0/10.12, Android
+  API 21, iOS 13, Python 3.11 to 3.14, Node.js 22) and a dated change log.
+  The README summarises and links it, `SECURITY.md` links it, and a test
+  fails when the README names a platform the page does not.
+
+### Deprecated
+
+- Native x86-64 macOS wheels and the `macos-x86_64` C archive end when
+  GitHub's `macos-15-intel` runner retires in August 2027. No cross-compiled
+  or `universal2` substitute is published; the sdist and `cargo build` keep
+  working on Intel Macs (RFC 0012, #47).
+
 ## [0.1.1] - 2026-09-10
 
 The first supported release. It is a 0.x release: as stated above, APIs and
