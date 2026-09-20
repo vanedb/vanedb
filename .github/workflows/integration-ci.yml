@@ -514,6 +514,32 @@ jobs:
             exit 1
           fi
           echo "ok: fill-comparison workflow opens a PR"
+      - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
+        # #238's "does not close #N" phrase auto-completed #226; residual is #242.
+        run: |
+          set -euo pipefail
+          CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
+          CLOSE=docs/launch/maintainer_closeout_226.sh
+          DEMO=docs/launch/0003-demo-update-checklist.md
+          WF=.github/workflows/fill-comparison-self-hosted.yml
+          grep -q 'issues/242' "$CUT"
+          if grep -q 'issues/226' "$CUT"; then
+            echo "::error::$CUT must not reply on auto-closed #226; use #242" >&2
+            exit 1
+          fi
+          grep -q '#242 closeout status' "$CLOSE"
+          grep -q 'vanedb#242' "$DEMO"
+          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
+            echo "::error::merge closing keywords next to residual issue numbers" >&2
+            exit 1
+          fi
+          if grep -q 'git push --follow-tags' "$DEMO"; then
+            echo "::error::$DEMO must not use lightweight tag + --follow-tags onto protected main" >&2
+            exit 1
+          fi
+          grep -q 'git tag -a 0.2.0' "$DEMO"
+          grep -q 'release/0.2.0-vanedb-198' "$DEMO"
+          echo "ok: residual tracking points at #242; manual cut matches one-shot"
       - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.
