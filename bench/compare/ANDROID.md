@@ -26,6 +26,9 @@ export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
 # (Android 15 16 KiB pages). `cargo ndk` is fine too if you prefer it.
 cargo build --release --locked --manifest-path bench/compare/Cargo.toml \
   --target aarch64-linux-android
+# Optional: confirm 16 KiB LOAD alignment before push
+python3 scripts/check_android_elf.py \
+  bench/compare/target/aarch64-linux-android/release/compare
 ```
 
 Push binary + fixture (include the **committed** repo `SHA256SUMS` pin):
