@@ -171,7 +171,7 @@ reentrancy constraints.
 - [x] Tombstoned entries are never returned regardless of filter.
 - [x] Python, WebAssembly and C ABI surfaces with tests; the ctypes example
       gains a filtered call.
-- [ ] Interleaved A-B-A bench shows no regression on unfiltered
+- [x] Interleaved A-B-A bench shows no regression on unfiltered
       `index_search`, `store_search`, `disk_search` (within noise floor).
 - [x] README replaces the "over-fetch and filter client-side" advice.
 - [x] `CHANGELOG.md` entry.
@@ -180,6 +180,10 @@ reentrancy constraints.
 
 Recall-versus-selectivity table from a dedicated machine on the embedding
 fixture of RFC 0003, not uniform random vectors.
+
+The [validation record](../release/0.2.0-filtered-search-validation.md) contains
+the pinned real-embedding fixture, default and tuned recall tables, reproduction
+commands, regression-test coverage, and unfiltered benchmark evidence.
 
 ## Out of scope
 
