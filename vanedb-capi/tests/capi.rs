@@ -121,6 +121,74 @@ fn hnsw() {
         );
         assert_eq!(n2, 1);
         assert_eq!(ids2[0], 10);
+
+        // Test filtered search on loaded index
+        let allowed = [20u64];
+        let mut ids_filt = [0u64; 2];
+        let mut ds_filt = [0.0f32; 2];
+        let n_filt = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids_filt[0], 20);
+
+        unsafe extern "C-unwind" fn filter_cb(id: u64, _user_data: *mut std::ffi::c_void) -> bool {
+            id == 10
+        }
+        let n_cb = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            Some(filter_cb),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_cb, 1);
+        assert_eq!(ids_filt[0], 10);
+
+        unsafe extern "C-unwind" fn filter_panic(
+            _id: u64,
+            _user_data: *mut std::ffi::c_void,
+        ) -> bool {
+            panic!("callback panic test");
+        }
+        let n_panic = vanedb_capi::vanedb_rs_index_search_filtered(
+            h2,
+            q.as_ptr(),
+            2,
+            50,
+            Some(filter_panic),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+            ids_filt.as_mut_ptr(),
+            ds_filt.as_mut_ptr(),
+        );
+        assert_eq!(n_panic, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_PANIC
+        );
+
         vanedb_capi::vanedb_rs_index_free(h2);
 
         let h3 = vanedb_capi::vanedb_rs_index_new(2, 0, 100, 16, 200, 42);
@@ -226,6 +294,25 @@ fn mmap() {
             vanedb_capi::vanedb_rs_disk_search(m, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr());
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10);
+
+        // Filtered search on disk index
+        let allowed = [20u64];
+        let n_filt = vanedb_capi::vanedb_rs_disk_search_filtered(
+            m,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids[0], 20);
+
         vanedb_capi::vanedb_rs_disk_free(m);
         // negative path
         assert_eq!(
@@ -308,6 +395,63 @@ fn store() {
         assert_eq!(n, 2);
         assert_eq!(ids[0], 10); // (0,0) nearest to (0.1,0.1)
         assert!(ds[0] <= ds[1]);
+
+        // Filtered search on store
+        let allowed = [20u64];
+        let n_filt = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            allowed.as_ptr(),
+            allowed.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_filt, 1);
+        assert_eq!(ids[0], 20);
+
+        let denied = [10u64];
+        let n_deny = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            0,
+            denied.as_ptr(),
+            denied.len(),
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_deny, 1);
+        assert_eq!(ids[0], 20);
+
+        // Unsorted allow list fails validation
+        let unsorted = [50u64, 10];
+        let n_bad = vanedb_capi::vanedb_rs_store_search_filtered(
+            s,
+            q.as_ptr(),
+            2,
+            None,
+            std::ptr::null_mut(),
+            unsorted.as_ptr(),
+            unsorted.len(),
+            std::ptr::null(),
+            0,
+            ids.as_mut_ptr(),
+            ds.as_mut_ptr(),
+        );
+        assert_eq!(n_bad, 0);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_last_error(),
+            vanedb_capi::VANEDB_RS_INVALID_PARAMETER
+        );
+
         vanedb_capi::vanedb_rs_store_free(s);
         // negative paths (parity with C++ null guards)
         assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null()); // dim=0 => Err => null
@@ -1316,5 +1460,287 @@ fn a_free_preserves_the_error_a_caller_is_about_to_report() {
             !vanedb_capi::vanedb_rs_last_error_message().is_null(),
             "nor the message"
         );
+    }
+}
+
+/// The three filtered entry points share a fail-closed contract, including
+/// empty lists and invalid combinations that otherwise silently drop a filter.
+#[test]
+fn filtered_search_argument_contract_across_indexes() {
+    use std::ffi::c_void;
+    use std::ptr::null;
+    use vanedb_capi::*;
+
+    unsafe extern "C-unwind" fn accepts_user_id(id: u64, data: *mut c_void) -> bool {
+        id == *data.cast::<u64>()
+    }
+    unsafe extern "C-unwind" fn panics(_: u64, _: *mut c_void) -> bool {
+        panic!("filtered callback panic");
+    }
+    unsafe extern "C-unwind" fn sets_nested_error(_: u64, _: *mut c_void) -> bool {
+        assert_eq!(vanedb_rs_store_len(null()), 0);
+        assert_eq!(vanedb_rs_last_error(), VANEDB_RS_NULL_ARGUMENT);
+        true
+    }
+
+    fn check(
+        mut search: impl FnMut(
+            vanedb_rs_filter_fn,
+            *mut c_void,
+            *const u64,
+            usize,
+            *const u64,
+            usize,
+            *mut u64,
+            *mut f32,
+        ) -> usize,
+    ) {
+        let allowed = [20u64];
+        let denied = [10u64];
+        let duplicate = [10u64, 10];
+        let unsorted = [20u64, 10];
+        let mut selected = 20u64;
+        let user_data = (&mut selected as *mut u64).cast::<c_void>();
+        let predicate: vanedb_rs_filter_fn = Some(accepts_user_id);
+        let cases = [
+            (None, null(), 0, null(), 0, VANEDB_RS_OK, vec![10, 20]),
+            (None, allowed.as_ptr(), 0, null(), 0, VANEDB_RS_OK, vec![]),
+            (
+                None,
+                null(),
+                0,
+                denied.as_ptr(),
+                0,
+                VANEDB_RS_OK,
+                vec![10, 20],
+            ),
+            (None, allowed.as_ptr(), 1, null(), 0, VANEDB_RS_OK, vec![20]),
+            (None, null(), 0, denied.as_ptr(), 1, VANEDB_RS_OK, vec![20]),
+            (predicate, null(), 0, null(), 0, VANEDB_RS_OK, vec![20]),
+            (None, null(), 1, null(), 0, VANEDB_RS_NULL_ARGUMENT, vec![]),
+            (None, null(), 0, null(), 1, VANEDB_RS_NULL_ARGUMENT, vec![]),
+            (
+                None,
+                allowed.as_ptr(),
+                0,
+                denied.as_ptr(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                allowed.as_ptr(),
+                1,
+                denied.as_ptr(),
+                1,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                predicate,
+                allowed.as_ptr(),
+                0,
+                null(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                predicate,
+                null(),
+                0,
+                denied.as_ptr(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                predicate,
+                allowed.as_ptr(),
+                1,
+                null(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                predicate,
+                null(),
+                0,
+                denied.as_ptr(),
+                1,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                duplicate.as_ptr(),
+                2,
+                null(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                null(),
+                0,
+                duplicate.as_ptr(),
+                2,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                unsorted.as_ptr(),
+                2,
+                null(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                null(),
+                0,
+                unsorted.as_ptr(),
+                2,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                allowed.as_ptr(),
+                usize::MAX,
+                null(),
+                0,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (
+                None,
+                null(),
+                0,
+                denied.as_ptr(),
+                usize::MAX,
+                VANEDB_RS_INVALID_PARAMETER,
+                vec![],
+            ),
+            (Some(panics), null(), 0, null(), 0, VANEDB_RS_PANIC, vec![]),
+            // The successful outer call owns the error channel even when a
+            // callback handles an error from another VaneDB call.
+            (
+                Some(sets_nested_error),
+                null(),
+                0,
+                null(),
+                0,
+                VANEDB_RS_OK,
+                vec![10, 20],
+            ),
+            // A callback panic must release locks and leave the handle usable.
+            (None, null(), 0, null(), 0, VANEDB_RS_OK, vec![10, 20]),
+        ];
+        for (case, (filter, allow, allow_len, deny, deny_len, error, expected)) in
+            cases.into_iter().enumerate()
+        {
+            let mut ids = [u64::MAX; 2];
+            let mut distances = [-123.0; 2];
+            let n = search(
+                filter,
+                user_data,
+                allow,
+                allow_len,
+                deny,
+                deny_len,
+                ids.as_mut_ptr(),
+                distances.as_mut_ptr(),
+            );
+            assert_eq!(vanedb_rs_last_error(), error, "case {case}");
+            assert_eq!(n, expected.len(), "case {case}");
+            assert_eq!(&ids[..n], expected.as_slice(), "case {case}");
+            assert_eq!(&ids[n..], &[u64::MAX; 2][n..], "case {case}");
+            assert_eq!(&distances[n..], &[-123.0; 2][n..], "case {case}");
+        }
+    }
+
+    let query = [0.0f32];
+    unsafe {
+        let s = vanedb_rs_store_new(1, 0);
+        assert!(!s.is_null());
+        let mut store = Box::from_raw(s);
+        store.add(10, &[0.0]).unwrap();
+        store.add(20, &[1.0]).unwrap();
+        check(|filter, data, allow, alen, deny, dlen, ids, dists| {
+            vanedb_rs_store_search_filtered(
+                &mut *store,
+                query.as_ptr(),
+                2,
+                filter,
+                data,
+                allow,
+                alen,
+                deny,
+                dlen,
+                ids,
+                dists,
+            )
+        });
+
+        let h = vanedb_rs_index_new(1, 0, 2, 2, 10, 42);
+        assert!(!h.is_null());
+        let mut index = Box::from_raw(h);
+        index.add(10, &[0.0]).unwrap();
+        index.add(20, &[1.0]).unwrap();
+        check(|filter, data, allow, alen, deny, dlen, ids, dists| {
+            vanedb_rs_index_search_filtered(
+                &mut *index,
+                query.as_ptr(),
+                2,
+                0,
+                filter,
+                data,
+                allow,
+                alen,
+                deny,
+                dlen,
+                ids,
+                dists,
+            )
+        });
+
+        let path = std::ffi::CString::new(scratch_path("filter_contract")).unwrap();
+        assert_eq!(
+            vanedb_rs_disk_build(
+                path.as_ptr(),
+                1,
+                0,
+                [10u64, 20].as_ptr(),
+                [0.0f32, 1.0].as_ptr(),
+                2,
+            ),
+            0
+        );
+        let m = vanedb_rs_disk_open(path.as_ptr());
+        assert!(!m.is_null());
+        let mut disk = Box::from_raw(m);
+        check(|filter, data, allow, alen, deny, dlen, ids, dists| {
+            vanedb_rs_disk_search_filtered(
+                &mut *disk,
+                query.as_ptr(),
+                2,
+                filter,
+                data,
+                allow,
+                alen,
+                deny,
+                dlen,
+                ids,
+                dists,
+            )
+        });
+        drop(disk);
+        std::fs::remove_file(scratch_path("filter_contract")).unwrap();
     }
 }

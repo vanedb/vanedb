@@ -22,6 +22,78 @@ pub type vanedb_rs_index = ApproxIndex;
 #[allow(non_camel_case_types)]
 pub type vanedb_rs_disk = DiskIndex;
 
+/// A synchronous ID predicate, called on the thread performing the search.
+///
+/// The callback and any memory it accesses through `user_data` must remain valid
+/// for the whole call. It must not access, mutate or free the searched handle,
+/// or modify/free any search buffers; calls using other handles are allowed.
+/// It must not throw a foreign exception or use `longjmp` across Rust frames.
+/// A Rust callback declared `extern "C-unwind"` may panic; with unwinding enabled
+/// the search reports `VANEDB_RS_PANIC` and leaves the result buffers untouched.
+#[allow(non_camel_case_types)]
+pub type vanedb_rs_filter_fn =
+    Option<unsafe extern "C-unwind" fn(id: u64, user_data: *mut std::ffi::c_void) -> bool>;
+
+struct CFilterClosure {
+    func: Box<dyn Fn(u64) -> bool + Sync>,
+}
+
+impl CFilterClosure {
+    fn new(
+        cb: unsafe extern "C-unwind" fn(id: u64, user_data: *mut std::ffi::c_void) -> bool,
+        user_data: *mut std::ffi::c_void,
+    ) -> Self {
+        let user_ptr = user_data as usize;
+        Self {
+            func: Box::new(move |id: u64| {
+                let udata = user_ptr as *mut std::ffi::c_void;
+                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                    cb(id, udata)
+                }));
+                match res {
+                    Ok(b) => b,
+                    Err(p) => std::panic::resume_unwind(p),
+                }
+            }),
+        }
+    }
+
+    fn as_predicate(&self) -> &(dyn Fn(u64) -> bool + Sync) {
+        self.func.as_ref()
+    }
+}
+
+/// Validate optional filter arguments before constructing borrowed slices.
+fn valid_filter_args(
+    filter: vanedb_rs_filter_fn,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+) -> bool {
+    if (allow.is_null() && allow_len != 0) || (deny.is_null() && deny_len != 0) {
+        return null_arg(false);
+    }
+    if usize::from(filter.is_some()) + usize::from(!allow.is_null()) + usize::from(!deny.is_null())
+        > 1
+    {
+        set_code(
+            VANEDB_RS_INVALID_PARAMETER,
+            "specify at most one of filter, allow, or deny",
+        );
+        return false;
+    }
+    let max_len = isize::MAX as usize / std::mem::size_of::<u64>();
+    if allow_len > max_len || deny_len > max_len {
+        set_code(
+            VANEDB_RS_INVALID_PARAMETER,
+            "filter length exceeds this platform's address space",
+        );
+        return false;
+    }
+    true
+}
+
 fn from_metric(m: Metric) -> u32 {
     match m {
         Metric::Cosine => 1,
@@ -123,6 +195,7 @@ fn code_for(error: &vanedb::VaneError) -> u32 {
         E::InvalidK => VANEDB_RS_INVALID_K,
         E::NonFiniteValue { .. } => VANEDB_RS_NON_FINITE_VALUE,
         E::InvalidParameter(_) => VANEDB_RS_INVALID_PARAMETER,
+        E::Validation(_) => VANEDB_RS_INVALID_PARAMETER,
         E::FileNotFound { .. } => VANEDB_RS_FILE_NOT_FOUND,
         E::Corrupt { .. } => VANEDB_RS_CORRUPT,
         E::Io { .. } => VANEDB_RS_IO,
@@ -442,6 +515,95 @@ pub unsafe extern "C" fn vanedb_rs_store_search(
     })
 }
 
+/// Search with at most one of a callback, allow list, or deny list.
+///
+/// A non-null list pointer selects that filter even when its length is zero:
+/// empty allow accepts nothing; empty deny accepts everything. Null list pointers
+/// require zero lengths. With all three filters null the search is unfiltered.
+/// Lists must be strictly ascending without duplicates. Conflicting filters,
+/// invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+/// a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+/// On failure returns zero and leaves result buffers untouched; inspect
+/// `vanedb_rs_last_error` to distinguish failure from no matches.
+///
+/// # Safety
+/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
+/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// Each nonempty list must point to its stated number of valid `u64`s. Inputs
+/// must remain valid and unmodified until return, and outputs must not overlap
+/// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+/// unwinding requirements.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
+    s: *mut vanedb_rs_store,
+    q: *const f32,
+    k: usize,
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
+    guard(0, || {
+        if s.is_null() {
+            return null_arg(0);
+        }
+        if q.is_null() || out_ids.is_null() || out_dists.is_null() {
+            return null_arg(0);
+        }
+        let store = &*s;
+        let query = slice::from_raw_parts(q, store.dimension());
+
+        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+            return 0;
+        }
+        let pred_closure;
+        let c_filter = if !allow.is_null() {
+            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(allow, allow_len)
+            }))
+        } else if !deny.is_null() {
+            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(deny, deny_len)
+            }))
+        } else if let Some(cb) = filter {
+            pred_closure = CFilterClosure::new(cb, user_data);
+            Some(vanedb::approx::Filter::Predicate(
+                pred_closure.as_predicate(),
+            ))
+        } else {
+            None
+        };
+
+        let mut params = vanedb::SearchParams::new();
+        if let Some(f) = c_filter {
+            params = params.filter(f);
+        }
+
+        match store.search_with(query, k, &params) {
+            Ok(res) => {
+                let n = res.len().min(k);
+                for (i, r) in res.iter().take(k).enumerate() {
+                    *out_ids.add(i) = r.id;
+                    *out_dists.add(i) = r.distance;
+                }
+                // A callback may have handled a failing call on another
+                // handle. Report the successful outer search, not that error.
+                clear_error();
+                n
+            }
+            Err(e) => fail(e, 0),
+        }
+    })
+}
+
 /// # Safety
 /// The handle must have come from `vanedb_rs_store_new` and not been freed already
 /// (or be null, which is a no-op).
@@ -588,6 +750,100 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
                     *out_ids.add(i) = r.id;
                     *out_dists.add(i) = r.distance;
                 }
+                n
+            }
+            Err(e) => fail(e, 0),
+        }
+    })
+}
+
+/// Search with at most one of a callback, allow list, or deny list.
+///
+/// A non-null list pointer selects that filter even when its length is zero:
+/// empty allow accepts nothing; empty deny accepts everything. Null list pointers
+/// require zero lengths. With all three filters null the search is unfiltered.
+/// Lists must be strictly ascending without duplicates. Conflicting filters,
+/// invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+/// a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+/// On failure returns zero and leaves result buffers untouched; inspect
+/// `vanedb_rs_last_error` to distinguish failure from no matches.
+///
+/// # Safety
+/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
+/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// Each nonempty list must point to its stated number of valid `u64`s. Inputs
+/// must remain valid and unmodified until return, and outputs must not overlap
+/// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+/// unwinding requirements.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
+    h: *mut vanedb_rs_index,
+    q: *const f32,
+    k: usize,
+    ef_search: usize,
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
+    guard(0, || {
+        if h.is_null() {
+            return null_arg(0);
+        }
+        if q.is_null() || out_ids.is_null() || out_dists.is_null() {
+            return null_arg(0);
+        }
+        let idx = &*h;
+        let query = slice::from_raw_parts(q, idx.dimension());
+
+        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+            return 0;
+        }
+        let pred_closure;
+        let c_filter = if !allow.is_null() {
+            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(allow, allow_len)
+            }))
+        } else if !deny.is_null() {
+            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(deny, deny_len)
+            }))
+        } else if let Some(cb) = filter {
+            pred_closure = CFilterClosure::new(cb, user_data);
+            Some(vanedb::approx::Filter::Predicate(
+                pred_closure.as_predicate(),
+            ))
+        } else {
+            None
+        };
+
+        let mut params = if ef_search == 0 {
+            vanedb::SearchParams::new()
+        } else {
+            vanedb::SearchParams::new().ef_search(ef_search)
+        };
+        if let Some(f) = c_filter {
+            params = params.filter(f);
+        }
+
+        match idx.search_with(query, k, &params) {
+            Ok(res) => {
+                let n = res.len().min(k);
+                for (i, r) in res.iter().take(k).enumerate() {
+                    *out_ids.add(i) = r.id;
+                    *out_dists.add(i) = r.distance;
+                }
+                // A callback may have handled a failing call on another
+                // handle. Report the successful outer search, not that error.
+                clear_error();
                 n
             }
             Err(e) => fail(e, 0),
@@ -857,6 +1113,95 @@ pub unsafe extern "C" fn vanedb_rs_disk_search(
                     *out_ids.add(i) = r.id;
                     *out_dists.add(i) = r.distance;
                 }
+                n
+            }
+            Err(e) => fail(e, 0),
+        }
+    })
+}
+
+/// Search with at most one of a callback, allow list, or deny list.
+///
+/// A non-null list pointer selects that filter even when its length is zero:
+/// empty allow accepts nothing; empty deny accepts everything. Null list pointers
+/// require zero lengths. With all three filters null the search is unfiltered.
+/// Lists must be strictly ascending without duplicates. Conflicting filters,
+/// invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+/// a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+/// On failure returns zero and leaves result buffers untouched; inspect
+/// `vanedb_rs_last_error` to distinguish failure from no matches.
+///
+/// # Safety
+/// `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
+/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// Each nonempty list must point to its stated number of valid `u64`s. Inputs
+/// must remain valid and unmodified until return, and outputs must not overlap
+/// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+/// unwinding requirements.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
+    m: *mut vanedb_rs_disk,
+    q: *const f32,
+    k: usize,
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
+    guard(0, || {
+        if m.is_null() {
+            return null_arg(0);
+        }
+        if q.is_null() || out_ids.is_null() || out_dists.is_null() {
+            return null_arg(0);
+        }
+        let store = &*m;
+        let query = slice::from_raw_parts(q, store.dimension());
+
+        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+            return 0;
+        }
+        let pred_closure;
+        let c_filter = if !allow.is_null() {
+            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(allow, allow_len)
+            }))
+        } else if !deny.is_null() {
+            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
+                &[]
+            } else {
+                slice::from_raw_parts(deny, deny_len)
+            }))
+        } else if let Some(cb) = filter {
+            pred_closure = CFilterClosure::new(cb, user_data);
+            Some(vanedb::approx::Filter::Predicate(
+                pred_closure.as_predicate(),
+            ))
+        } else {
+            None
+        };
+
+        let mut params = vanedb::SearchParams::new();
+        if let Some(f) = c_filter {
+            params = params.filter(f);
+        }
+
+        match store.search_with(query, k, &params) {
+            Ok(res) => {
+                let n = res.len().min(k);
+                for (i, r) in res.iter().take(k).enumerate() {
+                    *out_ids.add(i) = r.id;
+                    *out_dists.add(i) = r.distance;
+                }
+                // A callback may have handled a failing call on another
+                // handle. Report the successful outer search, not that error.
+                clear_error();
                 n
             }
             Err(e) => fail(e, 0),

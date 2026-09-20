@@ -17,7 +17,7 @@ a limit are named beside it.
 | Vector components | finite `f32` | validation on add, search and disk build | RFC 0005 adds int8 and binary storage |
 | `k` | at least 1; the graph's effective beam is at least `k` | validation | none planned |
 | Payload | none stored | | RFC 0009 |
-| Metadata filtering | none | | RFC 0004 |
+| Metadata filtering | none in 0.1.1; ID lists and predicates implemented for 0.2.0 | external metadata only | RFC 0004 |
 | WebAssembly linear memory | 4 GiB (wasm32) | platform | none planned |
 
 ## Memory, computed
@@ -75,7 +75,10 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 
 ## What is not supported
 
-- Filtered search, payloads or metadata (RFCs 0004, 0009).
+- Payload or metadata storage (RFC 0009). Filtered search is absent in 0.1.1
+  and implemented for 0.2.0 through external ID lists or predicates (RFC 0004).
+  Exact indexes scan once; approximate filtering can return fewer than `k`
+  matches at its beam cap. Predicates must not access the index being searched.
 - Quantized or compressed vectors (RFC 0005).
 - Approximate search over a corpus larger than RAM (RFC 0008).
 - Mobile SDKs beyond the C ABI (RFC 0007).

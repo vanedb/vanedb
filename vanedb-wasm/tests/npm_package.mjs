@@ -100,6 +100,26 @@ assert.equal(viaRequire.size(), 1);
 viaRequire.free();
 checkUpsertAndSearch(cjs);
 
+function checkFilteredSearch(bindings) {
+  for (const index of [new bindings.FlatIndex(1, 'l2'), new bindings.ApproxIndex(1, 'l2', 16, 4, 16)]) {
+    const query = Float32Array.of(0);
+    const max = 2n ** 64n - 1n;
+    try {
+      index.add(1n, query);
+      index.add(max, Float32Array.of(1));
+      const hits = index.search(query, 2, { allow: BigUint64Array.of(max) });
+      try { assert.deepEqual([...hits.ids], [max]); } finally { hits.free(); }
+      assert.throws(() => index.search(query, 2, { allow: [], deny: [] }), /at most one/);
+      const error = new Error('predicate failed');
+      assert.throws(() => index.search(query, 2, { predicate() { throw error; } }), e => e === error);
+      const after = index.search(query, 2);
+      try { assert.deepEqual([...after.ids], [1n, max]); } finally { after.free(); }
+    } finally { index.free(); }
+  }
+}
+checkFilteredSearch(esm);
+checkFilteredSearch(cjs);
+
 const { readFileSync, mkdtempSync, writeFileSync } = await import('node:fs');
 const { spawnSync } = await import('node:child_process');
 const os = await import('node:os');

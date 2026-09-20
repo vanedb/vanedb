@@ -7,9 +7,10 @@ inside your process without running a database server.
 - `ApproxIndex` — approximate graph search, with recall controlled by `ef_search`.
 - `DiskIndex` — exact search over a read-only memory-mapped file (feature `disk`).
 
-VaneDB stores only `(u64, vector)` pairs. There is no metadata or payload
-storage and no filtered search; keep your own id-to-document mapping
-alongside it. Supply your own embeddings — VaneDB does not generate them.
+VaneDB stores only `(u64, vector)` pairs. Keep metadata and your id-to-document
+mapping alongside it; per-query allow lists, deny lists, or predicates restrict
+search results using that external metadata. Supply your own embeddings —
+VaneDB does not generate them.
 
 Add it with `cargo add vanedb`. This complete program inserts two vectors and
 finds the nearest one:
@@ -34,6 +35,26 @@ Metrics are squared Euclidean distance (`Metric::L2`), cosine distance
 rank first. IDs are unique unsigned 64-bit integers; vectors and queries must
 have the configured dimension and finite components. Approximate search can
 miss a true neighbor; compare recall against exact search for your data.
+
+All three indexes accept filters through `search_with`:
+
+```rust
+# use vanedb::{FlatIndex, Filter, Metric, SearchParams};
+# fn main() -> vanedb::Result<()> {
+# let index = FlatIndex::new(3, Metric::Cosine)?;
+let allowed = [101, 202]; // strictly ascending, with no duplicates
+let options = SearchParams::new().filter(Filter::Allow(&allowed));
+let hits = index.search_with(&[1.0, 0.0, 0.0], 10, &options)?;
+# Ok(())
+# }
+```
+
+An empty allow list matches nothing; an empty deny list matches everything.
+Predicates should consult external metadata and must not call methods on the
+index being searched: the search holds its read lock. Exact indexes scan once.
+An approximate search widens its beam when fewer than `k` results match, up to
+`max_ef_search` (default four times the initial beam). This cap is a recall/work
+tradeoff, not a guarantee of `k` results or a strict bound on distance evaluations.
 
 Distance kernels select NEON or AVX2 at runtime and fall back to scalar code.
 Capacity is a reserve hint for the growable graph index, not an insertion limit.

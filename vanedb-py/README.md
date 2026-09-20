@@ -3,8 +3,8 @@
 VaneDB is an embeddable vector database backed by Rust. Store vectors and search
 for their nearest neighbors inside your Python process, without a database
 server. Supply your own embeddings; VaneDB does not generate them. It stores only
-`(id, vector)` pairs — no metadata or payload storage and no filtered
-search — so keep your own id-to-document mapping alongside it.
+`(id, vector)` pairs; keep your own metadata and id-to-document mapping
+alongside it, and pass matching IDs or a predicate to restrict search results.
 
 The `vanedb` package is the shipping Python implementation. C++ bindings are
 kept in the repository for reference and local testing, and are not published.
@@ -85,6 +85,43 @@ concurrent threads. `m`, `ef_construction` and `seed` are readable on any `Appro
 including one from `ApproxIndex.load`, whose graph the caller did not build.
 `get` and `get_vector` are the same operation on every index type, so swapping
 `FlatIndex` for `ApproxIndex` does not mean renaming call sites.
+
+## Filtered search
+
+All three index types accept one of `allow_ids`, `deny_ids`, or `filter`:
+
+```python
+from vanedb import ApproxIndex, FlatIndex
+
+query = [1.0, 0.0, 0.0]
+store = FlatIndex(3)
+index = ApproxIndex(3)
+for database in (store, index):
+    database.add_batch([101, 202], [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+store.search(query, 10, allow_ids=[101, 202])
+store.search(query, 10, deny_ids=[202])
+allowed = {101, 202}  # Metadata belongs to your application.
+store.search(query, 10, filter=lambda id: id in allowed)
+index.search(query, 10, allow_ids=[101, 202], ef_search=50, max_ef_search=200)
+```
+
+ID lists must be sorted, unique unsigned 64-bit integers; NumPy `uint64`
+arrays work too. An empty allow list matches nothing; an empty deny list
+matches everything. Combining filters raises `ValueError`.
+
+Lists are the fast path: a Python predicate re-acquires the GIL for every
+candidate, while the surrounding search releases it. Predicates must be
+synchronous and stable for the duration of a query; they may be called more
+than once for an ID. They run while the index holds a read lock, so they must
+not call methods on that same index, modify it, or wait for another thread to
+modify it. They can consult external metadata or search another index.
+Callback exceptions, including failures converting the result to `bool`,
+propagate from `search` without returning partial results.
+
+Exact indexes return the nearest matching vectors. Approximate search keeps
+excluded nodes available for graph traversal and can return fewer than `k`
+matches. `max_ef_search` limits beam widening, defaulting to four times the
+effective initial beam; it does not impose a hard limit on nodes visited.
 
 `ApproxIndex` writes shared VNDB v2 graph files. Both engines preserve their
 vectors, links, IDs and deleted slots; further insertions may differ across

@@ -120,6 +120,41 @@ Both provide `add`, `add_batch`, `search`, `get`, `get_vector`, `remove`,
 exist so a program is not tied to one index type. The module also exports
 `version()`.
 
+## Filtered search
+
+Both indexes accept an optional search-options object in the third argument:
+
+```js
+const query = new Float32Array([1, 0, 0]);
+const hits = index.search(query, 10, {
+  allow: new BigUint64Array([101n, 202n]),
+  efSearch: 50,       // ApproxIndex only
+  maxEfSearch: 200,   // ApproxIndex only
+});
+hits.free();
+```
+
+Use exactly one of `allow`, `deny`, or `predicate`. Lists must be sorted and
+unique. They accept `BigUint64Array` or arrays of unsigned 64-bit BigInts;
+ordinary Number IDs also work through `Number.MAX_SAFE_INTEGER`. An empty
+allow list matches nothing; an empty deny list matches everything. Conflicting
+filters and malformed lists throw an error.
+
+A predicate takes a BigInt ID, for example `{ predicate: id => allowed.has(id) }`
+with an application-owned metadata set. Lists are faster because predicates
+cross the JavaScript/WebAssembly boundary for each candidate. Predicates must
+be synchronous and stable during the query; an ID may be checked more than
+once. They run while the index is locked for reading: do not call methods on
+the same index, modify or free it, or wait for another task to modify it.
+Searching another index is supported. A callback exception propagates from
+`search`, preserving the original thrown value and discarding partial results.
+
+The existing `ApproxIndex.search(query, k, efSearch)` numeric argument remains
+supported. The options object's `efSearch` and `maxEfSearch` apply to that
+query alone. Approximate filtering can return fewer than `k` matches;
+`maxEfSearch` caps beam widening, by default at four times the initial beam,
+and does not impose a hard limit on nodes visited.
+
 ## Deleting
 
 On `ApproxIndex`, `remove(id)` tombstones a vector: it stops appearing in results immediately but

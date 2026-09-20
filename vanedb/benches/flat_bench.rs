@@ -26,6 +26,13 @@ fn bench_store_search(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |bench, _| {
             bench.iter(|| store.search(&query, 10).unwrap());
         });
+
+        let allowed: Vec<u64> = (0..n / 10).map(|i| (i * 10) as u64).collect();
+        let filter = vanedb::approx::Filter::Allow(&allowed);
+        let params = vanedb::approx::SearchParams::new().filter(filter);
+        group.bench_with_input(BenchmarkId::new("filtered", n), &n, |bench, _| {
+            bench.iter(|| store.search_with(&query, 10, &params).unwrap());
+        });
     }
     group.finish();
 }

@@ -27,7 +27,7 @@ fn test_vector_store_search() {
     store.add(2u64.into(), &[1.0, 0.0]).unwrap();
     store.add(3u64.into(), &[10.0, 10.0]).unwrap();
 
-    let hits = store.search(&[0.0, 0.1], 2.0).unwrap();
+    let hits = store.search(&[0.0, 0.1], 2.0, None).unwrap();
     assert_eq!(hits.length(), 2);
     assert_eq!(hits.distances().len(), 2);
     assert_eq!(hits.ids()[0], 1); // closest
@@ -57,7 +57,7 @@ fn test_cosine_metric() {
     let store = WasmStore::new(2.0, &JsValue::from_str("cosine")).unwrap();
     store.add(1u64.into(), &[1.0, 0.0]).unwrap();
     store.add(2u64.into(), &[0.0, 1.0]).unwrap();
-    let hits = store.search(&[0.9, 0.1], 1.0).unwrap();
+    let hits = store.search(&[0.9, 0.1], 1.0, None).unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
 
@@ -74,7 +74,7 @@ fn test_store_add_batch() {
     let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
     store.add_batch(&ids, &flat).unwrap();
     assert_eq!(store.size(), 3);
-    let results = store.search(&[0.9, 0.9], 1.0).unwrap();
+    let results = store.search(&[0.9, 0.9], 1.0, None).unwrap();
     assert_eq!(results.ids()[0], 2);
 
     // duplicate -> Err, all-or-nothing
@@ -94,6 +94,60 @@ fn test_hnsw_add_batch() {
     assert_eq!(results.ids()[0], 10);
 }
 
+#[wasm_bindgen_test]
+fn test_wasm_filtered_search() {
+    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
+    store.add(10u64.into(), &[0.0, 0.0]).unwrap();
+    store.add(20u64.into(), &[1.0, 1.0]).unwrap();
+
+    let opts = js_sys::Object::new();
+    let allow_arr = js_sys::Array::new();
+    allow_arr.push(&JsValue::from(20));
+    js_sys::Reflect::set(&opts, &JsValue::from_str("allow"), &allow_arr).unwrap();
+
+    let res = store
+        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts)))
+        .unwrap();
+    assert_eq!(res.length(), 1);
+    assert_eq!(res.ids()[0], 20);
+
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
+    index.add(10u64.into(), &[0.0, 0.0]).unwrap();
+    index.add(20u64.into(), &[1.0, 1.0]).unwrap();
+
+    let opts2 = js_sys::Object::new();
+    let deny_arr = js_sys::Array::new();
+    deny_arr.push(&JsValue::from(10));
+    js_sys::Reflect::set(&opts2, &JsValue::from_str("deny"), &deny_arr).unwrap();
+
+    let res2 = index
+        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts2)))
+        .unwrap();
+    assert_eq!(res2.length(), 1);
+    assert_eq!(res2.ids()[0], 20);
+
+    // Predicate in options
+    let opts_pred = js_sys::Object::new();
+    let pred_fn =
+        js_sys::Function::new_no_args("return arguments[0] === 10n || arguments[0] === 10;");
+    js_sys::Reflect::set(&opts_pred, &JsValue::from_str("predicate"), &pred_fn).unwrap();
+    let res_pred = store
+        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts_pred)))
+        .unwrap();
+    assert_eq!(res_pred.length(), 1);
+    assert_eq!(res_pred.ids()[0], 10);
+
+    // Unsorted array must fail validation
+    let opts_bad = js_sys::Object::new();
+    let bad_arr = js_sys::Array::new();
+    bad_arr.push(&JsValue::from(30));
+    bad_arr.push(&JsValue::from(10));
+    js_sys::Reflect::set(&opts_bad, &JsValue::from_str("allow"), &bad_arr).unwrap();
+    assert!(store
+        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts_bad)))
+        .is_err());
+}
+
 // --- #39: ids must survive the JS boundary without f32 narrowing ---
 
 const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
@@ -104,7 +158,7 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
     for (i, id) in PRECISION_IDS.iter().enumerate() {
         store.add((*id).into(), &[i as f32, 0.0]).unwrap();
     }
-    let mut got = store.search(&[0.0, 0.0], 4.0).unwrap().ids();
+    let mut got = store.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
     got.sort_unstable();
     let mut want = PRECISION_IDS.to_vec();
     want.sort_unstable();
@@ -131,7 +185,7 @@ fn test_non_finite_vectors_and_queries_are_rejected() {
         assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
         assert_eq!(store.size(), 0);
         store.add(2u64.into(), &[0.0, 0.0]).unwrap();
-        assert!(store.search(&[value, 0.0], 1.0).is_err());
+        assert!(store.search(&[value, 0.0], 1.0, None).is_err());
 
         let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 4.0, 2.0, 10.0, None).unwrap();
         assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
@@ -160,7 +214,7 @@ fn dot_ranks_by_largest_inner_product() {
     store.add(1u64.into(), &[1.0, 0.0]).unwrap();
     store.add(2u64.into(), &[4.0, 0.0]).unwrap();
     store.add(3u64.into(), &[0.0, 1.0]).unwrap();
-    let hits = store.search(&[1.0, 0.0], 3.0).unwrap();
+    let hits = store.search(&[1.0, 0.0], 3.0, None).unwrap();
     let ids = hits.ids();
     assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
     assert_eq!(ids[2], 3);
@@ -350,7 +404,12 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
     let found = |hits: Vec<u64>| hits.iter().filter(|id| truth.contains(id)).count();
 
     let narrow = found(index.search(query, K as f64, None).unwrap().ids());
-    let widened = found(index.search(query, K as f64, Some(400.0)).unwrap().ids());
+    let widened = found(
+        index
+            .search(query, K as f64, Some(JsValue::from(400.0)))
+            .unwrap()
+            .ids(),
+    );
     assert!(
         widened > narrow,
         "a wider beam must find more true neighbours: narrow {narrow}/{K}, widened \
@@ -364,10 +423,18 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
 
     // Omitting it falls back to that property, and it is validated like `k`.
     assert_eq!(index.search(query, 5.0, None).unwrap().length(), 5);
-    assert!(index.search(query, 5.0, Some(-1.0)).is_err());
-    assert!(index.search(query, 5.0, Some(f64::NAN)).is_err());
+    assert!(index.search(query, 5.0, Some(JsValue::from(-1.0))).is_err());
+    assert!(index
+        .search(query, 5.0, Some(JsValue::from(f64::NAN)))
+        .is_err());
     // 0 is the narrowest legal override, raised to `k` — not a fallback.
-    assert_eq!(index.search(query, 5.0, Some(0.0)).unwrap().length(), 5);
+    assert_eq!(
+        index
+            .search(query, 5.0, Some(JsValue::from(0.0)))
+            .unwrap()
+            .length(),
+        5
+    );
 }
 
 /// Persistence is the reason a browser application does not rebuild on every

@@ -50,7 +50,7 @@ verified on the hardware it claims does not ship with the claim.
 | [0001](0001-cuda-after-initial-release.md) | CUDA after the initial release | accepted; ordering amendment accepted 2026-09-13 | none | #205 |
 | [0002](0002-c-abi-distribution.md) | C ABI distribution | accepted | 0.2.0 (stages 1 and 5), 0.3.0 (stages 2 to 4) | #193 #194 #195 #196 #197 |
 | [0003](0003-competitor-benchmark-and-demo.md) | Competitor benchmark and demo | accepted | 0.2.0 | #198 |
-| [0004](0004-filtered-search.md) | Filtered search | accepted | 0.2.0 | #199 |
+| [0004](0004-filtered-search.md) | Filtered search | implemented | 0.2.0 | #199 |
 | [0005](0005-quantized-storage.md) | Quantized storage | accepted | 0.3.0 | #200 |
 | [0006](0006-wasm-persistence.md) | WebAssembly persistence | implemented | 0.2.0 | #201 |
 | [0007](0007-mobile-sdks.md) | Mobile SDKs | accepted | 0.3.0 | #202 |
