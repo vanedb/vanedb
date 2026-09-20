@@ -182,8 +182,13 @@ system allocator in a counting `GlobalAlloc`, built each index from
 deterministic pseudo-random vectors through the public API, read the live
 heap delta while the index was alive, and parsed the saved VNDB v2 file
 (per the layout in `conformance/graph/README.md`) to count the graph's
-layers and links exactly. `n = 8192` is a power of two so `Vec` doubling
-lands exactly on the length; `n = 10,000` shows the doubling overhead.
+layers and links exactly. `n = 8192` is a power of two so the hash table's
+bucket count and every `Vec` capacity land on round numbers; `n = 10,000`
+shows the hash-bucket fill effect (27.9 against 34.0 B per entry). The flat
+and disk rows are built with `add_batch` and `DiskIndexBuilder::save`, which
+reserve exactly, so they match the formula at both `n`; the graph rows at
+`n = 10,000` additionally carry the builder's default `capacity`
+reservation (see below), not `Vec` doubling.
 
 ```rust
 // Counting allocator (excerpt); byte counts only, no timings.
@@ -252,6 +257,12 @@ Reading the output:
   at 8192 and 27.9 B at 10,000 entries, as the bucket rule predicts.
 - The level distribution matches `M^-l`: 7672 / 489 / 29 / 2 nodes at levels
   0 to 3 out of 8192 is 1.068 layers per node against the expected 1.067.
+- `links_measured` is the allocator delta minus the non-link formula, so it
+  also contains the thread-local `VisitedBuffer` the graph walk allocates
+  (about 2 B per node, 0.7% of the link figure); the exact-fit and `u32`
+  figures are parsed from the saved file and exclude it. An independent
+  re-derivation with its own counting allocator reproduced the flat, disk
+  and id-map rows byte for byte and the link rows within 0.5%.
 - On random vectors layer 0 settles at a mean degree of **23.7** against the
   cap of 32; the link term today is **~297 B per node** in the
   `Vec<Vec<Vec<usize>>>` layout, 20% above the exact-fit 248 B because of
@@ -328,18 +339,22 @@ are binary (256 MiB, 1 GiB, 2 GiB, 4 GiB).
 
 | Budget | d | Resident f32 | int8 (0005) | Mapped f32 (0008) | Binary + mapped rescoring (0005 + 0008) |
 |---|---:|---:|---:|---:|---:|
-| 256 MiB | 384 | 142k | 364k | 1.6M | 1.2M |
-| 256 MiB | 768 | 78k | 239k | 1.6M | 1.0M |
-| 256 MiB | 1536 | 41k | 142k | 1.6M | 744k |
-| 1 GiB | 384 | 570k | 1.46M | 6.4M | 4.9M |
-| 1 GiB | 768 | 314k | 958k | 6.4M | 4.1M |
-| 1 GiB | 1536 | 165k | 568k | 6.4M | 2.97M |
-| 2 GiB | 384 | 1.14M | 2.91M | 12.7M | 9.9M |
-| 2 GiB | 768 | 628k | 1.92M | 12.7M | 8.1M |
+| 256 MiB | 384 | 142k | 364k | 1.59M | 1.24M |
+| 256 MiB | 768 | 78.5k | 239k | 1.59M | 1.01M |
+| 256 MiB | 1536 | 41.3k | 142k | 1.59M | 744k |
+| 1 GiB | 384 | 570k | 1.46M | 6.35M | 4.95M |
+| 1 GiB | 768 | 314k | 958k | 6.35M | 4.05M |
+| 1 GiB | 1536 | 165k | 568k | 6.35M | 2.97M |
+| 2 GiB | 384 | 1.14M | 2.91M | 12.7M | 9.90M |
+| 2 GiB | 768 | 628k | 1.92M | 12.7M | 8.10M |
 | 2 GiB | 1536 | 331k | 1.14M | 12.7M | 5.95M |
 | 4 GiB | 384 | 2.28M | 5.83M | 25.4M | 19.8M |
 | 4 GiB | 768 | 1.26M | 3.83M | 25.4M | 16.2M |
 | 4 GiB | 1536 | 661k | 2.27M | 25.4M | 11.9M |
+
+Cells are the budget divided by the per-vector figure, to three significant
+figures (6.35M is 1 GiB / 169 B; a two-figure rounding lands on either 6.3M
+or 6.4M).
 
 Three observations.
 
@@ -351,7 +366,7 @@ Three observations.
    (no file mapping in wasm) and where the tightest budget lives.
 2. **Mapping is the bigger 15×, and the ordering is about page faults, not
    bytes.** On paper mapped f32 alone (RFC 0008) holds the most at 768-d:
-   1.6M in 256 MiB and 12.7M in 2 GiB, against 1.0M and 8.1M for binary
+   1.59M in 256 MiB and 12.7M in 2 GiB, against 1.01M and 8.10M for binary
    navigation with mapped rescoring. But a mapped-f32 walk reads one f32 row
    per visited node, roughly `ef_search × (levels + 1)` random page touches
    per query, so a cold cache costs a page fault per visited node; that is
