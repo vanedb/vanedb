@@ -370,3 +370,65 @@ pub fn write_json_report(report: &ComparisonReport, path: &Path) -> Result<(), S
     let text = serde_json::to_string_pretty(report).map_err(|e| e.to_string())?;
     std::fs::write(path, text).map_err(|e| e.to_string())
 }
+
+/// Prefer `target/compare-out` under the crate (host builds). When that path is
+/// not creatable — typical for a cross-compiled binary on Android — fall back
+/// to `./compare-out` under the process cwd so on-device runs still work.
+pub fn resolve_out_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
+    let preferred = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out");
+    resolve_out_dir_with_preferred(explicit, preferred)
+}
+
+pub fn resolve_out_dir_with_preferred(
+    explicit: Option<PathBuf>,
+    preferred: PathBuf,
+) -> Result<PathBuf, String> {
+    if let Some(p) = explicit {
+        std::fs::create_dir_all(&p).map_err(|e| format!("create {}: {e}", p.display()))?;
+        return Ok(p);
+    }
+    match std::fs::create_dir_all(&preferred) {
+        Ok(()) => Ok(preferred),
+        Err(e) => {
+            let fallback = PathBuf::from("compare-out");
+            eprintln!(
+                "warning: cannot create {}: {e}; using ./{}",
+                preferred.display(),
+                fallback.display()
+            );
+            std::fs::create_dir_all(&fallback)
+                .map_err(|e2| format!("create {}: {e2}", fallback.display()))?;
+            Ok(fallback)
+        }
+    }
+}
+
+#[cfg(test)]
+mod out_dir_tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn explicit_out_dir_is_created() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dest = tmp.path().join("explicit-out");
+        let got =
+            resolve_out_dir_with_preferred(Some(dest.clone()), tmp.path().join("unused")).unwrap();
+        assert_eq!(got, dest);
+        assert!(dest.is_dir());
+    }
+
+    #[test]
+    fn falls_back_when_preferred_unwritable() {
+        let tmp = tempfile::tempdir().unwrap();
+        let prev = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+        let blocker = tmp.path().join("not-a-dir");
+        fs::write(&blocker, b"x").unwrap();
+        let preferred = blocker.join("nested");
+        let got = resolve_out_dir_with_preferred(None, preferred).unwrap();
+        assert_eq!(got, PathBuf::from("compare-out"));
+        assert!(tmp.path().join("compare-out").is_dir());
+        std::env::set_current_dir(prev).unwrap();
+    }
+}

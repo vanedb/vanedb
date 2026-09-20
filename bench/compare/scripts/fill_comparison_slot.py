@@ -3,8 +3,9 @@
 
 Reads one or more harness JSON reports (same gates as render_comparison_md.py),
 maps hardware_label + metric to the matching Results subsection, and replaces
-that subsection's *Pending.* body. Refuses to overwrite a non-Pending slot
-unless --force. Never invents timings — JSON must already pass publish gates.
+that subsection's *Pending.* body. Already-filled (non-Pending) slots are
+skipped with a warning unless --force. Never invents timings — JSON must
+already pass publish gates.
 """
 
 from __future__ import annotations
@@ -21,6 +22,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import render_comparison_md as render  # noqa: E402
 
 COMPARISON_MD = Path(__file__).resolve().parents[2] / "COMPARISON.md"
+
+
+class SlotNotPending(Exception):
+    """Raised when a slot is already filled and --force was not passed."""
 
 # (section heading fragment, subsection) — first match wins under ## Results.
 HW_SECTION = (
@@ -111,8 +116,8 @@ def replace_slot(text: str, section: str, subsection: str, body: str, force: boo
     old_body = after_sub[:next_sub]
     stripped = old_body.strip()
     if stripped != "*Pending.*" and not force:
-        raise SystemExit(
-            f"refusing to overwrite non-Pending slot under {section} / {subsection} "
+        raise SlotNotPending(
+            f"non-Pending slot under {section} / {subsection} "
             f"(got {stripped[:60]!r}…); pass --force to replace"
         )
     trailing_nl = ""
@@ -149,6 +154,8 @@ def main() -> int:
     )
     args = ap.parse_args()
     text = args.comparison.read_text()
+    filled = 0
+    skipped = 0
     for path in args.json_paths:
         report = json.loads(path.read_text())
         hw = report.get("hardware_label", "")
@@ -158,11 +165,26 @@ def main() -> int:
         print(f"fill {path} → {section} / {subsection}", file=sys.stderr)
         if args.dry_run:
             continue
-        text = replace_slot(text, section, subsection, body, force=args.force)
+        try:
+            text = replace_slot(text, section, subsection, body, force=args.force)
+            filled += 1
+        except SlotNotPending as e:
+            print(f"skip {path}: {e}", file=sys.stderr)
+            skipped += 1
     if args.dry_run:
         return 0
+    if filled == 0:
+        if skipped:
+            print(
+                f"no Pending slots filled ({skipped} already filled); "
+                f"left {args.comparison} unchanged",
+                file=sys.stderr,
+            )
+            return 0
+        print("no JSON paths filled", file=sys.stderr)
+        return 1
     args.comparison.write_text(text)
-    print(f"wrote {args.comparison}", file=sys.stderr)
+    print(f"wrote {args.comparison} ({filled} slot(s))", file=sys.stderr)
     return 0
 
 

@@ -16,7 +16,7 @@ use vanedb_compare::publish::{
     MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
-use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
+use vanedb_compare::run::{resolve_out_dir, run_comparison, write_json_report, RunConfig};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -308,10 +308,7 @@ fn real_main() -> Result<(), String> {
                 }
             }
 
-            let out_dir = out_dir.unwrap_or_else(|| {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out")
-            });
-            std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+            let out_dir = resolve_out_dir(out_dir)?;
 
             let cfg = RunConfig {
                 engines,
