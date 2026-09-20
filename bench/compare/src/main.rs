@@ -16,7 +16,7 @@ use vanedb_compare::publish::{
     MarkdownFlagGate,
 };
 use vanedb_compare::report::render_machine_section;
-use vanedb_compare::run::{run_comparison, write_json_report, RunConfig};
+use vanedb_compare::run::{resolve_out_dir, run_comparison, write_json_report, RunConfig};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -351,31 +351,6 @@ fn real_main() -> Result<(), String> {
                 print!("{}", render_machine_section(&report));
             }
             Ok(())
-        }
-    }
-}
-
-/// Prefer `target/compare-out` under the crate (host builds). When that path is
-/// not creatable — typical for a cross-compiled binary on Android — fall back
-/// to `./compare-out` under the process cwd so on-device runs still work.
-fn resolve_out_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
-    if let Some(p) = explicit {
-        std::fs::create_dir_all(&p).map_err(|e| format!("create {}: {e}", p.display()))?;
-        return Ok(p);
-    }
-    let preferred = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/compare-out");
-    match std::fs::create_dir_all(&preferred) {
-        Ok(()) => Ok(preferred),
-        Err(e) => {
-            let fallback = PathBuf::from("compare-out");
-            eprintln!(
-                "warning: cannot create {}: {e}; using ./{}",
-                preferred.display(),
-                fallback.display()
-            );
-            std::fs::create_dir_all(&fallback)
-                .map_err(|e2| format!("create {}: {e2}", fallback.display()))?;
-            Ok(fallback)
         }
     }
 }

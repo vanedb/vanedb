@@ -22,4 +22,4 @@ pub use publish::{
     PUBLISH_EF_CONSTRUCTION, PUBLISH_EF_SWEEP, PUBLISH_ENGINES_COSINE, PUBLISH_ENGINES_L2,
     PUBLISH_K, PUBLISH_M, PUBLISH_SEED,
 };
-pub use run::{run_comparison, RunConfig};
+pub use run::{resolve_out_dir, run_comparison, RunConfig};

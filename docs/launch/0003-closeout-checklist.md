@@ -71,8 +71,11 @@ filesystem), so skipping the helper does not reopen cross-class labels.
 ### Android ARM64
 
 Follow [`../../bench/compare/ANDROID.md`](../../bench/compare/ANDROID.md) (NDK/adb on
-device, or labelled emulator). Do **not** use `record_publish_run.sh` with an
-`android-*` label on a laptop/server — that would mislabel host timings.
+device, or labelled emulator). Pass `--out-dir` under a writable on-device path
+(e.g. `/data/local/tmp/compare-out`) — the default build-host
+`target/compare-out` is not writable after cross-compile push. Do **not** use
+`record_publish_run.sh` with an `android-*` label on a laptop/server — that
+would mislabel host timings.
 
 Prefer the gated slot filler (same policy as `--markdown` /
 `render_comparison_md.py`):
