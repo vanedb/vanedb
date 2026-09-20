@@ -93,7 +93,7 @@ jobs:
           bash bench/compare/scripts/maintainer_fill_host_comparison.sh
 
       - name: Upload COMPARISON + run JSON
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: comparison-fill-${{ runner.os }}-${{ github.run_id }}
           path: |
