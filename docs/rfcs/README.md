@@ -54,7 +54,7 @@ verified on the hardware it claims does not ship with the claim.
 | [0005](0005-quantized-storage.md) | Quantized storage | accepted | 0.3.0 | #200 |
 | [0006](0006-wasm-persistence.md) | WebAssembly persistence | implemented | 0.2.0 | #201 |
 | [0007](0007-mobile-sdks.md) | Mobile SDKs | accepted | 0.3.0 | #202 |
-| [0008](0008-streaming-disk-build-and-mapped-graph.md) | Streaming disk build and mapped graph | draft; direction accepted, gated on #210 | 0.4.0 | #203 #210 |
+| [0008](0008-streaming-disk-build-and-mapped-graph.md) | Streaming disk build and mapped graph | accepted for the streaming builder; capacity-study amendment 2026-09-20; mapped graph gated on RFC 0005 and the spike | 0.4.0 | #203 #210 |
 | [0009](0009-payload-column.md) | Optional payload column | accepted | 0.4.0 | #204 |
 | [0010](0010-write-path-gaps.md) | Write-path gaps | accepted | 0.2.0 | #77 #109 |
 | [0011](0011-api-vocabulary-before-1-0.md) | API vocabulary before 1.0 | accepted | 0.2.0 | #206 |
