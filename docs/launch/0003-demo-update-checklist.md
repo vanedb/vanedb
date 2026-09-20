@@ -1,10 +1,16 @@
-# Demo update patch notes for `obsidian-vane-search` (issue #198)
+# Demo update patch notes for `obsidian-vane-search` (issue #198 / residual #242)
 
-This agent cannot push to https://github.com/vanedb/obsidian-vane-search
-(no write permission). Maintainer request:
-https://github.com/vanedb/obsidian-vane-search/issues/18 — apply the ready
-patch below, cut a release, and reply on vanedb#242 with the release
-URL.
+Cloud agents without demo-repo write get 403 on push. Unblock with one of:
+
+1. `DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), or
+2. Cursor GitHub App installed on that repo (contents:write) + a **new** agent
+   boot after `#215` `repositoryDependencies` — `maintainer_cut_demo_0.2.0.sh`
+   then auto-uses `gh auth token` when `/installation/repositories` lists the
+   demo repo.
+
+Ignore obsolete push steps on [obsidian-vane-search#18](https://github.com/vanedb/obsidian-vane-search/issues/18)
+(`git push --follow-tags` onto protected `main`); prefer the one-shot below.
+Reply on vanedb#242 with the official release URL when done.
 
 ## Verified on tip (agent)
 
@@ -27,20 +33,21 @@ bumps `package.json` / `manifest.json` / `versions.json` to `0.2.0` and adds
 README section **"Try it on a real vault"** (BRAT → Ollama nomic → index →
 one semantic query).
 
-**One-shot** (on **main** via [#219](https://github.com/vanedb/vanedb/pull/219);
-needs push access to the demo repo; cloud agents get 403):
+**One-shot** (on **main** via [#219](https://github.com/vanedb/vanedb/pull/219) /
+App-token auto-wire [#246](https://github.com/vanedb/vanedb/pull/246)):
 
 ```bash
-bash docs/launch/maintainer_cut_demo_0.2.0.sh
+bash docs/launch/maintainer_closeout_226.sh --cut
+# or: bash docs/launch/maintainer_cut_demo_0.2.0.sh
 # optional: --skip-tests  (release workflow still builds + publishes assets)
 # or: DEMO_REPO_TOKEN=... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
+# or: --dry-run to validate apply/tag without pushing
 ```
 
 **Actions alternative** (`cut-demo-0.2.0.yml` on **main** via
 [#220](https://github.com/vanedb/vanedb/pull/220)): add repo secret
 `DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), then
-Actions → **Cut demo 0.2.0** → Run workflow. Or use the local one-shot above
-with demo-repo write.
+Actions → **Cut demo 0.2.0** → Run workflow.
 
 Manual equivalent (match the one-shot — demo `main` is PR-protected; use an
 annotated tag so the release workflow sees `refs/tags/0.2.0`):

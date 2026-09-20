@@ -520,6 +520,20 @@ jobs:
             exit 1
           fi
           echo "ok: fill-comparison force-adds runs/*.json"
+      - name: cut-demo-0.2.0.yml is dispatch-only with secret + concurrency
+        run: |
+          set -euo pipefail
+          WF=.github/workflows/cut-demo-0.2.0.yml
+          grep -q 'workflow_dispatch' "$WF"
+          grep -q 'DEMO_REPO_TOKEN' "$WF"
+          grep -q 'concurrency:' "$WF"
+          grep -q 'cut-demo-0.2.0' "$WF"
+          grep -q 'maintainer_cut_demo_0.2.0.sh --skip-tests' "$WF"
+          if grep -qE '^\s*(push|pull_request):' "$WF"; then
+            echo "::error::$WF must not run on tip push/PR" >&2
+            exit 1
+          fi
+          echo "ok: cut-demo workflow is dispatch-only with concurrency"
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
         run: |
@@ -537,11 +551,15 @@ jobs:
           grep -q 'Cursor App on vanedb/obsidian-vane-search' "$CLOSE"
           grep -q 'Cursor App scope:' "$CLOSE"
           grep -q '/installation/repositories' "$CLOSE"
+          grep -q -- '--paginate' "$CLOSE"
+          grep -q 'git/ref/tags/0.2.0' "$CLOSE"
           grep -q 'shared runner markers' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
+          grep -q -- '--paginate' "$CUT"
           grep -q 'gh auth token' "$CUT"
           grep -q 'vanedb#242' "$DEMO"
+          grep -q 'repositoryDependencies' "$DEMO"
           if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
             echo "::error::merge closing keywords next to residual issue numbers" >&2
             exit 1
@@ -553,7 +571,7 @@ jobs:
           grep -q 'git tag -a 0.2.0' "$DEMO"
           grep -q 'release/0.2.0-vanedb-198' "$DEMO"
           echo "ok: residual tracking points at #242; manual cut matches one-shot"
-      - name: maintainer_cut_demo_0.2.0.sh dry-run (local bare remote)
+      - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.
         if: matrix.os == 'ubuntu-latest'

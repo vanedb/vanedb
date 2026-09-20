@@ -50,11 +50,23 @@ if [[ -f bench/COMPARISON.md ]]; then
   pending="$(grep -c '\*Pending\.\*' bench/COMPARISON.md || true)"
 fi
 
+# Release list can lag the tag push (demo release workflow is async). Prefer
+# an explicit release view, then the git tag ref.
 demo_tag=""
 if command -v gh >/dev/null 2>&1; then
-  demo_tag="$(gh release list -R vanedb/obsidian-vane-search --limit 20 2>/dev/null \
-    | awk -F'\t' '$1 == "0.2.0" || $3 == "0.2.0" {print "0.2.0"; exit}')" || true
+  if gh release view 0.2.0 -R vanedb/obsidian-vane-search >/dev/null 2>&1; then
+    demo_tag="0.2.0"
+  elif gh api repos/vanedb/obsidian-vane-search/git/ref/tags/0.2.0 >/dev/null 2>&1; then
+    demo_tag="0.2.0"
+  fi
 fi
+
+# Paginate: default page size can miss the demo repo when many are installed.
+app_demo_in_scope() {
+  command -v gh >/dev/null 2>&1 || return 1
+  gh api --paginate /installation/repositories --jq '.repositories[].full_name' \
+    2>/dev/null | grep -Fxq 'vanedb/obsidian-vane-search'
+}
 
 echo "==> #242 closeout status (repo=$VANEDB_ROOT)"
 echo "    COMPARISON Pending cells: $pending (need 0)"
@@ -70,14 +82,10 @@ else
   echo "    DEMO_REPO_TOKEN: unset"
 fi
 # App path: cut auto-uses `gh auth token` only when the demo repo is in scope.
-if command -v gh >/dev/null 2>&1; then
-  if gh api /installation/repositories --jq \
-      'any(.repositories[]; .full_name == "vanedb/obsidian-vane-search")' \
-      2>/dev/null | grep -qx true; then
-    echo "    Cursor App scope: includes obsidian-vane-search (--cut can use App token)"
-  elif gh api /installation/repositories >/dev/null 2>&1; then
-    echo "    Cursor App scope: missing obsidian-vane-search (install App or set DEMO_REPO_TOKEN)"
-  fi
+if app_demo_in_scope; then
+  echo "    Cursor App scope: includes obsidian-vane-search (--cut can use App token)"
+elif command -v gh >/dev/null 2>&1 && gh api /installation/repositories >/dev/null 2>&1; then
+  echo "    Cursor App scope: missing obsidian-vane-search (install App or set DEMO_REPO_TOKEN)"
 fi
 if [[ -e /opt/cursor || -e /exec-daemon || -e /opt/hostedtoolcache ]]; then
   echo "    host: shared runner markers present (AC3 --fill will refuse)"
@@ -113,10 +121,15 @@ if [[ "$DO_CUT" -eq 1 ]]; then
       cut_args+=(--dry-run)
     fi
     bash docs/launch/maintainer_cut_demo_0.2.0.sh "${cut_args[@]}"
-    # Re-query after cut so the summary reflects a successful publish.
+    # Re-query after cut so the summary reflects a successful publish (tag
+    # may land before the release workflow finishes).
     if command -v gh >/dev/null 2>&1; then
-      demo_tag="$(gh release list -R vanedb/obsidian-vane-search --limit 20 2>/dev/null \
-        | awk -F'\t' '$1 == "0.2.0" || $3 == "0.2.0" {print "0.2.0"; exit}')" || true
+      if gh release view 0.2.0 -R vanedb/obsidian-vane-search >/dev/null 2>&1 \
+        || gh api repos/vanedb/obsidian-vane-search/git/ref/tags/0.2.0 >/dev/null 2>&1; then
+        demo_tag="0.2.0"
+      else
+        demo_tag=""
+      fi
     fi
     if [[ -z "$demo_tag" && "$DRY_RUN" -eq 1 ]]; then
       echo "    (dry-run: official 0.2.0 still missing until a real cut)"

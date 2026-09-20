@@ -19,10 +19,12 @@ the existing `bench/README.md` discipline.
 2. **No CI / cloud timings.** Shared runners are noisy and contested. Do not
    paste their output into the result tables below.
 3. **Real embeddings, fixed fixture.** Published rows use
-   `fixtures/embeddings.vnef` (100k × 768-d, 1k queries) **once that file is
-   generated, checksummed in `fixtures/SHA256SUMS`, and hosted** (see
-   [`docs/launch/0003-fixture-hosting.md`](../docs/launch/0003-fixture-hosting.md)).
-   Until then only `smoke.vnef` is in-tree. Passages are truncated to
+   `fixtures/embeddings.vnef` (100k × 768-d, 1k queries), checksummed in
+   `fixtures/SHA256SUMS` and hosted as prerelease
+   [`compare-fixture-v1`](https://github.com/vanedb/vanedb/releases/tag/compare-fixture-v1)
+   (see [`docs/launch/0003-fixture-hosting.md`](../docs/launch/0003-fixture-hosting.md)).
+   Only `smoke.vnef` is committed; fetch the publish fixture before a real run:
+   `bash bench/compare/scripts/fetch_fixture.sh`. Passages are truncated to
    `--max-chars 1500` at generation time (see `fixtures/metadata.json`). The
    smoke fixture is for harness checks only and must never appear in a
    published table.
@@ -81,9 +83,10 @@ Equivalent raw form (same host binds are enforced inside `--markdown`):
 VANEDB_COMPARE_HW=linux-avx2 VANEDB_COMPARE_DEDICATED=1 cargo run --release --locked \
   --manifest-path bench/compare/Cargo.toml -- run \
   --fixture bench/compare/fixtures/embeddings.vnef \
+  --metric cosine \
   --rounds 4 \
   --markdown \
-  --json-out runs/$(hostname)-$(date +%Y%m%d).json
+  --json-out bench/compare/runs/linux-avx2-cosine-$(date +%Y%m%d).json
 ```
 
 `--markdown` refuses smoke/dev fixtures, unsigned files, basename other than
