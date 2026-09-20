@@ -196,11 +196,8 @@ impl std::fmt::Debug for ApproxIndex {
 /// so an option added later is not a breaking change; `#[non_exhaustive]`
 /// records that intent for readers.
 ///
-/// Carries a lifetime it does not yet use. Rust has no default lifetime
-/// parameters, so `SearchParams<'a>` cannot be introduced later without
-/// breaking every mention of the type — which would permanently rule out the
-/// first option callers are likely to want, a filter borrowing a bitmap or a
-/// set rather than owning one behind an `Arc`.
+/// The lifetime allows a filter to borrow its predicate or ID list for the
+/// duration of a query.
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct SearchParams<'a> {
@@ -225,6 +222,10 @@ impl<'a> SearchParams<'a> {
     }
 
     /// Upper bound on automatic beam widening during filtered search; defaults to 4 × ef_search.
+    ///
+    /// Raised to at least the initial beam (which is at least `k`), and capped
+    /// at the stored slot count. This bounds the beam, not the number of graph
+    /// neighbours examined. A selective filter can return fewer than `k` hits.
     pub fn max_ef_search(mut self, ef: usize) -> Self {
         self.max_ef_search = Some(ef);
         self
@@ -709,9 +710,14 @@ impl ApproxIndex {
         let base_ef = params
             .ef_search
             .unwrap_or_else(|| self.ef_search.load(Ordering::Relaxed))
-            .max(k);
+            .max(k)
+            .min(inner.count);
         let max_ef = if params.filter.is_some() {
-            params.max_ef_search.unwrap_or(4 * base_ef).max(base_ef)
+            params
+                .max_ef_search
+                .unwrap_or_else(|| base_ef.saturating_mul(4))
+                .max(base_ef)
+                .min(inner.count)
         } else {
             base_ef
         };
@@ -743,7 +749,7 @@ impl ApproxIndex {
                 return Ok(results);
             }
             // Beam widening: double beam up to max_ef_search
-            current_ef = (current_ef * 2).min(max_ef);
+            current_ef = current_ef.saturating_mul(2).min(max_ef);
         }
     }
 
@@ -783,17 +789,18 @@ impl ApproxIndex {
     ) -> (Vec<(f32, usize)>, usize) {
         debug_assert!(entry < total, "search_layer: entry out of range");
         let live = |iid: usize| deleted.get(iid).is_none_or(|d| !d);
-        let accepted = |iid: usize| {
-            if !live(iid) {
-                return false;
-            }
-            match filter {
-                Some(f) => f.accepts(ext_ids[iid]),
-                None => true,
-            }
+        let accepted = |iid: usize| match filter {
+            Some(f) => f.accepts(ext_ids[iid]),
+            None => true,
         };
 
-        VISITED.with_borrow_mut(|vb| {
+        VISITED.with(|cell| {
+            // A predicate may query another index on this thread. Keep the
+            // outer traversal's marks intact by using local scratch space if
+            // its thread-local buffer is already borrowed.
+            let mut local = VisitedBuffer::new();
+            let mut shared = cell.try_borrow_mut().ok();
+            let vb = shared.as_deref_mut().unwrap_or(&mut local);
             let epoch = vb.begin(total);
             let mut visited_count = 0usize;
 
@@ -805,29 +812,30 @@ impl ApproxIndex {
 
             // Max-heap of results (farthest first, capped at ef)
             let mut results: BinaryHeap<(FloatOrd, usize)> = BinaryHeap::new();
-            if accepted(entry) {
-                results.push((FloatOrd(entry_dist), entry));
+            // Filtering affects acceptance only. A separate routing heap
+            // preserves the unfiltered beam and makes widening useful when
+            // few candidates match. Tombstones remain traversable but do not
+            // fill either heap, as in an unfiltered search.
+            let mut routing = filter.map(|_| BinaryHeap::new());
+            if live(entry) {
+                if let Some(beam) = routing.as_mut() {
+                    beam.push((FloatOrd(entry_dist), entry));
+                }
+                if accepted(entry) {
+                    results.push((FloatOrd(entry_dist), entry));
+                }
             }
 
             vb.marks[entry] = epoch;
             visited_count += 1;
 
             while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
-                // Stop only once the result set is FULL and the closest
-                // remaining candidate is farther than the farthest result.
-                //
-                // The `results.len() >= ef` conjunct is load-bearing when
-                // tombstones or filtered nodes are present: `results` holds accepted nodes only,
-                // while `candidates` still holds deleted or unaccepted ones, so a popped
-                // candidate can be farther than the farthest result while
-                // the result set is nowhere near full. Breaking there abandons
-                // exactly the traversal kept for, and search silently returns a fraction of `k`.
-                //
-                // On the build path `deleted` is empty and `filter` is None, so every candidate is
-                // also a result; an unfull `results` therefore holds every
-                // visited node and `c_dist > f_dist` cannot hold. Construction is unchanged.
-                if results.len() >= ef {
-                    if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                // Stop only once the routing beam contains ef live nodes.
+                // Tombstones may be the only route to a live neighbourhood,
+                // so stopping before the beam fills could lose reachable hits.
+                let beam = routing.as_ref().unwrap_or(&results);
+                if beam.len() >= ef {
+                    if let Some(&(FloatOrd(f_dist), _)) = beam.peek() {
                         if compare_distances(c_dist, f_dist).is_gt() {
                             break;
                         }
@@ -846,9 +854,10 @@ impl ApproxIndex {
 
                     let nb_dist = dist_fn(vectors.get(nb), query);
 
-                    let should_add = if results.len() < ef {
+                    let beam = routing.as_ref().unwrap_or(&results);
+                    let should_add = if beam.len() < ef {
                         true
-                    } else if let Some(&(FloatOrd(f_dist), _)) = results.peek() {
+                    } else if let Some(&(FloatOrd(f_dist), _)) = beam.peek() {
                         compare_distances(nb_dist, f_dist).is_lt()
                     } else {
                         true
@@ -856,11 +865,31 @@ impl ApproxIndex {
 
                     if should_add {
                         candidates.push(Reverse((FloatOrd(nb_dist), nb)));
-                        if accepted(nb) {
-                            results.push((FloatOrd(nb_dist), nb));
-                            if results.len() > ef {
-                                results.pop();
+                        if let Some(beam) = routing.as_mut() {
+                            if live(nb) {
+                                beam.push((FloatOrd(nb_dist), nb));
+                                if beam.len() > ef {
+                                    beam.pop();
+                                }
                             }
+                        }
+                    }
+                    // Every scored live node can be a useful filtered hit,
+                    // even when it falls outside the unfiltered routing beam.
+                    // Keep the same admission rule as routing on unfiltered
+                    // calls, including equal-distance ties.
+                    let can_improve = if filter.is_some() {
+                        results.len() < ef
+                            || results.peek().is_some_and(|&(FloatOrd(f_dist), _)| {
+                                compare_distances(nb_dist, f_dist).is_lt()
+                            })
+                    } else {
+                        should_add
+                    };
+                    if can_improve && live(nb) && accepted(nb) {
+                        results.push((FloatOrd(nb_dist), nb));
+                        if results.len() > ef {
+                            results.pop();
                         }
                     }
                 }
@@ -1292,34 +1321,68 @@ mod tests {
 
     #[test]
     fn filtered_search_with_beam_widening() {
-        let idx = ApproxIndex::builder(2, Metric::L2)
-            .capacity(200)
+        let idx = ApproxIndex::builder(1, Metric::L2)
             .seed(42)
             .build()
             .unwrap();
-        for i in 0..100u64 {
-            idx.add(i, &[i as f32, 0.0]).unwrap();
+        let n = 128;
+        for i in 0..n {
+            idx.add(i as u64, &[i as f32]).unwrap();
         }
-        let allowed = [90, 91, 92, 93, 94];
+        // A line graph makes each beam's reach deterministic: from ID 0,
+        // width 2 scores IDs 0..=2; widening must discover ID 4 through
+        // rejected nodes. A separate routing beam prevents a reject-all
+        // predicate from turning this query into a full graph scan.
+        {
+            let mut inner = idx.inner.write();
+            inner.neighbors = (0..n)
+                .map(|i| vec![(i + 1..(i + 2).min(n)).collect()])
+                .collect();
+            inner.levels.fill(0);
+            inner.entry_point = Some(0);
+            inner.max_level = 0;
+        }
+        let allowed = [4];
         let params = SearchParams::new()
             .filter(Filter::Allow(&allowed))
-            .ef_search(5)
-            .max_ef_search(20);
+            .ef_search(2)
+            .max_ef_search(2);
 
-        let results = idx.search_with(&[0.0, 0.0], 10, &params).unwrap();
-        assert!(!results.is_empty());
-        for r in &results {
-            assert!(allowed.contains(&r.id));
-        }
+        assert!(idx.search_with(&[0.0], 1, &params).unwrap().is_empty());
+        let results = idx
+            .search_with(&[0.0], 1, &params.max_ef_search(8))
+            .unwrap();
+        assert_eq!(results, vec![SearchResult::new(4, 16.0)]);
+
+        let calls = AtomicUsize::new(0);
+        let reject = |_: u64| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            false
+        };
+        let params = SearchParams::new()
+            .filter(Filter::Predicate(&reject))
+            .ef_search(2)
+            .max_ef_search(8);
+        assert!(idx.search_with(&[0.0], 1, &params).unwrap().is_empty());
+        assert_eq!(calls.load(Ordering::Relaxed), 3 + 5 + 9);
+
+        // Deleted nodes must remain usable as bridges as well.
+        idx.remove(1).unwrap();
+        idx.remove(2).unwrap();
+        let params = SearchParams::new()
+            .filter(Filter::Allow(&allowed))
+            .ef_search(4)
+            .max_ef_search(4);
+        assert_eq!(idx.search_with(&[0.0], 1, &params).unwrap(), results);
 
         // Test with empty index
-        let empty_idx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
-        let empty_res = empty_idx.search_with(&[0.0, 0.0], 5, &params).unwrap();
+        let empty_idx = ApproxIndex::builder(1, Metric::L2).build().unwrap();
+        let empty_res = empty_idx.search_with(&[0.0], 5, &params).unwrap();
         assert!(empty_res.is_empty());
 
         // Test invalid filter validation
         let invalid_allow = [50, 10];
         let bad_params = SearchParams::new().filter(Filter::Allow(&invalid_allow));
-        assert!(idx.search_with(&[0.0, 0.0], 5, &bad_params).is_err());
+        assert!(idx.search_with(&[0.0], 5, &bad_params).is_err());
     }
 }

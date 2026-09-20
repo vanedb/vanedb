@@ -20,6 +20,11 @@ use crate::error::{Result, VaneError};
 #[derive(Clone, Copy)]
 pub enum Filter<'a> {
     /// Accept an id when the predicate returns true.
+    ///
+    /// Predicates should be deterministic and may run more than once per ID
+    /// during beam widening. They run while the index is locked for reading:
+    /// do not access or modify that same index from the predicate. Querying a
+    /// different index is supported.
     Predicate(&'a (dyn Fn(u64) -> bool + Sync)),
     /// Accept only these ids. Must be sorted in strictly ascending order with no duplicates.
     Allow(&'a [u64]),

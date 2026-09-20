@@ -1,6 +1,6 @@
 # RFC 0004: Filtered search
 
-- Status: implemented (2026-09-13)
+- Status: implemented (0.2.0, unreleased)
 - Milestone: 0.2.0
 - Tracking issue: #199
 - Supersedes / superseded by: none
@@ -36,7 +36,7 @@ four bindings expose it in the same release.
 pub enum Filter<'a> {
     /// Accept an id when the predicate returns true.
     Predicate(&'a (dyn Fn(u64) -> bool + Sync)),
-    /// Accept only these ids. Sorted, deduplicated; the constructor checks.
+    /// Accept only these ids. Sorted, deduplicated; search validates them.
     Allow(&'a [u64]),
     /// Accept every id except these. Sorted, deduplicated.
     Deny(&'a [u64]),
@@ -49,12 +49,17 @@ impl<'a> SearchParams<'a> {
 }
 ```
 
-- `ApproxIndex::search_with` applies the filter when a candidate is offered to
-  the result heap. Traversal is unchanged, so recall for the accepted subset
-  matches unfiltered recall at the same effective beam.
+- `ApproxIndex::search_with` keeps the routing beam independent of the filter
+  and offers scored, live, matching candidates to a separate bounded result
+  heap. Excluded nodes remain traversable. Filtering does not guarantee the
+  same recall as unfiltered search; measure recall for the accepted subset.
 - **Automatic widening.** If the walk ends with fewer than `k` accepted results
   and fewer than `max_ef_search` nodes visited, the search restarts with the
-  beam doubled, up to `max_ef_search`. The result carries `SearchResult`s only;
+  beam doubled, up to `max_ef_search`. Effective widths are at least `k` and
+  capped by the number of stored nodes; arithmetic saturates. The cap bounds
+  beam width, not total visited nodes or distance evaluations: one expansion
+  may score a whole neighbor list. Exhausting the cap can return fewer than
+  `k` matches even when more exist. The result carries `SearchResult`s only;
   the number of restarts is not exposed in 0.2.0 (the `#[non_exhaustive]`
   struct allows adding it later).
 - `FlatIndex::search_with` and `DiskIndex::search_with` take the same
@@ -66,15 +71,23 @@ impl<'a> SearchParams<'a> {
 
 ### Python
 
-`search(query, k, *, ef_search=None, filter=None, allow_ids=None, deny_ids=None)`.
+`ApproxIndex.search(query, k, *, ef_search=None, filter=None, allow_ids=None, deny_ids=None, max_ef_search=None)`.
+Exact indexes accept the three filter keywords without the beam options.
 `filter` is a callable `int -> bool`; the binding re-acquires the GIL per
 call, so the docstring states that `allow_ids` / `deny_ids` (numpy `uint64`
 arrays or sequences) are the fast path. Passing both `filter` and an id list
-is a `ValueError`.
+is a `ValueError`, as is combining allow and deny lists. Callback and truth-value
+conversion exceptions propagate unchanged; partial results are discarded.
 
 ### WebAssembly
 
-`search(query, k, ef_search?, { allow?: BigUint64Array, deny?: BigUint64Array, predicate?: (id: bigint) => boolean })`.
+`ApproxIndex.search(query, k, efSearchOrOptions?)` preserves the existing
+numeric third argument and also accepts
+`{ efSearch?, maxEfSearch?, allow?, deny?, predicate? }`.
+`FlatIndex.search(query, k, options?)` accepts the three filter fields.
+Allow/deny lists are JavaScript arrays of lossless IDs or `BigUint64Array`; use
+`BigUint64Array` for the full `u64` range. Combining filters is an error.
+Predicate exceptions propagate unchanged and discard partial results.
 A JavaScript predicate crosses the boundary per candidate; the README states
 the cost.
 
@@ -84,20 +97,33 @@ New functions, existing ones unchanged (RFC 0002 rule):
 
 ```c
 typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
-size_t vanedb_rs_index_search_filtered(const vanedb_rs_index *, const float *query,
+size_t vanedb_rs_index_search_filtered(vanedb_rs_index *, const float *query,
     size_t k, size_t ef_search, vanedb_rs_filter_fn filter, void *user_data,
     const uint64_t *allow, size_t allow_len, const uint64_t *deny, size_t deny_len,
     uint64_t *ids, float *distances);
 ```
 
-plus `_store_` and `_disk_` variants. A null `filter` with empty lists is the
-unfiltered search. A panic inside the callback is caught at the boundary and
-reported as `VANEDB_RS_PANIC`.
+plus `_store_` and `_disk_` variants. Null callback and list pointers select
+unfiltered search. A non-null list pointer selects that filter even at length
+zero: an empty allow list matches nothing, an empty deny list matches all.
+Null list pointers require zero lengths; at most one filter may be supplied.
+Invalid combinations fail without writing output buffers. The C API uses the
+default four-times beam cap; it does not expose a separate maximum parameter.
+A Rust panic from a `C-unwind` callback is caught at the boundary and reported
+as `VANEDB_RS_PANIC`; foreign exceptions and `longjmp` must not cross the callback.
 
 ### Errors
 
 An unsorted or duplicated `Allow`/`Deny` slice is `VaneError::Validation`.
-A filter is never an error on an empty index.
+Valid filters on an empty index return no matches without invoking a predicate.
+Malformed filters are rejected on empty indexes too, so validation does not
+depend on whether data has been inserted.
+
+Predicates must remain deterministic for a query and consult external metadata.
+They run under the searched index's read lock and must not call methods on
+that same index (including from another thread they wait for). Nested searches
+on a different index are supported. ID lists avoid callback overhead and these
+reentrancy constraints.
 
 ## Decisions recorded
 
@@ -105,6 +131,9 @@ A filter is never an error on an empty index.
   accepted (decision 4).
 - 2026-09-13: a Python callable predicate is allowed, documented as the slow
   path, with id lists as the fast path (decision 5).
+- 2026-09-20 review: specify empty C lists by pointer presence, reject conflicting
+  filters consistently, propagate binding callback errors, and document beam
+  and callback limits. Preserve the existing WebAssembly third argument.
 
 ## Alternatives rejected
 
@@ -122,8 +151,9 @@ A filter is never an error on an empty index.
 ## Compatibility and migration
 
 - Additive. `search` and `search_with` without a filter behave exactly as
-  before; the unfiltered path has no new branch in the inner loop (checked
-  by the existing criterion benches, interleaved).
+  before; unfiltered search does not allocate the filtered routing heap.
+  Check the existing criterion search benches in interleaved runs before
+  claiming that its performance is unchanged.
 - No file-format change. Graph construction unchanged, so the HNSW invariants
   and cross-engine conformance in `AGENTS.md` are untouched.
 - The C ABI adds functions; `VANEDB_RS_ABI_VERSION` is not bumped.
@@ -141,7 +171,7 @@ A filter is never an error on an empty index.
 - [x] Tombstoned entries are never returned regardless of filter.
 - [x] Python, WebAssembly and C ABI surfaces with tests; the ctypes example
       gains a filtered call.
-- [x] Interleaved A-B-A bench shows no regression on unfiltered
+- [ ] Interleaved A-B-A bench shows no regression on unfiltered
       `index_search`, `store_search`, `disk_search` (within noise floor).
 - [x] README replaces the "over-fetch and filter client-side" advice.
 - [x] `CHANGELOG.md` entry.

@@ -1,4 +1,5 @@
 use js_sys::{BigInt, Function, Reflect};
+use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
 
 use vanedb::approx::{ApproxIndex, Filter, SearchParams};
@@ -57,21 +58,34 @@ fn one_id(id: BigInt) -> Result<u64, JsError> {
     u64::try_from(id).map_err(|_| JsError::new("id must be between 0 and 2**64 - 1"))
 }
 
-fn extract_id_list(val: &JsValue, name: &str) -> Result<Vec<u64>, JsError> {
-    if !val.is_object() {
-        return Err(JsError::new(&format!("{name} must be an array of IDs")));
+fn extract_id_list(val: &JsValue, name: &str) -> Result<Vec<u64>, JsValue> {
+    if !js_sys::Array::is_array(val) && !val.is_instance_of::<js_sys::BigUint64Array>() {
+        return Err(JsError::new(&format!(
+            "{name} must be an array of IDs or a BigUint64Array"
+        ))
+        .into());
     }
-    let arr = js_sys::Array::from(val);
-    let mut ids = Vec::with_capacity(arr.length() as usize);
-    for item in arr.iter() {
+    let iter =
+        js_sys::try_iter(val)?.ok_or_else(|| JsError::new(&format!("{name} must be iterable")))?;
+    let mut ids = Vec::new();
+    for item in iter {
+        let item = item?;
         let id_val = if item.is_bigint() {
             one_id(BigInt::from(item))?
         } else if let Some(n) = item.as_f64() {
-            count(n, "id")? as u64
+            // IDs are u64, not Wasm usize counts. Number inputs are lossless
+            // only through MAX_SAFE_INTEGER; use BigInt for larger IDs.
+            if !n.is_finite() || n.fract() != 0.0 || !(0.0..=9_007_199_254_740_991.0).contains(&n) {
+                return Err(JsError::new(
+                    "id must be a nonnegative safe integer or a uint64 BigInt",
+                )
+                .into());
+            }
+            n as u64
         } else {
-            return Err(JsError::new(&format!(
-                "{name} elements must be Numbers or BigInts"
-            )));
+            return Err(
+                JsError::new(&format!("{name} elements must be Numbers or BigInts")).into(),
+            );
         };
         ids.push(id_val);
     }
@@ -87,6 +101,7 @@ struct ParsedFilter {
 fn filter_from_parsed<'a>(
     parsed: Option<&'a ParsedFilter>,
     pred_holder: &'a mut Option<Box<dyn Fn(u64) -> bool + Sync>>,
+    error: &Option<Arc<Mutex<Option<JsValue>>>>,
 ) -> Option<Filter<'a>> {
     if let Some(p) = parsed {
         if let Some(ref allow) = p.allow {
@@ -95,12 +110,19 @@ fn filter_from_parsed<'a>(
             return Some(Filter::Deny(deny.as_slice()));
         } else if let Some(ref func) = p.predicate {
             let f_clone = func.clone();
+            let error = Arc::clone(error.as_ref().expect("predicate error slot"));
             *pred_holder = Some(Box::new(move |id: u64| {
+                if error.lock().unwrap().is_some() {
+                    return false;
+                }
                 let js_id = JsValue::from(BigInt::from(id));
                 let res = f_clone.call1(&JsValue::NULL, &js_id);
                 match res {
                     Ok(v) => v.is_truthy(),
-                    Err(_) => false,
+                    Err(err) => {
+                        *error.lock().unwrap() = Some(err);
+                        false
+                    }
                 }
             }));
             return Some(Filter::Predicate(pred_holder.as_ref().unwrap().as_ref()));
@@ -109,41 +131,44 @@ fn filter_from_parsed<'a>(
     None
 }
 
-fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsError> {
+fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsValue> {
     if options.is_undefined() || options.is_null() {
         return Ok(None);
     }
     if !options.is_object() {
-        return Err(JsError::new("search options must be an object"));
+        return Err(JsError::new("search options must be an object").into());
     }
 
-    let allow_val = Reflect::get(options, &JsValue::from_str("allow"))
-        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let allow_val = Reflect::get(options, &JsValue::from_str("allow"))?;
     let allow = if !allow_val.is_undefined() && !allow_val.is_null() {
         Some(extract_id_list(&allow_val, "allow")?)
     } else {
         None
     };
 
-    let deny_val = Reflect::get(options, &JsValue::from_str("deny"))
-        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let deny_val = Reflect::get(options, &JsValue::from_str("deny"))?;
     let deny = if !deny_val.is_undefined() && !deny_val.is_null() {
         Some(extract_id_list(&deny_val, "deny")?)
     } else {
         None
     };
 
-    let pred_val = Reflect::get(options, &JsValue::from_str("predicate"))
-        .map_err(|e| JsError::new(&format!("{e:?}")))?;
+    let pred_val = Reflect::get(options, &JsValue::from_str("predicate"))?;
     let predicate = if !pred_val.is_undefined() && !pred_val.is_null() {
         if pred_val.is_function() {
             Some(Function::from(pred_val))
         } else {
-            return Err(JsError::new("predicate must be a function"));
+            return Err(JsError::new("predicate must be a function").into());
         }
     } else {
         None
     };
+
+    if usize::from(allow.is_some()) + usize::from(deny.is_some()) + usize::from(predicate.is_some())
+        > 1
+    {
+        return Err(JsError::new("specify at most one of allow, deny, or predicate").into());
+    }
 
     if allow.is_none() && deny.is_none() && predicate.is_none() {
         return Ok(None);
@@ -155,6 +180,35 @@ fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsErr
         predicate,
     }))
 }
+
+fn optional_count(options: &JsValue, name: &str) -> Result<Option<usize>, JsValue> {
+    let value = Reflect::get(options, &JsValue::from_str(name))?;
+    if value.is_undefined() || value.is_null() {
+        return Ok(None);
+    }
+    let number = value
+        .as_f64()
+        .ok_or_else(|| JsError::new(&format!("{name} must be a number")))?;
+    Ok(Some(count(number, name)?))
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const SEARCH_OPTIONS: &'static str = r#"
+export interface SearchFilterOptions {
+    /** Sorted, unique IDs; Number IDs must be nonnegative safe integers. */
+    allow?: (number | bigint)[] | BigUint64Array;
+    /** Mutually exclusive with allow and predicate. */
+    deny?: (number | bigint)[] | BigUint64Array;
+    /** Stable synchronous predicate, called per candidate (possibly repeatedly).
+     * Slower than ID lists; must not access, mutate, or free this same index.
+     * Exceptions propagate from search with the original thrown value. */
+    predicate?: (id: bigint) => boolean;
+}
+export interface ApproxSearchOptions extends SearchFilterOptions {
+    efSearch?: number;
+    maxEfSearch?: number;
+}
+"#;
 
 // Preserve the number until validation: Wasm's i32 boundary would silently
 // truncate fractions and wrap negative or oversized JavaScript numbers.
@@ -248,31 +302,42 @@ impl WasmStore {
     ///
     /// Ids come back as a `BigUint64Array` and distances as a `Float32Array`,
     /// parallel by index.
+    /// Choose exactly one filter. ID lists must be sorted and unique.
+    /// Predicates must be synchronous and stable and must not access this
+    /// same index while search holds its read lock. Exceptions propagate.
     pub fn search(
         &self,
         query: &[f32],
         k: f64,
-        #[wasm_bindgen(unchecked_param_type = "object")] options: Option<JsValue>,
-    ) -> Result<WasmSearchResults, JsError> {
+        #[wasm_bindgen(unchecked_optional_param_type = "SearchFilterOptions | null")]
+        options: Option<JsValue>,
+    ) -> Result<WasmSearchResults, JsValue> {
         let k = count(k, "k")?;
         let parsed = match options {
             Some(ref opt) => parse_filter_options(opt)?,
             None => None,
         };
 
+        let callback_error = parsed
+            .as_ref()
+            .filter(|p| p.predicate.is_some())
+            .map(|_| Arc::new(Mutex::new(None)));
         let mut pred_closure = None;
-        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure, &callback_error);
 
         let mut params = SearchParams::new();
         if let Some(f) = filter {
             params = params.filter(f);
         }
 
-        let results = self
-            .inner
-            .search_with(query, k, &params)
-            .map_err(to_jserr)?;
-        Ok(WasmSearchResults::from(results))
+        let results = self.inner.search_with(query, k, &params);
+        if let Some(error) = callback_error
+            .as_ref()
+            .and_then(|e| e.lock().unwrap().take())
+        {
+            return Err(error);
+        }
+        Ok(WasmSearchResults::from(results.map_err(to_jserr)?))
     }
 
     /// The vector stored under `id`, as a `Float32Array`.
@@ -413,35 +478,30 @@ impl WasmIndex {
     /// the way to spend that cost once. Measure recall and latency on your own
     /// data when choosing one.
     ///
-    /// Search for k nearest neighbors.
-    ///
     /// `options` may be either a number (`ef_search`), or an options object containing
     /// `{ efSearch?: number, maxEfSearch?: number, allow?: number[] | bigint[], deny?: number[] | bigint[], predicate?: (id: bigint) => boolean }`.
+    /// Choose exactly one filter; ID lists must be sorted and unique.
+    /// Predicates run per candidate and may run more than once for an ID.
+    /// They must be stable and synchronous and must not access this same
+    /// index while search holds its read lock. Exceptions propagate.
+    /// `maxEfSearch` caps beam widening, not the number of visited nodes.
     pub fn search(
         &self,
         query: &[f32],
         k: f64,
-        #[wasm_bindgen(unchecked_param_type = "number | object")] ef_search_or_options: Option<
-            JsValue,
-        >,
-    ) -> Result<WasmSearchResults, JsError> {
+        #[wasm_bindgen(unchecked_optional_param_type = "number | ApproxSearchOptions | null")]
+        ef_search_or_options: Option<JsValue>,
+    ) -> Result<WasmSearchResults, JsValue> {
         let k = count(k, "k")?;
         let mut params = SearchParams::new();
 
         let parsed = match ef_search_or_options {
             Some(ref val) if val.is_object() => {
-                let ef_val = Reflect::get(val, &JsValue::from_str("efSearch"))
-                    .or_else(|_| Reflect::get(val, &JsValue::from_str("ef_search")))
-                    .unwrap_or(JsValue::UNDEFINED);
-                if let Some(num) = ef_val.as_f64() {
-                    params = params.ef_search(count(num, "ef_search")?);
+                if let Some(ef) = optional_count(val, "efSearch")? {
+                    params = params.ef_search(ef);
                 }
-
-                let max_ef_val = Reflect::get(val, &JsValue::from_str("maxEfSearch"))
-                    .or_else(|_| Reflect::get(val, &JsValue::from_str("max_ef_search")))
-                    .unwrap_or(JsValue::UNDEFINED);
-                if let Some(num) = max_ef_val.as_f64() {
-                    params = params.max_ef_search(count(num, "max_ef_search")?);
+                if let Some(max_ef) = optional_count(val, "maxEfSearch")? {
+                    params = params.max_ef_search(max_ef);
                 }
 
                 parse_filter_options(val)?
@@ -449,24 +509,33 @@ impl WasmIndex {
             Some(ref val) => {
                 if let Some(num) = val.as_f64() {
                     params = params.ef_search(count(num, "ef_search")?);
+                } else if !val.is_null() && !val.is_undefined() {
+                    return Err(JsError::new("search options must be a number or an object").into());
                 }
                 None
             }
             None => None,
         };
 
+        let callback_error = parsed
+            .as_ref()
+            .filter(|p| p.predicate.is_some())
+            .map(|_| Arc::new(Mutex::new(None)));
         let mut pred_closure = None;
-        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure);
+        let filter = filter_from_parsed(parsed.as_ref(), &mut pred_closure, &callback_error);
 
         if let Some(f) = filter {
             params = params.filter(f);
         }
 
-        let results = self
-            .inner
-            .search_with(query, k, &params)
-            .map_err(to_jserr)?;
-        Ok(WasmSearchResults::from(results))
+        let results = self.inner.search_with(query, k, &params);
+        if let Some(error) = callback_error
+            .as_ref()
+            .and_then(|e| e.lock().unwrap().take())
+        {
+            return Err(error);
+        }
+        Ok(WasmSearchResults::from(results.map_err(to_jserr)?))
     }
 
     pub fn contains(&self, id: BigInt) -> Result<bool, JsError> {

@@ -102,11 +102,24 @@ alone so concurrent callers can choose different widths. In Rust, construct
 WebAssembly a third argument, and the C ABI a parameter. The effective beam is
 at least `k`; ordinary `search` uses the index's defaults.
 
-Filtered search is supported across all indexes and bindings via predicates, allow lists,
-or deny lists without mutating graph connectivity. Rust uses `SearchParams::new().filter(...)`,
-Python accepts `filter=`, `allow_ids=`, and `deny_ids=`, WebAssembly accepts options with
-`allow`, `deny`, or `predicate`, and the C ABI exposes `*_search_filtered`. In `ApproxIndex`,
-beam widening automatically expands the search window (up to `max_ef_search`) to maintain recall.
+Filtered search is supported across all indexes and bindings. Rust uses
+`SearchParams::new().filter(Filter::Allow(&ids))`; Python accepts `filter=`,
+`allow_ids=`, or `deny_ids=`; WebAssembly accepts an options object with `allow`,
+`deny`, or `predicate`; and the C ABI exposes `*_search_filtered`. Choose one
+filter per query. ID lists must be strictly ascending without duplicates;
+an empty allow list matches nothing, and an empty deny list matches everything.
+Predicates should consult external metadata and must not call methods on the
+index being searched. Python and JavaScript predicate exceptions propagate to
+the caller. ID lists avoid crossing the language boundary per candidate.
+
+`FlatIndex` and `DiskIndex` return the exact nearest matching vectors.
+`ApproxIndex` still traverses excluded nodes and automatically widens its beam
+when fewer than `k` matches are found, up to `max_ef_search` (default four times
+the initial beam). A selective filter can still return fewer than `k` matches
+or miss a true neighbor; measure recall on your data and raise `ef_search`
+and the cap, or use an exact index when needed. Widening stops once `k`
+matches are found, so increasing only the cap may not improve their quality.
+The cap bounds beam width, not the total number of distance evaluations.
 
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
 Python bindings; wasm takes it as a required string argument. Results come back

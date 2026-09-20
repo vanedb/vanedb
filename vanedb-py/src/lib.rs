@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{
@@ -187,7 +188,10 @@ enum PyFilterHolder<'a> {
     None,
     Allow(Vec<u64>),
     Deny(Vec<u64>),
-    Predicate(Box<dyn Fn(u64) -> bool + Sync + 'a>),
+    Predicate {
+        predicate: Box<dyn Fn(u64) -> bool + Sync + 'a>,
+        error: Arc<parking_lot::Mutex<Option<PyErr>>>,
+    },
 }
 
 fn extract_py_filter<'a>(
@@ -225,16 +229,29 @@ fn extract_py_filter<'a>(
             return Err(PyTypeError::new_err("filter must be a callable"));
         }
         let callable = filter_obj.clone().unbind();
+        let error = Arc::new(parking_lot::Mutex::new(None));
+        let callback_error = Arc::clone(&error);
         let pred = move |id: u64| {
+            // Preserve the first exception, and never invoke user code again
+            // after it fails. The core predicate API returns only bool.
+            if callback_error.lock().is_some() {
+                return false;
+            }
             Python::attach(|py| {
-                let res = callable.call1(py, (id,));
+                let res = callable.call1(py, (id,)).and_then(|val| val.is_truthy(py));
                 match res {
-                    Ok(val) => val.is_truthy(py).unwrap_or(false),
-                    Err(_) => false,
+                    Ok(accepted) => accepted,
+                    Err(err) => {
+                        *callback_error.lock() = Some(err);
+                        false
+                    }
                 }
             })
         };
-        return Ok(PyFilterHolder::Predicate(Box::new(pred)));
+        return Ok(PyFilterHolder::Predicate {
+            predicate: Box::new(pred),
+            error,
+        });
     }
 
     Ok(PyFilterHolder::None)
@@ -256,9 +273,15 @@ fn run_search_with_filter(
             let params = base_params.clone().filter(Filter::Deny(ids));
             py.detach(|| search_fn(&params)).map_err(to_pyerr)?
         }
-        PyFilterHolder::Predicate(pred) => {
-            let params = base_params.filter(Filter::Predicate(pred.as_ref()));
-            search_fn(&params).map_err(to_pyerr)?
+        PyFilterHolder::Predicate { predicate, error } => {
+            let params = base_params.filter(Filter::Predicate(predicate.as_ref()));
+            // As with id lists, do not hold the GIL while acquiring core
+            // locks. The callback acquires it only while running Python.
+            let result = py.detach(|| search_fn(&params));
+            if let Some(err) = error.lock().take() {
+                return Err(err);
+            }
+            result.map_err(to_pyerr)?
         }
     };
     Ok(results.into_iter().map(|r| (r.id, r.distance)).collect())
@@ -397,6 +420,11 @@ impl PyStore {
     }
 
     /// k-NN search. Accepts a 1-D float32 buffer (numpy) or any float sequence.
+    ///
+    /// Choose one of filter, allow_ids, or deny_ids. ID lists must be sorted
+    /// and unique and avoid a Python call per candidate. Predicates must be
+    /// stable and synchronous, and must not access this index while search
+    /// holds its read lock. Callback exceptions propagate to the caller.
     #[pyo3(signature = (query, k, *, filter=None, allow_ids=None, deny_ids=None))]
     fn search(
         &self,
@@ -525,7 +553,14 @@ impl PyIndex {
     /// property -- and because every search releases the GIL, a concurrent
     /// thread can observe that mutation. The C ABI takes the same parameter
     /// per call for the same reason.
+    ///
+    /// Choose one of filter, allow_ids, or deny_ids. ID lists must be sorted
+    /// and unique and avoid a Python call per candidate. Predicates must be
+    /// stable and synchronous, and must not access this index while search
+    /// holds its read lock. Callback exceptions propagate to the caller.
+    /// max_ef_search limits beam widening, not the number of nodes visited.
     #[pyo3(signature = (query, k, *, ef_search=None, max_ef_search=None, filter=None, allow_ids=None, deny_ids=None))]
+    #[allow(clippy::too_many_arguments)] // Public keyword-only search options.
     fn search(
         &self,
         py: Python<'_>,
@@ -798,6 +833,11 @@ impl PyDiskStore {
         Ok(Self { inner })
     }
 
+    /// Exact search with one of filter, allow_ids, or deny_ids. ID lists must
+    /// be sorted and unique. A Python predicate is called per candidate;
+    /// prefer lists when possible. Callback exceptions propagate to the caller.
+    /// Predicates must be stable and synchronous; consult external metadata
+    /// instead of accessing this same index from the callback.
     #[pyo3(signature = (query, k, *, filter=None, allow_ids=None, deny_ids=None))]
     fn search(
         &self,

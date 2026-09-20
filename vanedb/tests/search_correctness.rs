@@ -535,6 +535,54 @@ fn filtered_search_exact_matches_reference() {
         .is_err());
 }
 
+#[test]
+fn filtered_graph_search_handles_extreme_beam_and_result_counts() {
+    let index = ApproxIndex::builder(1, Metric::L2).build().unwrap();
+    index.add(10, &[1.0]).unwrap();
+    index.add(20, &[2.0]).unwrap();
+
+    for ef in [0, 1, usize::MAX / 2 + 1, usize::MAX] {
+        for max_ef in [None, Some(0), Some(usize::MAX)] {
+            for k in [1, usize::MAX] {
+                let mut params = SearchParams::new()
+                    .filter(Filter::Allow(&[10]))
+                    .ef_search(ef);
+                if let Some(max_ef) = max_ef {
+                    params = params.max_ef_search(max_ef);
+                }
+                let hits = index.search_with(&[0.0], k, &params).unwrap();
+                assert_eq!(hits.len(), 1, "ef={ef}, max_ef={max_ef:?}, k={k}");
+                assert_eq!(hits[0].id, 10);
+            }
+        }
+    }
+}
+
+#[test]
+fn filtered_graph_predicate_can_search_another_graph() {
+    let outer = ApproxIndex::builder(1, Metric::L2).build().unwrap();
+    let nested = ApproxIndex::builder(1, Metric::L2).build().unwrap();
+    for id in 0..32 {
+        outer.add(id, &[id as f32]).unwrap();
+        nested.add(id + 100, &[id as f32]).unwrap();
+    }
+    let predicate = |id: u64| {
+        let nearest = nested.search(&[id as f32], 1).unwrap();
+        nearest[0].id % 2 == 0
+    };
+    let expected = [0, 2, 4, 6, 8];
+    for _ in 0..3 {
+        let hits = outer
+            .search_with(
+                &[0.0],
+                expected.len(),
+                &SearchParams::new().filter(Filter::Predicate(&predicate)),
+            )
+            .unwrap();
+        assert_eq!(hits.iter().map(|hit| hit.id).collect::<Vec<_>>(), expected);
+    }
+}
+
 #[cfg(feature = "disk")]
 #[test]
 fn disk_filtered_search() {
@@ -572,7 +620,7 @@ fn disk_filtered_search() {
 /// Filtered exact search equals the f64 reference restricted to the allowed set,
 /// for all three metrics and the existing twelve dimensions.
 #[test]
-fn filtered_flat_search_reproduces_reference_across_all_metrics_and_dimensions() {
+fn filtered_exact_search_reproduces_reference_across_all_metrics_and_dimensions() {
     for metric in METRICS {
         for dim in DIMS {
             let mut rng = Rng(0xF117_0000 ^ ((metric as u64) << 16) ^ (dim as u64));
@@ -581,18 +629,26 @@ fn filtered_flat_search_reproduces_reference_across_all_metrics_and_dimensions()
             let ids: Vec<u64> = (0..n).map(|i| (i as u64) * 3 + 7).collect();
 
             let index = FlatIndex::new(dim, metric).unwrap();
+            #[cfg(feature = "disk")]
+            let mut builder = DiskIndexBuilder::new(dim, metric).unwrap();
             for (&id, v) in ids.iter().zip(&vectors) {
                 index.add(id, v).unwrap();
+                #[cfg(feature = "disk")]
+                builder.add(id, v).unwrap();
             }
+            #[cfg(feature = "disk")]
+            let path = scratch_path("filtered-reference");
+            #[cfg(feature = "disk")]
+            builder.save(&path).unwrap();
+            // SAFETY: the file is unchanged while this mapping is alive.
+            #[cfg(feature = "disk")]
+            let disk = unsafe { DiskIndex::open(&path).unwrap() };
 
             let query = rng.vector(dim);
             // Allow roughly 25% of IDs
             let allowed_ids: Vec<u64> = ids.iter().copied().filter(|&id| id % 4 == 1).collect();
-            let filter = Filter::Allow(&allowed_ids);
-            let params = SearchParams::new().filter(filter);
-
-            let k = 8;
-            let hits = index.search_with(&query, k, &params).unwrap();
+            let denied_ids: Vec<u64> = ids.iter().copied().filter(|&id| id % 4 != 1).collect();
+            let predicate = |id: u64| id % 4 == 1;
 
             // Compute reference ranking restricted to allowed_ids
             let allowed_vectors: Vec<Vec<f32>> = ids
@@ -602,16 +658,51 @@ fn filtered_flat_search_reproduces_reference_across_all_metrics_and_dimensions()
                 .map(|(_, v)| v.clone())
                 .collect();
             let ref_ranked = reference_ranking(metric, &allowed_ids, &allowed_vectors, &query);
-            let prefix = decisive_prefix(&ref_ranked, k);
-
-            let got_ids: Vec<u64> = hits.iter().map(|h| h.id).collect();
-            let want_ids: Vec<u64> = ref_ranked.iter().take(prefix).map(|(id, _)| *id).collect();
-
-            assert_eq!(
-                got_ids[..prefix],
-                want_ids[..],
-                "{metric:?} dim={dim}: filtered ranking differs from f64 reference"
-            );
+            for filter in [
+                Filter::Allow(&allowed_ids),
+                Filter::Deny(&denied_ids),
+                Filter::Predicate(&predicate),
+            ] {
+                let params = SearchParams::new().filter(filter);
+                for k in [1, 8, n + 1] {
+                    let assert_reference = |hits: &[vanedb::SearchResult]| {
+                        assert_eq!(hits.len(), k.min(allowed_ids.len()));
+                        let prefix = decisive_prefix(&ref_ranked, k);
+                        let got_ids: Vec<u64> = hits.iter().map(|h| h.id).collect();
+                        let want_ids: Vec<u64> =
+                            ref_ranked.iter().take(prefix).map(|(id, _)| *id).collect();
+                        assert_eq!(
+                            got_ids[..prefix],
+                            want_ids[..],
+                            "{metric:?} dim={dim} k={k} filter={filter:?}: filtered ranking differs from f64 reference"
+                        );
+                        assert!(hits.windows(2).all(|pair| pair[0] <= pair[1]));
+                        for hit in hits {
+                            let expected_distance = ref_ranked
+                                .iter()
+                                .find(|(id, _)| *id == hit.id)
+                                .expect("result must be an allowed ID")
+                                .1;
+                            let error = ((hit.distance as f64) - expected_distance).abs()
+                                / expected_distance.abs().max(1.0);
+                            assert!(error < 1e-5, "filtered distance differs from f64 reference");
+                        }
+                    };
+                    let hits = index.search_with(&query, k, &params).unwrap();
+                    assert_reference(&hits);
+                    #[cfg(feature = "disk")]
+                    {
+                        let disk_hits = disk.search_with(&query, k, &params).unwrap();
+                        assert_reference(&disk_hits);
+                        assert_eq!(disk_hits, hits);
+                    }
+                }
+            }
+            #[cfg(feature = "disk")]
+            {
+                drop(disk);
+                std::fs::remove_file(path).unwrap();
+            }
         }
     }
 }
