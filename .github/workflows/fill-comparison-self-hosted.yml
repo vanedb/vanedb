@@ -114,7 +114,9 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bench/COMPARISON.md bench/compare/runs/
+          git add bench/COMPARISON.md
+          # runs/*.json is gitignored; force-add publish evidence for the PR.
+          git add -f bench/compare/runs/*.json
           if git diff --cached --quiet; then
             echo "No COMPARISON changes to commit (slots may already be filled)"
             exit 0
