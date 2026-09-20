@@ -54,6 +54,13 @@ fn bench_hnsw_search(c: &mut Criterion) {
     c.bench_function("HNSW_search_10k", |bench| {
         bench.iter(|| idx.search(&query, 10).unwrap());
     });
+
+    let allowed: Vec<u64> = (0..500).map(|i| i * 20).collect();
+    let filter = vanedb::approx::Filter::Allow(&allowed);
+    let params = vanedb::approx::SearchParams::new().filter(filter);
+    c.bench_function("HNSW_search_10k_filtered", |bench| {
+        bench.iter(|| idx.search_with(&query, 10, &params).unwrap());
+    });
 }
 
 fn bench_hnsw_save_load(c: &mut Criterion) {

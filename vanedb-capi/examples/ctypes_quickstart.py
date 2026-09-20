@@ -27,6 +27,8 @@ L2, COSINE, DOT = 0, 1, 2
 # The VANEDB_RS_* codes this example asserts on. The full set is in the header.
 OK, NOT_FOUND, DUPLICATE_ID = 0, 5, 6
 
+FILTER_FN = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_uint64, ctypes.c_void_p)
+
 
 def bind(lib: ctypes.CDLL) -> None:
     """Every signature this example uses. Nothing is called before it is bound."""
@@ -61,6 +63,21 @@ def bind(lib: ctypes.CDLL) -> None:
     lib.vanedb_rs_store_search.restype = usize
     lib.vanedb_rs_store_search.argtypes = [
         ctypes.c_void_p, f32p, usize, ctypes.POINTER(u64), f32p
+    ]
+    u64p = ctypes.POINTER(u64)
+    lib.vanedb_rs_store_search_filtered.restype = usize
+    lib.vanedb_rs_store_search_filtered.argtypes = [
+        ctypes.c_void_p,
+        f32p,
+        usize,
+        FILTER_FN,
+        ctypes.c_void_p,
+        u64p,
+        usize,
+        u64p,
+        usize,
+        u64p,
+        f32p,
     ]
 
     lib.vanedb_rs_index_new.restype = ctypes.c_void_p
@@ -139,6 +156,25 @@ def main() -> int:
         found = lib.vanedb_rs_store_search(store, floats(1.0, 0.0, 0.0), k, ids, distances)
         assert lib.vanedb_rs_last_error() == OK, "a real failure would set a code"
         print("nearest:", [(ids[i], round(distances[i], 4)) for i in range(found)])
+
+        allow_ids = (ctypes.c_uint64 * 1)(2)
+        found_filtered = lib.vanedb_rs_store_search_filtered(
+            store,
+            floats(1.0, 0.0, 0.0),
+            k,
+            ctypes.cast(None, FILTER_FN),
+            None,
+            allow_ids,
+            1,
+            None,
+            0,
+            ids,
+            distances,
+        )
+        assert lib.vanedb_rs_last_error() == OK
+        assert found_filtered == 1
+        assert ids[0] == 2
+        print("filtered nearest:", [(ids[i], round(distances[i], 4)) for i in range(found_filtered)])
     finally:
         lib.vanedb_rs_store_free(store)
 

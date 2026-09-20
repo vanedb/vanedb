@@ -21,6 +21,9 @@ fn the_generated_header_compiles_as_c() {
     std::fs::write(
         &src,
         r#"#include "vanedb_rs_capi.h"
+static bool accepts(uint64_t id, void *data) {
+    return id == *(const uint64_t *)data;
+}
 int main(void) {
     vanedb_rs_store *s = 0;
     vanedb_rs_index *h = 0;
@@ -28,6 +31,15 @@ int main(void) {
     (void)vanedb_rs_store_len(s);
     (void)vanedb_rs_index_len(h);
     (void)vanedb_rs_disk_len(d);
+    float query = 0.0f, distance;
+    uint64_t selected = 42, id;
+    vanedb_rs_filter_fn filter = accepts;
+    (void)vanedb_rs_store_search_filtered(s, &query, 1, filter, &selected,
+        0, 0, 0, 0, &id, &distance);
+    (void)vanedb_rs_index_search_filtered(h, &query, 1, 0, filter, &selected,
+        0, 0, 0, 0, &id, &distance);
+    (void)vanedb_rs_disk_search_filtered(d, &query, 1, filter, &selected,
+        0, 0, 0, 0, &id, &distance);
     return 0;
 }
 "#,

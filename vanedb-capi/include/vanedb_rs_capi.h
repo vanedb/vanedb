@@ -142,6 +142,18 @@ typedef struct vanedb_rs_disk vanedb_rs_disk;
  */
 #define VANEDB_RS_UNKNOWN 15
 
+/**
+ * A synchronous ID predicate, called on the thread performing the search.
+ *
+ * The callback and any memory it accesses through `user_data` must remain valid
+ * for the whole call. It must not access, mutate or free the searched handle,
+ * or modify/free any search buffers; calls using other handles are allowed.
+ * It must not throw a foreign exception or use `longjmp` across Rust frames.
+ * A Rust callback declared `extern "C-unwind"` may panic; with unwinding enabled
+ * the search reports `VANEDB_RS_PANIC` and leaves the result buffers untouched.
+ */
+typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -244,6 +256,38 @@ uintptr_t vanedb_rs_store_search(vanedb_rs_store *s,
                                  float *out_dists);
 
 /**
+ * Search with at most one of a callback, allow list, or deny list.
+ *
+ * A non-null list pointer selects that filter even when its length is zero:
+ * empty allow accepts nothing; empty deny accepts everything. Null list pointers
+ * require zero lengths. With all three filters null the search is unfiltered.
+ * Lists must be strictly ascending without duplicates. Conflicting filters,
+ * invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+ * a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+ * On failure returns zero and leaves result buffers untouched; inspect
+ * `vanedb_rs_last_error` to distinguish failure from no matches.
+ *
+ * # Safety
+ * `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ * Each nonempty list must point to its stated number of valid `u64`s. Inputs
+ * must remain valid and unmodified until return, and outputs must not overlap
+ * inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+ * unwinding requirements.
+ */
+uintptr_t vanedb_rs_store_search_filtered(vanedb_rs_store *s,
+                                          const float *q,
+                                          uintptr_t k,
+                                          vanedb_rs_filter_fn filter,
+                                          void *user_data,
+                                          const uint64_t *allow,
+                                          uintptr_t allow_len,
+                                          const uint64_t *deny,
+                                          uintptr_t deny_len,
+                                          uint64_t *out_ids,
+                                          float *out_dists);
+
+/**
  * # Safety
  * The handle must have come from `vanedb_rs_store_new` and not been freed already
  * (or be null, which is a no-op).
@@ -291,6 +335,39 @@ uintptr_t vanedb_rs_index_search(vanedb_rs_index *h,
                                  uintptr_t ef_search,
                                  uint64_t *out_ids,
                                  float *out_dists);
+
+/**
+ * Search with at most one of a callback, allow list, or deny list.
+ *
+ * A non-null list pointer selects that filter even when its length is zero:
+ * empty allow accepts nothing; empty deny accepts everything. Null list pointers
+ * require zero lengths. With all three filters null the search is unfiltered.
+ * Lists must be strictly ascending without duplicates. Conflicting filters,
+ * invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+ * a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+ * On failure returns zero and leaves result buffers untouched; inspect
+ * `vanedb_rs_last_error` to distinguish failure from no matches.
+ *
+ * # Safety
+ * `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ * Each nonempty list must point to its stated number of valid `u64`s. Inputs
+ * must remain valid and unmodified until return, and outputs must not overlap
+ * inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+ * unwinding requirements.
+ */
+uintptr_t vanedb_rs_index_search_filtered(vanedb_rs_index *h,
+                                          const float *q,
+                                          uintptr_t k,
+                                          uintptr_t ef_search,
+                                          vanedb_rs_filter_fn filter,
+                                          void *user_data,
+                                          const uint64_t *allow,
+                                          uintptr_t allow_len,
+                                          const uint64_t *deny,
+                                          uintptr_t deny_len,
+                                          uint64_t *out_ids,
+                                          float *out_dists);
 
 /**
  * # Safety
@@ -376,6 +453,38 @@ uintptr_t vanedb_rs_disk_search(vanedb_rs_disk *m,
                                 uintptr_t k,
                                 uint64_t *out_ids,
                                 float *out_dists);
+
+/**
+ * Search with at most one of a callback, allow list, or deny list.
+ *
+ * A non-null list pointer selects that filter even when its length is zero:
+ * empty allow accepts nothing; empty deny accepts everything. Null list pointers
+ * require zero lengths. With all three filters null the search is unfiltered.
+ * Lists must be strictly ascending without duplicates. Conflicting filters,
+ * invalid lengths, or unsorted lists fail with `VANEDB_RS_INVALID_PARAMETER`;
+ * a null list with nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`.
+ * On failure returns zero and leaves result buffers untouched; inspect
+ * `vanedb_rs_last_error` to distinguish failure from no matches.
+ *
+ * # Safety
+ * `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
+ * `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+ * Each nonempty list must point to its stated number of valid `u64`s. Inputs
+ * must remain valid and unmodified until return, and outputs must not overlap
+ * inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
+ * unwinding requirements.
+ */
+uintptr_t vanedb_rs_disk_search_filtered(vanedb_rs_disk *m,
+                                         const float *q,
+                                         uintptr_t k,
+                                         vanedb_rs_filter_fn filter,
+                                         void *user_data,
+                                         const uint64_t *allow,
+                                         uintptr_t allow_len,
+                                         const uint64_t *deny,
+                                         uintptr_t deny_len,
+                                         uint64_t *out_ids,
+                                         float *out_dists);
 
 /**
  * # Safety
