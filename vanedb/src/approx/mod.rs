@@ -588,7 +588,7 @@ impl ApproxIndex {
         let mut ep_for_layer = cur_ep;
 
         for lev in (0..=insert_from).rev() {
-            let (results, _) = Self::search_layer(
+            let (results, _) = Self::search_layer::<false>(
                 &inner.vectors,
                 self.dist_fn,
                 &inner.neighbors,
@@ -723,9 +723,17 @@ impl ApproxIndex {
         };
         let mut current_ef = base_ef;
         let filter = params.filter;
+        // Select once per query. The unfiltered specialization removes the
+        // extra routing heap, predicate checks and visit counter from the
+        // inner loop, including when called during graph construction.
+        let search_layer = if filter.is_some() {
+            Self::search_layer::<true>
+        } else {
+            Self::search_layer::<false>
+        };
 
         loop {
-            let (top, visited_count) = Self::search_layer(
+            let (top, visited_count) = search_layer(
                 &inner.vectors,
                 self.dist_fn,
                 &inner.neighbors,
@@ -771,7 +779,7 @@ impl ApproxIndex {
     /// links to traverse. It is not the live count; `len` is that.
     /// Caller must guarantee `entry < total`.
     #[allow(clippy::too_many_arguments)]
-    fn search_layer(
+    fn search_layer<const FILTERED: bool>(
         vectors: &ChunkedVectors,
         dist_fn: DistanceFn,
         neighbors: &[Vec<Vec<usize>>],
@@ -788,10 +796,13 @@ impl ApproxIndex {
         ext_ids: &[u64],
     ) -> (Vec<(f32, usize)>, usize) {
         debug_assert!(entry < total, "search_layer: entry out of range");
+        debug_assert_eq!(FILTERED, filter.is_some());
         let live = |iid: usize| deleted.get(iid).is_none_or(|d| !d);
-        let accepted = |iid: usize| match filter {
-            Some(f) => f.accepts(ext_ids[iid]),
-            None => true,
+        let accepted = |iid: usize| {
+            !FILTERED
+                || filter
+                    .expect("filtered specialization")
+                    .accepts(ext_ids[iid])
         };
 
         VISITED.with(|cell| {
@@ -816,10 +827,10 @@ impl ApproxIndex {
             // preserves the unfiltered beam and makes widening useful when
             // few candidates match. Tombstones remain traversable but do not
             // fill either heap, as in an unfiltered search.
-            let mut routing = filter.map(|_| BinaryHeap::new());
+            let mut routing = BinaryHeap::new();
             if live(entry) {
-                if let Some(beam) = routing.as_mut() {
-                    beam.push((FloatOrd(entry_dist), entry));
+                if FILTERED {
+                    routing.push((FloatOrd(entry_dist), entry));
                 }
                 if accepted(entry) {
                     results.push((FloatOrd(entry_dist), entry));
@@ -827,13 +838,15 @@ impl ApproxIndex {
             }
 
             vb.marks[entry] = epoch;
-            visited_count += 1;
+            if FILTERED {
+                visited_count += 1;
+            }
 
             while let Some(Reverse((FloatOrd(c_dist), c_id))) = candidates.pop() {
                 // Stop only once the routing beam contains ef live nodes.
                 // Tombstones may be the only route to a live neighbourhood,
                 // so stopping before the beam fills could lose reachable hits.
-                let beam = routing.as_ref().unwrap_or(&results);
+                let beam = if FILTERED { &routing } else { &results };
                 if beam.len() >= ef {
                     if let Some(&(FloatOrd(f_dist), _)) = beam.peek() {
                         if compare_distances(c_dist, f_dist).is_gt() {
@@ -850,11 +863,13 @@ impl ApproxIndex {
                         continue;
                     }
                     vb.marks[nb] = epoch;
-                    visited_count += 1;
+                    if FILTERED {
+                        visited_count += 1;
+                    }
 
                     let nb_dist = dist_fn(vectors.get(nb), query);
 
-                    let beam = routing.as_ref().unwrap_or(&results);
+                    let beam = if FILTERED { &routing } else { &results };
                     let should_add = if beam.len() < ef {
                         true
                     } else if let Some(&(FloatOrd(f_dist), _)) = beam.peek() {
@@ -865,12 +880,10 @@ impl ApproxIndex {
 
                     if should_add {
                         candidates.push(Reverse((FloatOrd(nb_dist), nb)));
-                        if let Some(beam) = routing.as_mut() {
-                            if live(nb) {
-                                beam.push((FloatOrd(nb_dist), nb));
-                                if beam.len() > ef {
-                                    beam.pop();
-                                }
+                        if FILTERED && live(nb) {
+                            routing.push((FloatOrd(nb_dist), nb));
+                            if routing.len() > ef {
+                                routing.pop();
                             }
                         }
                     }
@@ -878,7 +891,7 @@ impl ApproxIndex {
                     // even when it falls outside the unfiltered routing beam.
                     // Keep the same admission rule as routing on unfiltered
                     // calls, including equal-distance ties.
-                    let can_improve = if filter.is_some() {
+                    let can_improve = if FILTERED {
                         results.len() < ef
                             || results.peek().is_some_and(|&(FloatOrd(f_dist), _)| {
                                 compare_distances(nb_dist, f_dist).is_lt()
