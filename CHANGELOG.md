@@ -32,7 +32,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 - Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only
   place a tier is asserted. It records what CI proves on each platform, the
   floors (Rust 1.85, glibc 2.34 for C archives, macOS 11.0/10.12, Android
-  API 21, iOS 13, Python 3.11 to 3.14, Node.js 22) and a dated change log.
+  API 21, Python 3.11 to 3.14; iOS 13 as a declared target and Node.js 22 as
+  the tested version over a declared floor of 18) and a dated change log.
   The README summarises and links it, `SECURITY.md` links it, and a test
   fails when the README names a platform the page does not.
 
