@@ -87,8 +87,8 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 
 ## Open questions this page cannot answer yet
 
-Recorded in #210, the capacity study: what corpus sizes and memory budgets
-the target users actually have per segment (mobile, browser, desktop RAG,
-gateway), what capacity each competitor supports at what memory cost, and the
-measured latency and recall trade-off for the mapped and quantized designs
-in RFCs 0005 and 0008.
+Recorded in #210, the [capacity study](research/2026-09-capacity-study.md):
+what corpus sizes and memory budgets the target users actually have per
+segment (mobile, browser, desktop RAG, gateway), what capacity each competitor
+supports at what memory cost, and the measured latency and recall trade-off
+for the mapped and quantized designs in RFCs 0005 and 0008.
