@@ -14,7 +14,7 @@ page records what is proven today, not a 1.x commitment.
 
 | Tier | Meaning |
 |---|---|
-| **Tested** | built and tested in CI on the platform itself, on every pull request that touches the Rust workspace |
+| **Tested** | built and tested in CI on the platform itself, on every pull request that touches the Rust workspace, `README.md`, `SECURITY.md` or this page |
 | **Built and verified on emulation** | built in CI; acceptance runs on a simulator or emulator, never on a physical device |
 | **Source** | expected to build from source; no artifact and no CI |
 
@@ -25,8 +25,8 @@ where the notice is the date this page records the decision.
 
 ### Tested
 
-Every pull request that touches the Rust workspace (`ci.yml`'s `rust` path
-filter) runs `cargo test --workspace --exclude vanedb-py --features disk
+Every pull request that touches the Rust workspace, `README.md`, `SECURITY.md`
+or this page (`ci.yml`'s `rust` path filter) runs `cargo test --workspace --exclude vanedb-py --features disk
 --locked`, the C consumer acceptance and the C archive packaging on each
 native row of this table (`rust-ci.yml`, `test-native`); the WebAssembly row
 runs `wasm-pack test` and the packaged-artifact checks instead (`test-wasm`). The engine that ships is the
@@ -56,9 +56,9 @@ wheel on Python 3.11, on the newest and the minimum supported maturin, plus
 
 | Platform | Rust target | CI evidence |
 |---|---|---|
-| iOS ARM64 | `aarch64-apple-ios` (device build), `aarch64-apple-ios-sim` | core and C ABI built with `disk` on every Rust-workspace pull request; C ABI acceptance runs in an iOS ARM64 simulator on the newest installed runtime (`scripts/test_ios.py`, compiled against the iOS 14.0 simulator target) |
-| Android ARM64 (`arm64-v8a`) | `aarch64-linux-android` | built with `cargo-ndk` 4.1.2 and NDK r26b on every Rust-workspace pull request, linked with 16 KiB page alignment and checked by `scripts/check_android_elf.py`; the runtime bundle is uploaded as `vanedb-android-arm64-runtime`. The recorded runtime pass is the 0.1.1 release run on an Android 15 emulator (API 35, 16,384-byte pages) with the CI-built binary: [release evidence](release/0.1.1-readiness.md). That run is not repeated per pull request |
-| Android x86-64 | `x86_64-linux-android` | built as above; C ABI acceptance runs in an Android x86-64 emulator (API 29) on every Rust-workspace pull request |
+| iOS ARM64 | `aarch64-apple-ios` (device build), `aarch64-apple-ios-sim` | core and C ABI built with `disk` on every pull request the `rust` filter selects; C ABI acceptance runs in an iOS ARM64 simulator on the newest installed runtime (`scripts/test_ios.py`, compiled against the iOS 14.0 simulator target) |
+| Android ARM64 (`arm64-v8a`) | `aarch64-linux-android` | built with `cargo-ndk` 4.1.2 and NDK r26b on every pull request the `rust` filter selects, linked with 16 KiB page alignment and checked by `scripts/check_android_elf.py`; the runtime bundle is uploaded as `vanedb-android-arm64-runtime`. The recorded runtime pass is the 0.1.1 release run on an Android 15 emulator (API 35, 16,384-byte pages) with the CI-built binary: [release evidence](release/0.1.1-readiness.md). That run is not repeated per pull request |
+| Android x86-64 | `x86_64-linux-android` | built as above; C ABI acceptance runs in an Android x86-64 emulator (API 29) on every pull request the `rust` filter selects |
 
 None of this establishes behaviour on an iPhone or an Android device. Physical
 devices enter this tier only with a recorded run, which is an acceptance
@@ -126,14 +126,16 @@ publish workflows change together:
   it; its original criteria (a `publish-cpp` workflow, CPython 3.9 to 3.14
   wheels, a successor Intel runner) are superseded by RFC 0012.
 
-Until then, macOS x86-64 stays in the tested tier: every Rust-workspace pull request still
-runs the full suite and the C consumer acceptance on `macos-15-intel`.
+Until then, macOS x86-64 stays in the tested tier: every pull request the `rust` filter selects
+still runs the full suite and the C consumer acceptance on `macos-15-intel`.
 
 ## Keeping this page honest
 
 - `vanedb/tests/platforms.rs` fails when the README names a platform this
   page does not, when the README stops linking here, or when this page loses
-  a tier, the floors, the exit date or the change log.
+  a tier, the floors, the exit date or the change log. It runs on every pull
+  request that touches the Rust workspace, `README.md`, `SECURITY.md` or this
+  page: all four are in `ci.yml`'s `rust` path filter.
 - `scripts/package_capi.py` fails a C archive whose glibc floor rose or whose
   macOS deployment target changed.
 - `.github/scripts/validate_python_release.py` fails a release whose wheel

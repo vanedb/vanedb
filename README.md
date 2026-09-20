@@ -187,8 +187,8 @@ return conventions, and metric constants.
 
 Support tiers, version floors and the dated change log live in
 [`docs/PLATFORMS.md`](docs/PLATFORMS.md), the only place a tier is asserted.
-In short: every pull request that touches the Rust workspace builds and
-tests the Rust engine and C ABI on
+In short: every pull request that touches the Rust workspace, this README,
+`SECURITY.md` or that page builds and tests the Rust engine and C ABI on
 Linux x86-64/ARM64, macOS Intel/ARM64 and Windows x64, and the WebAssembly
 package in Node.js, Chrome, Firefox and WebKit. The release workflow builds and
 tests Linux (glibc and musl), macOS and Windows wheels for Python 3.11–3.14.

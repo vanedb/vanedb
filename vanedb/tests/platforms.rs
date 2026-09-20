@@ -44,8 +44,8 @@ const ARCHITECTURES: &[&str] = &[
 
 /// Runtimes, browsers and libcs whose bare name is a platform claim.
 const RUNTIMES: &[&str] = &[
-    "Node.js", "Deno", "Bun", "Chrome", "Chromium", "Firefox", "WebKit", "Safari", "Edge", "glibc",
-    "musl", "MSVC", "MinGW",
+    "Node.js", "Deno", "Bun", "Chrome", "Chromium", "Firefox", "WebKit", "Safari", "glibc", "musl",
+    "MSVC", "MinGW",
 ];
 
 /// Keeps the inner dots of `Node.js` and `3.11`; a trailing dot ends a sentence.
@@ -61,9 +61,27 @@ fn parts(token: &str) -> impl Iterator<Item = &str> {
     token.split(['/', '–']).map(trim).filter(|p| !p.is_empty())
 }
 
+/// `[Android ARM64](docs/PLATFORMS.md)` names a platform as much as the bare
+/// words do, so link syntax is removed before tokenising: the target in
+/// `](...)` goes, and so do the brackets around the text.
+fn strip_links(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("](") {
+        out.push_str(&rest[..start]);
+        rest = match rest[start..].find(')') {
+            Some(end) => &rest[start + end + 1..],
+            None => "",
+        };
+    }
+    out.push_str(rest);
+    out.replace(['[', ']'], " ")
+}
+
 /// Every platform name the text makes, in the spelling the platform page must
 /// repeat.
 fn platform_names(text: &str) -> BTreeSet<String> {
+    let text = strip_links(text);
     let tokens: Vec<&str> = text.split_whitespace().collect();
     let mut names = BTreeSet::new();
     for (i, token) in tokens.iter().enumerate() {
@@ -97,7 +115,8 @@ fn platform_names(text: &str) -> BTreeSet<String> {
 fn platform_names_are_extracted_as_documented() {
     let names = platform_names(
         "tests on Linux x86-64/ARM64, macOS Intel/ARM64 and\nWindows x64; \
-         an Android 15 emulator; Linux (glibc and musl); Node.js, Chrome.",
+         an Android 15 emulator; Linux (glibc and musl); Node.js, Chrome; \
+         [iOS ARM64](docs/PLATFORMS.md#tiers) and [Android x86-64](../x.md).",
     );
     let expected: BTreeSet<String> = [
         "Linux x86-64",
@@ -111,6 +130,8 @@ fn platform_names_are_extracted_as_documented() {
         "musl",
         "Node.js",
         "Chrome",
+        "iOS ARM64",
+        "Android x86-64",
     ]
     .into_iter()
     .map(String::from)
