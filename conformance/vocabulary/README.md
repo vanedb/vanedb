@@ -44,7 +44,7 @@ cap of its own.
 | Deny list | `.filter(Filter::Deny(&ids))` | `deny_ids=` | `deny` | `const uint64_t *deny, size_t deny_len` |
 | Per-query beam (`ApproxIndex` only) | `.ef_search(n)` | `ef_search=` | a number, or `efSearch` in the object | `size_t ef_search`; `0` means the handle's own |
 | Widening cap (`ApproxIndex` only) | `.max_ef_search(n)` | `max_ef_search=` | `maxEfSearch` | not exposed; the default cap applies |
-| Asserted by | `vanedb/tests/search_correctness.rs` | `vanedb-py/tests/test_filtered_search.py` | `vanedb-wasm/tests/web.rs` (`test_wasm_filtered_search`) and `vanedb-wasm/tests/node.cjs` | `vanedb-capi/tests/capi.rs` (`filtered_search_argument_contract_across_indexes`) |
+| Asserted by | `vanedb/tests/search_correctness.rs`: filters in `filtered_search_exact_matches_reference`, beam and cap in `filtered_graph_search_handles_extreme_beam_and_result_counts` | filters in `vanedb-py/tests/test_filtered_search.py`; `ef_search=` and `max_ef_search=` in `vanedb-py/tests/test_vanedb.py` (`test_filtered_search`) and `vanedb-py/tests/test_api_parity.py` (`test_search_takes_a_per_query_beam_width`) | `vanedb-wasm/tests/web.rs` (`test_wasm_filtered_search`) and `vanedb-wasm/tests/node.cjs` | `vanedb-capi/tests/capi.rs` (`filtered_search_argument_contract_across_indexes`) |
 
 ## Running the column tests
 
@@ -54,8 +54,9 @@ cargo test -p vanedb --features disk --test public_surface a_lookup_miss_is_none
 cargo test -p vanedb-capi --test capi the_vocabulary_of_rfc_0011
 python -m pytest vanedb-py/tests/test_api_parity.py
 cargo test -p vanedb --features disk --test search_correctness filtered_search_exact_matches_reference
+cargo test -p vanedb --features disk --test search_correctness filtered_graph_search_handles_extreme_beam_and_result_counts
 cargo test -p vanedb-capi --test capi filtered_search_argument_contract_across_indexes
-python -m pytest vanedb-py/tests/test_filtered_search.py
+python -m pytest vanedb-py/tests/test_filtered_search.py vanedb-py/tests/test_vanedb.py vanedb-py/tests/test_api_parity.py
 ```
 
 The WebAssembly column runs under `wasm-pack test --node --locked` in

@@ -117,8 +117,9 @@ each with a one-line migration. No file-format change.
 - [x] Conformance: the binding-parity test table in `conformance/` lists the
       vocabulary above and each binding's test asserts its column
       (`conformance/vocabulary/README.md`).
-- [x] `CHANGELOG.md` entries; README API section updated; #85, #86 and the
-      roadmap's open question closed by the PR.
+- [x] `CHANGELOG.md` entries; README API section updated; #85 and #86
+      closed at merge (the `update`/`clear`/`reserve` half of #86 is not
+      vocabulary and is outside this RFC); roadmap question settled.
 
 ## Evidence required before the claim
 
