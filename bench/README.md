@@ -111,7 +111,12 @@ own vectors and queries before choosing graph parameters.
 resolution. Treat 128-dimension kernel ratios as noise.
 
 **‡ ** Rust's internal id maps use the default SipHash hasher where C++ uses
-identity, worth about 40 ns per add (vanedb#109).
+identity, worth about 40 ns per add (vanedb#109). Since RFC 0002 stage 1 the
+`store_add` row also measures something the C++ row does not: every
+`vanedb_rs_store_add` call resolves its `uint64_t` handle through a sharded
+mutex lock/unlock and an `Arc` clone/drop, where `vanedb_cpp_store_add`
+casts a pointer. The figure above predates that change; the next snapshot
+on dedicated hardware carries it.
 
 **◊ Superseded harness; awaiting a re-run.** This figure was timed against a
 *single* query, and the two engines build different graphs from the same seed

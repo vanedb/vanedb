@@ -4,10 +4,13 @@ Embed the Rust engine in a C or C++ application. You need a C compiler and
 CMake 3.20 or newer (or pkg-config and make), plus Rust when building from
 source.
 
-CI produces platform archives named `vanedb-capi-<version>-<platform>.zip`,
-with a SHA-256 checksum. Choose the archive matching your OS and architecture
-from a successful [CI run](https://github.com/vanedb/vanedb/actions/workflows/ci.yml).
-These are development artifacts until a release is tagged. Check the archive's
+Each release attaches platform archives named
+`vanedb-capi-<version>-<platform>.zip`, with a SHA-256 checksum, to the
+`vanedb-crate-v<version>` [GitHub Release](https://github.com/vanedb/vanedb/releases);
+the first is 0.1.1. Choose the archive matching your OS and architecture. A
+successful [CI run](https://github.com/vanedb/vanedb/actions/workflows/ci.yml)
+carries the same archives for the commit it built, as development artifacts.
+Check the archive's
 `compatibility.json` for binary requirements, imported libraries and the OS used
 for consumer acceptance:
 
@@ -20,7 +23,7 @@ for consumer acceptance:
 
 CI rejects an increased glibc requirement or a changed macOS deployment target.
 Support tiers and floors for every platform are in
-[`docs/PLATFORMS.md`](../docs/PLATFORMS.md), which also records that the
+[`docs/PLATFORMS.md`](https://github.com/vanedb/vanedb/blob/main/docs/PLATFORMS.md), which also records that the
 macOS Intel archive ends when GitHub's last Intel runner retires in August 2027.
 These are inspected binary requirements, not proof of runtime support on the
 oldest OS. Consumer acceptance runs on the recorded CI host. In particular, the
@@ -70,8 +73,22 @@ PKG_CONFIG_PATH="$PWD/lib/pkgconfig" pkg-config --cflags --libs vanedb
 PKG_CONFIG_PATH="$PWD/lib/pkgconfig" make -C consumers/pkgconfig test
 ```
 
-`Libs` links the shared library; `Libs.private` (shown by `--static`) is the
-static link line. Not available on Windows.
+`Libs` is `-L<libdir> -lvanedb_capi`, which links the shared library, and a
+program linked that way needs the library on its loader path at run time:
+an rpath (`-Wl,-rpath,$(pkg-config --variable=libdir vanedb)`, which the
+shipped Makefile adds) or `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH`. Note that
+`pkg-config --static --libs vanedb` still links the shared library: `-l`
+prefers the `.so` when both exist. To link statically, name the archive by
+path and take only the system libraries from `Libs.private`, as the shipped
+Makefile does:
+
+```sh
+cc app.c $(pkg-config --cflags vanedb) \
+   "$(pkg-config --variable=libdir vanedb)/libvanedb_capi.a" \
+   $(pkg-config --static --libs-only-l --libs-only-other vanedb | sed 's/-lvanedb_capi//')
+```
+
+Not available on Windows.
 
 ### Without either
 
@@ -113,7 +130,11 @@ file sizes, not performance claims:
 | `--profile capi`, unstripped | 719,704 |
 | `--profile capi`, stripped as packaged | 594,368 |
 
-The static library is packaged unstripped.
+The static library keeps its symbols and debug information; only the embedded
+LLVM bitcode is removed (see "Exported symbols"), which on the same build
+takes `libvanedb_capi.a` from 22,782,298 bytes as cargo wrote it to
+12,588,258 bytes as packaged. The shared library carries no bitcode, so its
+figures above are unaffected.
 
 ## Using the ABI
 
@@ -312,37 +333,72 @@ library. CI asserts the built library's export set with
 on Windows, and a test holds the lists to the header.
 
 The static library is post-processed on Linux (`ld -r` then `objcopy
---keep-global-symbols`) and macOS (`ld -r -exported_symbols_list`) so that
-only `vanedb_rs_*` is global; the system libraries from `native-static-libs`
-stay as undefined references. There is no equivalent of `objcopy` for COFF
-archives in the MSVC toolset, so the Windows static library is packaged as
-rustc produced it, with every Rust symbol global. Linking it next to another
-Rust-built static library on Windows can therefore collide; use the DLL there.
+--keep-global-symbols`) and macOS (`clang -r -Wl,-exported_symbols_list`,
+driven through the compiler so the arch and deployment target are supplied
+from what rustc built) so that only `vanedb_rs_*` is global; the system
+libraries from `native-static-libs` stay as undefined references. The same
+step removes the LLVM bitcode that fat LTO embeds in every staticlib object
+(`.llvmbc`/`.llvmcmd` on ELF, `__LLVM,__bitcode` on Mach-O): nothing links
+against it, Apple's `nm` cannot read rustc's newer bitcode, and it is most of
+the archive's size. There is no equivalent of `objcopy` for COFF archives in
+the MSVC toolset, so the Windows static library is packaged as rustc produced
+it, with every Rust symbol global and its bitcode in place. Linking it next
+to another Rust-built static library on Windows can therefore collide; use
+the DLL there.
 
 ## ABI compatibility gate
 
-The `abidiff` CI job (libabigail) compares the freshly built Linux x86-64
-shared library against the previous tagged release's: a removed or changed
-symbol fails, an added symbol passes. The baseline procedure:
+The `C ABI gate` CI job compares this branch against the previous release in
+two layers, because neither alone sees enough:
+
+1. **Prototypes.** `scripts/capi_exports.py` parses the header into one
+   normalised prototype per function (return type, name, parameter types;
+   parameter names dropped) and commits the list as
+   `exports/vanedb_capi.sigs`. The job downloads the baseline release's
+   `vanedb-capi-<version>-linux-x86_64.zip`, parses the header it carries
+   the same way, and fails on any removed or changed prototype; an added one
+   passes, which is the header's rule. This is the layer that sees a changed
+   signature.
+2. **abidiff** (libabigail) on `lib/libvanedb_capi.so`, `--no-added-syms`.
+   The shipped library carries no DWARF (the `capi` profile inherits
+   `release`, and the packaged copy is stripped), so abidiff compares the
+   dynamic symbol tables only: it detects a removed symbol and nothing else,
+   and `--no-added-syms` hides additions too. Measured on this branch
+   against the 0.1.1 library: stripped, "0 Removed, 0 Changed" although
+   every handle parameter changed from a pointer to `uint64_t`; with debug
+   info on both sides, "0 Removed, 47 Changed", exit 4. It stays as the
+   binary-level check that a symbol the header declares has not vanished
+   from the library.
+
+`VANEDB_RS_ABI_VERSION` keys the verdict. A baseline whose header carries a
+different version, or none (0.1.1 predates the macro and counts as 0), is an
+intentional incompatible release: both layers run and print what they found,
+and the job passes with a notice. Under the same version both layers must
+pass. So ABI 1 legitimately breaks against 0.1.1, and every later build under
+ABI 1 must stay compatible with the first release that ships it.
+
+The baseline procedure:
 
 1. The job reads the version from `vanedb-capi/Cargo.toml` and lists GitHub
-   Releases with `gh`. The baseline is the newest non-draft release tagged
-   `vanedb-v<version>` (or `vanedb-crate-v<version>`) whose version is older
-   than the crate's.
-2. It downloads that release's `vanedb-capi-<version>-linux-x86_64.zip`,
-   extracts `lib/libvanedb_capi.so`, and runs
-   `abidiff --no-added-syms --headers-dir2 vanedb-capi/include <baseline> <current>`.
-3. If no older release exists, or the release carries no such asset, the job
-   prints a notice and passes without comparing. Releases before RFC 0002
-   stage 5 attached no C ABI archives, so the first baseline is the first
-   release that does — 0.2.0 itself. From then on every release is the next
-   one's baseline automatically.
+   Releases with `gh`. Candidates are non-draft releases tagged
+   `vanedb-crate-v<version>` (the crate release carries the C ABI archives)
+   or, second at the same version, `vanedb-v<version>` (the Python tag),
+   whose version is at most the crate's — so after a release the next builds
+   compare against that release itself.
+2. Candidates are tried newest-first; the first whose assets list the Linux
+   x86-64 archive is the baseline. A listed asset that fails to download
+   fails the job. Only when no release lists the archive does the job pass
+   with a notice.
+3. 0.1.1 is the first baseline (`vanedb-crate-v0.1.1` attaches all five
+   archives). From then on every release is the next one's baseline.
 
-To compare locally against any shared object:
-`python3 scripts/capi_abidiff.py target/capi/libvanedb_capi.so --baseline /path/to/old/libvanedb_capi.so`.
+To compare locally against any archive or shared object:
+`python3 scripts/capi_abidiff.py target/capi/libvanedb_capi.so --baseline /path/to/vanedb-capi-<version>-linux-x86_64.zip`
+(a bare `.so` runs the abidiff layer only; `--skip-abidiff` runs the
+prototype layer without libabigail).
 
 This is a 0.x ABI: it may change in a minor release, and
 `VANEDB_RS_ABI_VERSION` is bumped when it does. See the
 [repository guide](https://github.com/vanedb/vanedb#persistence) for persistence
-limitations, and [`docs/PLATFORMS.md`](../docs/PLATFORMS.md) for platform
+limitations, and [`docs/PLATFORMS.md`](https://github.com/vanedb/vanedb/blob/main/docs/PLATFORMS.md) for platform
 verification.

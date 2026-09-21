@@ -100,10 +100,16 @@ stage 1, #193):
   `VANEDB_RS_INVALID_HANDLE` (16) and nothing is dereferenced; a freed id is
   never reissued, so double free and use after free are reported errors.
   Passing 0 remains `VANEDB_RS_NULL_ARGUMENT` and freeing 0 remains a no-op.
-  Consumers that stored the opaque pointer type recompile against the new
-  header; the function names and every other signature are unchanged. The
-  header now states the compatibility rule: signatures never change, new
-  behaviour is a new `_ex`/`_v2` function, no struct crosses the boundary.
+  Function names are unchanged; every handle-typed parameter and return is
+  now `uint64_t`, which is a hard compile error for existing C code (the
+  typedef is an integer, so `vanedb_rs_store *s` no longer compiles).
+  Migration: drop the `*` from every `vanedb_rs_store *`, `vanedb_rs_index *`
+  and `vanedb_rs_disk *`; compare with `VANEDB_RS_NULL_HANDLE` instead of
+  `NULL`; log handles with `PRIu64` instead of `%p`; a generic `void *` slot
+  that held a handle becomes `uint64_t`; `ctypes` bindings set `restype` and
+  `argtypes` to `c_uint64`, not `c_void_p`. The header now states the
+  compatibility rule: signatures never change, new behaviour is a new
+  `_ex`/`_v2` function, no struct crosses the boundary.
 
 ### Changed
 

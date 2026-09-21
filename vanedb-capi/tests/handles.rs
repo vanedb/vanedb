@@ -483,6 +483,28 @@ fn a_handle_of_another_kind_is_rejected_not_reinterpreted() {
     assert_eq!(vanedb_rs_disk_len(live.disk), 1);
 }
 
+/// A live slot under the wrong generation is the shape a stale id takes
+/// after its slot is reused, and the one shape the random ids above never
+/// reach (their low halves name no slot). Flip a live handle's generation
+/// half by one either way: every entry point must reject it and the live
+/// handle must be untouched.
+#[test]
+fn a_live_slot_under_the_wrong_generation_is_rejected() {
+    let live = Live::new("generation");
+    for probe in probes() {
+        let id = live.of(probe.kind);
+        let generation = id >> 32;
+        let low = id & 0xFFFF_FFFF;
+        for wrong in [generation + 1, generation.wrapping_sub(1)] {
+            assert_rejected(&probe, (wrong << 32) | low, "wrong-generation");
+        }
+    }
+    assert_eq!(vanedb_rs_store_len(live.store), 0);
+    assert_eq!(vanedb_rs_last_error(), VANEDB_RS_OK);
+    assert_eq!(vanedb_rs_index_len(live.index), 0);
+    assert_eq!(vanedb_rs_disk_len(live.disk), 1);
+}
+
 /// 0 keeps its old meaning: the ABI's null, `NULL_ARGUMENT` on use and a
 /// no-op on free, so a C caller's `if (!h) ...; free(h)` idiom still holds.
 #[test]

@@ -241,9 +241,27 @@ def strip_shared(library):
 
 
 APPLE_ARCH = {"macos-aarch64": "arm64", "macos-x86_64": "x86_64"}
+APPLE_TRIPLE = {"macos-aarch64": "aarch64-apple-darwin", "macos-x86_64": "x86_64-apple-darwin"}
 
 
-def localize_commands(platform, archive, exports, combined):
+def parse_deployment_target(text):
+    """`MACOSX_DEPLOYMENT_TARGET=11.0` as rustc prints it -> `11.0`. Older
+    toolchains spelt it `deployment_target=`; both are accepted."""
+    match = re.search(r"(?:MACOSX_DEPLOYMENT_TARGET|deployment_target)=([0-9.]+)", text)
+    if not match:
+        raise SystemExit(f"rustc did not report a deployment target: {text!r}")
+    return match.group(1)
+
+
+def apple_deployment_target(platform):
+    """The minimum macOS the library itself was built for, from rustc, so the
+    combined object carries the same minimum and not the host's."""
+    output = subprocess.check_output(["rustc", "--print", "deployment-target",
+                                      "--target", APPLE_TRIPLE[platform]], text=True)
+    return parse_deployment_target(output)
+
+
+def localize_commands(platform, archive, exports, combined, deployment_target=None):
     """The commands that merge a static library into one relocatable object
     with only vanedb_rs_* global, and the one that repacks it.
 
@@ -252,9 +270,21 @@ def localize_commands(platform, archive, exports, combined):
     `combined` after the original is removed. `None` when the platform has
     no localization (Windows).
 
-    Apple's `ld -r` cannot infer the slice from a static archive and refuses
-    to guess ("ld: Missing -arch option"), so the arch comes from the
-    platform name. `libtool -static` takes no arch.
+    Apple's `ld -r` cannot infer the slice from a static archive ("Missing
+    -arch option") and, given an arch, wants the platform and versions too
+    ("Missing -platform_version option"). The relocatable link therefore
+    goes through the compiler driver, which supplies both from `-arch` and
+    `-mmacosx-version-min`; the minimum is what rustc built the library for
+    (`rustc --print deployment-target`), not the host. `libtool -static`
+    takes neither.
+
+    The `capi` profile's fat LTO keeps `-C embed-bitcode=yes` (cargo passes
+    `no` only without LTO), so every staticlib object carries LLVM bitcode:
+    `__LLVM,__bitcode` on Mach-O, `.llvmbc` and `.llvmcmd` on ELF. Apple's
+    `nm` (LLVM 17 in Xcode 16) fails to parse bitcode written by rustc's
+    LLVM 22, and on Linux it is dead weight in the shipped archive. It is
+    stripped from the combined object: `xcrun bitcode_strip -r` on macOS,
+    `objcopy --remove-section` on Linux. Nothing links against it.
     """
     archive, combined = str(archive), str(combined)
     exports = Path(exports)
@@ -262,13 +292,20 @@ def localize_commands(platform, archive, exports, combined):
     if family == "linux":
         return (
             [["ld", "-r", "--whole-archive", archive, "--no-whole-archive", "-o", combined],
-             ["objcopy", f"--keep-global-symbols={exports / 'vanedb_capi.syms'}", combined]],
+             ["objcopy", f"--keep-global-symbols={exports / 'vanedb_capi.syms'}",
+              "--remove-section", ".llvmbc", "--remove-section", ".llvmcmd", combined]],
             ["ar", "rcs", archive, combined],
         )
     if family == "macos":
+        if deployment_target is None:
+            raise ValueError("a macOS relocatable link needs the deployment target")
         return (
-            [["ld", "-r", "-arch", APPLE_ARCH[platform], "-force_load", archive,
-              "-exported_symbols_list", str(exports / "vanedb_capi.exp"), "-o", combined]],
+            [["xcrun", "clang", "-arch", APPLE_ARCH[platform],
+              f"-mmacosx-version-min={deployment_target}", "-nostdlib", "-r",
+              f"-Wl,-force_load,{archive}",
+              f"-Wl,-exported_symbols_list,{exports / 'vanedb_capi.exp'}",
+              "-o", combined],
+             ["xcrun", "bitcode_strip", "-r", combined, "-o", combined]],
             ["libtool", "-static", "-o", archive, combined],
         )
     return None
@@ -284,14 +321,15 @@ def localize_static(archive, work, platform):
     everything not on the allowlist is made local. Undefined symbols (the
     system libraries from native-static-libs) are untouched by definition.
 
-    Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `ld -r -arch`
-    with `-exported_symbols_list`, then `libtool -static`. Windows: no
+    Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `clang -r` with
+    `-exported_symbols_list`, then `libtool -static`. Windows: no
     equivalent of `objcopy` for COFF archives is shipped with MSVC, so the
     static library is packaged as rustc produced it; this is recorded in the
     README.
     """
+    target = apple_deployment_target(platform) if platform.startswith("macos") else None
     commands = localize_commands(platform, archive, ROOT / "vanedb-capi/exports",
-                                 work / "vanedb_capi_combined.o")
+                                 work / "vanedb_capi_combined.o", target)
     if commands is None:
         return False
     combine, repack = commands
@@ -314,7 +352,19 @@ def static_globals(archive):
     return sorted(n[1:] if n.startswith("_") else n for n in names)
 
 
+def bitcode_sections(archive):
+    """Names of embedded-bitcode sections or segments still in the archive."""
+    if sys.platform == "linux":
+        listing = subprocess.check_output(["readelf", "-S", "-W", str(archive)], text=True)
+        return sorted({name for name in (".llvmbc", ".llvmcmd") if name in listing})
+    listing = subprocess.check_output(["otool", "-l", str(archive)], text=True)
+    return ["__LLVM"] if "segname __LLVM" in listing or "sectname __bitcode" in listing else []
+
+
 def check_static_globals(archive):
+    leftover = bitcode_sections(archive)
+    if leftover:
+        raise SystemExit(f"{archive.name} still carries embedded bitcode: {leftover}")
     globals_ = static_globals(archive)
     stray = [n for n in globals_ if not n.startswith("vanedb_rs_")]
     if stray:

@@ -72,3 +72,23 @@ fn the_plain_list_matches_the_header() {
         .collect();
     assert_eq!(listed, declared());
 }
+
+/// The signature list the ABI gate diffs against a baseline release's
+/// header: one prototype per declared function, no more, no fewer. The
+/// exact prototype text is checked by `scripts/test_capi_abidiff.py`
+/// against the generator; this holds the set of names without Python.
+#[test]
+fn the_signature_list_names_exactly_the_declared_functions() {
+    let listed: BTreeSet<String> = exports("vanedb_capi.sigs")
+        .lines()
+        .map(|line| {
+            let open = line.find('(').expect("a prototype has a parameter list");
+            line[..open]
+                .rsplit([' ', '*'])
+                .next()
+                .expect("a prototype names its function")
+                .to_string()
+        })
+        .collect();
+    assert_eq!(listed, declared());
+}

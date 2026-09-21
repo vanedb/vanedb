@@ -8,14 +8,6 @@ fn main() {
         // final linker flags; these apply to the C ABI shared library.
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384");
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,common-page-size=16384");
-        // On a 4 KiB-page device bionic rounds the PT_GNU_RELRO range to its
-        // own page size; with 16 KiB-aligned LOAD segments that range can
-        // reach into an unmapped gap between two segments, and the loader
-        // fails with "can't enable GNU RELRO protection: Out of memory".
-        // Placing every LOAD segment on its own page-aligned boundary in file
-        // and memory leaves no gap to cross. The acceptance executable in
-        // scripts/test_android.sh carries the same three flags.
-        println!("cargo:rustc-link-arg-cdylib=-Wl,-z,separate-loadable-segments");
     }
 
     // The exported-symbol allowlist (RFC 0002 stage 1). `exports/` holds

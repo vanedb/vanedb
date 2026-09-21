@@ -19,10 +19,13 @@ STATIC_LIBS := $(filter-out -lvanedb_capi,$(shell $(PKG_CONFIG) --static --libs-
 .PHONY: all test clean
 all: $(OUT)/acceptance_shared $(OUT)/acceptance_static
 
-$(OUT)/acceptance_shared: $(SOURCE)
+$(OUT):
+	mkdir -p $(OUT)
+
+$(OUT)/acceptance_shared: $(SOURCE) | $(OUT)
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags vanedb) $< -o $@ $(shell $(PKG_CONFIG) --libs vanedb) -Wl,-rpath,$(LIBDIR)
 
-$(OUT)/acceptance_static: $(SOURCE)
+$(OUT)/acceptance_static: $(SOURCE) | $(OUT)
 	$(CC) $(CFLAGS) $(shell $(PKG_CONFIG) --cflags vanedb) $< -o $@ $(LIBDIR)/libvanedb_capi.a $(STATIC_LIBS)
 
 test: all

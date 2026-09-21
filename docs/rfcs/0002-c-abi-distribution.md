@@ -1,6 +1,6 @@
 # RFC 0002: C ABI distribution
 
-- Status: accepted (2026-09-13)
+- Status: accepted (2026-09-13); stage 1 implemented (2026-09-21)
 - Milestone: 0.2.0 (stages 1 and 5), 0.3.0 (stages 2, 3 and 4)
 - Tracking issues: #193 (stage 1), #194 (stage 2), #195 (stage 3), #196 (stage 4), #197 (stage 5)
 - Supersedes / superseded by: none
@@ -68,9 +68,15 @@ only the installed layout.
   `vanedb::static`, with `INTERFACE_LINK_LIBRARIES` on the static target set
   from `cargo rustc --print native-static-libs` at package time.
 - `lib/pkgconfig/vanedb.pc` with `Libs`, `Libs.private`, `Cflags`.
-- `abidiff` (libabigail) in CI on Linux against the previous tagged release's
-  shared object; a removed or changed symbol fails the job. The first tagged
-  baseline is 0.2.0 itself.
+- An ABI gate in CI on Linux against the previous tagged release's archive,
+  in two layers: the header's prototypes (normalised: return type, name,
+  parameter types), diffed against the baseline archive's header, fail on a
+  removed or changed prototype; `abidiff` (libabigail) on the shared object
+  fails on a removed symbol, which is all it can see without debug info in
+  the stripped, `release`-derived library. `VANEDB_RS_ABI_VERSION` keys the
+  verdict: a baseline at another version is an intentional break, reported
+  and passed. The first baseline is 0.1.1, whose crate release attaches the
+  archives.
 - The header compiles as C99, C11 and C++17 under
   `-Wall -Wextra -pedantic -Werror` (Clang, GCC, MSVC `/W4 /WX`).
 - Release profile for the crate: `lto = "fat"`, `codegen-units = 1`,
@@ -127,7 +133,7 @@ only the installed layout.
   documenting `restype` (which leaves the crash reachable by every future
   binding author). Tracked in #193.
 - 2026-09-21: stage 1 implemented; see the implementation notes under the
-  acceptance criteria for the four places the result differs from the text.
+  acceptance criteria for the places the result differs from the text.
 
 ## Alternatives rejected
 
@@ -143,10 +149,16 @@ only the installed layout.
 
 ## Compatibility and migration
 
-- Function names and signatures are unchanged except that handle-typed
-  parameters and returns become `uint64_t`. Consumers that stored the
-  opaque pointer type recompile; consumers that never dereferenced it need
-  no source change. `vanedb_rs_abi_version()` is additive.
+- Function names are unchanged; every handle-typed parameter and return
+  becomes `uint64_t`. This is a source-incompatible change for every C
+  consumer: `vanedb_rs_store *s` no longer compiles (the typedef is an
+  integer, and Clang 18 reports four hard errors on the quickstart of
+  0.1.1). Migration: drop the `*` from `vanedb_rs_store *`,
+  `vanedb_rs_index *` and `vanedb_rs_disk *`; compare with
+  `VANEDB_RS_NULL_HANDLE` instead of `NULL`; log with `PRIu64` instead of
+  `%p`; a `void *` slot that held a handle becomes `uint64_t`; `ctypes`
+  bindings set `restype`/`argtypes` to `c_uint64`, not `c_void_p`.
+  `vanedb_rs_abi_version()` is additive.
 - The existing zips keep their layout and gain `lib/cmake` and
   `lib/pkgconfig`.
 - Consumers who linked the raw `.so` or `.dylib` from a CI artifact continue
@@ -163,15 +175,18 @@ Stage 1 (#193), implemented 2026-09-21:
       crash; `vanedb-py` is unaffected (PyO3, not the C ABI); the README's
       C ABI section gains a `ctypes` snippet that sets `restype` and
       `argtypes`, for callers who bypass the header.
-- [x] Exported symbols of the shared library on Linux, macOS and Windows are
+- [ ] Exported symbols of the shared library on Linux, macOS and Windows are
       exactly the `vanedb_rs_*` set; a CI step asserts it with `nm`/`dumpbin`.
-- [x] A consumer project using only `find_package(vanedb)` builds, links both
+      (Linux x86-64 verified locally; ticked against a green run of every leg.)
+- [ ] A consumer project using only `find_package(vanedb)` builds, links both
       imported targets, and passes `acceptance.c` on Linux x86-64, Linux ARM64,
-      macOS ARM64, macOS x86-64 and Windows x64.
-- [x] A consumer using only `pkg-config --cflags --libs vanedb` does the same
-      on Linux and macOS.
-- [x] Header compiles warning-free as C99, C11 and C++17 on Clang, GCC and MSVC.
-- [x] `abidiff` job present; documented baseline procedure for the first tag.
+      macOS ARM64, macOS x86-64 and Windows x64. (Linux x86-64 verified
+      locally; ticked against a green run of every leg.)
+- [ ] A consumer using only `pkg-config --cflags --libs vanedb` does the same
+      on Linux and macOS. (Linux verified locally; ticked against a green run.)
+- [ ] Header compiles warning-free as C99, C11 and C++17 on Clang, GCC and MSVC.
+      (Clang and GCC verified locally; ticked against a green Windows run.)
+- [x] ABI gate job present; documented baseline procedure for the first tag.
 - [x] Release profile applied; shared-library size before and after recorded
       in the README.
 
@@ -181,14 +196,35 @@ above:
 - The static-library post-processing is done on Linux and macOS. MSVC ships
   no equivalent of `objcopy` for COFF archives, so the Windows static library
   keeps rustc's global symbols; the README says so. Not an acceptance box.
+  The same step strips the LLVM bitcode that fat LTO embeds in every
+  staticlib object (rustc keeps `embed-bitcode=yes` under LTO): Apple's `nm`
+  cannot parse rustc's newer bitcode, and on Linux it was most of the
+  shipped archive. On macOS the relocatable link is driven through `clang`
+  rather than `ld -r`, which requires `-arch` and `-platform_version` for a
+  static archive; the deployment target comes from `rustc --print
+  deployment-target`.
 - No GNU version script is passed: rustc already restricts a `cdylib` to
   its `#[no_mangle]` set with an anonymous one, and GNU ld refuses a second
   script beside it (only lld tolerates the pair). On ELF the `nm` assertion
   in CI is the gate; the Apple linker takes the generated list beside
   rustc's; on MSVC the generated `.def` feeds the `dumpbin` check rather
   than the link, since link.exe takes one definition file.
-- Release tags are `vanedb-v<version>` in this repository, not
-  `vanedb-crate-v<version>`; the abidiff baseline lookup accepts both.
+- The ABI gate's baseline is the `vanedb-crate-v<version>` release, which
+  is the one that attaches the C ABI archives (`vanedb-v<version>` is the
+  Python tag, tried second at the same version). 0.1.1 is the first
+  baseline, not 0.2.0 as the text above assumed: `vanedb-crate-v0.1.1`
+  attaches all five archives. The gate keys on `VANEDB_RS_ABI_VERSION`, so
+  ABI 1 is reported as an intentional break against 0.1.1 and passes; the
+  same version must be compatible.
+- The gate has two layers rather than abidiff alone: abidiff on the shipped
+  library sees the dynamic symbol table only (no DWARF: the `capi` profile
+  inherits `release` and the package is stripped), so it detects removals
+  and nothing else. The committed `exports/vanedb_capi.sigs` prototype list,
+  diffed against the baseline archive's header, is what detects a changed
+  signature.
+- The MSVC "C99" leg of the header check is MSVC's default C mode: MSVC has
+  no C99-only switch (`/Za` would reject the Windows headers), so the legs
+  are default C, `/std:c11` and `/std:c++17`, all under `/W4 /WX`.
 - 0 stays the null handle (`VANEDB_RS_NULL_ARGUMENT` on use, no-op on free)
   so the C cleanup idiom is unchanged; every other bad id is
   `VANEDB_RS_INVALID_HANDLE`.

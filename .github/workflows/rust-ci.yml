@@ -376,7 +376,7 @@ jobs:
         run: python3 scripts/check_capi_header.py
 
   abidiff:
-    name: C ABI abidiff against the previous release
+    name: C ABI gate against the previous release
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -391,12 +391,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends abigail-tools
           abidiff --version
       - run: cargo build -p vanedb-capi --profile capi --locked
-      # The baseline is the previous tagged release's Linux x86-64 archive.
-      # A removed or changed symbol fails; additions are allowed, which is
-      # the header's rule. Until a release ships that archive (RFC 0002
-      # stage 5; the first is 0.2.0 itself) the script skips with a notice
-      # rather than passing silently. The baseline procedure is documented in
-      # vanedb-capi/README.md.
+      # Two layers against the previous vanedb-crate-v<version> release's
+      # Linux x86-64 archive (0.1.1 is the first): the header's prototypes,
+      # diffed against the archive's header, fail on a removed or changed
+      # signature; abidiff on the stripped .so sees the dynamic symbol table
+      # only, so it fails on a removed symbol and nothing else. A baseline at
+      # another VANEDB_RS_ABI_VERSION is an intentional break: reported,
+      # passed with a notice. Same version: both layers must be clean. The
+      # procedure is documented in vanedb-capi/README.md.
       - name: Compare the shared library against the previous tagged release
         env:
           GH_TOKEN: ${{ github.token }}

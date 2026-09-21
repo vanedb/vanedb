@@ -10,6 +10,7 @@ this script is what the Windows leg runs, and the explicit step elsewhere.
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -60,13 +61,22 @@ def available(command):
 
 
 def gnu_compilers():
+    """(name, language) per distinct toolchain. `cc` and `c++` are usually
+    aliases of gcc/g++ or clang/clang++; a compiler is counted once per
+    resolved binary, under the first name that reached it."""
     found = []
-    for candidate in [os.environ.get("CC", "cc"), "gcc", "clang"]:
-        if candidate and candidate not in [c for c, _ in found] and available([candidate, "--version"]):
-            found.append((candidate, "c"))
-    for candidate in [os.environ.get("CXX", "c++"), "g++", "clang++"]:
-        if candidate and candidate not in [c for c, _ in found] and available([candidate, "--version"]):
-            found.append((candidate, "c++"))
+    seen = set()
+    for language, candidates in [("c", [os.environ.get("CC", "cc"), "gcc", "clang"]),
+                                 ("c++", [os.environ.get("CXX", "c++"), "g++", "clang++"])]:
+        for candidate in candidates:
+            path = shutil.which(candidate) if candidate else None
+            if not path or not available([candidate, "--version"]):
+                continue
+            identity = (language, os.path.realpath(path))
+            if identity in seen:
+                continue
+            seen.add(identity)
+            found.append((candidate, language))
     return found
 
 
@@ -89,24 +99,41 @@ def vcvars():
     return matches[0]
 
 
+MSVC_LEGS = [
+    # /Za would reject the Windows headers and MSVC has no C99-only switch,
+    # so its default C mode stands in for C99; /std:c11 is the C11 leg.
+    ("C (default mode)", ["/W4", "/WX", "/c", "/Tc", "tu.c"]),
+    ("C11", ["/W4", "/WX", "/std:c11", "/c", "/Tc", "tu.c"]),
+    ("C++17", ["/W4", "/WX", "/std:c++17", "/c", "/Tp", "tu.cpp"]),
+]
+
+
+def msvc_batch(vcvars_path, include, work):
+    """The batch file that runs every MSVC leg.
+
+    A `cmd /c "call \"...vcvars64.bat\" && cl ..."` list element does not
+    survive subprocess: list2cmdline escapes the inner quotes to \" and cmd
+    then looks for a program literally named \"C:\...\". A batch file
+    carries the quoted path verbatim.
+    """
+    # Paths are joined with a backslash by hand so the text is the same on
+    # every host (the unit test runs on Linux). /Fo is not quoted: cl reads a
+    # trailing `\"` as an escaped quote, and the temp dir has no spaces.
+    lines = ["@echo off", f'call "{vcvars_path}" >nul || exit /b 1']
+    for _, leg in MSVC_LEGS:
+        arguments = " ".join(f"{work}\\{a}" if a.startswith("tu.") else a for a in leg)
+        lines.append(f'cl /nologo /I"{include}" /Fo{work}\\ {arguments} || exit /b 1')
+    return "\r\n".join(lines) + "\r\n"
+
+
 def run_msvc(work):
-    source_c = work / "tu.c"
-    source_cpp = work / "tu.cpp"
-    source_c.write_text(SOURCE)
-    source_cpp.write_text(SOURCE)
-    batch = vcvars()
-    # /Za would reject the Windows headers; C99-only mode has no switch, so
-    # the default C mode stands in for it and /std:c11 is the C11 leg.
-    legs = [
-        ["/W4", "/WX", "/c", "/Tc", str(source_c)],
-        ["/W4", "/WX", "/std:c11", "/c", "/Tc", str(source_c)],
-        ["/W4", "/WX", "/std:c++17", "/c", "/Tp", str(source_cpp)],
-    ]
-    for leg in legs:
-        cl = " ".join(["cl", "/nologo", f"/I{INCLUDE}", f"/Fo{work}\\", *leg])
-        command = ["cmd", "/c", f'call "{batch}" >nul && {cl}']
-        print("+", cl, flush=True)
-        subprocess.run(command, check=True)
+    (work / "tu.c").write_text(SOURCE)
+    (work / "tu.cpp").write_text(SOURCE)
+    batch = work / "check_header.bat"
+    text = msvc_batch(vcvars(), INCLUDE, work)
+    batch.write_text(text, newline="")
+    print(text, flush=True)
+    subprocess.run(["cmd", "/c", str(batch)], check=True)
 
 
 def main():
@@ -114,14 +141,16 @@ def main():
         work = Path(temporary)
         if sys.platform == "win32":
             run_msvc(work)
-            print("MSVC /W4 /WX: C (default), C11 and C++17 accepted the header")
+            print("MSVC /W4 /WX: " + ", ".join(name for name, _ in MSVC_LEGS) + " accepted the header")
             return
         compilers = gnu_compilers()
         if not compilers:
             raise SystemExit("no C or C++ compiler found")
         for compiler, language in compilers:
             run_gnu(compiler, language, work)
-        print(f"{len(compilers)} compilers accepted the header under -Wall -Wextra -pedantic -Werror")
+        names = ", ".join(name for name, _ in compilers)
+        print(f"{len(compilers)} distinct toolchains ({names}) accepted the header "
+              f"under -Wall -Wextra -pedantic -Werror")
 
 
 if __name__ == "__main__":

@@ -3,11 +3,15 @@
 
 `generate` reads every `vanedb_rs_*` function declared in
 `vanedb-capi/include/vanedb_rs_capi.h` and writes the same set in the two
-spellings linkers take, plus a plain list for `objcopy`:
+spellings linkers take, a plain list for `objcopy`, and the canonical
+signature list the ABI gate diffs against a baseline release's header:
 
     vanedb-capi/exports/vanedb_capi.exp   Apple -exported_symbols_list
     vanedb-capi/exports/vanedb_capi.def   Windows module-definition file
     vanedb-capi/exports/vanedb_capi.syms  one symbol per line, no decoration
+    vanedb-capi/exports/vanedb_capi.sigs  one normalised prototype per line:
+                                          return type, name, parameter types
+                                          (parameter names dropped), sorted
 
 `check <library>` lists the defined, external symbols of a built shared
 library with the platform's tool (`nm -D --defined-only`, `nm -gU`, or
@@ -46,19 +50,73 @@ def functions(header_text):
     return names
 
 
-def render(names):
+PREPROCESSOR = re.compile(r"^[ \t]*#.*$", re.MULTILINE)
+BRACES = re.compile(r'extern "C" \{|^\s*\}\s*$', re.MULTILINE)
+STATEMENT = re.compile(r"\s*(.*?)\s*\b(vanedb_rs_[a-z0-9_]+)\s*\((.*)\)\s*", re.DOTALL)
+ABI_VERSION = re.compile(r"^#define VANEDB_RS_ABI_VERSION (\d+)$", re.MULTILINE)
+
+
+def normalise_parameter(parameter):
+    """`const float *q` -> `const float *`: the type only, so renaming a
+    parameter is not a signature change while retyping one is."""
+    parameter = " ".join(parameter.split())
+    tokens = [t for t in re.split(r"(\*)|\s+", parameter) if t]
+    if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", tokens[-1]) and tokens[-2] != "const":
+        parameter = parameter[: len(parameter) - len(tokens[-1])].rstrip()
+    return parameter
+
+
+def prototypes(header_text):
+    """{name: normalised prototype} for every function the header declares.
+
+    Statements end in `;`; preprocessor lines and the extern "C" braces are
+    removed first so a declaration's return type is what precedes its name
+    within the statement. The function-pointer typedef and the handle
+    typedefs start with `typedef` and are skipped.
+    """
+    text = BRACES.sub("", PREPROCESSOR.sub("", COMMENT.sub("", header_text)))
+    found = {}
+    for statement in text.split(";"):
+        if statement.strip().startswith("typedef"):
+            continue
+        match = STATEMENT.fullmatch(statement)
+        if not match:
+            continue
+        returns, name, parameters = match.groups()
+        returns = " ".join(returns.split())
+        parameters = ", ".join(normalise_parameter(p) for p in parameters.split(","))
+        found[name] = re.sub(r"\*\s+vanedb", "*vanedb", f"{returns} {name}({parameters})")
+    if not found:
+        raise SystemExit("no vanedb_rs_* prototypes found; is the header generated?")
+    return found
+
+
+def abi_version(header_text):
+    """VANEDB_RS_ABI_VERSION, or None for a header that predates it."""
+    match = ABI_VERSION.search(header_text)
+    return int(match.group(1)) if match else None
+
+
+def render(names, signatures):
     apple = "".join(f"_{n}\n" for n in names)
     module_definition = "EXPORTS\n" + "".join(f"    {n}\n" for n in names)
     plain = "".join(f"{n}\n" for n in names)
+    sigs = "".join(f"{signatures[n]}\n" for n in names)
     return {
         "vanedb_capi.exp": apple,
         "vanedb_capi.def": module_definition,
         "vanedb_capi.syms": plain,
+        "vanedb_capi.sigs": sigs,
     }
 
 
 def generate(verify=False):
-    rendered = render(functions(HEADER.read_text(encoding="utf-8")))
+    header_text = HEADER.read_text(encoding="utf-8")
+    names, signatures = functions(header_text), prototypes(header_text)
+    if set(names) != set(signatures):
+        raise SystemExit(f"prototype parse disagrees with the name parse: "
+                         f"{sorted(set(names) ^ set(signatures))}")
+    rendered = render(names, signatures)
     if verify:
         stale = [name for name, text in rendered.items()
                  if not (EXPORTS / name).exists() or (EXPORTS / name).read_text(encoding="utf-8") != text]
