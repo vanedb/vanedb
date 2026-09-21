@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::io::{BufWriter, Read, Write};
 use std::path::Path;
@@ -13,6 +13,7 @@ use super::derive_mult;
 use super::{ApproxIndex, Inner, MAX_LEVEL};
 use crate::distance::{distance_fn, Metric};
 use crate::error::{Result, VaneError};
+use crate::id_hash::IdMap;
 
 use super::storage::ChunkedVectors;
 use super::MAX_ELEMENTS;
@@ -48,7 +49,7 @@ pub(super) struct HnswData {
     pub(super) ext_ids: Vec<u64>,
     pub(super) levels: Vec<i32>,
     pub(super) neighbors: Vec<Vec<Vec<usize>>>,
-    pub(super) id_map: HashMap<u64, usize>,
+    pub(super) id_map: IdMap<usize>,
 }
 
 pub(super) fn metric_to_u32(m: Metric) -> u32 {

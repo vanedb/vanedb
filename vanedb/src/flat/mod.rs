@@ -5,7 +5,7 @@ pub(crate) mod topk;
 
 pub use search_result::SearchResult;
 
-use std::collections::{HashMap, HashSet};
+use crate::id_hash::{IdMap, IdSet};
 
 use parking_lot::RwLock;
 
@@ -42,7 +42,7 @@ pub struct FlatIndex {
 struct Inner {
     ids: Vec<u64>,
     data: Vec<f32>,
-    id_to_index: HashMap<u64, usize>,
+    id_to_index: IdMap<usize>,
 }
 
 impl std::fmt::Debug for FlatIndex {
@@ -81,7 +81,7 @@ impl FlatIndex {
             inner: RwLock::new(Inner {
                 ids: Vec::new(),
                 data: Vec::new(),
-                id_to_index: HashMap::new(),
+                id_to_index: IdMap::default(),
             }),
         })
     }
@@ -126,7 +126,7 @@ impl FlatIndex {
         }
         validate_finite(vectors, "vector batch")?;
         let mut inner = self.inner.write();
-        let mut seen = HashSet::with_capacity(ids.len());
+        let mut seen = IdSet::with_capacity_and_hasher(ids.len(), Default::default());
         for &id in ids {
             if inner.id_to_index.contains_key(&id) || !seen.insert(id) {
                 return Err(VaneError::DuplicateId { id });

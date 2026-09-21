@@ -2,7 +2,7 @@
 
 use std::cell::RefCell;
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use parking_lot::RwLock;
@@ -12,6 +12,7 @@ use rand::SeedableRng;
 use crate::distance::{distance_fn, DistanceFn, Metric};
 use crate::error::{Result, VaneError};
 use crate::flat::SearchResult;
+use crate::id_hash::{IdMap, IdSet};
 use crate::validation::{compare_distances, validate_finite, validate_query, validate_vector};
 use storage::ChunkedVectors;
 
@@ -150,7 +151,7 @@ pub struct ApproxIndex {
 pub(super) struct Inner {
     pub(super) vectors: ChunkedVectors,
     pub(super) ext_ids: Vec<u64>,
-    pub(super) id_map: HashMap<u64, usize>,
+    pub(super) id_map: IdMap<usize>,
     pub(super) levels: Vec<i32>,
     pub(super) neighbors: Vec<Vec<Vec<usize>>>,
     pub(super) entry_point: Option<usize>,
@@ -390,7 +391,7 @@ impl ApproxIndex {
         *inner = Inner {
             vectors: ChunkedVectors::with_capacity(self.dim, live.len()),
             ext_ids: Vec::with_capacity(live.len()),
-            id_map: HashMap::with_capacity(live.len()),
+            id_map: IdMap::with_capacity_and_hasher(live.len(), Default::default()),
             levels: Vec::with_capacity(live.len()),
             neighbors: Vec::with_capacity(live.len()),
             deleted: Vec::with_capacity(live.len()),
@@ -507,7 +508,7 @@ impl ApproxIndex {
 
         let mut inner = self.inner.write();
 
-        let mut seen = HashSet::with_capacity(ids.len());
+        let mut seen = IdSet::with_capacity_and_hasher(ids.len(), Default::default());
         for &id in ids {
             if inner.id_map.contains_key(&id) || !seen.insert(id) {
                 return Err(VaneError::DuplicateId { id });
@@ -1100,7 +1101,7 @@ impl ApproxIndexBuilder {
             inner: RwLock::new(Inner {
                 vectors,
                 ext_ids: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
-                id_map: HashMap::new(),
+                id_map: IdMap::default(),
                 levels: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
                 neighbors: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),
                 deleted: Vec::with_capacity(self.capacity.min(RESERVE_CAP)),

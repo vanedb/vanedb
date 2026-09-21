@@ -1,12 +1,12 @@
 //! VNDB graph codec. The field table lives in conformance/graph/README.md.
 
-use std::collections::HashMap;
 use std::io::{self, Write};
 use std::sync::atomic::Ordering;
 
 use super::persistence::{HnswData, RngState};
 use super::{derive_mult, ApproxIndex, Inner, MAX_ELEMENTS, MAX_LEVEL};
 use crate::error::{Result, VaneError};
+use crate::id_hash::IdMap;
 
 pub(super) const MAGIC: &[u8; 4] = b"VNDB";
 const VERSION: u32 = 2;
@@ -190,7 +190,7 @@ pub(super) fn read(bytes: &[u8]) -> Result<(HnswData, RngState)> {
     let mut ext_ids = reserve(count)?;
     let mut levels = reserve(count)?;
     let mut neighbors = reserve(count)?;
-    let mut id_map = HashMap::new();
+    let mut id_map = IdMap::default();
     id_map
         .try_reserve(count)
         .map_err(|_| VaneError::corrupt("graph identity allocation failed"))?;

@@ -29,6 +29,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Changed
 
+- Internal id maps use an in-crate multiplicative hasher instead of SipHash
+  (RFC 0010, #109); `DiskIndexBuilder::add` and the batch adds check
+  finiteness block-wise (#77). No format or API change: saved bytes and
+  result order are pinned by `vanedb/tests/rfc0010_identity.rs`.
 - The `gpu-metal` feature is documented as experimental (#208): it exposes the
   standalone `MetalCompute` scan API on macOS and accelerates no index. The
   crate README no longer presents it as a capability; `docs/LIMITS.md` records
