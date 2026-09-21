@@ -299,6 +299,46 @@ mod tests {
         );
     }
 
+    /// Structured families must insert within this factor of random keys.
+    const BOUND: f64 = 3.0;
+    /// A single run is abandoned past this multiple of the random baseline...
+    const CEILING_FACTOR: u32 = 20;
+    /// ...but never sooner than this, so a fast baseline cannot starve a run.
+    const CEILING_FLOOR: Duration = Duration::from_secs(2);
+
+    /// Judges one family: `None` is a run that passed the ceiling, otherwise
+    /// the ratio to the random baseline must be within [`BOUND`]. Returns
+    /// the ratio. Factored out of the timing test so both failure arms can
+    /// be exercised with numbers instead of a collapsed hasher.
+    fn check_family_time(
+        name: &str,
+        elapsed: Option<Duration>,
+        baseline: Duration,
+        ceiling: Duration,
+    ) -> f64 {
+        let Some(elapsed) = elapsed else {
+            panic!(
+                "{name}: a run passed the {:.3}s ceiling ({CEILING_FACTOR}x the random \
+                 baseline of {:.3}s); the id hasher has collapsed on structured keys",
+                ceiling.as_secs_f64(),
+                baseline.as_secs_f64()
+            );
+        };
+        let ratio = elapsed.as_secs_f64() / baseline.as_secs_f64();
+        println!(
+            "{name}: {:.3}s, {ratio:.2}x the baseline",
+            elapsed.as_secs_f64()
+        );
+        assert!(
+            ratio <= BOUND,
+            "{name}: {:.3}s is {ratio:.2}x the random baseline of {:.3}s; \
+             the id hasher is degenerating on structured keys",
+            elapsed.as_secs_f64(),
+            baseline.as_secs_f64()
+        );
+        ratio
+    }
+
     /// RFC 0010: 1M sequential ids and 1M ids sharing their low bits must
     /// insert within a bounded factor of 1M random ids.
     ///
@@ -315,10 +355,6 @@ mod tests {
     /// timing-free statement of the same property.
     #[test]
     fn adversarial_families_insert_within_bound() {
-        const BOUND: f64 = 3.0;
-        const CEILING_FACTOR: u32 = 20;
-        const CEILING_FLOOR: Duration = Duration::from_secs(2);
-
         let (random, structured) = families();
 
         // Warm the allocator and the code once so the first timed family is
@@ -333,25 +369,112 @@ mod tests {
             ceiling.as_secs_f64()
         );
         for (name, keys) in &structured {
-            let Some(elapsed) = time_inserts(keys, ceiling) else {
-                panic!(
-                    "{name}: a run passed the {:.3}s ceiling ({CEILING_FACTOR}x the random \
-                     baseline of {:.3}s); the id hasher has collapsed on structured keys",
-                    ceiling.as_secs_f64(),
-                    baseline.as_secs_f64()
-                );
-            };
-            let ratio = elapsed.as_secs_f64() / baseline.as_secs_f64();
-            println!(
-                "{name}: {:.3}s, {ratio:.2}x the baseline",
-                elapsed.as_secs_f64()
-            );
+            check_family_time(name, time_inserts(keys, ceiling), baseline, ceiling);
+        }
+    }
+
+    /// The abandon path of the timed insert: a ceiling that has already
+    /// passed at the first clock check returns `None` from the run and from
+    /// the min-of-three around it, and the same keys complete under an
+    /// unreachable ceiling.
+    #[test]
+    fn a_run_past_the_ceiling_is_abandoned() {
+        let keys: Vec<u64> = (0..2 * 4096).collect();
+        assert_eq!(insert_all_within(&keys, Duration::ZERO), None);
+        assert_eq!(time_inserts(&keys, Duration::ZERO), None);
+        assert!(insert_all_within(&keys, Duration::MAX).is_some());
+        assert!(time_inserts(&keys, Duration::MAX).is_some());
+    }
+
+    #[test]
+    fn family_check_accepts_a_ratio_within_the_bound() {
+        let ratio = check_family_time(
+            "healthy",
+            Some(Duration::from_secs(2)),
+            Duration::from_secs(1),
+            Duration::from_secs(20),
+        );
+        assert_eq!(ratio, 2.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "has collapsed on structured keys")]
+    fn family_check_rejects_an_abandoned_run() {
+        check_family_time(
+            "abandoned",
+            None,
+            Duration::from_secs(1),
+            Duration::from_secs(20),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "is degenerating on structured keys")]
+    fn family_check_rejects_a_ratio_past_the_bound() {
+        check_family_time(
+            "slow",
+            Some(Duration::from_secs(4)),
+            Duration::from_secs(1),
+            Duration::from_secs(20),
+        );
+    }
+
+    /// Low hash bits hashbrown turns into a bucket index, for the
+    /// occupancy check.
+    const BUCKET_BITS: u32 = 21;
+    const BUCKETS: usize = 1 << BUCKET_BITS;
+    /// hashbrown's control tag is the top 7 bits.
+    const TAGS: usize = 1 << 7;
+    const BUCKET_TOLERANCE: f64 = 0.05;
+    const TAG_TOLERANCE: f64 = 0.05;
+
+    /// What one family leaves in the bucket and tag space.
+    struct Spread {
+        distinct: usize,
+        tags: [u64; TAGS],
+    }
+
+    fn spread(keys: &[u64]) -> Spread {
+        let mut occupied = vec![0u64; BUCKETS / 64];
+        let mut tags = [0u64; TAGS];
+        for &key in keys {
+            let hash = mix(key);
+            let bucket = hash as usize & (BUCKETS - 1);
+            occupied[bucket / 64] |= 1 << (bucket % 64);
+            tags[(hash >> (64 - 7)) as usize] += 1;
+        }
+        let distinct = occupied.iter().map(|w| w.count_ones() as usize).sum();
+        Spread { distinct, tags }
+    }
+
+    /// The uniform expectation for `keys` keys: distinct buckets within
+    /// [`BUCKET_TOLERANCE`] of `BUCKETS * (1 - e^(-keys / BUCKETS))`, and
+    /// every tag within [`TAG_TOLERANCE`] of `keys / TAGS`. Factored out so
+    /// each failure arm can be exercised with numbers.
+    fn check_spread(name: &str, spread: &Spread, keys: usize) {
+        let expected_distinct = BUCKETS as f64 * (1.0 - (-(keys as f64) / BUCKETS as f64).exp());
+        let expected_per_tag = keys as f64 / TAGS as f64;
+        let distinct = spread.distinct;
+        let (min_tag, max_tag) = spread
+            .tags
+            .iter()
+            .fold((u64::MAX, 0), |(lo, hi), &c| (lo.min(c), hi.max(c)));
+        println!(
+            "{name}: {distinct} of {BUCKETS} buckets (expected {expected_distinct:.0}), \
+             tag counts {min_tag}..={max_tag} (expected {expected_per_tag:.0})"
+        );
+        let bucket_error = (distinct as f64 - expected_distinct).abs() / expected_distinct;
+        assert!(
+            bucket_error <= BUCKET_TOLERANCE,
+            "{name}: {distinct} distinct buckets of {BUCKETS}, expected about \
+             {expected_distinct:.0}; the low hash bits are not uniform"
+        );
+        for (tag, &count) in spread.tags.iter().enumerate() {
+            let tag_error = (count as f64 - expected_per_tag).abs() / expected_per_tag;
             assert!(
-                ratio <= BOUND,
-                "{name}: {:.3}s is {ratio:.2}x the random baseline of {:.3}s; \
-                 the id hasher is degenerating on structured keys",
-                elapsed.as_secs_f64(),
-                baseline.as_secs_f64()
+                tag_error <= TAG_TOLERANCE,
+                "{name}: tag {tag} holds {count} keys, expected about \
+                 {expected_per_tag:.0}; the top 7 hash bits are not balanced"
             );
         }
     }
@@ -369,49 +492,44 @@ mod tests {
     /// group would need a probe per key rather than one per group.
     #[test]
     fn every_family_spreads_over_buckets_and_tags_like_random_keys() {
-        const BUCKET_BITS: u32 = 21;
-        const BUCKETS: usize = 1 << BUCKET_BITS;
-        const TAGS: usize = 1 << 7;
-        const BUCKET_TOLERANCE: f64 = 0.05;
-        const TAG_TOLERANCE: f64 = 0.05;
-
-        let expected_distinct = BUCKETS as f64 * (1.0 - (-(N as f64) / BUCKETS as f64).exp());
-        let expected_per_tag = N as f64 / TAGS as f64;
-
         let (random, structured) = families();
         let all = std::iter::once(("random", &random))
             .chain(structured.iter().map(|(name, keys)| (*name, keys)));
         for (name, keys) in all {
-            let mut occupied = vec![0u64; BUCKETS / 64];
-            let mut tags = [0u64; TAGS];
-            for &key in keys {
-                let hash = mix(key);
-                let bucket = hash as usize & (BUCKETS - 1);
-                occupied[bucket / 64] |= 1 << (bucket % 64);
-                tags[(hash >> (64 - 7)) as usize] += 1;
-            }
-            let distinct: usize = occupied.iter().map(|w| w.count_ones() as usize).sum();
-            let (min_tag, max_tag) = tags
-                .iter()
-                .fold((u64::MAX, 0), |(lo, hi), &c| (lo.min(c), hi.max(c)));
-            println!(
-                "{name}: {distinct} of {BUCKETS} buckets (expected {expected_distinct:.0}), \
-                 tag counts {min_tag}..={max_tag} (expected {expected_per_tag:.0})"
-            );
-            let bucket_error = (distinct as f64 - expected_distinct).abs() / expected_distinct;
-            assert!(
-                bucket_error <= BUCKET_TOLERANCE,
-                "{name}: {distinct} distinct buckets of {BUCKETS}, expected about \
-                 {expected_distinct:.0}; the low hash bits are not uniform"
-            );
-            for (tag, &count) in tags.iter().enumerate() {
-                let tag_error = (count as f64 - expected_per_tag).abs() / expected_per_tag;
-                assert!(
-                    tag_error <= TAG_TOLERANCE,
-                    "{name}: tag {tag} holds {count} keys, expected about \
-                     {expected_per_tag:.0}; the top 7 hash bits are not balanced"
-                );
-            }
+            check_spread(name, &spread(keys), keys.len());
         }
+    }
+
+    /// A spread that is uniform on paper: exactly the expected bucket count
+    /// and every tag at its share.
+    fn ideal_spread(keys: usize) -> Spread {
+        let expected_distinct = BUCKETS as f64 * (1.0 - (-(keys as f64) / BUCKETS as f64).exp());
+        Spread {
+            distinct: expected_distinct.round() as usize,
+            tags: [(keys / TAGS) as u64; TAGS],
+        }
+    }
+
+    #[test]
+    fn spread_check_accepts_the_uniform_expectation() {
+        check_spread("ideal", &ideal_spread(N as usize), N as usize);
+    }
+
+    /// The single-fold mutant's signature: the `i << 44` family in 512
+    /// buckets.
+    #[test]
+    #[should_panic(expected = "the low hash bits are not uniform")]
+    fn spread_check_rejects_sparse_buckets() {
+        let mut sparse = ideal_spread(N as usize);
+        sparse.distinct = 512;
+        check_spread("sparse", &sparse, N as usize);
+    }
+
+    #[test]
+    #[should_panic(expected = "the top 7 hash bits are not balanced")]
+    fn spread_check_rejects_an_unbalanced_tag() {
+        let mut lopsided = ideal_spread(N as usize);
+        lopsided.tags[77] = 0;
+        check_spread("lopsided", &lopsided, N as usize);
     }
 }
