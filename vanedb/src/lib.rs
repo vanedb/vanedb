@@ -54,6 +54,7 @@ pub mod flat;
 #[cfg(feature = "gpu-metal")]
 #[cfg_attr(docsrs, doc(cfg(feature = "gpu-metal")))]
 pub mod gpu;
+mod id_hash;
 mod validation;
 
 pub use approx::{ApproxIndex, ApproxIndexBuilder, Filter, SearchParams};

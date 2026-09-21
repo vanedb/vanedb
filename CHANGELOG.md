@@ -78,6 +78,10 @@ has a bug. No file-format change. The conformance table is
 
 ### Changed
 
+- Internal id maps use an in-crate multiplicative hasher instead of SipHash
+  (RFC 0010, #109); `DiskIndexBuilder::add` and the batch adds check
+  finiteness block-wise (#77). No format or API change: saved bytes and
+  result order are pinned by `vanedb/tests/rfc0010_identity.rs`.
 - Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only
   place a tier is asserted. It records what CI proves on each platform, the
   floors (Rust 1.85, glibc 2.34 for C archives, macOS 11.0/10.12, Android

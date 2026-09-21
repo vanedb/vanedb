@@ -53,12 +53,12 @@ asserts identical saved bytes before and after on the conformance fixtures.
 
 ## Acceptance criteria
 
-- [ ] Hasher change with the adversarial-key test.
+- [x] Hasher change with the adversarial-key test (`vanedb/src/id_hash.rs`).
 - [ ] Interleaved A-B-A(-B) runs on a dedicated machine show `store_add` and
       `disk_build` within 1.1x of the C++ engine, or the RFC is amended with
       the measured floor and the reason.
 - [ ] No regression on any search row within the noise floor.
-- [ ] Saved-bytes identity test on the fixtures.
+- [x] Saved-bytes identity test on the fixtures (`vanedb/tests/rfc0010_identity.rs`).
 - [ ] `bench/README.md` snapshot refreshed and the ‡ annotations removed or
       updated; issues #77 and #109 closed by the PRs.
 

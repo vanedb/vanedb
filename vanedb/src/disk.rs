@@ -1,7 +1,7 @@
 //! Exact search over a memory-mapped file.
 
+use crate::id_hash::{IdMap, IdSet};
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -86,7 +86,7 @@ pub struct DiskIndexBuilder {
     metric: Metric,
     ids: Vec<u64>,
     vectors: Vec<f32>,
-    id_set: HashSet<u64>,
+    id_set: IdSet,
 }
 
 impl std::fmt::Debug for DiskIndexBuilder {
@@ -122,7 +122,7 @@ impl DiskIndexBuilder {
             metric,
             ids: Vec::new(),
             vectors: Vec::new(),
-            id_set: HashSet::new(),
+            id_set: IdSet::default(),
         })
     }
 
@@ -225,7 +225,7 @@ pub struct DiskIndex {
     metric: Metric,
     ids_offset: usize,
     vectors_offset: usize,
-    id_map: HashMap<u64, usize>,
+    id_map: IdMap<usize>,
 }
 
 impl std::fmt::Debug for DiskIndex {
@@ -391,7 +391,7 @@ impl DiskIndex {
         // `size()` disagreeing with the map, `get` returning a different row
         // than the id names, and `search` emitting one id twice. The HNSW
         // loader enforces the same bijection (approx/persistence.rs).
-        let mut id_map = HashMap::with_capacity(num_vectors);
+        let mut id_map = IdMap::with_capacity_and_hasher(num_vectors, Default::default());
         for i in 0..num_vectors {
             let off = ids_offset + i * 8;
             let id = u64::from_le_bytes(mmap[off..off + 8].try_into().unwrap());
