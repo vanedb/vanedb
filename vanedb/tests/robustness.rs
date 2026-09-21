@@ -27,7 +27,10 @@ fn an_index_grown_past_its_capacity_hint_round_trips() {
 
     let loaded = ApproxIndex::load(&path).expect("an index that saved must load");
     assert_eq!(loaded.len(), 50);
-    assert_eq!(loaded.get_vector(7).unwrap(), vec![7.0, 0.0, 0.0, 0.0]);
+    assert_eq!(
+        loaded.get_vector(7).unwrap().unwrap(),
+        vec![7.0, 0.0, 0.0, 0.0]
+    );
     let _ = fs::remove_file(&path);
 }
 

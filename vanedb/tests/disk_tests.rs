@@ -24,7 +24,7 @@ fn mmap_matches_brute_force() {
 
     // SAFETY: this test does not modify the file while it is mapped.
     let mmap = unsafe { DiskIndex::open(&path) }.unwrap();
-    assert_eq!(mmap.size(), 100);
+    assert_eq!(mmap.len(), 100);
 
     for q in 0..5u64 {
         let query: Vec<f32> = (0..dim)
@@ -122,10 +122,10 @@ fn atomic_replacement_preserves_an_open_mapping() {
     // SAFETY: the replacement file remains unchanged until both indexes drop.
     let new = unsafe { DiskIndex::open(&path) }.unwrap();
     assert_eq!(old.len(), 1);
-    assert_eq!(old.get(1).unwrap().as_ref(), [1.0, 2.0]);
+    assert_eq!(old.get(1).unwrap().unwrap().as_ref(), [1.0, 2.0]);
     assert!(!old.contains(2));
     assert_eq!(new.len(), 2);
-    assert_eq!(new.get(2).unwrap().as_ref(), [3.0, 4.0]);
+    assert_eq!(new.get(2).unwrap().unwrap().as_ref(), [3.0, 4.0]);
     drop((old, new));
     std::fs::remove_file(path).unwrap();
 }
@@ -180,7 +180,7 @@ fn is_empty_and_vector_addressing_are_pinned() {
     assert_eq!(index.len(), rows.len());
     for (id, vector) in &rows {
         assert_eq!(
-            index.get(*id).unwrap().as_ref(),
+            index.get(*id).unwrap().unwrap().as_ref(),
             vector.as_slice(),
             "slot {id} read back the wrong bytes"
         );

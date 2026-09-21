@@ -11,6 +11,17 @@ assert.equal(searches.length, 2);
 for (const signature of searches) {
     assert.match(signature, /k: number, \w+\?:/, 'search options must stay optional in TypeScript');
 }
+// The vocabulary of RFC 0011, as the shipped declarations state it: a lookup
+// miss is `undefined`, both read spellings say so on both classes, and the
+// beam default is the `efSearch` property rather than a method pair or a
+// snake_case name.
+const reads = declarations.split('\n').filter(line => /^\s+get(_vector)?\(/.test(line));
+assert.equal(reads.length, 4, 'get and get_vector on both classes');
+for (const signature of reads) {
+    assert.match(signature, /\): Float32Array \| undefined;/, 'a lookup miss must be typed as undefined');
+}
+assert.match(declarations, /^\s+efSearch: number;/m, 'efSearch must be a property');
+assert.doesNotMatch(declarations, /ef_search|setEfSearch|efSearch\(/, 'the method pair and the snake_case property are gone');
 const vector = new Float32Array([1]);
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
 const numericError = /must be an integer between 0 and 4294967295/;
@@ -53,21 +64,24 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     assert.equal(unlimited.length, 2);
     unlimited.free();
     if (index instanceof ApproxIndex) {
-        index.ef_search = 73;
+        assert.equal(index.efSearch, 50, 'documented default');
+        assert.equal(index.ef_search, undefined, 'the snake_case property is gone');
+        index.efSearch = 73;
         for (const ef of invalidNumbers) {
-            assert.throws(() => { index.ef_search = ef; }, numericError);
-            assert.equal(index.ef_search, 73);
+            assert.throws(() => { index.efSearch = ef; }, numericError);
+            assert.equal(index.efSearch, 73);
         }
         for (const ef of [0, 2 ** 32 - 1]) {
-            index.ef_search = ef;
-            assert.equal(index.ef_search, ef);
+            index.efSearch = ef;
+            assert.equal(index.efSearch, ef);
         }
     }
     for (const id of [-1n, 2n ** 64n, 2n ** 70n]) {
         assert.throws(() => index.add(id, vector), /id must be between/);
         assert.throws(() => index.contains(id), /id must be between/);
         assert.throws(() => index.remove(id), /id must be between/);
-        if (index.get) assert.throws(() => index.get(id), /id must be between/);
+        assert.throws(() => index.get(id), /id must be between/);
+        assert.throws(() => index.get_vector(id), /id must be between/);
         assert.equal(index.size(), 2);
         assert.equal(index.contains(0n), true);
         assert.equal(index.contains(max), true);
@@ -101,7 +115,11 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     index.add(100n, Float32Array.from([42]));
     assert.deepEqual([...index.get_vector(100n)], [42]);
     assert.deepEqual([...index.get(100n)], [42]);
-    assert.throws(() => index.get_vector(999n), /not found/);
+    // A lookup miss is a value, not an error (RFC 0011).
+    assert.equal(index.get_vector(999n), undefined);
+    assert.equal(index.get(999n), undefined);
+    assert.equal(index.contains(999n), false);
+    assert.throws(() => index.remove(999n), /not found/, 'remove is not named get');
     index.free();
 }
 

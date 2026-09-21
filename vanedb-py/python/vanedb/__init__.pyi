@@ -5,6 +5,7 @@ editor and a type checker see. `tests/test_type_stubs.py` asserts they match
 the runtime module, because a stub that drifts is worse than no stub.
 """
 
+import enum
 import os
 from collections.abc import Callable
 from typing import Any, TypeAlias
@@ -33,12 +34,21 @@ FilterCallable: TypeAlias = Callable[[int], bool]
 #: A filesystem path: `str` or any `os.PathLike`, `pathlib.Path` included.
 PathLike: TypeAlias = str | os.PathLike[str]
 
-class Metric:
-    """Distance metric for vector comparison."""
+class Metric(enum.IntEnum):
+    """Distance metric for vector comparison.
 
-    L2: Metric
-    COSINE: Metric
-    DOT: Metric
+    An IntEnum: `.name`, `.value`, `list(Metric)`, `Metric(1)`, hashing and
+    pickling all work. The values are the on-disk metric field.
+
+    Where an index constructor takes a Metric it also accepts any integer
+    with `__index__` holding one of the values, NumPy integers and `bool`
+    included (`True` is `Metric.COSINE`, as `Metric(True)` is); a float or a
+    string is a TypeError and an integer naming no member a ValueError.
+    """
+
+    L2 = 0
+    COSINE = 1
+    DOT = 2
 
 class FlatIndex:
     """Exact k-NN by brute-force scan. Thread-safe."""
@@ -48,19 +58,21 @@ class FlatIndex:
     def metric(self) -> Metric: ...
     @property
     def dimension(self) -> int: ...
-    def size(self) -> int: ...
+    def size(self) -> int:
+        """An alias of `len(index)`, kept for C++ and JavaScript habits."""
+
     def __len__(self) -> int: ...
     def add(self, id: int, vector: VectorLike) -> None: ...
     def add_batch(self, ids: IdsLike, vectors: BatchLike) -> None: ...
-    def get(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def get(self, id: int) -> list[float] | None:
+        """The vector under `id`, or None if none is stored there."""
 
-    def get_vector(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def get_vector(self, id: int) -> list[float] | None:
+        """The same read as `get`, under the other spelling."""
 
     def contains(self, id: int) -> bool: ...
     def remove(self, id: int) -> None:
-        """Raises KeyError if no vector is stored under `id`."""
+        """Raises ValueError if no vector is stored under `id`."""
 
     def search(
         self,
@@ -100,20 +112,22 @@ class ApproxIndex:
     def ef_search(self) -> int: ...
     @ef_search.setter
     def ef_search(self, ef: int) -> None: ...
-    def size(self) -> int: ...
+    def size(self) -> int:
+        """An alias of `len(index)`, kept for C++ and JavaScript habits."""
+
     def __len__(self) -> int: ...
     def add(self, id: int, vector: VectorLike) -> None: ...
     def add_batch(self, ids: IdsLike, vectors: BatchLike) -> None: ...
     def upsert(self, id: int, vector: VectorLike) -> None: ...
-    def get_vector(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def get_vector(self, id: int) -> list[float] | None:
+        """The vector under `id`, or None if none is stored there."""
 
-    def get(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def get(self, id: int) -> list[float] | None:
+        """The same read as `get_vector`, under the other spelling."""
 
     def contains(self, id: int) -> bool: ...
     def remove(self, id: int) -> None:
-        """Raises KeyError if no vector is stored under `id`."""
+        """Raises ValueError if no vector is stored under `id`."""
 
     @property
     def tombstones(self) -> int: ...
@@ -145,7 +159,9 @@ class DiskIndexBuilder:
     def __init__(self, dim: int, metric: Metric = ...) -> None: ...
     @property
     def dimension(self) -> int: ...
-    def size(self) -> int: ...
+    def size(self) -> int:
+        """An alias of `len(builder)`, kept for C++ and JavaScript habits."""
+
     def __len__(self) -> int: ...
     def add(self, id: int, vector: VectorLike) -> None: ...
     def save(self, path: PathLike) -> None: ...
@@ -163,13 +179,15 @@ class DiskIndex:
     def metric(self) -> Metric: ...
     @property
     def dimension(self) -> int: ...
-    def size(self) -> int: ...
-    def __len__(self) -> int: ...
-    def get(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def size(self) -> int:
+        """An alias of `len(index)`, kept for C++ and JavaScript habits."""
 
-    def get_vector(self, id: int) -> list[float]:
-        """Raises KeyError if no vector is stored under `id`."""
+    def __len__(self) -> int: ...
+    def get(self, id: int) -> list[float] | None:
+        """The vector under `id`, or None if none is stored there."""
+
+    def get_vector(self, id: int) -> list[float] | None:
+        """The same read as `get`, under the other spelling."""
 
     def contains(self, id: int) -> bool: ...
     def search(

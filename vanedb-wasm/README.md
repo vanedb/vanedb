@@ -111,13 +111,16 @@ approximate search over an HNSW graph. Capacity is a reserve hint, not a limit:
 the index grows past it. `m` and `ef_construction` control graph construction.
 `seed` defaults to 42 and fixes the topology for a given insertion order. Read
 them back with `m()`, `ef_construction()`, `capacity()` and `seed()`. Set
-`index.ef_search` to trade search speed for recall.
+the `index.efSearch` property to trade search speed for recall.
 
 `new FlatIndex(dimension, metric)` — exact search with the shared methods below.
 
 Both provide `add`, `add_batch`, `search`, `get`, `get_vector`, `remove`,
 `contains`, `size()`, `metric()` and `dimension()`. Both spellings of the read
-exist so a program is not tied to one index type. The module also exports
+exist so a program is not tied to one index type; they return the vector as a
+`Float32Array`, or `undefined` when nothing is stored under the id, so a
+lookup miss is a value rather than an exception. `size()` is the count, as
+on a `Map`, and `size() === 0` the emptiness test. The module also exports
 `version()`.
 
 ## Filtered search
@@ -154,6 +157,13 @@ supported. The options object's `efSearch` and `maxEfSearch` apply to that
 query alone. Approximate filtering can return fewer than `k` matches;
 `maxEfSearch` caps beam widening, by default at four times the initial beam,
 and does not impose a hard limit on nodes visited.
+As a rule of thumb, set `efSearch` on the order of `k` divided by the
+fraction of ids the filter accepts, and leave `maxEfSearch` at its default
+of four times the beam, or raise it if results still fall short of `k`;
+raising only the cap does not improve results that already fill `k`.
+Measured recall at
+several selectivities is in
+[the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 ## Deleting
 
@@ -172,7 +182,7 @@ vector unchanged. Each replaced slot becomes a tombstone, so repeated
 replacements grow storage until `compact()`.
 
 `ApproxIndex.search` takes an optional beam width — `search(query, k, 64)` —
-that applies to that query alone and leaves `index.ef_search` untouched. Use it
+that applies to that query alone and leaves `index.efSearch` untouched. Use it
 to spend extra recall on one hard query without paying for it on every later
 one. A width below `k` is raised to `k`, so `0` is the narrowest legal override
 rather than a request to use the index's setting — omit the argument for that.

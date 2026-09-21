@@ -1495,10 +1495,13 @@ pub unsafe extern "C" fn vanedb_rs_store_get(s: vanedb_rs_store, id: u64, out: *
             return null_arg(1);
         }
         match store.get(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            // The core reports a miss as a value (RFC 0011); the C ABI keeps
+            // reporting it as `VANEDB_RS_NOT_FOUND`, unchanged.
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1553,10 +1556,11 @@ pub unsafe extern "C" fn vanedb_rs_index_get_vector(
             return null_arg(1);
         }
         match idx.get_vector(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1619,7 +1623,7 @@ pub extern "C" fn vanedb_rs_index_compact(h: vanedb_rs_index) -> i32 {
 /// Number of vectors in the mapped file, or 0 if `d` is not a live mapped file.
 #[no_mangle]
 pub extern "C" fn vanedb_rs_disk_len(d: vanedb_rs_disk) -> usize {
-    guard(0, || disk(d).map_or(0, |disk| disk.size()))
+    guard(0, || disk(d).map_or(0, |disk| disk.len()))
 }
 
 /// Vector dimension of the mapped file, or 0 if `d` is not a live mapped file.
@@ -1647,10 +1651,11 @@ pub unsafe extern "C" fn vanedb_rs_disk_get(d: vanedb_rs_disk, id: u64, out: *mu
             return null_arg(1);
         }
         match disk.get(id) {
-            Ok(v) => {
+            Ok(Some(v)) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
             }
+            Ok(None) => fail(vanedb::VaneError::NotFound { id }, 1),
             Err(e) => fail(e, 1),
         }
     })
@@ -1751,7 +1756,7 @@ pub extern "C" fn vanedb_rs_index_set_ef_search(h: vanedb_rs_index, ef_search: u
 /// a `0` would resolve to.
 #[no_mangle]
 pub extern "C" fn vanedb_rs_index_ef_search(h: vanedb_rs_index) -> usize {
-    guard(0, || index(h).map_or(0, |idx| idx.get_ef_search()))
+    guard(0, || index(h).map_or(0, |idx| idx.ef_search()))
 }
 
 #[cfg(test)]

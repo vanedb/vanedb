@@ -61,7 +61,7 @@ fn concurrent_saves_sharing_a_stem_both_succeed() {
         // SAFETY: this test does not modify the file while it is mapped.
         let store = unsafe { DiskIndex::open(&store_path) }
             .unwrap_or_else(|e| panic!("round {round}: store reload failed: {e}"));
-        assert_eq!(store.size(), N as usize, "round {round}");
+        assert_eq!(store.len(), N as usize, "round {round}");
         assert_eq!(
             store.search(&vector(7), 1).unwrap()[0].id,
             7,

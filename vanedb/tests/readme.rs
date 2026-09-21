@@ -61,7 +61,6 @@ fn documented_methods_exist() {
         "remove",
         "contains",
         "len",
-        "size",
         "is_empty",
         "dimension",
         "metric",
@@ -86,7 +85,6 @@ fn documented_methods_exist() {
         "compact",
         "tombstones",
         "len",
-        "size",
         "is_empty",
         "capacity",
         "dimension",
@@ -96,7 +94,7 @@ fn documented_methods_exist() {
         "ef_construction",
         "seed",
         "set_ef_search",
-        "get_ef_search",
+        "ef_search",
     ];
     let disk: &[&str] = &[
         "open",
@@ -105,12 +103,11 @@ fn documented_methods_exist() {
         "get_vector",
         "contains",
         "len",
-        "size",
         "is_empty",
         "dimension",
         "metric",
     ];
-    let disk_builder: &[&str] = &["new", "add", "save", "len", "size", "is_empty", "dimension"];
+    let disk_builder: &[&str] = &["new", "add", "save", "len", "is_empty", "dimension"];
     let all_types = ["FlatIndex", "ApproxIndex", "DiskIndex", "DiskIndexBuilder"];
 
     for readme in readmes() {
@@ -180,7 +177,6 @@ fn every_listed_method_still_exists() {
             FlatIndex::remove,
             FlatIndex::contains,
             FlatIndex::len,
-            FlatIndex::size,
             FlatIndex::is_empty,
             FlatIndex::dimension,
             FlatIndex::metric,
@@ -204,7 +200,6 @@ fn every_listed_method_still_exists() {
             ApproxIndex::compact,
             ApproxIndex::tombstones,
             ApproxIndex::len,
-            ApproxIndex::size,
             ApproxIndex::is_empty,
             ApproxIndex::capacity,
             ApproxIndex::dimension,
@@ -227,7 +222,7 @@ fn every_listed_method_still_exists() {
             ApproxIndex::ef_construction,
             ApproxIndex::seed,
             ApproxIndex::set_ef_search,
-            ApproxIndex::get_ef_search,
+            ApproxIndex::ef_search,
         );
     }
 
@@ -247,7 +242,6 @@ fn every_listed_method_still_exists() {
             DiskIndex::get_vector,
             DiskIndex::contains,
             DiskIndex::len,
-            DiskIndex::size,
             DiskIndex::is_empty,
             DiskIndex::dimension,
             DiskIndex::metric,
@@ -256,7 +250,6 @@ fn every_listed_method_still_exists() {
             DiskIndexBuilder::new,
             DiskIndexBuilder::add,
             DiskIndexBuilder::len,
-            DiskIndexBuilder::size,
             DiskIndexBuilder::is_empty,
             DiskIndexBuilder::dimension,
         );
