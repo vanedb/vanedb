@@ -19,7 +19,9 @@ what remains is one engine's vocabulary across four bindings:
 - The Rust core spells the count both `len()` and `size()` on the same types.
 - Python `Metric` is a PyO3 `eq_int` class without `.name`, `.value` or
   iteration, unlike every other Python enum a user has met.
-- `ef_search` is a property in Python and a getter/setter pair elsewhere.
+- `ef_search` is a property in Python and WebAssembly and a getter/setter
+  pair in Rust and C; the WebAssembly property is spelled `ef_search` while
+  its own search option is spelled `efSearch`.
 - `is_empty` exists in Rust and Python, not in WebAssembly or C (#182).
 
 0.2.0 is the last cheap moment: the user count is zero and 0.x permits a
@@ -40,11 +42,11 @@ binding.
 |---|---|---|---|---|
 | Lookup miss | `get(id) -> Result<Option<Vec<f32>>>` (`Option<Cow>` on `DiskIndex`; see the decisions below) | `get(id) -> list[float] \| None`; `KeyError` removed | `get(id)` returns `undefined` | unchanged: `VANEDB_RS_NOT_FOUND` status |
 | `get_vector` | alias of `get`, kept on every type (#85 settled the pair) | same | same | same |
-| Count | `len()`; `size()` removed | `len(index)`; `size()` kept as an alias, documented as such | `size()` (Map/Set convention) | `_len` accessors added on all three handles |
+| Count | `len()`; `size()` removed | `len(index)`; `size()` kept as an alias, documented as such | `size()` (Map/Set convention) | `_len` accessors on all three handles (present since #152) |
 | Empty | `is_empty()` | truth testing (`not index`) | `size() === 0` | `_len() == 0` |
-| Beam default | `ef_search()` / `set_ef_search()` | `ef_search` property | `efSearch` property via `wasm_bindgen(getter, setter)`; the method pair removed | `_ef_search` / `_set_ef_search` |
+| Beam default | `ef_search()` / `set_ef_search()` | `ef_search` property | property renamed `efSearch` (via `wasm_bindgen(getter, setter, js_name)`) | `_ef_search` / `_set_ef_search` |
 | `Metric` | enum | `enum.IntEnum`-like: `.name`, `.value`, iterable, hashable, picklable | string | `uint32_t` |
-| Errors | `VaneError` | `VaneError` base, typed subclasses | `Error` with `code` | status codes |
+| Errors | `VaneError` | deferred to #262 | deferred to #262 | status codes |
 
 Rules that follow:
 
@@ -64,10 +66,10 @@ Rules that follow:
   and returns `Option<Cow<'_, [f32]>>` as the table says.
 - 2026-09-20, implementation: with `KeyError` gone from the Python binding,
   `remove` of a missing id raises `ValueError`, the validation bucket it left
-  in 0.1.1. The Errors row above describes the shape a later change may give
-  the exceptions; nothing in this RFC's acceptance criteria or migration
-  section asks for it, and this implementation does not add exception
-  classes.
+  in 0.1.1. Typed Python exception classes and a wasm `Error` with `code`
+  were in the first draft of the Errors row; nothing in this RFC's acceptance
+  criteria or migration section asks for them, this implementation adds no
+  exception classes, and they are tracked in #262.
 - 2026-09-20, implementation: the C ABI already carried every accessor the
   table names (`_len` on all three handles, `_ef_search`/`_set_ef_search`),
   so that column is asserted, not changed, and the regenerated header is
@@ -110,7 +112,8 @@ each with a one-line migration. No file-format change.
       `Metric` has `.name`, `.value`, iteration; stubs updated.
 - [x] WebAssembly: `get` returns `undefined`; `efSearch` property; TypeScript
       declarations updated.
-- [x] C ABI: `_len` accessors added; header regenerated; nothing removed.
+- [x] C ABI: `_len` accessors present (landed in #152); header regenerated,
+      byte-identical; nothing removed.
 - [x] Conformance: the binding-parity test table in `conformance/` lists the
       vocabulary above and each binding's test asserts its column
       (`conformance/vocabulary/README.md`).

@@ -357,23 +357,28 @@ impl<'py> IntoPyObject<'py> for PyMetric {
 impl<'a, 'py> FromPyObject<'a, 'py> for PyMetric {
     type Error = PyErr;
 
-    /// A `Metric` member, or an `int` holding one of its values: `IntEnum`
+    /// A `Metric` member, or any integer holding one of its values: `IntEnum`
     /// members are ints, so `Metric.COSINE` and `1` name the same metric and
-    /// `Metric(1)` is how the enum itself spells that. Anything else is a
-    /// `TypeError`; an int naming no metric is a `ValueError`, as `Metric(7)`
-    /// would be.
+    /// `Metric(1)` is how the enum itself spells that. "Integer" is decided
+    /// by `__index__`, the way `Metric(...)` itself decides it, so a NumPy
+    /// integer is accepted and so is `bool` (`Metric(True)` is
+    /// `Metric.COSINE`). Anything else is a `TypeError`; an integer naming
+    /// no metric is a `ValueError`, as `Metric(7)` would be.
     fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         let py = obj.py();
         let enum_class = metric_enum(py)?;
-        if !obj.is_instance(enum_class)? && !obj.is_instance_of::<PyInt>() {
+        if !obj.is_instance(enum_class)? && !obj.hasattr("__index__")? {
             return Err(PyTypeError::new_err(format!(
                 "metric must be a vanedb.Metric, got {}",
                 obj.get_type().name()?
             )));
         }
-        // Route through the enum so an unknown value fails the way the enum
-        // says: `ValueError: 7 is not a valid Metric`.
-        let member = enum_class.call1((obj,))?;
+        // `__index__` turns a member, a NumPy integer or a bool into the plain
+        // int the enum looks up by value; routing through the enum makes an
+        // unknown value fail the way the enum says:
+        // `ValueError: 7 is not a valid Metric`.
+        let value = obj.call_method0("__index__")?;
+        let member = enum_class.call1((value,))?;
         let metric = match member.getattr("value")?.extract::<u8>()? {
             Self::L2 => Metric::L2,
             Self::COSINE => Metric::Cosine,

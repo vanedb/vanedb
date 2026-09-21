@@ -39,6 +39,11 @@ class Metric(enum.IntEnum):
 
     An IntEnum: `.name`, `.value`, `list(Metric)`, `Metric(1)`, hashing and
     pickling all work. The values are the on-disk metric field.
+
+    Where an index constructor takes a Metric it also accepts any integer
+    with `__index__` holding one of the values, NumPy integers and `bool`
+    included (`True` is `Metric.COSINE`, as `Metric(True)` is); a float or a
+    string is a TypeError and an integer naming no member a ValueError.
     """
 
     L2 = 0

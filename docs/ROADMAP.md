@@ -60,4 +60,6 @@ one shape per binding. Implemented by
 [RFC 0011](rfcs/0011-api-vocabulary-before-1-0.md), which records the
 precedent survey; the contract table is
 [`conformance/vocabulary/README.md`](../conformance/vocabulary/README.md).
-Nothing here is still open.
+The one piece the RFC's design table deferred, typed error classes in Python
+and an `Error` with `code` in WebAssembly, is tracked in
+[#262](https://github.com/vanedb/vanedb/issues/262).

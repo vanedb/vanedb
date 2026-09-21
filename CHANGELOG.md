@@ -60,8 +60,13 @@ has a bug. No file-format change. The conformance table is
 - **WebAssembly**: `get` and `get_vector` return `undefined` for a missing id
   instead of throwing; the `ef_search` property is renamed `efSearch`,
   matching the `{ efSearch }` search option, and the number-argument error
-  message names it that way. Migration: `try { index.get(id) } catch { ... }`
-  → `index.get(id) ?? fallback`, and `index.ef_search` → `index.efSearch`.
+  message names it that way. In the TypeScript declarations the return type
+  of `get`/`get_vector` becomes `Float32Array | undefined`, which is a
+  compile error under strict null checks until the miss is handled, and
+  `ApproxIndex.search`'s third parameter is declared `efSearchOrOptions`
+  (positional, so no runtime change). Migration:
+  `try { index.get(id) } catch { ... }` → `index.get(id) ?? fallback`, and
+  `index.ef_search` → `index.efSearch`.
 - **C ABI**: unchanged. `vanedb_rs_store_len`, `vanedb_rs_index_len` and
   `vanedb_rs_disk_len` already spell the count, a miss is already the
   `VANEDB_RS_NOT_FOUND` status, and `vanedb_rs_index_ef_search` /

@@ -258,6 +258,27 @@ def test_metric_is_an_int_enum():
         FlatIndex(2, 7)
     with pytest.raises(TypeError):
         FlatIndex(2, "cosine")
+    with pytest.raises(TypeError):
+        FlatIndex(2, 1.0)
+
+
+def test_constructors_accept_any_index_integer_as_a_metric():
+    """`Metric(np.int64(1))` works because the enum looks members up by
+    `__index__`, so the constructors must too: a NumPy integer used to be a
+    TypeError while the enum accepted it. `bool` is an int and rides along,
+    matching `Metric(True)`."""
+    np = pytest.importorskip("numpy")
+
+    assert Metric(np.int64(1)) is Metric.COSINE
+    assert FlatIndex(2, np.int64(1)).metric is Metric.COSINE
+    assert ApproxIndex(2, np.uint8(2)).metric is Metric.DOT
+    assert DiskIndexBuilder(2, np.int32(0)).dimension == 2
+    assert Metric(True) is Metric.COSINE
+    assert FlatIndex(2, True).metric is Metric.COSINE
+    with pytest.raises(ValueError):
+        FlatIndex(2, np.int64(7))
+    with pytest.raises(TypeError):
+        FlatIndex(2, np.float64(1.0))
 
 
 def test_distances_are_real_values_not_zero(tmp_path):
