@@ -162,6 +162,14 @@ if file size matters.
 | JavaScript / WebAssembly | Flat, Approx | `"cosine"` string; `SearchResults` with `ids` and `distances` arrays |
 | C ABI | Flat, Approx, Disk | `VANEDB_RS_COSINE`; caller-provided id and distance arrays |
 
+The Rust crate has two Cargo features. `disk` adds `DiskIndex`. `gpu-metal` is
+experimental and macOS-only: it exposes a standalone `MetalCompute` API for
+uploading vectors and running distance scans on the GPU, and it does not
+accelerate any index — every index builds and searches on the CPU with or
+without it, and no binding exposes it. Whether it is finished into index
+acceleration or removed is decided after 0.3.0 (#257).
+[`docs/LIMITS.md`](docs/LIMITS.md) records exactly what it does and does not do.
+
 WebAssembly currently supports add, batch add, search, lookup methods, remove,
 `upsert`, `tombstones`, `compact` and persistence (`toBytes` / `fromBytes`,
 plus `save(name)` / `load(name)` over IndexedDB in the browser and the
@@ -185,20 +193,18 @@ runs against the shared library. The library is written to `target/release`; use
 [C header](vanedb-capi/include/vanedb_rs_capi.h) for ownership, buffer sizes,
 return conventions, and metric constants.
 
-CI runs native Rust tests on Linux x86-64/ARM64, macOS Intel/ARM64, and Windows x86-64,
-and WebAssembly tests in Node.js and headless Chrome. Packaged browser acceptance
-also runs in Chrome, Firefox and WebKit. Successful runs provide C library archives
-and separate Node/browser npm tarballs, each tested as a consumer artifact.
-Python release workflows build and test
-Linux x86-64/ARM64 (glibc and musl), macOS Intel/ARM64, and Windows x64 wheels
-for Python 3.11–3.14. Mobile CI cross-compiles the Rust core and C ABI for
-iOS ARM64 and Android ARM64/x86-64, and runs C ABI acceptance on an iOS ARM64
-simulator and Android x86-64 emulator. The 0.1.1 release also passed Android ARM64
-acceptance on an Android 15 emulator with 16 KiB pages using the CI-built binary;
-see the [release evidence](docs/release/0.1.1-readiness.md). The accepted initial-release mobile
-verification scope is simulator/emulator based. Physical-device acceptance
-remains a follow-up; these results do not establish behavior on an iPhone or
-Android device.
+Support tiers, version floors and the dated change log live in
+[`docs/PLATFORMS.md`](docs/PLATFORMS.md), the only place a tier is asserted.
+In short: every pull request that touches the Rust workspace, this README,
+`SECURITY.md` or that page builds and tests the Rust engine and C ABI on
+Linux x86-64/ARM64, macOS Intel/ARM64 and Windows x64, and the WebAssembly
+package in Node.js, Chrome, Firefox and WebKit. The release workflow builds and
+tests Linux (glibc and musl), macOS and Windows wheels for Python 3.11–3.14.
+iOS ARM64 and Android ARM64/x86-64 are built on every such pull request and
+verified on a simulator or emulator, not on a physical device. Native Intel
+macOS wheels and C archives end in August 2027, when GitHub's last Intel
+runner retires; source builds remain. The floors (Rust 1.85, glibc, macOS
+deployment targets, Android API level, Python, Node.js) are on that page.
 
 The supplementary C++ engine has different constructor arguments, result shapes,
 and feature coverage. Moving between Python engines requires adapting the API,

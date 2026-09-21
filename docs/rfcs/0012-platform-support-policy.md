@@ -1,6 +1,6 @@
 # RFC 0012: Platform support policy
 
-- Status: accepted (2026-09-15)
+- Status: implemented (0.2.0, unreleased)
 - Milestone: 0.2.0
 - Tracking issue: #207; resolves #47
 - Supersedes / superseded by: none
@@ -76,6 +76,18 @@ in `PLATFORMS.md`.
   native x86-64 macOS wheels or C archives after the `macos-15-intel` runner
   retires in August 2027, no cross-compiled or `universal2` substitute, sdist
   and source builds remain supported.
+- 2026-09-20: `docs/PLATFORMS.md` published, README and `SECURITY.md` link
+  it, `vanedb/tests/platforms.rs` holds the two in sync. #47 closed with the
+  decision recorded; the publish-matrix change is #258. Four qualifications
+  the page records where the "Today" table above simplifies: the full Python
+  wheel matrix is tested by the release workflow rather than on every pull
+  request (a pull request tests one Linux x86-64 wheel on Python 3.11); musl
+  Python wheels are already in the tested tier while the musl C ABI stays in
+  the source tier until RFC 0002 stage 4; "Android ARM64 and x86-64
+  (emulator, 16 KiB pages)" is per-pull-request acceptance on an API 29
+  x86-64 emulator, with 16 KiB pages exercised only in the recorded 0.1.1
+  ARM64 run; and "Node current LTS" is Node 22, the version the publish
+  workflow tests.
 
 ## Alternatives rejected
 
@@ -93,13 +105,14 @@ keep source installs. Both publish workflows change together (#47's rule).
 
 ## Acceptance criteria
 
-- [ ] `docs/PLATFORMS.md` published with the tiers, floors, exit date, and a
+- [x] `docs/PLATFORMS.md` published with the tiers, floors, exit date, and a
       dated change log.
-- [ ] README platform paragraph replaced by a summary and a link.
-- [ ] CI test: README platform names appear in `PLATFORMS.md`.
-- [ ] #47 closed with the decision recorded; the publish-workflow change is a
-      separate issue scheduled before August 2027.
-- [ ] `SECURITY.md` links `PLATFORMS.md` for "supported versions" context.
+- [x] README platform paragraph replaced by a summary and a link.
+- [x] CI test: README platform names appear in `PLATFORMS.md`
+      (`vanedb/tests/platforms.rs`).
+- [x] #47 closed with the decision recorded (2026-09-20); the
+      publish-workflow change is #258, scheduled before August 2027.
+- [x] `SECURITY.md` links `PLATFORMS.md` for "supported versions" context.
 
 ## Evidence required before the claim
 

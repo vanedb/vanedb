@@ -247,7 +247,8 @@ the moment it has users:
   tracking issue; vectorlite exists because of it. VaneDB has this.
 - **Memory.** Browser and mobile users ask for int8 and binary quantization
   first; EdgeVec's headline is "32x memory reduction", Turso's is 1-bit
-  vectors, USearch ships f16/i8/b1. VaneDB stores f32 only.
+  vectors, USearch ships f16/i8/b1. VaneDB stores f32 only. Per-segment
+  budgets and corpus sizes: [capacity study](research/capacity.md).
 - **Persistence that survives a page reload or an app restart** (browser:
   IndexedDB; mobile: a file the platform can back up and encrypt).
 - **A real SDK, not a C header.** The 2026 on-device checklist names
@@ -305,7 +306,10 @@ Each now has an RFC in [`docs/rfcs/`](rfcs/README.md) and a tracking issue;
    must not require the whole corpus in RAM; that contradicts the index's
    stated purpose. A memory-mapped HNSW (vectors on disk, links in RAM, or
    both mapped) is the feature that makes "corpus larger than RAM" true for
-   approximate search too. Turso's DiskANN and arroy show the demand.
+   approximate search too. Turso's DiskANN and arroy show the demand. The
+   [capacity study](research/capacity.md) (2026-09-20) sizes
+   the corpora and memory budgets this item must serve and orders it after
+   item 2.
 
 6. **Optional payload column.** A bytes blob per id, stored beside the vector
    in VNDB, returned with results. Filtering on it is a later step; storing

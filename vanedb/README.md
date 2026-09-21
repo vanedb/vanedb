@@ -82,54 +82,25 @@ is supported: its atomic rename leaves existing readers on the intact old file.
 `DiskIndex::get` returns `Cow<[f32]>`; use `as_ref()` to borrow or `into_owned()`
 to obtain an independent vector.
 
-## Optional Metal compute on macOS
+## Feature flags
 
-Metal compute requires macOS 10.14 or newer and a usable Metal device. Enable
-`gpu-metal` explicitly in your application's dependency:
-
-```sh
-cargo add vanedb --features gpu-metal
-```
-
-This exposes `MetalCompute` for manually uploaded vectors and distance scans.
-Enabling the feature does not move `FlatIndex`, `ApproxIndex` or `DiskIndex`
-operations to the GPU. Call the Metal API directly:
-
-```rust
-use vanedb::gpu::{GpuMetric, MetalCompute};
-
-fn main() -> vanedb::Result<()> {
-    let gpu = MetalCompute::new()?;
-    let ids = [101, 202];
-    let vectors = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
-    let buffer = gpu.upload(&vectors, ids.len(), 4)?;
-    let hits = gpu.search(&[1.0, 0.0, 0.0, 0.0], &ids, &buffer, 1, GpuMetric::Cosine)?;
-    assert_eq!(hits[0].id, 101);
-    Ok(())
-}
-```
-
-Upload row-major `n * dim` finite floats. Dimension must be nonzero and divisible
-by four because the kernels use `float4`; ordinary Rust slices need no special
-caller-provided pointer alignment. Queries must have that dimension and finite
-values, IDs must match the uploaded row count, and `k` must be positive. Sizes
-must fit the Metal device's buffer and shader-addressing limits. An empty upload
-at a valid dimension returns empty results for a valid query.
-
-Reuse the uploaded buffer for subsequent queries on the same Metal device.
-`distances` returns one value per uploaded row; `search` returns up to `k`
-nearest results. `GpuMetric::L2`, `Cosine` and `Dot` use the same distance
-definitions described above.
-
-When uploaded vectors or a query contain very small nonzero components,
-`distances` and `search` automatically use CPU distance kernels to preserve
-contributions that Metal may round to zero. This numerical fallback still
-requires successful Metal initialization and upload.
-
-Initialization, validation and GPU execution errors return `VaneError`; the
-example propagates them. Backend failures do not trigger automatic fallback.
-Your application decides whether to report an error or use a CPU index with
-the original vectors.
+- `disk` — `DiskIndex` and `DiskIndexBuilder`, the exact index over a
+  memory-mapped file.
+- `gpu-metal` — experimental; builds only on macOS 10.14 or newer and needs a
+  usable Metal device. It does **not** accelerate any index: `FlatIndex`,
+  `ApproxIndex` and `DiskIndex` build and search on the CPU whether or not it
+  is enabled, and no binding exposes it. What it adds is the standalone
+  `vanedb::gpu::MetalCompute` API, which uploads a row-major `n * dim` matrix
+  of finite floats to a Metal buffer (`upload`) and runs L2, cosine or
+  dot-product distance scans against that buffer (`distances`, `search`) with
+  the same distance definitions as the indexes. Dimensions must be nonzero and
+  divisible by four, inputs stay within the device's buffer and shader limits,
+  very small nonzero components are routed to the CPU kernels to preserve
+  rankings, and every initialization or execution failure returns `VaneError`
+  with no automatic CPU fallback. Its parameters and errors are documented on
+  its methods. Whether the feature is finished into index acceleration or
+  removed is decided after 0.3.0 (#257); the current state is recorded in the
+  [limits page](https://github.com/vanedb/vanedb/blob/main/docs/LIMITS.md).
 
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,
 platform verification scope, persistence details, and source builds. The

@@ -11,6 +11,11 @@ prereleases and the npm `0.1.0` bootstrap are historical and not supported.
 During 0.x, fixes land in a new minor or patch release rather than being
 backported.
 
+The platforms each release is built and tested on, their support tiers and
+the version floors (Rust, glibc, macOS, Android, iOS, Python, Node.js) are
+recorded in [`docs/PLATFORMS.md`](docs/PLATFORMS.md). A report against a
+source-tier platform is still welcome; include the toolchain you built with.
+
 ## Reporting a vulnerability
 
 Use [GitHub private vulnerability reporting](https://github.com/vanedb/vanedb/security/advisories/new).

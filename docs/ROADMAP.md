@@ -1,7 +1,9 @@
 # VaneDB roadmap
 
 The 0.1.1 scope is the Rust engine and its Python, C and WebAssembly bindings,
-with CPU search and the existing macOS Metal feature. The C++ engine remains
+with CPU search. The experimental macOS `gpu-metal` feature exposes distance
+scans, accelerates no index and no binding exposes it (#208);
+finish-versus-delete is decided after 0.3.0 (#257). The C++ engine remains
 frozen reference code.
 
 [`LIMITS.md`](LIMITS.md) records what 0.1.1 can hold and what it does not do.
@@ -22,12 +24,12 @@ decision, until the corresponding RFC is accepted.
 | 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | accepted |
 | 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | accepted |
 | 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | accepted |
-| 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | accepted |
+| 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | implemented |
 | 5 | [0013 VNDB v3 container format](rfcs/0013-vndb-v3-container.md) | 0.3.0 | accepted |
 | 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
 | 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | accepted |
 | 7 | [0007 Mobile SDKs](rfcs/0007-mobile-sdks.md) | 0.3.0 | accepted |
-| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | draft; direction accepted, gated on the capacity study |
+| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | accepted (for the streaming builder); [capacity-study amendment](research/capacity.md) 2026-09-20; mapped graph draft, gated on RFC 0005 and the cold-cache spike |
 | 9 | [0009 Optional payload column](rfcs/0009-payload-column.md) | 0.4.0 | accepted |
 | after the above | [0001 CUDA after the initial release](rfcs/0001-cuda-after-initial-release.md) | none assigned | accepted; ordering amendment accepted 2026-09-13 |
 
