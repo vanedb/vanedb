@@ -27,6 +27,7 @@ if [[ "$mode" != --run-only ]]; then
   "${ANDROID_NDK_HOME:?}/toolchains/llvm/prebuilt/$ndk_host/bin/${rust_target}21-clang" \
     -std=c11 -Wall -Wextra -Werror -I vanedb-capi/include \
     -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384 \
+    -Wl,-z,separate-loadable-segments \
     vanedb-capi/tests/acceptance.c -L "$library_dir" \
     -lvanedb_capi -o "$runtime_dir/acceptance"
   cp "$library_dir/libvanedb_capi.so" "$runtime_dir/"

@@ -54,8 +54,10 @@ jobs:
           cargo build -p vanedb-capi --locked
           git diff --exit-code -- vanedb-capi/include
       # The exported-symbol allowlist under vanedb-capi/exports is generated
-      # from that header and handed to the linker by build.rs. A stale copy
-      # would ship a shared library that hides a newly declared function.
+      # from that header: build.rs hands the Apple list to ld64, the plain
+      # list localizes the static library, and the .def feeds the Windows
+      # export check. A stale copy would ship a library that hides a newly
+      # declared function.
       - name: Export lists are in sync with the header
         run: python3 scripts/capi_exports.py generate --verify
 

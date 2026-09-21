@@ -128,12 +128,29 @@ def native_static_libs():
     the same ones packaged below.
     """
     command = ["cargo", "rustc", "-p", "vanedb-capi", "--profile", PROFILE, "--locked",
-               "--", "--print", "native-static-libs"]
-    completed = subprocess.run(command, cwd=ROOT, check=True, text=True, capture_output=True)
-    match = re.search(r"native-static-libs:\s*(.*)", completed.stderr)
-    if not match:
+               "--color", "never", "--", "--print", "native-static-libs"]
+    env = dict(os.environ, CARGO_TERM_COLOR="never")
+    completed = subprocess.run(command, cwd=ROOT, check=True, text=True, capture_output=True, env=env)
+    line = parse_native_static_libs(completed.stderr)
+    if line is None:
         raise SystemExit("cargo rustc did not report native-static-libs:\n" + completed.stderr)
-    return match.group(1).strip()
+    return line
+
+
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def parse_native_static_libs(stderr):
+    """The link line from rustc's `note: native-static-libs: ...`, or None.
+
+    CI sets CARGO_TERM_COLOR=always, under which the note ends in a colour
+    reset and the last library became `c\x1b[0m`, which no linker can find.
+    The command above asks for no colour; the escapes are stripped anyway so
+    a wrapper that recolours the output cannot bring the defect back.
+    """
+    plain = ANSI_ESCAPE.sub("", stderr)
+    match = re.search(r"native-static-libs:\s*(.*)", plain)
+    return match.group(1).strip() if match else None
 
 
 def link_tokens(native):
@@ -223,7 +240,41 @@ def strip_shared(library):
         subprocess.run(["strip", "-x", str(library)], check=True)
 
 
-def localize_static(archive, work):
+APPLE_ARCH = {"macos-aarch64": "arm64", "macos-x86_64": "x86_64"}
+
+
+def localize_commands(platform, archive, exports, combined):
+    """The commands that merge a static library into one relocatable object
+    with only vanedb_rs_* global, and the one that repacks it.
+
+    Returns `(combine, repack)`: `combine` is the list of argvs that produce
+    `combined` from `archive`, `repack` the argv that rebuilds `archive` from
+    `combined` after the original is removed. `None` when the platform has
+    no localization (Windows).
+
+    Apple's `ld -r` cannot infer the slice from a static archive and refuses
+    to guess ("ld: Missing -arch option"), so the arch comes from the
+    platform name. `libtool -static` takes no arch.
+    """
+    archive, combined = str(archive), str(combined)
+    exports = Path(exports)
+    family = platform.split("-", 1)[0]
+    if family == "linux":
+        return (
+            [["ld", "-r", "--whole-archive", archive, "--no-whole-archive", "-o", combined],
+             ["objcopy", f"--keep-global-symbols={exports / 'vanedb_capi.syms'}", combined]],
+            ["ar", "rcs", archive, combined],
+        )
+    if family == "macos":
+        return (
+            [["ld", "-r", "-arch", APPLE_ARCH[platform], "-force_load", archive,
+              "-exported_symbols_list", str(exports / "vanedb_capi.exp"), "-o", combined]],
+            ["libtool", "-static", "-o", archive, combined],
+        )
+    return None
+
+
+def localize_static(archive, work, platform):
     """Leave only vanedb_rs_* global in the static library.
 
     A Rust staticlib exports every Rust symbol as global (thousands), which
@@ -233,29 +284,22 @@ def localize_static(archive, work):
     everything not on the allowlist is made local. Undefined symbols (the
     system libraries from native-static-libs) are untouched by definition.
 
-    Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `ld -r` with
-    `-exported_symbols_list`, then `libtool -static`. Windows: no equivalent
-    of `objcopy` for COFF archives is shipped with MSVC, so the static library
-    is packaged as rustc produced it; this is recorded in the README.
+    Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `ld -r -arch`
+    with `-exported_symbols_list`, then `libtool -static`. Windows: no
+    equivalent of `objcopy` for COFF archives is shipped with MSVC, so the
+    static library is packaged as rustc produced it; this is recorded in the
+    README.
     """
-    exports = ROOT / "vanedb-capi/exports"
-    combined = work / "vanedb_capi_combined.o"
-    if sys.platform == "linux":
-        subprocess.run(["ld", "-r", "--whole-archive", str(archive), "--no-whole-archive",
-                        "-o", str(combined)], check=True)
-        subprocess.run(["objcopy", f"--keep-global-symbols={exports / 'vanedb_capi.syms'}",
-                        str(combined)], check=True)
-        archive.unlink()
-        subprocess.run(["ar", "rcs", str(archive), str(combined)], check=True)
-    elif sys.platform == "darwin":
-        subprocess.run(["ld", "-r", "-force_load", str(archive),
-                        "-exported_symbols_list", str(exports / "vanedb_capi.exp"),
-                        "-o", str(combined)], check=True)
-        archive.unlink()
-        subprocess.run(["libtool", "-static", "-o", str(archive), str(combined)], check=True)
-    else:
+    commands = localize_commands(platform, archive, ROOT / "vanedb-capi/exports",
+                                 work / "vanedb_capi_combined.o")
+    if commands is None:
         return False
-    combined.unlink()
+    combine, repack = commands
+    for command in combine:
+        subprocess.run(command, check=True)
+    archive.unlink()
+    subprocess.run(repack, check=True)
+    (work / "vanedb_capi_combined.o").unlink()
     return True
 
 
@@ -347,7 +391,7 @@ def main():
         before = shared.stat().st_size
         strip_shared(shared)
         print(f"{names['shared']}: {before} bytes before strip, {shared.stat().st_size} after")
-        if localize_static(static, directory):
+        if localize_static(static, directory, args.platform):
             check_static_globals(static)
         capi_exports.check(shared)
         if sys.platform == "darwin":

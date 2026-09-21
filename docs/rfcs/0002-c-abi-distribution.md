@@ -181,9 +181,12 @@ above:
 - The static-library post-processing is done on Linux and macOS. MSVC ships
   no equivalent of `objcopy` for COFF archives, so the Windows static library
   keeps rustc's global symbols; the README says so. Not an acceptance box.
-- On MSVC the shared library's export set comes from rustc's own `/DEF`
-  (link.exe takes one); the generated `.def` is what the `dumpbin` check
-  compares against. ELF and Apple linkers take the generated lists.
+- No GNU version script is passed: rustc already restricts a `cdylib` to
+  its `#[no_mangle]` set with an anonymous one, and GNU ld refuses a second
+  script beside it (only lld tolerates the pair). On ELF the `nm` assertion
+  in CI is the gate; the Apple linker takes the generated list beside
+  rustc's; on MSVC the generated `.def` feeds the `dumpbin` check rather
+  than the link, since link.exe takes one definition file.
 - Release tags are `vanedb-v<version>` in this repository, not
   `vanedb-crate-v<version>`; the abidiff baseline lookup accepts both.
 - 0 stays the null handle (`VANEDB_RS_NULL_ARGUMENT` on use, no-op on free)

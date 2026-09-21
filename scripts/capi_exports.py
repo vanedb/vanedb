@@ -2,10 +2,9 @@
 """The C ABI's exported-symbol allowlist, derived from its header (RFC 0002).
 
 `generate` reads every `vanedb_rs_*` function declared in
-`vanedb-capi/include/vanedb_rs_capi.h` and writes the same set in the three
+`vanedb-capi/include/vanedb_rs_capi.h` and writes the same set in the two
 spellings linkers take, plus a plain list for `objcopy`:
 
-    vanedb-capi/exports/vanedb_capi.map   GNU linker version script (ELF)
     vanedb-capi/exports/vanedb_capi.exp   Apple -exported_symbols_list
     vanedb-capi/exports/vanedb_capi.def   Windows module-definition file
     vanedb-capi/exports/vanedb_capi.syms  one symbol per line, no decoration
@@ -48,12 +47,10 @@ def functions(header_text):
 
 
 def render(names):
-    version_script = "{\n  global:\n" + "".join(f"    {n};\n" for n in names) + "  local:\n    *;\n};\n"
     apple = "".join(f"_{n}\n" for n in names)
     module_definition = "EXPORTS\n" + "".join(f"    {n}\n" for n in names)
     plain = "".join(f"{n}\n" for n in names)
     return {
-        "vanedb_capi.map": version_script,
         "vanedb_capi.exp": apple,
         "vanedb_capi.def": module_definition,
         "vanedb_capi.syms": plain,
@@ -72,7 +69,9 @@ def generate(verify=False):
         return
     EXPORTS.mkdir(parents=True, exist_ok=True)
     for name, text in rendered.items():
-        (EXPORTS / name).write_text(text, encoding="utf-8")
+        # LF on every OS: the files are compared byte for byte and pinned to
+        # LF in .gitattributes.
+        (EXPORTS / name).write_text(text, encoding="utf-8", newline="\n")
     print(f"wrote {len(rendered)} export lists to {EXPORTS.relative_to(ROOT)}")
 
 
@@ -109,8 +108,8 @@ def exported_symbols(library):
 def check(library):
     expected = functions(HEADER.read_text(encoding="utf-8"))
     actual = exported_symbols(library)
-    # Symbol versioning would print `name@@VERSION`; the version script is
-    # anonymous so it does not, but strip defensively so a versioned build
+    # Symbol versioning would print `name@@VERSION`; rustc's version script
+    # is anonymous so it does not, but strip defensively so a versioned build
     # fails on the set, not on the decoration.
     actual = sorted({name.split("@")[0] for name in actual})
     extra = sorted(set(actual) - set(expected))

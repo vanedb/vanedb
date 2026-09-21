@@ -296,16 +296,20 @@ change.
 
 The shared library exports exactly the functions the header declares and
 nothing else, so two Rust-built libraries in one process cannot collide on
-standard-library symbols. The allowlist lives under [`exports/`](exports/)
-in the three spellings linkers take (GNU version script, Apple
-`-exported_symbols_list`, Windows `.def`) plus a plain list, all generated
-from the header by `scripts/capi_exports.py generate`; `build.rs` passes the
-version script to ELF linkers and the exported-symbols list to Apple's.
-On MSVC, rustc's own `/DEF` already exports exactly the `#[no_mangle]` set
-and link.exe takes one definition file, so the generated `.def` is used
-there by the check rather than by the link. CI asserts the built library's
-export set with `nm -D --defined-only` on Linux, `nm -gU` on macOS and
-`dumpbin /EXPORTS` on Windows, and a test holds the lists to the header.
+standard-library symbols. rustc already restricts a `cdylib`'s exports to
+its `#[no_mangle]` set on every platform, through an anonymous version
+script on ELF, an exported-symbols list on Apple and a `/DEF` on MSVC. GNU
+ld refuses a second version script beside rustc's anonymous one ("anonymous
+version tag cannot be combined with other version tags"; lld does not, which
+is why only the ARM64 leg caught it), so on Linux no extra list is passed
+and the CI assertion is the gate. The allowlist under [`exports/`](exports/)
+is generated from the header by `scripts/capi_exports.py generate`: the
+Apple `-exported_symbols_list`, which `build.rs` adds beside rustc's; the
+Windows `.def`, used by the check rather than by the link since link.exe
+takes one definition file; and a plain list, which localizes the static
+library. CI asserts the built library's export set with
+`nm -D --defined-only` on Linux, `nm -gU` on macOS and `dumpbin /EXPORTS`
+on Windows, and a test holds the lists to the header.
 
 The static library is post-processed on Linux (`ld -r` then `objcopy
 --keep-global-symbols`) and macOS (`ld -r -exported_symbols_list`) so that
