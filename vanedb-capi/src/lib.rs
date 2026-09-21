@@ -69,21 +69,84 @@ impl CFilterClosure {
     ) -> Self {
         let user_ptr = user_data as usize;
         Self {
-            func: Box::new(move |id: u64| {
-                let udata = user_ptr as *mut std::ffi::c_void;
-                let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
-                    cb(id, udata)
-                }));
-                match res {
-                    Ok(b) => b,
-                    Err(p) => std::panic::resume_unwind(p),
-                }
-            }),
+            // A panic from a Rust `C-unwind` callback unwinds through this
+            // closure and the core search to the entry point's `guard`, which
+            // reports `VANEDB_RS_PANIC`. Catching it here only to resume it
+            // would change nothing.
+            func: Box::new(move |id: u64| unsafe { cb(id, user_ptr as *mut std::ffi::c_void) }),
         }
     }
 
     fn as_predicate(&self) -> &(dyn Fn(u64) -> bool + Sync) {
         self.func.as_ref()
+    }
+}
+
+/// The filter a `*_search_filtered` call asked for: `Ok(None)` is unfiltered,
+/// `Err(())` means the arguments were rejected and the error code is set.
+///
+/// A non-null list pointer selects that filter even at length zero; the
+/// empty slice is a literal because `slice::from_raw_parts` requires an
+/// aligned pointer even for zero elements, which C does not promise.
+///
+/// # Safety
+/// Each non-null list must point to its stated number of valid `u64`s that
+/// stay valid for `'a`, and a callback must obey `vanedb_rs_filter_fn`'s
+/// requirements.
+unsafe fn filter_from_args<'a>(
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    closure: &'a mut Option<CFilterClosure>,
+) -> Result<Option<vanedb::approx::Filter<'a>>, ()> {
+    if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+        return Err(());
+    }
+    let list = |ptr: *const u64, len: usize| -> &'a [u64] {
+        if len == 0 {
+            &[]
+        } else {
+            slice::from_raw_parts(ptr, len)
+        }
+    };
+    Ok(if !allow.is_null() {
+        Some(vanedb::approx::Filter::Allow(list(allow, allow_len)))
+    } else if !deny.is_null() {
+        Some(vanedb::approx::Filter::Deny(list(deny, deny_len)))
+    } else if let Some(cb) = filter {
+        let closure: &'a CFilterClosure = closure.insert(CFilterClosure::new(cb, user_data));
+        Some(vanedb::approx::Filter::Predicate(closure.as_predicate()))
+    } else {
+        None
+    })
+}
+
+/// Copies a search outcome into the caller's buffers and reports it.
+///
+/// # Safety
+/// `out_ids` and `out_dists` must each have room for `k` elements.
+unsafe fn write_search_results(
+    outcome: vanedb::Result<Vec<vanedb::flat::SearchResult>>,
+    k: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
+    match outcome {
+        Ok(res) => {
+            let n = res.len().min(k);
+            for (i, r) in res.iter().take(k).enumerate() {
+                *out_ids.add(i) = r.id;
+                *out_dists.add(i) = r.distance;
+            }
+            // A callback may have handled a failing call on another
+            // handle. Report the successful outer search, not that error.
+            clear_error();
+            n
+        }
+        Err(e) => fail(e, 0),
     }
 }
 
@@ -832,46 +895,24 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
         }
         let query = slice::from_raw_parts(q, store.dimension());
 
-        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+        let mut closure = None;
+        let Ok(c_filter) = filter_from_args(
+            filter,
+            user_data,
+            allow,
+            allow_len,
+            deny,
+            deny_len,
+            &mut closure,
+        ) else {
             return 0;
-        }
-        let pred_closure;
-        let c_filter = if !allow.is_null() {
-            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(allow, allow_len)
-            }))
-        } else if !deny.is_null() {
-            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(deny, deny_len)
-            }))
-        } else if let Some(cb) = filter {
-            pred_closure = CFilterClosure::new(cb, user_data);
-            Some(vanedb::approx::Filter::Predicate(
-                pred_closure.as_predicate(),
-            ))
-        } else {
-            None
         };
-
         let mut params = vanedb::SearchParams::new();
         if let Some(f) = c_filter {
             params = params.filter(f);
         }
 
-        match store.search_with(query, k, &params) {
-            Ok(res) => {
-                let n = write_results(&res, k, out_ids, out_dists);
-                // A callback may have handled a failing call on another
-                // handle. Report the successful outer search, not that error.
-                clear_error();
-                n
-            }
-            Err(e) => fail(e, 0),
-        }
+        write_search_results(store.search_with(query, k, &params), k, out_ids, out_dists)
     })
 }
 
@@ -1043,31 +1084,18 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
         }
         let query = slice::from_raw_parts(q, idx.dimension());
 
-        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+        let mut closure = None;
+        let Ok(c_filter) = filter_from_args(
+            filter,
+            user_data,
+            allow,
+            allow_len,
+            deny,
+            deny_len,
+            &mut closure,
+        ) else {
             return 0;
-        }
-        let pred_closure;
-        let c_filter = if !allow.is_null() {
-            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(allow, allow_len)
-            }))
-        } else if !deny.is_null() {
-            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(deny, deny_len)
-            }))
-        } else if let Some(cb) = filter {
-            pred_closure = CFilterClosure::new(cb, user_data);
-            Some(vanedb::approx::Filter::Predicate(
-                pred_closure.as_predicate(),
-            ))
-        } else {
-            None
         };
-
         let mut params = if ef_search == 0 {
             vanedb::SearchParams::new()
         } else {
@@ -1077,16 +1105,7 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
             params = params.filter(f);
         }
 
-        match idx.search_with(query, k, &params) {
-            Ok(res) => {
-                let n = write_results(&res, k, out_ids, out_dists);
-                // A callback may have handled a failing call on another
-                // handle. Report the successful outer search, not that error.
-                clear_error();
-                n
-            }
-            Err(e) => fail(e, 0),
-        }
+        write_search_results(idx.search_with(query, k, &params), k, out_ids, out_dists)
     })
 }
 
@@ -1374,46 +1393,24 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
         }
         let query = slice::from_raw_parts(q, store.dimension());
 
-        if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
+        let mut closure = None;
+        let Ok(c_filter) = filter_from_args(
+            filter,
+            user_data,
+            allow,
+            allow_len,
+            deny,
+            deny_len,
+            &mut closure,
+        ) else {
             return 0;
-        }
-        let pred_closure;
-        let c_filter = if !allow.is_null() {
-            Some(vanedb::approx::Filter::Allow(if allow_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(allow, allow_len)
-            }))
-        } else if !deny.is_null() {
-            Some(vanedb::approx::Filter::Deny(if deny_len == 0 {
-                &[]
-            } else {
-                slice::from_raw_parts(deny, deny_len)
-            }))
-        } else if let Some(cb) = filter {
-            pred_closure = CFilterClosure::new(cb, user_data);
-            Some(vanedb::approx::Filter::Predicate(
-                pred_closure.as_predicate(),
-            ))
-        } else {
-            None
         };
-
         let mut params = vanedb::SearchParams::new();
         if let Some(f) = c_filter {
             params = params.filter(f);
         }
 
-        match store.search_with(query, k, &params) {
-            Ok(res) => {
-                let n = write_results(&res, k, out_ids, out_dists);
-                // A callback may have handled a failing call on another
-                // handle. Report the successful outer search, not that error.
-                clear_error();
-                n
-            }
-            Err(e) => fail(e, 0),
-        }
+        write_search_results(store.search_with(query, k, &params), k, out_ids, out_dists)
     })
 }
 

@@ -132,7 +132,7 @@ which queries fill up to `k`, not how good the matches already returned are.
 The measured table in
 [the 0.2.0 filtered-search validation record](docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings)
 shows the difference: at 1% selectivity, raising the cap from 200 to 1,600
-took recall@10 from 35.5% to 51.7%, while raising the beam to 1,000 took it
+took recall@10 from 51.5% to 51.8%, while raising the beam to 1,000 took it
 to 96.2%.
 
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the

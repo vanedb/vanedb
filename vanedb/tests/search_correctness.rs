@@ -17,7 +17,7 @@
 //! floats per iteration and NEON four, so 7/8/9 and 15/16/17 exercise a full
 //! body, an exact fit, and a one-element tail on both.
 
-use vanedb::{ApproxIndex, Filter, FlatIndex, Metric, SearchParams};
+use vanedb::{ApproxIndex, Filter, FlatIndex, Metric, SearchParams, SearchResult, VaneError};
 
 #[cfg(feature = "disk")]
 use vanedb::{DiskIndex, DiskIndexBuilder};
@@ -436,6 +436,10 @@ fn separable_clusters_are_searched_correctly_at_the_default_beam() {
     }
 }
 
+fn ids_of(hits: &[SearchResult]) -> Vec<u64> {
+    hits.iter().map(|h| h.id).collect()
+}
+
 #[test]
 fn filtered_search_exact_matches_reference() {
     let dim = 8;
@@ -469,15 +473,15 @@ fn filtered_search_exact_matches_reference() {
     let store_hits = store.search_with(&query, 10, &params_pred).unwrap();
     let index_hits = index.search_with(&query, 10, &params_pred).unwrap();
 
-    assert!(!store_hits.is_empty());
+    assert_eq!(store_hits.len(), 10);
     for hit in &store_hits {
         assert_eq!(hit.id % 4, 0);
     }
-    for hit in &index_hits {
-        assert_eq!(hit.id % 4, 0);
-    }
-    // High-recall comparison on 100 items with widening
-    assert_eq!(store_hits[0].id, index_hits[0].id);
+    // One ef=50 pass already scores all 100 slots, so no widening pass runs
+    // here: this pins the graph ranking against the exact reference, whole
+    // and in order, rather than exercising widening (filtered_widening.rs
+    // does that).
+    assert_eq!(ids_of(&index_hits), ids_of(&store_hits));
 
     // 2. Allow list: explicitly allow a subset of 5 IDs
     let allowed_ids = [ids[5], ids[12], ids[25], ids[40], ids[70]];
@@ -489,14 +493,13 @@ fn filtered_search_exact_matches_reference() {
     let store_allow = store.search_with(&query, 5, &params_allow).unwrap();
     let index_allow = index.search_with(&query, 5, &params_allow).unwrap();
 
-    assert_eq!(store_allow.len(), 5);
-    for hit in &store_allow {
-        assert!(sorted_allowed.contains(&hit.id));
-    }
-    assert_eq!(index_allow.len(), 5);
-    for hit in &index_allow {
-        assert!(sorted_allowed.contains(&hit.id));
-    }
+    let mut found = ids_of(&store_allow);
+    found.sort_unstable();
+    assert_eq!(
+        found, sorted_allowed,
+        "exact search returns every allowed id"
+    );
+    assert_eq!(ids_of(&index_allow), ids_of(&store_allow));
 
     // 3. Deny list: deny the top result from unfiltered search
     let unfiltered = store.search(&query, 5).unwrap();
@@ -508,14 +511,10 @@ fn filtered_search_exact_matches_reference() {
     let store_deny = store.search_with(&query, 5, &params_deny).unwrap();
     let index_deny = index.search_with(&query, 5, &params_deny).unwrap();
 
-    for hit in &store_deny {
-        assert_ne!(hit.id, top_id);
-    }
-    for hit in &index_deny {
-        assert_ne!(hit.id, top_id);
-    }
-    // Denied search should match unfiltered from 2nd onwards
-    assert_eq!(store_deny[0].id, unfiltered[1].id);
+    assert!(!ids_of(&store_deny).contains(&top_id));
+    // Denying the top hit shifts the exact ranking up by one.
+    assert_eq!(ids_of(&store_deny)[..4], ids_of(&unfiltered)[1..]);
+    assert_eq!(ids_of(&index_deny), ids_of(&store_deny));
 
     // 4. Validation error on unsorted Allow/Deny
     let unsorted = [100, 20];
@@ -762,33 +761,37 @@ fn filtered_graph_search_recall_and_tombstones() {
             k,
             "exact search at {selectivity} selectivity should find {k} items"
         );
-        // For 1% selectivity with n=300 (only 3 vectors in the whole space),
-        // recall@k might find all reachable ones via widening.
         assert!(
-            approx_hits.len() <= k,
-            "approx search cannot return more than k"
-        );
-        assert!(
-            !approx_hits.is_empty(),
-            "approx search at {selectivity} selectivity should find results via beam widening"
-        );
-
-        if selectivity == "1%" {
-            assert!(
-                !approx_hits.is_empty(),
-                "approx search at 1% selectivity should find results"
-            );
-        } else {
-            let exact_id_set: std::collections::HashSet<u64> =
-                exact_hits.iter().map(|h| h.id).collect();
-            let matched = approx_hits
+            approx_hits
                 .iter()
-                .filter(|h| exact_id_set.contains(&h.id))
-                .count();
-            let recall = (matched as f64) / (k as f64);
+                .all(|h| allowed.binary_search(&h.id).is_ok()),
+            "approx search at {selectivity} returned an id outside the allow list"
+        );
+        assert_eq!(
+            approx_hits.len(),
+            k,
+            "approx search at {selectivity} selectivity should widen until it finds {k} matches"
+        );
+        let exact_id_set: std::collections::HashSet<u64> =
+            exact_hits.iter().map(|h| h.id).collect();
+        let matched = approx_hits
+            .iter()
+            .filter(|h| exact_id_set.contains(&h.id))
+            .count();
+        let recall = (matched as f64) / (k as f64);
+        eprintln!("recall at {selectivity}: {recall}");
+        // One ef=50 pass already scores 258 of the 300 slots (measured with a
+        // reject-all predicate), so the beam covers most of the graph before
+        // any widening: these assertions pin the ranking against the exact
+        // reference, not widening (filtered_widening.rs does that). Measured
+        // 1.0 at every selectivity on this seed. At 1% all three allowed ids
+        // must come back, exactly as ranked.
+        if selectivity == "1%" {
+            assert_eq!(ids_of(&approx_hits), ids_of(&exact_hits));
+        } else {
             assert!(
-                recall >= 0.8,
-                "recall at {selectivity} selectivity was {recall}, expected >= 0.8"
+                recall >= 0.9,
+                "recall at {selectivity} selectivity was {recall}, expected >= 0.9"
             );
         }
     }
@@ -804,6 +807,67 @@ fn filtered_graph_search_recall_and_tombstones() {
         hits.is_empty(),
         "tombstoned id must not be returned even if explicitly in allow filter"
     );
+}
+
+/// RFC 0004, "Errors": a valid filter on an empty index returns no matches
+/// without invoking the predicate, and a malformed list is rejected with
+/// `Validation` whether or not anything has been inserted.
+#[test]
+fn empty_index_never_invokes_predicate_and_still_validates_lists() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let calls = AtomicUsize::new(0);
+    let counting = |_: u64| {
+        calls.fetch_add(1, Ordering::Relaxed);
+        true
+    };
+    let unsorted = [20, 10];
+    let duplicated = [10, 10];
+
+    let flat = FlatIndex::new(2, Metric::L2).unwrap();
+    let approx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+    #[cfg(feature = "disk")]
+    let disk = {
+        let path = scratch_path("empty-filter");
+        vanedb::DiskIndexBuilder::new(2, Metric::L2)
+            .unwrap()
+            .save(&path)
+            .unwrap();
+        // SAFETY: the file is not modified while mapped.
+        let disk = unsafe { vanedb::DiskIndex::open(&path) }.unwrap();
+        let _ = std::fs::remove_file(&path);
+        disk
+    };
+
+    type Search<'a> = Box<dyn Fn(&SearchParams<'_>) -> vanedb::Result<Vec<SearchResult>> + 'a>;
+    let searches: Vec<(&str, Search<'_>)> = vec![
+        ("flat", Box::new(|p| flat.search_with(&[0.0, 0.0], 3, p))),
+        (
+            "approx",
+            Box::new(|p| approx.search_with(&[0.0, 0.0], 3, p)),
+        ),
+        #[cfg(feature = "disk")]
+        ("disk", Box::new(|p| disk.search_with(&[0.0, 0.0], 3, p))),
+    ];
+
+    for (name, search) in &searches {
+        let hits = search(&SearchParams::new().filter(Filter::Predicate(&counting))).unwrap();
+        assert!(hits.is_empty(), "{name}: empty index returned matches");
+        assert_eq!(
+            calls.load(Ordering::Relaxed),
+            0,
+            "{name}: predicate invoked on an empty index"
+        );
+        for list in [&unsorted[..], &duplicated[..]] {
+            for filter in [Filter::Allow(list), Filter::Deny(list)] {
+                let err = search(&SearchParams::new().filter(filter)).unwrap_err();
+                assert!(
+                    matches!(err, VaneError::Validation(_)),
+                    "{name}: {filter:?} on an empty index gave {err:?}, expected Validation"
+                );
+            }
+        }
+    }
 }
 
 #[cfg(feature = "disk")]
