@@ -64,12 +64,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   visits far more than 4 x 50 nodes. `max_ef_search` now bounds beam width
   only, as documented. On the pinned 100k embedding fixture a 1%-selectivity
   allow list at default settings returns `k` matches for 99.0% of queries
-  instead of 30.8%. Unreleased, so no released behaviour changes.
+  instead of 30.8%, and recall@10 at 1% rises from 35.54% to 51.50%. A query
+  whose first pass finds fewer than `k` matches now runs the additional
+  widening passes the cap allows, so such queries do more work than before;
+  queries that fill `k` on the first pass are unchanged. Unreleased, so no
+  released behaviour changes.
 - Python and WebAssembly predicates that call a method on the index being
   searched (`add` inside the callback, or a nested `search` while another
   thread has a writer queued) deadlocked on that index's read lock. The call
   now raises `RuntimeError` in Python and throws an `Error` with
-  `code === "ERR_REENTRANT_SEARCH"` in JavaScript.
+  `code === "ERR_REENTRANT_SEARCH"` in JavaScript. The guard covers every
+  call on the searched index from its predicate, including nested reads
+  such as `len`, `contains` or a second `search` that previously happened to
+  succeed when no writer was waiting.
 
 ## [0.1.1] - 2026-09-10
 

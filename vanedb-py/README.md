@@ -114,7 +114,8 @@ candidate, while the surrounding search releases it. Predicates must be
 synchronous and stable for the duration of a query; they may be called more
 than once for an ID. They run while the index holds a read lock, so they must
 not call methods on that same index, modify it, or wait for another thread to
-modify it; a direct call from the predicate raises `RuntimeError` rather than
+modify it; a direct call from the predicate raises `RuntimeError` ("a filter
+predicate must not call methods on the index being searched") rather than
 deadlocking. They can consult external metadata or search another index.
 Callback exceptions, including failures converting the result to `bool`,
 propagate from `search` without returning partial results.

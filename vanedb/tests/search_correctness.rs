@@ -836,15 +836,15 @@ fn empty_index_never_invokes_predicate_and_still_validates_lists() {
     };
 
     type Search<'a> = Box<dyn Fn(&SearchParams<'_>) -> vanedb::Result<Vec<SearchResult>> + 'a>;
-    let mut searches: Vec<(&str, Search<'_>)> = vec![
+    let searches: Vec<(&str, Search<'_>)> = vec![
         ("flat", Box::new(|p| flat.search_with(&[0.0, 0.0], 3, p))),
         (
             "approx",
             Box::new(|p| approx.search_with(&[0.0, 0.0], 3, p)),
         ),
+        #[cfg(feature = "disk")]
+        ("disk", Box::new(|p| disk.search_with(&[0.0, 0.0], 3, p))),
     ];
-    #[cfg(feature = "disk")]
-    searches.push(("disk", Box::new(|p| disk.search_with(&[0.0, 0.0], 3, p))));
 
     for (name, search) in &searches {
         let hits = search(&SearchParams::new().filter(Filter::Predicate(&counting))).unwrap();
