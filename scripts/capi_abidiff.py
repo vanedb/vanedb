@@ -59,13 +59,22 @@ CURRENT_HEADER = ROOT / "vanedb-capi/include/vanedb_rs_capi.h"
 
 
 def parse_version(text):
-    """(major, minor, patch, is_release, prerelease) so releases sort above
-    their prereleases and prereleases compare lexically among themselves."""
-    match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?", text)
+    """SemVer precedence key; build metadata does not affect ordering."""
+    number = r"(0|[1-9][0-9]*)"
+    identifiers = r"([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)"
+    match = re.fullmatch(rf"{number}\.{number}\.{number}(?:-{identifiers})?(?:\+{identifiers})?", text)
     if not match:
         return None
-    major, minor, patch, pre = match.groups()
-    return (int(major), int(minor), int(patch), pre is None, pre or "")
+    major, minor, patch, pre, _build = match.groups()
+    prerelease = []
+    for identifier in pre.split(".") if pre is not None else ():
+        if identifier.isdigit():
+            if len(identifier) > 1 and identifier.startswith("0"):
+                return None
+            prerelease.append((0, int(identifier)))
+        else:
+            prerelease.append((1, identifier))
+    return (int(major), int(minor), int(patch), pre is None, tuple(prerelease))
 
 
 def tag_version(tag):

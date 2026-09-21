@@ -258,6 +258,39 @@ class Baseline(unittest.TestCase):
                          ("vanedb-v0.1.1", "vanedb-capi-0.1.1-linux-x86_64.zip"))
         self.assertIsNone(capi_abidiff.select_baseline(current, self.RELEASES, lambda t: []))
 
+    def test_newest_prerelease_baseline_uses_numeric_identifier_order(self):
+        published = [{"tagName": f"vanedb-crate-v0.2.0-rc.{n}"} for n in (1, 2, 9, 10)]
+        def assets(tag):
+            return [f"vanedb-capi-{tag.removeprefix('vanedb-crate-v')}-linux-x86_64.zip"]
+        for current, expected in (("0.2.0", "0.2.0-rc.10"), ("0.2.0-rc.2", "0.2.0-rc.2")):
+            with self.subTest(current=current):
+                tag = f"vanedb-crate-v{expected}"
+                self.assertEqual(
+                    capi_abidiff.select_baseline(capi_abidiff.parse_version(current), published, assets),
+                    (tag, assets(tag)[0]),
+                )
+        self.assertEqual(
+            capi_abidiff.baseline_candidates(capi_abidiff.parse_version("0.2.0-rc.2"), published),
+            ["vanedb-crate-v0.2.0-rc.2", "vanedb-crate-v0.2.0-rc.1"],
+        )
+
+    def test_semver_prerelease_precedence(self):
+        ordered = ["0.2.0-alpha", "0.2.0-alpha.1", "0.2.0-alpha.beta", "0.2.0-beta",
+                   "0.2.0-beta.2", "0.2.0-beta.11", "0.2.0-rc.1", "0.2.0"]
+        versions = [capi_abidiff.parse_version(version) for version in ordered]
+        for before, after in zip(versions, versions[1:]):
+            self.assertLess(before, after)
+        self.assertEqual(capi_abidiff.parse_version("0.2.0-rc.1+build.01"), versions[-2])
+        self.assertEqual(capi_abidiff.parse_version("0.2.0+build.99"), versions[-1])
+
+    def test_invalid_semver_is_not_a_baseline(self):
+        for version in ("01.2.0", "0.02.0", "0.2.00", "0.2.0-rc.01", "0.2.0-",
+                        "0.2.0-rc..1", "0.2.0+", "0.2.0+build..1"):
+            with self.subTest(version=version):
+                self.assertIsNone(capi_abidiff.parse_version(version))
+                self.assertEqual(capi_abidiff.baseline_candidates(
+                    capi_abidiff.parse_version("1.0.0"), [{"tagName": f"vanedb-crate-v{version}"}]), [])
+
     def test_prerelease_sorts_below_its_release(self):
         self.assertLess(capi_abidiff.parse_version("0.2.0-rc.1"), capi_abidiff.parse_version("0.2.0"))
 

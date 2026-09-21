@@ -575,54 +575,115 @@ fn freeing_under_concurrent_use_is_rejected_afterwards_not_a_crash() {
         let v = [id as f32, 1.0];
         assert_eq!(unsafe { vanedb_rs_index_add(h, id, v.as_ptr()) }, 0);
     }
-    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let workers: Vec<_> = (0..4)
-        .map(|_| {
-            let stop = stop.clone();
-            std::thread::spawn(move || {
-                let mut ok = 0usize;
-                let mut rejected = 0usize;
-                while !stop.load(std::sync::atomic::Ordering::Relaxed) {
-                    let (mut ids, mut ds) = ([0u64; 4], [0f32; 4]);
-                    let n = unsafe {
-                        vanedb_rs_index_search(
-                            h,
-                            V2.as_ptr(),
-                            4,
-                            0,
-                            ids.as_mut_ptr(),
-                            ds.as_mut_ptr(),
-                        )
-                    };
-                    match vanedb_rs_last_error() {
-                        VANEDB_RS_OK => {
-                            assert_eq!(n, 4);
-                            ok += 1;
-                        }
-                        VANEDB_RS_INVALID_HANDLE => {
-                            assert_eq!(n, 0);
-                            rejected += 1;
-                        }
-                        other => panic!("unexpected code {other}"),
-                    }
-                }
-                (ok, rejected)
-            })
-        })
-        .collect();
-    std::thread::sleep(std::time::Duration::from_millis(20));
-    vanedb_rs_index_free(h);
-    std::thread::sleep(std::time::Duration::from_millis(20));
-    stop.store(true, std::sync::atomic::Ordering::Relaxed);
-    let mut total_rejected = 0;
-    for worker in workers {
-        let (_, rejected) = worker.join().expect("a worker must not crash");
-        total_rejected += rejected;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(10);
+    const WORKERS: usize = 4;
+    struct CallbackGate {
+        entered: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+        paused: bool,
     }
-    assert!(
-        total_rejected > 0,
-        "searches after the free must be rejected"
+    unsafe extern "C-unwind" fn pause_once(_: u64, data: *mut c_void) -> bool {
+        // The predicate is synchronous on this worker. Its first invocation
+        // proves lookup completed and this call owns its reference to the graph.
+        let gate = unsafe { &mut *data.cast::<CallbackGate>() };
+        if !gate.paused {
+            gate.paused = true;
+            gate.entered.send(()).expect("main must wait for callbacks");
+            gate.resume
+                .recv_timeout(TIMEOUT)
+                .expect("callback must be released");
+        }
+        true
+    }
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
+    let mut resumes = Vec::new();
+    let mut workers = Vec::new();
+    for _ in 0..WORKERS {
+        let (resume_tx, resume_rx) = mpsc::channel();
+        resumes.push(resume_tx);
+        let entered = entered_tx.clone();
+        let done = done_tx.clone();
+        workers.push(std::thread::spawn(move || {
+            let mut gate = CallbackGate {
+                entered,
+                resume: resume_rx,
+                paused: false,
+            };
+            let (mut ids, mut ds) = ([0u64; 4], [0f32; 4]);
+            let n = unsafe {
+                vanedb_rs_index_search_filtered(
+                    h,
+                    V2.as_ptr(),
+                    4,
+                    0,
+                    Some(pause_once),
+                    (&mut gate as *mut CallbackGate).cast(),
+                    null(),
+                    0,
+                    null(),
+                    0,
+                    ids.as_mut_ptr(),
+                    ds.as_mut_ptr(),
+                )
+            };
+            let in_flight = (n, vanedb_rs_last_error());
+            let later = unsafe {
+                vanedb_rs_index_search(h, V2.as_ptr(), 4, 0, ids.as_mut_ptr(), ds.as_mut_ptr())
+            };
+            done.send((in_flight, (later, vanedb_rs_last_error())))
+                .expect("main must wait for results");
+        }));
+    }
+    drop(entered_tx);
+    drop(done_tx);
+    for _ in 0..WORKERS {
+        entered_rx
+            .recv_timeout(TIMEOUT)
+            .expect("every search must be in flight before free");
+    }
+    // Run free on its own thread so a regression that waits on an engine
+    // lock fails a bounded wait instead of hanging the test's main thread.
+    let (freed_tx, freed_rx) = mpsc::channel();
+    let freeing = std::thread::spawn(move || {
+        vanedb_rs_index_free(h);
+        freed_tx
+            .send(vanedb_rs_last_error())
+            .expect("main must wait for free");
+    });
+    assert_eq!(
+        freed_rx
+            .recv_timeout(TIMEOUT)
+            .expect("free must not wait for searches"),
+        VANEDB_RS_OK
     );
+    for resume in resumes {
+        resume
+            .send(())
+            .expect("search must still be paused after free");
+    }
+    for _ in 0..WORKERS {
+        let (in_flight, later) = done_rx
+            .recv_timeout(TIMEOUT)
+            .expect("search must finish after free");
+        assert_eq!(
+            in_flight,
+            (4, VANEDB_RS_OK),
+            "in-flight references must survive free"
+        );
+        assert_eq!(
+            later,
+            (0, VANEDB_RS_INVALID_HANDLE),
+            "new lookups must reject the freed id"
+        );
+    }
+    freeing.join().expect("free must not panic");
+    for worker in workers {
+        worker.join().expect("search must not panic");
+    }
     assert_eq!(vanedb_rs_index_len(h), 0);
     assert_eq!(vanedb_rs_last_error(), VANEDB_RS_INVALID_HANDLE);
 }

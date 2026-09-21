@@ -49,8 +49,9 @@ pub const VANEDB_RS_NULL_HANDLE: vanedb_rs_handle = 0;
 /// A synchronous ID predicate, called on the thread performing the search.
 ///
 /// The callback and any memory it accesses through `user_data` must remain valid
-/// for the whole call. It must not free the searched handle, or modify/free any
-/// search buffers; calls using other handles are allowed.
+/// for the whole call. It must not access, mutate, or free the searched handle:
+/// the search holds its read lock. It must not modify/free any search buffers;
+/// calls using other handles are allowed.
 /// It must not throw a foreign exception or use `longjmp` across Rust frames.
 /// A Rust callback declared `extern "C-unwind"` may panic; with unwinding enabled
 /// the search reports `VANEDB_RS_PANIC` and leaves the result buffers untouched.
