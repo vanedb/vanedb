@@ -27,6 +27,27 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 - Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
   `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
 
+### Changed
+
+- `Filter` is `#[non_exhaustive]`: a `match` on it needs a `_` arm, so the
+  payload filter variant planned in RFC 0009 will not be a breaking change.
+  Unreleased, so no released code is affected.
+
+### Fixed
+
+- Filtered beam widening on `ApproxIndex` ended after a single pass at default
+  settings: the loop compared the number of nodes a pass visited against
+  `max_ef_search`, and one `ef_search = 50` pass on an `M = 16` graph already
+  visits far more than 4 x 50 nodes. `max_ef_search` now bounds beam width
+  only, as documented. On the pinned 100k embedding fixture a 1%-selectivity
+  allow list at default settings returns `k` matches for 99.0% of queries
+  instead of 30.8%. Unreleased, so no released behaviour changes.
+- Python and WebAssembly predicates that call a method on the index being
+  searched (`add` inside the callback, or a nested `search` while another
+  thread has a writer queued) deadlocked on that index's read lock. The call
+  now raises `RuntimeError` in Python and throws an `Error` with
+  `code === "ERR_REENTRANT_SEARCH"` in JavaScript.
+
 ## [0.1.1] - 2026-09-10
 
 The first supported release. It is a 0.x release: as stated above, APIs and

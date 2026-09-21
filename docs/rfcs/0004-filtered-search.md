@@ -54,12 +54,16 @@ impl<'a> SearchParams<'a> {
   heap. Excluded nodes remain traversable. Filtering does not guarantee the
   same recall as unfiltered search; measure recall for the accepted subset.
 - **Automatic widening.** If the walk ends with fewer than `k` accepted results
-  and fewer than `max_ef_search` nodes visited, the search restarts with the
-  beam doubled, up to `max_ef_search`. Effective widths are at least `k` and
+  and the beam is below `max_ef_search`, the search restarts with the beam
+  doubled, up to `max_ef_search`. Effective widths are at least `k` and
   capped by the number of stored nodes; arithmetic saturates. The cap bounds
   beam width, not total visited nodes or distance evaluations: one expansion
-  may score a whole neighbor list. Exhausting the cap can return fewer than
-  `k` matches even when more exist. The result carries `SearchResult`s only;
+  may score a whole neighbor list, and a single `ef_search = 50` pass on an
+  `M = 16` graph visits far more than 4 × 50 nodes, so a visit-count exit
+  against the cap would end widening after one pass (the 0.2.0 pre-release
+  defect). A pass that has already scored every stored slot ends widening
+  early, since a wider beam cannot reach anything new. Exhausting the cap can
+  return fewer than `k` matches even when more exist. The result carries `SearchResult`s only;
   the number of restarts is not exposed in 0.2.0 (the `#[non_exhaustive]`
   struct allows adding it later).
 - `FlatIndex::search_with` and `DiskIndex::search_with` take the same
@@ -134,6 +138,11 @@ reentrancy constraints.
 - 2026-09-20 review: specify empty C lists by pointer presence, reject conflicting
   filters consistently, propagate binding callback errors, and document beam
   and callback limits. Preserve the existing WebAssembly third argument.
+- 2026-09-20 follow-up review: widening compared the visit count against the
+  beam cap and so never ran a second pass at default settings; the cap bounds
+  beam width only. `Filter` is `#[non_exhaustive]` ahead of RFC 0009. Python
+  and WebAssembly predicates that call back into the index being searched
+  raise instead of deadlocking.
 
 ## Alternatives rejected
 

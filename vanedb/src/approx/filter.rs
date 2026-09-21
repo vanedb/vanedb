@@ -7,6 +7,9 @@ use crate::error::{Result, VaneError};
 /// Filters only govern result acceptance; they do not alter graph traversal,
 /// ensuring graph connectivity is maintained even under highly selective filters.
 ///
+/// `#[non_exhaustive]`: matching on a `Filter` needs a `_` arm, so a variant
+/// added later (payload filtering, RFC 0009) is not a breaking change.
+///
 /// # Examples
 ///
 /// ```
@@ -18,6 +21,7 @@ use crate::error::{Result, VaneError};
 /// let params = SearchParams::new().filter(filter);
 /// ```
 #[derive(Clone, Copy)]
+#[non_exhaustive]
 pub enum Filter<'a> {
     /// Accept an id when the predicate returns true.
     ///

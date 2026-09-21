@@ -1,9 +1,11 @@
+use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{
-    PyFileNotFoundError, PyKeyError, PyOSError, PyOverflowError, PyTypeError, PyValueError,
+    PyFileNotFoundError, PyKeyError, PyOSError, PyOverflowError, PyRuntimeError, PyTypeError,
+    PyValueError,
 };
 use pyo3::prelude::*;
 
@@ -183,6 +185,56 @@ fn ids_u64(obj: &Bound<'_, PyAny>) -> PyResult<Vec<u64>> {
     Ok(ids)
 }
 
+thread_local! {
+    /// Indexes whose predicate search is running on this thread, by address.
+    ///
+    /// A predicate runs under the searched index's read lock. Calling back
+    /// into that index from the callback would block on the same lock --
+    /// immediately for a write, or for a read once a writer is queued on
+    /// another thread, because parking_lot read locks are not recursive --
+    /// and the process would hang with no diagnostic. The list is per thread
+    /// because the predicate runs on the searching thread; other threads may
+    /// still queue on the index as usual. A nested search on a different
+    /// index is supported, hence a list rather than a flag.
+    static IN_PREDICATE_SEARCH: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Marks `index` as searching with a predicate on this thread until dropped.
+struct PredicateScope(usize);
+
+impl PredicateScope {
+    fn enter<T>(index: &T) -> Self {
+        let addr = index as *const T as usize;
+        IN_PREDICATE_SEARCH.with(|s| s.borrow_mut().push(addr));
+        Self(addr)
+    }
+}
+
+impl Drop for PredicateScope {
+    fn drop(&mut self) {
+        IN_PREDICATE_SEARCH.with(|s| {
+            let mut s = s.borrow_mut();
+            if let Some(pos) = s.iter().rposition(|&addr| addr == self.0) {
+                s.remove(pos);
+            }
+        });
+    }
+}
+
+/// Raises instead of deadlocking when a predicate calls back into the index
+/// it is filtering. Every method that takes the index's lock checks first.
+fn reject_reentry<T>(index: &T) -> PyResult<()> {
+    let addr = index as *const T as usize;
+    if IN_PREDICATE_SEARCH.with(|s| s.borrow().contains(&addr)) {
+        return Err(PyRuntimeError::new_err(
+            "a filter predicate must not call methods on the index being searched: \
+             the search holds its read lock; consult external metadata or search \
+             a different index instead",
+        ));
+    }
+    Ok(())
+}
+
 /// Extracted filter representation from Python keyword arguments.
 enum PyFilterHolder<'a> {
     None,
@@ -257,12 +309,14 @@ fn extract_py_filter<'a>(
     Ok(PyFilterHolder::None)
 }
 
-fn run_search_with_filter(
+fn run_search_with_filter<T>(
     py: Python<'_>,
+    index: &T,
     py_filter: &PyFilterHolder<'_>,
     base_params: SearchParams<'_>,
     search_fn: impl Fn(&SearchParams<'_>) -> ::vanedb::Result<Vec<SearchResult>> + Send + Sync,
 ) -> PyResult<Vec<(u64, f32)>> {
+    reject_reentry(index)?;
     let results = match py_filter {
         PyFilterHolder::None => py.detach(|| search_fn(&base_params)).map_err(to_pyerr)?,
         PyFilterHolder::Allow(ids) => {
@@ -275,6 +329,7 @@ fn run_search_with_filter(
         }
         PyFilterHolder::Predicate { predicate, error } => {
             let params = base_params.filter(Filter::Predicate(predicate.as_ref()));
+            let _scope = PredicateScope::enter(index);
             // As with id lists, do not hold the GIL while acquiring core
             // locks. The callback acquires it only while running Python.
             let result = py.detach(|| search_fn(&params));
@@ -399,6 +454,7 @@ impl PyStore {
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        reject_reentry(self)?;
         let v = vec_f32(vector)?;
         py.detach(|| self.inner.add(id, &v)).map_err(to_pyerr)
     }
@@ -412,6 +468,7 @@ impl PyStore {
         ids: &Bound<'_, PyAny>,
         vectors: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        reject_reentry(self)?;
         let ids = ids_u64(ids)?;
         let (rows, flat) = batch_f32(vectors, self.inner.dimension())?;
         check_batch_len(&ids, rows)?;
@@ -437,12 +494,13 @@ impl PyStore {
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
-        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+        run_search_with_filter(py, self, &py_filter, SearchParams::new(), |p| {
             self.inner.search_with(&q, k, p)
         })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.get(id)).map_err(to_pyerr)
     }
 
@@ -457,15 +515,18 @@ impl PyStore {
     }
 
     fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
-    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        py.detach(|| self.inner.contains(id))
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<bool> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.contains(id)))
     }
 
-    fn __len__(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.len())
+    fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.len()))
     }
 
     /// Number of vectors stored.
@@ -473,8 +534,9 @@ impl PyStore {
     /// `len(store)` is the Pythonic spelling; `size()` is what vanedb_cpp and
     /// the wasm bindings expose. Both work here so neither spelling ties a
     /// program to one engine (#85).
-    fn size(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.len())
+    fn size(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.len()))
     }
 
     /// The metric this index was built with.
@@ -526,6 +588,7 @@ impl PyIndex {
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        reject_reentry(self)?;
         let v = vec_f32(vector)?;
         py.detach(|| self.inner.add(id, &v)).map_err(to_pyerr)
     }
@@ -539,6 +602,7 @@ impl PyIndex {
         ids: &Bound<'_, PyAny>,
         vectors: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        reject_reentry(self)?;
         let ids = ids_u64(ids)?;
         let (rows, flat) = batch_f32(vectors, self.inner.dimension())?;
         check_batch_len(&ids, rows)?;
@@ -585,7 +649,7 @@ impl PyIndex {
             base_params = base_params.max_ef_search(m);
         }
 
-        run_search_with_filter(py, &py_filter, base_params, |p| {
+        run_search_with_filter(py, self, &py_filter, base_params, |p| {
             self.inner.search_with(&q, k, p)
         })
     }
@@ -595,6 +659,7 @@ impl PyIndex {
         py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
     ) -> PyResult<Vec<f32>> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.get_vector(id)).map_err(to_pyerr)
     }
 
@@ -605,13 +670,15 @@ impl PyIndex {
         self.get_vector(py, id)
     }
 
-    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        py.detach(|| self.inner.contains(id))
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<bool> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.contains(id)))
     }
 
     /// Writes the graph to `path`, which may be a `str` or any `os.PathLike`
     /// — `pathlib.Path` included.
     fn save(&self, py: Python<'_>, path: PathBuf) -> PyResult<()> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.save(&path)).map_err(to_pyerr)
     }
 
@@ -625,6 +692,7 @@ impl PyIndex {
     /// Serializes the graph as a VNDB file. Compact first if tombstones
     /// should not be included.
     fn to_bytes(&self, py: Python<'_>) -> PyResult<Vec<u8>> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.to_bytes()).map_err(to_pyerr)
     }
 
@@ -647,8 +715,9 @@ impl PyIndex {
         self.inner.set_ef_search(ef);
     }
 
-    fn __len__(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.size())
+    fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.size()))
     }
 
     /// Inserts `vector` under `id`, replacing any existing entry.
@@ -662,6 +731,7 @@ impl PyIndex {
         #[pyo3(from_py_with = one_id)] id: u64,
         vector: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
+        reject_reentry(self)?;
         let v = vec_f32(vector)?;
         py.detach(|| self.inner.upsert(id, &v)).map_err(to_pyerr)
     }
@@ -670,8 +740,9 @@ impl PyIndex {
     /// reclaimed. Re-adding a removed id allocates a fresh slot, so an upsert
     /// loop grows this even at constant length.
     #[getter]
-    fn tombstones(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.tombstones())
+    fn tombstones(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.tombstones()))
     }
 
     /// Rebuilds the graph without tombstoned slots, reclaiming their space.
@@ -679,6 +750,7 @@ impl PyIndex {
     /// A full rebuild, holding the write lock throughout, so concurrent
     /// searches block. Ids and vectors are preserved.
     fn compact(&self, py: Python<'_>) -> PyResult<()> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.compact()).map_err(to_pyerr)
     }
 
@@ -688,12 +760,14 @@ impl PyIndex {
     /// route between live neighbourhoods, and simply stops appearing in
     /// results. The id becomes free for reuse. Space is not reclaimed.
     fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
+        reject_reentry(self)?;
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
     /// Number of vectors in the graph. See `FlatIndex.size`.
-    fn size(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.size())
+    fn size(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.size()))
     }
 
     /// The metric this index was built with.
@@ -712,8 +786,9 @@ impl PyIndex {
     }
 
     #[getter]
-    fn capacity(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.capacity())
+    fn capacity(&self, py: Python<'_>) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.capacity()))
     }
 
     /// The graph's `M`.
@@ -850,12 +925,13 @@ impl PyDiskStore {
     ) -> PyResult<Vec<(u64, f32)>> {
         let q = vec_f32(query)?;
         let py_filter = extract_py_filter(py, filter, allow_ids, deny_ids)?;
-        run_search_with_filter(py, &py_filter, SearchParams::new(), |p| {
+        run_search_with_filter(py, self, &py_filter, SearchParams::new(), |p| {
             self.inner.search_with(&q, k, p)
         })
     }
 
     fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+        reject_reentry(self)?;
         // Reads through the mapping, which can take a major page fault on a
         // cold file — the same reason `search` detaches.
         py.detach(|| self.inner.get(id).map(|v| v.into_owned()))
@@ -872,16 +948,19 @@ impl PyDiskStore {
         self.get(py, id)
     }
 
-    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> bool {
-        py.detach(|| self.inner.contains(id))
+    fn contains(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<bool> {
+        reject_reentry(self)?;
+        Ok(py.detach(|| self.inner.contains(id)))
     }
 
-    fn __len__(&self) -> usize {
-        self.inner.size()
+    fn __len__(&self) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(self.inner.size())
     }
 
-    fn size(&self) -> usize {
-        self.inner.size()
+    fn size(&self) -> PyResult<usize> {
+        reject_reentry(self)?;
+        Ok(self.inner.size())
     }
 
     /// The metric this index was built with.

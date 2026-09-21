@@ -107,3 +107,65 @@ def test_predicate_search_does_not_hold_gil_while_waiting_for_core_lock(index_cl
     """)
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=15)
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("reentry", ["search", "len", "contains", "get"])
+def test_predicate_calling_back_into_the_same_index_raises(index, reentry):
+    # The predicate runs under the index's read lock. A write from inside it
+    # would wait on that lock forever, and a read would too once another
+    # thread queues a writer; both used to hang silently. DiskIndex has no
+    # lock, but the rule is the same for every index so a program can swap
+    # index types without changing its predicates.
+    calls = []
+
+    def predicate(id):
+        calls.append(id)
+        if reentry == "search":
+            index.search([0.], 1)
+        elif reentry == "len":
+            len(index)
+        elif reentry == "contains":
+            index.contains(0)
+        else:
+            index.get(0)
+        return True
+
+    with pytest.raises(RuntimeError, match="must not call methods on the index being searched"):
+        index.search([0.], 4, filter=predicate)
+    assert len(calls) == 1, "stop running user code after the first failure"
+    # The guard is released with the failed search.
+    assert len(index.search([0.], 4)) == 4
+    assert len(index.search([0.], 4, filter=lambda _: True)) == 4
+    assert len(index) == 4
+
+
+@pytest.mark.parametrize("index_class", ["FlatIndex", "ApproxIndex"])
+def test_predicate_writing_to_the_same_index_raises(index_class):
+    index = getattr(vanedb, index_class)(1)
+    index.add(1, [0.])
+    with pytest.raises(RuntimeError, match="must not call methods"):
+        index.search([0.], 1, filter=lambda _: index.add(2, [1.]) or True)
+    index.add(2, [1.])
+    assert len(index) == 2
+
+
+def test_reentry_guard_is_per_index_and_per_thread():
+    import threading
+
+    index = vanedb.ApproxIndex(1)
+    other = vanedb.ApproxIndex(1)
+    index.add(1, [0.])
+    other.add(2, [0.])
+    # A different index stays usable from the predicate...
+    assert index.search([0.], 1, filter=lambda _: other.contains(2)) == [(1, 0.)]
+    # ...and so does this index from another thread, which merely queues.
+    outcomes = []
+
+    def predicate(_):
+        worker = threading.Thread(target=lambda: outcomes.append(len(index)))
+        worker.start()
+        worker.join(5)
+        return True
+
+    assert index.search([0.], 1, filter=predicate) == [(1, 0.)]
+    assert outcomes == [1]

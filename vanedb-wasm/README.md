@@ -145,8 +145,10 @@ with an application-owned metadata set. Lists are faster because predicates
 cross the JavaScript/WebAssembly boundary for each candidate. Predicates must
 be synchronous and stable during the query; an ID may be checked more than
 once. They run while the index is locked for reading: do not call methods on
-the same index, modify or free it, or wait for another task to modify it.
-Searching another index is supported. A callback exception propagates from
+the same index, modify or free it, or wait for another task to modify it. A
+direct call from the predicate throws an `Error` whose `code` is
+`"ERR_REENTRANT_SEARCH"` rather than hanging the page. Searching another
+index is supported. A callback exception propagates from
 `search`, preserving the original thrown value and discarding partial results.
 
 The existing `ApproxIndex.search(query, k, efSearch)` numeric argument remains

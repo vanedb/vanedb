@@ -129,3 +129,47 @@ def test_read_only_scalar_accessors_are_properties():
                 f"except size() is a property, and a caller reading it without "
                 f"parentheses gets a method object rather than an error"
             )
+
+
+def test_stub_search_keywords_match_runtime_signatures():
+    """The member-name checks above cannot see a keyword that the stub spells
+    differently from the runtime, or one the stub declares and the runtime
+    rejects. PyO3 publishes a text signature for every method declared with
+    `#[pyo3(signature = ...)]`, so compare parameter names and kinds directly.
+    """
+    checked = 0
+    for cls in _stub_tree().body:
+        if not isinstance(cls, ast.ClassDef):
+            continue
+        runtime = getattr(vanedb, cls.name)
+        for member in cls.body:
+            if not isinstance(member, ast.FunctionDef) or member.name != "search":
+                continue
+            stub_args = member.args
+            stub = [(a.arg, "positional") for a in stub_args.args if a.arg != "self"]
+            stub += [(a.arg, "keyword") for a in stub_args.kwonlyargs]
+            signature = inspect.signature(getattr(runtime, member.name))
+            runtime_params = [
+                (name, "keyword" if p.kind is p.KEYWORD_ONLY else "positional")
+                for name, p in signature.parameters.items()
+                if name != "self"
+            ]
+            assert stub == runtime_params, (
+                f"{cls.name}.search: stub declares {stub}, runtime has {runtime_params}"
+            )
+            checked += 1
+    assert checked == 3, "FlatIndex, ApproxIndex and DiskIndex each declare search"
+
+
+def test_search_accepts_every_stubbed_keyword():
+    """Belt and braces for the signature comparison: each keyword the stub
+    declares is accepted by a real call on a tiny index."""
+    flat = vanedb.FlatIndex(1)
+    flat.add(1, [0.])
+    approx = vanedb.ApproxIndex(1)
+    approx.add(1, [0.])
+    for index in (flat, approx):
+        assert index.search([0.], 1, filter=lambda _: True) == [(1, 0.)]
+        assert index.search([0.], 1, allow_ids=[1]) == [(1, 0.)]
+        assert index.search([0.], 1, deny_ids=[2]) == [(1, 0.)]
+    assert approx.search([0.], 1, ef_search=4, max_ef_search=8) == [(1, 0.)]
