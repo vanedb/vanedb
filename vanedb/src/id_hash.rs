@@ -115,28 +115,70 @@ mod tests {
         z ^ (z >> 31)
     }
 
-    fn insert_all(keys: &[u64]) -> IdMap<usize> {
+    /// The random baseline plus the three structured families that defeat
+    /// plain identity hashing: sequential ids, ids sharing their low 20
+    /// bits, and ids living only in the top 20 bits.
+    ///
+    /// The random keys are returned in draw order. Collecting them out of
+    /// an `IdSet` with this same hasher would hand them back in bucket order,
+    /// and inserting keys in bucket order is cache-sequential, which makes
+    /// the baseline artificially fast and eats into the margin the timing
+    /// test grants the structured families.
+    fn families() -> (Vec<u64>, [(&'static str, Vec<u64>); 3]) {
+        let mut state = 0x5EED_0010;
+        let mut seen = IdSet::with_capacity_and_hasher(N as usize, IdBuildHasher);
+        let mut random = Vec::with_capacity(N as usize);
+        while random.len() < N as usize {
+            let key = splitmix(&mut state);
+            if seen.insert(key) {
+                random.push(key);
+            }
+        }
+        let structured = [
+            ("sequential", (0..N).collect()),
+            (
+                "low bits shared (multiples of 2^20)",
+                (0..N).map(|i| i << 20).collect(),
+            ),
+            (
+                "high bits only (multiples of 2^44)",
+                (0..N).map(|i| i << 44).collect(),
+            ),
+        ];
+        (random, structured)
+    }
+
+    /// Inserts every key, glancing at the clock every 4096 inserts and
+    /// giving up once `ceiling` has passed. `None` means the ceiling was hit:
+    /// a hasher that has collapsed to a linear probe is quadratic at 1M keys
+    /// and would otherwise run for minutes, turning a test failure into a CI
+    /// timeout.
+    fn insert_all_within(keys: &[u64], ceiling: Duration) -> Option<Duration> {
+        const CHECK_EVERY: usize = 1 << 12;
+        let start = Instant::now();
         let mut map = IdMap::default();
         for (slot, &key) in keys.iter().enumerate() {
             assert!(map.insert(key, slot).is_none(), "keys must be distinct");
+            if slot % CHECK_EVERY == CHECK_EVERY - 1 && start.elapsed() > ceiling {
+                return None;
+            }
         }
-        map
+        let elapsed = start.elapsed();
+        assert_eq!(map.len(), keys.len());
+        Some(elapsed)
     }
 
-    /// Wall time of the fastest of three full inserts. The minimum, not
-    /// the mean: a scheduler hiccup only ever adds time, so the minimum is
-    /// the run least contaminated by the host.
-    fn time_inserts(keys: &[u64]) -> Duration {
-        (0..3)
-            .map(|_| {
-                let start = Instant::now();
-                let map = insert_all(keys);
-                let elapsed = start.elapsed();
-                assert_eq!(map.len(), keys.len());
-                elapsed
-            })
-            .min()
-            .unwrap()
+    /// Wall time of the fastest of three full inserts, each capped at
+    /// `ceiling`. The minimum, not the mean: a scheduler hiccup only ever
+    /// adds time, so the minimum is the run least contaminated by the host.
+    /// `None` as soon as any run hits the ceiling.
+    fn time_inserts(keys: &[u64], ceiling: Duration) -> Option<Duration> {
+        let mut best: Option<Duration> = None;
+        for _ in 0..3 {
+            let run = insert_all_within(keys, ceiling)?;
+            best = Some(best.map_or(run, |b| b.min(run)));
+        }
+        best
     }
 
     /// A `u64` key reaches the map through `Hash::hash`, which calls
@@ -266,40 +308,110 @@ mod tests {
     /// takes minutes rather than a fraction of a second, so the bound only
     /// has to separate "hashed" from "degenerate"; a 3x margin leaves room
     /// for a loaded CI runner while catching a collapse by two orders of
-    /// magnitude.
+    /// magnitude. Each family is judged as soon as it finishes, and a run
+    /// that passes the ceiling is abandoned there, so a collapsed hasher
+    /// fails in seconds rather than hanging the job.
+    /// `every_family_spreads_over_buckets_and_tags_like_random_keys` is the
+    /// timing-free statement of the same property.
     #[test]
     fn adversarial_families_insert_within_bound() {
         const BOUND: f64 = 3.0;
+        const CEILING_FACTOR: u32 = 20;
+        const CEILING_FLOOR: Duration = Duration::from_secs(2);
 
-        let mut state = 0x5EED_0010;
-        let random: Vec<u64> = {
-            let mut set = IdSet::default();
-            while set.len() < N as usize {
-                set.insert(splitmix(&mut state));
-            }
-            set.into_iter().collect()
-        };
-        let sequential: Vec<u64> = (0..N).collect();
-        let low_bits_shared: Vec<u64> = (0..N).map(|i| i << 20).collect();
-        let high_bits_only: Vec<u64> = (0..N).map(|i| i << 44).collect();
+        let (random, structured) = families();
 
         // Warm the allocator and the code once so the first timed family is
         // not paying for page faults the others do not.
-        drop(insert_all(&random[..N as usize / 8]));
+        let _ = insert_all_within(&random[..N as usize / 8], Duration::MAX);
 
-        let baseline = time_inserts(&random).as_secs_f64();
-        for (name, keys) in [
-            ("sequential", &sequential),
-            ("low bits shared (multiples of 2^20)", &low_bits_shared),
-            ("high bits only (multiples of 2^44)", &high_bits_only),
-        ] {
-            let elapsed = time_inserts(keys).as_secs_f64();
-            let ratio = elapsed / baseline;
+        let baseline = time_inserts(&random, Duration::MAX).unwrap();
+        let ceiling = (baseline * CEILING_FACTOR).max(CEILING_FLOOR);
+        println!(
+            "random baseline {:.3}s, per-run ceiling {:.3}s",
+            baseline.as_secs_f64(),
+            ceiling.as_secs_f64()
+        );
+        for (name, keys) in &structured {
+            let Some(elapsed) = time_inserts(keys, ceiling) else {
+                panic!(
+                    "{name}: a run passed the {:.3}s ceiling ({CEILING_FACTOR}x the random \
+                     baseline of {:.3}s); the id hasher has collapsed on structured keys",
+                    ceiling.as_secs_f64(),
+                    baseline.as_secs_f64()
+                );
+            };
+            let ratio = elapsed.as_secs_f64() / baseline.as_secs_f64();
+            println!(
+                "{name}: {:.3}s, {ratio:.2}x the baseline",
+                elapsed.as_secs_f64()
+            );
             assert!(
                 ratio <= BOUND,
-                "{name}: {elapsed:.3}s is {ratio:.2}x the random baseline of {baseline:.3}s; \
-                 the id hasher is degenerating on structured keys"
+                "{name}: {:.3}s is {ratio:.2}x the random baseline of {:.3}s; \
+                 the id hasher is degenerating on structured keys",
+                elapsed.as_secs_f64(),
+                baseline.as_secs_f64()
             );
+        }
+    }
+
+    /// The timing-free complement of `adversarial_families_insert_within_bound`:
+    /// what hashbrown actually consumes from the hash is the low bits for the
+    /// bucket and the top 7 bits for the control tag, so every family must
+    /// spread over both the way random keys do.
+    ///
+    /// 1M keys into 2^21 buckets leave `2^21 * (1 - e^(-1M/2^21))`, about
+    /// 795k, distinct buckets when the hash is uniform; a family that maps
+    /// to a few hundred buckets (a single-fold mixer sends the `i << 44`
+    /// family to 512 of them) misses by orders of magnitude. The 128 tags
+    /// must each hold their share within a few percent, or a full bucket
+    /// group would need a probe per key rather than one per group.
+    #[test]
+    fn every_family_spreads_over_buckets_and_tags_like_random_keys() {
+        const BUCKET_BITS: u32 = 21;
+        const BUCKETS: usize = 1 << BUCKET_BITS;
+        const TAGS: usize = 1 << 7;
+        const BUCKET_TOLERANCE: f64 = 0.05;
+        const TAG_TOLERANCE: f64 = 0.05;
+
+        let expected_distinct = BUCKETS as f64 * (1.0 - (-(N as f64) / BUCKETS as f64).exp());
+        let expected_per_tag = N as f64 / TAGS as f64;
+
+        let (random, structured) = families();
+        let all = std::iter::once(("random", &random))
+            .chain(structured.iter().map(|(name, keys)| (*name, keys)));
+        for (name, keys) in all {
+            let mut occupied = vec![0u64; BUCKETS / 64];
+            let mut tags = [0u64; TAGS];
+            for &key in keys {
+                let hash = mix(key);
+                let bucket = hash as usize & (BUCKETS - 1);
+                occupied[bucket / 64] |= 1 << (bucket % 64);
+                tags[(hash >> (64 - 7)) as usize] += 1;
+            }
+            let distinct: usize = occupied.iter().map(|w| w.count_ones() as usize).sum();
+            let (min_tag, max_tag) = tags
+                .iter()
+                .fold((u64::MAX, 0), |(lo, hi), &c| (lo.min(c), hi.max(c)));
+            println!(
+                "{name}: {distinct} of {BUCKETS} buckets (expected {expected_distinct:.0}), \
+                 tag counts {min_tag}..={max_tag} (expected {expected_per_tag:.0})"
+            );
+            let bucket_error = (distinct as f64 - expected_distinct).abs() / expected_distinct;
+            assert!(
+                bucket_error <= BUCKET_TOLERANCE,
+                "{name}: {distinct} distinct buckets of {BUCKETS}, expected about \
+                 {expected_distinct:.0}; the low hash bits are not uniform"
+            );
+            for (tag, &count) in tags.iter().enumerate() {
+                let tag_error = (count as f64 - expected_per_tag).abs() / expected_per_tag;
+                assert!(
+                    tag_error <= TAG_TOLERANCE,
+                    "{name}: tag {tag} holds {count} keys, expected about \
+                     {expected_per_tag:.0}; the top 7 hash bits are not balanced"
+                );
+            }
         }
     }
 }
