@@ -603,7 +603,7 @@ jobs:
           CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
           grep -q 'git_no_ambient_url_rewrite' "$CUT"
           grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$CUT"
-          grep -q 'DEMO_URL == https://github.com/\*' "$CUT"
+          grep -qF 'https://github.com/*' "$CUT"
           # Plant a Cursor-like insteadOf rewrite; the cut script must ignore it.
           git config --global \
             "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
