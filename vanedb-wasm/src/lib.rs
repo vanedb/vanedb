@@ -1,4 +1,5 @@
 use js_sys::{BigInt, Function, Reflect};
+use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
 
@@ -90,6 +91,67 @@ fn extract_id_list(val: &JsValue, name: &str) -> Result<Vec<u64>, JsValue> {
         ids.push(id_val);
     }
     Ok(ids)
+}
+
+thread_local! {
+    /// Indexes whose predicate search is running, by address.
+    ///
+    /// A predicate runs under the searched index's read lock. Calling back
+    /// into that index from the callback would block on that lock, and in a
+    /// single-threaded wasm module nothing can ever release it: the page
+    /// hangs with no diagnostic. Every method that takes the lock checks this
+    /// list first and throws instead. A nested search on a different index is
+    /// supported, hence a list rather than a flag.
+    static IN_PREDICATE_SEARCH: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Marks `index` as searching with a predicate until dropped.
+struct PredicateScope(usize);
+
+impl PredicateScope {
+    fn enter<T>(index: &T) -> Self {
+        let addr = index as *const T as usize;
+        IN_PREDICATE_SEARCH.with(|s| s.borrow_mut().push(addr));
+        Self(addr)
+    }
+}
+
+impl Drop for PredicateScope {
+    fn drop(&mut self) {
+        IN_PREDICATE_SEARCH.with(|s| {
+            let mut s = s.borrow_mut();
+            if let Some(pos) = s.iter().rposition(|&addr| addr == self.0) {
+                s.remove(pos);
+            }
+        });
+    }
+}
+
+/// The `code` property on the error thrown for a re-entrant call, so callers
+/// can branch on it without matching the message.
+pub const REENTRANT_SEARCH_CODE: &str = "ERR_REENTRANT_SEARCH";
+
+/// Throws instead of deadlocking when a predicate calls back into the index
+/// it is filtering. The thrown value is an `Error` whose `code` is
+/// [`REENTRANT_SEARCH_CODE`].
+fn reject_reentry<T>(index: &T) -> Result<(), JsValue> {
+    let addr = index as *const T as usize;
+    if IN_PREDICATE_SEARCH.with(|s| s.borrow().contains(&addr)) {
+        let error = js_sys::Error::new(
+            "a filter predicate must not call methods on the index being searched: \
+             the search holds its read lock; consult external metadata or search \
+             a different index instead",
+        );
+        // Reflect::set fails only on a frozen or exotic target; a fresh Error
+        // is neither, and the message alone still identifies the failure.
+        let _ = Reflect::set(
+            &error,
+            &JsValue::from_str("code"),
+            &JsValue::from_str(REENTRANT_SEARCH_CODE),
+        );
+        return Err(error.into());
+    }
+    Ok(())
 }
 
 struct ParsedFilter {
@@ -287,15 +349,17 @@ impl WasmStore {
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
-        self.inner.add(one_id(id)?, vector).map_err(to_jserr)
+    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.add(one_id(id)?, vector).map_err(to_jserr)?)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
     /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
     /// on error the store is unchanged.
-    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsError> {
-        self.inner.add_batch(ids, vectors).map_err(to_jserr)
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.add_batch(ids, vectors).map_err(to_jserr)?)
     }
 
     /// Search for k nearest neighbors, with optional filter options.
@@ -330,6 +394,10 @@ impl WasmStore {
             params = params.filter(f);
         }
 
+        reject_reentry(self)?;
+        let _scope = callback_error
+            .is_some()
+            .then(|| PredicateScope::enter(self));
         let results = self.inner.search_with(query, k, &params);
         if let Some(error) = callback_error
             .as_ref()
@@ -343,30 +411,35 @@ impl WasmStore {
     /// The vector stored under `id`, as a `Float32Array`, or `undefined` when
     /// no vector is stored under it. A miss is a value, not an error (RFC
     /// 0011); an id outside the unsigned 64-bit range still throws.
-    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
-        self.inner.get(one_id(id)?).map_err(to_jserr)
+    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.get(one_id(id)?).map_err(to_jserr)?)
     }
 
     /// The same operation as `get`, under the spelling `ApproxIndex` also
     /// accepts. Both exist on both index types so a program is not tied to one
     /// (#85) — `ApproxIndex` had the pair and `FlatIndex` only `get`, so the
     /// one swap the pair exists for was the one that broke.
-    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
+    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsValue> {
+        reject_reentry(self)?;
         self.get(id)
     }
 
-    pub fn remove(&self, id: BigInt) -> Result<(), JsError> {
-        self.inner.remove(one_id(id)?).map_err(to_jserr)
+    pub fn remove(&self, id: BigInt) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.remove(one_id(id)?).map_err(to_jserr)?)
     }
 
-    pub fn contains(&self, id: BigInt) -> Result<bool, JsError> {
+    pub fn contains(&self, id: BigInt) -> Result<bool, JsValue> {
+        reject_reentry(self)?;
         Ok(self.inner.contains(one_id(id)?))
     }
 
     /// Number of vectors. `size()` is the Map/Set spelling JavaScript
     /// callers expect (RFC 0011); `size() === 0` is the emptiness test.
-    pub fn size(&self) -> usize {
-        self.inner.len()
+    pub fn size(&self) -> Result<usize, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.len())
     }
 
     /// The metric this index was built with, in the spelling the constructor
@@ -396,8 +469,9 @@ impl WasmIndex {
     /// Takes `&self` like every other mutator on this type. With `&mut self`,
     /// wasm-bindgen gives a JS caller holding any other borrow of the object
     /// "recursive use of an object detected" rather than a deletion.
-    pub fn remove(&self, id: BigInt) -> Result<(), JsError> {
-        self.inner.remove(one_id(id)?).map_err(to_jserr)
+    pub fn remove(&self, id: BigInt) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.remove(one_id(id)?).map_err(to_jserr)?)
     }
 
     /// Replaces the vector stored under `id`, inserting it if absent.
@@ -407,8 +481,9 @@ impl WasmIndex {
     /// running against the same memory sees a window where it is missing;
     /// this has neither. A replaced slot is tombstoned like any other
     /// removal, so `tombstones` counts it and `compact` reclaims it.
-    pub fn upsert(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
-        self.inner.upsert(one_id(id)?, vector).map_err(to_jserr)
+    pub fn upsert(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.upsert(one_id(id)?, vector).map_err(to_jserr)?)
     }
 
     /// How many removed slots the graph still carries.
@@ -416,16 +491,18 @@ impl WasmIndex {
     /// A browser is the most memory-constrained runtime this crate targets, and
     /// a tombstone holds its vector and links until compaction. Without this a
     /// caller could delete but could not tell what deleting had cost.
-    pub fn tombstones(&self) -> usize {
-        self.inner.tombstones()
+    pub fn tombstones(&self) -> Result<usize, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.tombstones())
     }
 
     /// Rebuilds the graph without its tombstoned slots, reclaiming their
     /// memory. Live ids and their vectors are preserved; only the removed
     /// slots go. Cost is a full rebuild, so call it when churn has accumulated
     /// rather than after each removal.
-    pub fn compact(&self) -> Result<(), JsError> {
-        self.inner.compact().map_err(to_jserr)
+    pub fn compact(&self) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.compact().map_err(to_jserr)?)
     }
 
     /// `seed` is optional and defaults to 42, the value this constructor used
@@ -458,15 +535,17 @@ impl WasmIndex {
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsError> {
-        self.inner.add(one_id(id)?, vector).map_err(to_jserr)
+    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.add(one_id(id)?, vector).map_err(to_jserr)?)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
     /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
     /// on error the index is unchanged.
-    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsError> {
-        self.inner.add_batch(ids, vectors).map_err(to_jserr)
+    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.add_batch(ids, vectors).map_err(to_jserr)?)
     }
 
     /// Search for k nearest neighbors.
@@ -535,6 +614,10 @@ impl WasmIndex {
             params = params.filter(f);
         }
 
+        reject_reentry(self)?;
+        let _scope = callback_error
+            .is_some()
+            .then(|| PredicateScope::enter(self));
         let results = self.inner.search_with(query, k, &params);
         if let Some(error) = callback_error
             .as_ref()
@@ -545,27 +628,31 @@ impl WasmIndex {
         Ok(WasmSearchResults::from(results.map_err(to_jserr)?))
     }
 
-    pub fn contains(&self, id: BigInt) -> Result<bool, JsError> {
+    pub fn contains(&self, id: BigInt) -> Result<bool, JsValue> {
+        reject_reentry(self)?;
         Ok(self.inner.contains(one_id(id)?))
     }
 
     /// The vector stored under `id`, as a `Float32Array`, or `undefined` when
     /// no vector is stored under it. A miss is a value, not an error (RFC
     /// 0011); an id outside the unsigned 64-bit range still throws.
-    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
-        self.inner.get_vector(one_id(id)?).map_err(to_jserr)
+    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.get_vector(one_id(id)?).map_err(to_jserr)?)
     }
 
     /// The same operation as `get_vector`, under the spelling `FlatIndex` uses.
     /// Both exist so a program is not tied to one index type (#85).
-    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
+    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsValue> {
+        reject_reentry(self)?;
         self.get_vector(id)
     }
 
     /// Number of live vectors. `size()` is the Map/Set spelling JavaScript
     /// callers expect (RFC 0011); `size() === 0` is the emptiness test.
-    pub fn size(&self) -> usize {
-        self.inner.len()
+    pub fn size(&self) -> Result<usize, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.len())
     }
 
     /// The metric this index was built with, in the spelling the constructor
@@ -595,8 +682,9 @@ impl WasmIndex {
 
     /// The capacity hint the graph was built with. Not a limit: the index
     /// grows past it, so this may be smaller than `size`.
-    pub fn capacity(&self) -> usize {
-        self.inner.capacity()
+    pub fn capacity(&self) -> Result<usize, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.capacity())
     }
 
     /// The index's own search beam width: the default a `search` without a
@@ -620,8 +708,9 @@ impl WasmIndex {
     /// copy out of wasm memory; its length equals the file size. Compact
     /// first if tombstones should not be written.
     #[wasm_bindgen(js_name = toBytes)]
-    pub fn to_bytes(&self) -> Result<Vec<u8>, JsError> {
-        self.inner.to_bytes().map_err(to_jserr)
+    pub fn to_bytes(&self) -> Result<Vec<u8>, JsValue> {
+        reject_reentry(self)?;
+        Ok(self.inner.to_bytes().map_err(to_jserr)?)
     }
 
     /// Reads a VNDB graph — or a legacy Rust file — from `bytes`.

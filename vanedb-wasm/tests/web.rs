@@ -14,7 +14,7 @@ fn test_vector_store_basic() {
     let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
     store.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
     store.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
-    assert_eq!(store.size(), 2);
+    assert_eq!(store.size().unwrap(), 2);
     assert_eq!(store.dimension(), 3);
     assert!(store.contains(1u64.into()).unwrap());
     assert!(!store.contains(99u64.into()).unwrap());
@@ -38,7 +38,7 @@ fn test_hnsw_basic() {
     let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
     idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
     idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
-    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.size().unwrap(), 2);
     assert!(idx.contains(1u64.into()).unwrap());
 }
 
@@ -73,13 +73,13 @@ fn test_store_add_batch() {
     let ids = [1u64, 2, 3];
     let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
     store.add_batch(&ids, &flat).unwrap();
-    assert_eq!(store.size(), 3);
+    assert_eq!(store.size().unwrap(), 3);
     let results = store.search(&[0.9, 0.9], 1.0, None).unwrap();
     assert_eq!(results.ids()[0], 2);
 
     // duplicate -> Err, all-or-nothing
     assert!(store.add_batch(&[4, 1], &flat[..4]).is_err());
-    assert_eq!(store.size(), 3);
+    assert_eq!(store.size().unwrap(), 3);
     assert!(!store.contains(4u64.into()).unwrap());
 }
 
@@ -89,7 +89,7 @@ fn test_hnsw_add_batch() {
     let ids = [10u64, 20];
     let flat = [0.0f32, 0.0, 1.0, 1.0];
     index.add_batch(&ids, &flat).unwrap();
-    assert_eq!(index.size(), 2);
+    assert_eq!(index.size().unwrap(), 2);
     let results = index.search(&[0.1, 0.1], 1.0, None).unwrap();
     assert_eq!(results.ids()[0], 10);
 }
@@ -183,13 +183,13 @@ fn test_non_finite_vectors_and_queries_are_rejected() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
         let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
         assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
-        assert_eq!(store.size(), 0);
+        assert_eq!(store.size().unwrap(), 0);
         store.add(2u64.into(), &[0.0, 0.0]).unwrap();
         assert!(store.search(&[value, 0.0], 1.0, None).is_err());
 
         let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 4.0, 2.0, 10.0, None).unwrap();
         assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
-        assert_eq!(index.size(), 0);
+        assert_eq!(index.size().unwrap(), 0);
     }
 }
 
@@ -230,16 +230,28 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
     for id in 0..8u64 {
         index.add(id.into(), &[id as f32]).unwrap();
     }
-    assert_eq!(index.tombstones(), 0);
+    assert_eq!(index.tombstones().unwrap(), 0);
 
     index.remove(3u64.into()).unwrap();
     index.remove(5u64.into()).unwrap();
-    assert_eq!(index.size(), 6);
-    assert_eq!(index.tombstones(), 2, "a deletion must be observable");
+    assert_eq!(index.size().unwrap(), 6);
+    assert_eq!(
+        index.tombstones().unwrap(),
+        2,
+        "a deletion must be observable"
+    );
 
     index.compact().unwrap();
-    assert_eq!(index.tombstones(), 0, "compaction must reclaim the slots");
-    assert_eq!(index.size(), 6, "compaction must keep the live set");
+    assert_eq!(
+        index.tombstones().unwrap(),
+        0,
+        "compaction must reclaim the slots"
+    );
+    assert_eq!(
+        index.size().unwrap(),
+        6,
+        "compaction must keep the live set"
+    );
     for id in [0u64, 1, 2, 4, 6, 7] {
         assert!(index.contains(id.into()).unwrap(), "{id} was live");
     }
@@ -288,7 +300,7 @@ fn the_construction_seed_is_settable_and_defaults_as_before() {
     assert_eq!(seeded.seed(), 1234);
     assert_eq!(seeded.m(), 4);
     assert_eq!(seeded.ef_construction(), 16);
-    assert_eq!(seeded.capacity(), 16);
+    assert_eq!(seeded.capacity().unwrap(), 16);
 }
 
 /// Every other mutator takes `&self`; `remove` alone took `&mut self`, which in
@@ -300,7 +312,7 @@ fn remove_does_not_require_an_exclusive_borrow() {
     index.add(1u64.into(), &[1.0]).unwrap();
     let shared = &index;
     shared.remove(1u64.into()).unwrap();
-    assert_eq!(shared.size(), 0);
+    assert_eq!(shared.size().unwrap(), 0);
 }
 
 /// A non-string `metric` used to trap inside wasm-bindgen's string marshalling
@@ -339,12 +351,24 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
     index.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
 
     index.upsert(1u64.into(), &[5.0, 5.0, 5.0]).unwrap();
-    assert_eq!(index.size(), 1, "replacing must not grow the index");
+    assert_eq!(
+        index.size().unwrap(),
+        1,
+        "replacing must not grow the index"
+    );
     assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
-    assert_eq!(index.tombstones(), 1, "the replaced slot is tombstoned");
+    assert_eq!(
+        index.tombstones().unwrap(),
+        1,
+        "the replaced slot is tombstoned"
+    );
 
     index.upsert(2u64.into(), &[1.0, 1.0, 1.0]).unwrap();
-    assert_eq!(index.size(), 2, "an absent id is inserted, not refused");
+    assert_eq!(
+        index.size().unwrap(),
+        2,
+        "an absent id is inserted, not refused"
+    );
 
     // The property that makes this worth having over remove-then-add: a
     // rejected upsert leaves the entry alone, where the two-call form can
@@ -455,7 +479,7 @@ fn to_bytes_round_trips_through_from_bytes() {
     let bytes = index.to_bytes().unwrap();
     assert!(bytes.starts_with(b"VNDB"), "wasm save must be a VNDB file");
     let loaded = WasmIndex::from_bytes(&bytes).unwrap();
-    assert_eq!(loaded.size(), 2);
+    assert_eq!(loaded.size().unwrap(), 2);
     assert_eq!(loaded.dimension(), 2);
     assert_eq!(loaded.metric(), "l2");
     assert_eq!(loaded.ef_search(), 32);
@@ -475,8 +499,8 @@ fn to_bytes_round_trips_through_from_bytes() {
 fn the_vocabulary_of_rfc_0011() {
     let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
-    assert_eq!(store.size(), 0);
-    assert_eq!(index.size(), 0);
+    assert_eq!(store.size().unwrap(), 0);
+    assert_eq!(index.size().unwrap(), 0);
     assert_eq!(store.get(7u64.into()).unwrap(), None);
     assert_eq!(store.get_vector(7u64.into()).unwrap(), None);
     assert_eq!(index.get(7u64.into()).unwrap(), None);
@@ -496,8 +520,8 @@ fn the_vocabulary_of_rfc_0011() {
     index.add(7u64.into(), &[1.0, 0.0]).unwrap();
     assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
     assert_eq!(index.get_vector(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
-    assert_eq!(store.size(), 1);
-    assert_eq!(index.size(), 1);
+    assert_eq!(store.size().unwrap(), 1);
+    assert_eq!(index.size().unwrap(), 1);
 
     assert_eq!(index.ef_search(), 50, "documented default");
     index.set_ef_search(64.0).unwrap();
@@ -510,4 +534,106 @@ fn the_vocabulary_of_rfc_0011() {
 fn from_bytes_rejects_corrupt_input() {
     assert!(WasmIndex::from_bytes(b"not a vanedb file").is_err());
     assert!(WasmIndex::from_bytes(&[]).is_err());
+}
+
+// --- Re-entrancy: a predicate calling back into the index it filters ---
+//
+// The predicate runs under the index's read lock. In a single-threaded wasm
+// module nothing could ever release it, so the page hung. Every such call now
+// throws an Error carrying a `code` the caller can branch on.
+
+#[wasm_bindgen_test]
+fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    use wasm_bindgen::closure::Closure;
+    use wasm_bindgen::JsCast;
+
+    fn assert_reentrant(error: &JsValue) {
+        assert!(error.is_instance_of::<js_sys::Error>());
+        let code = js_sys::Reflect::get(error, &JsValue::from_str("code")).unwrap();
+        assert_eq!(code.as_string().as_deref(), Some(REENTRANT_SEARCH_CODE));
+        let message = js_sys::Reflect::get(error, &JsValue::from_str("message")).unwrap();
+        assert!(message
+            .as_string()
+            .unwrap()
+            .contains("must not call methods on the index being searched"));
+    }
+
+    fn options_with(predicate: &Closure<dyn Fn(JsValue) -> bool>) -> JsValue {
+        let opts = js_sys::Object::new();
+        js_sys::Reflect::set(&opts, &JsValue::from_str("predicate"), predicate.as_ref()).unwrap();
+        opts.into()
+    }
+
+    // ApproxIndex: writes, reads and nested searches all throw.
+    let index =
+        Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
+    index.add(1u64.into(), &[0.0]).unwrap();
+    let errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
+    let predicate = {
+        let index = Rc::clone(&index);
+        let errors = Rc::clone(&errors);
+        Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
+            let mut errors = errors.borrow_mut();
+            errors.push(index.add(2u64.into(), &[1.0]).unwrap_err());
+            errors.push(index.size().unwrap_err());
+            errors.push(
+                index
+                    .search(&[0.0], 1.0, None)
+                    .err()
+                    .expect("nested search must throw"),
+            );
+            true
+        })
+    };
+    let hits = index
+        .search(&[0.0], 1.0, Some(options_with(&predicate)))
+        .unwrap();
+    assert_eq!(hits.ids(), vec![1], "the outer search still completes");
+    assert_eq!(errors.borrow().len(), 3);
+    for error in errors.borrow().iter() {
+        assert_reentrant(error);
+    }
+    // The guard is released with the search.
+    index.add(2u64.into(), &[1.0]).unwrap();
+    assert_eq!(index.size().unwrap(), 2);
+
+    // FlatIndex: the same contract.
+    let store = Rc::new(WasmStore::new(1.0, &JsValue::from_str("l2")).unwrap());
+    store.add(1u64.into(), &[0.0]).unwrap();
+    let store_errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
+    let predicate = {
+        let store = Rc::clone(&store);
+        let errors = Rc::clone(&store_errors);
+        Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
+            errors
+                .borrow_mut()
+                .push(store.remove(1u64.into()).unwrap_err());
+            true
+        })
+    };
+    let hits = store
+        .search(&[0.0], 1.0, Some(options_with(&predicate)))
+        .unwrap();
+    assert_eq!(hits.ids(), vec![1]);
+    assert_eq!(store_errors.borrow().len(), 1);
+    assert_reentrant(&store_errors.borrow()[0]);
+    store.remove(1u64.into()).unwrap();
+    assert_eq!(store.size().unwrap(), 0);
+
+    // A different index remains usable from the predicate.
+    let other =
+        Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
+    other.add(7u64.into(), &[0.0]).unwrap();
+    let predicate = {
+        let other = Rc::clone(&other);
+        Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
+            other.contains(7u64.into()).unwrap()
+        })
+    };
+    let hits = index
+        .search(&[0.0], 2.0, Some(options_with(&predicate)))
+        .unwrap();
+    assert_eq!(hits.length(), 2);
 }
