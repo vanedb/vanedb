@@ -26,8 +26,38 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   Node default. `load` of an unknown name resolves to `null`.
 - Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
   `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
+- C ABI distribution, RFC 0002 stage 1 (#193): `VANEDB_RS_ABI_VERSION` and
+  `vanedb_rs_abi_version()`; `vanedb_rs_handle_count()` for leak tests; an
+  exported-symbol allowlist generated from the header (`vanedb-capi/exports/`,
+  `scripts/capi_exports.py`) so the shared library exports exactly the
+  `vanedb_rs_*` set and the Linux and macOS static libraries expose nothing
+  else as global; `find_package(vanedb)` files with `vanedb::shared` and
+  `vanedb::static` imported targets and a `pkg-config` file in every archive,
+  each exercised by a consumer project from the extracted layout in CI; a
+  `capi` Cargo profile (fat LTO, one codegen unit, `panic = "unwind"`) for the
+  shipped libraries, with the shared library stripped at packaging; an
+  `abidiff` CI job against the previous release's shared object; and CI
+  compiling the header as C99, C11 and C++17 under `-Wall -Wextra -pedantic
+  -Werror` and MSVC `/W4 /WX`.
 
 ### Changed
+
+- **Breaking, C ABI (`vanedb-capi`, ABI version 1, RFC 0002 stage 1):**
+  handles are `uint64_t` ids in a process-wide table, no longer pointers.
+  `vanedb_rs_store`, `vanedb_rs_index` and `vanedb_rs_disk` are now typedefs
+  of `uint64_t`; constructors return `VANEDB_RS_NULL_HANDLE` (0) on failure
+  instead of `NULL`. An id that was never issued, was freed, was truncated to
+  32 bits, or belongs to another handle type fails with the new status
+  `VANEDB_RS_INVALID_HANDLE` (16) and nothing is dereferenced; a freed id is
+  never reissued, so double free and use after free are reported errors.
+  Passing 0 remains `VANEDB_RS_NULL_ARGUMENT` and freeing 0 remains a no-op.
+  Consumers that stored the opaque pointer type recompile against the new
+  header; the function names and every other signature are unchanged. The
+  header now states the compatibility rule: signatures never change, new
+  behaviour is a new `_ex`/`_v2` function, no struct crosses the boundary.
+- The C ABI is built and packaged under the `capi` profile
+  (`cargo build -p vanedb-capi --profile capi`, output in `target/capi/`);
+  `--release` still works for a local build.
 
 - Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only
   place a tier is asserted. It records what CI proves on each platform, the

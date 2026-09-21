@@ -126,6 +126,8 @@ only the installed layout.
   cannot catch a truncated pointer that collides with a live one) and over
   documenting `restype` (which leaves the crash reachable by every future
   binding author). Tracked in #193.
+- 2026-09-21: stage 1 implemented; see the implementation notes under the
+  acceptance criteria for the four places the result differs from the text.
 
 ## Alternatives rejected
 
@@ -153,25 +155,42 @@ only the installed layout.
 
 ## Acceptance criteria
 
-Stage 1 (#193):
+Stage 1 (#193), implemented 2026-09-21:
 
-- [ ] `vanedb_rs_abi_version()` and `VANEDB_RS_ABI_VERSION` exist and agree.
-- [ ] Handles are `uint64_t` ids; a test passes a truncated, freed and random
+- [x] `vanedb_rs_abi_version()` and `VANEDB_RS_ABI_VERSION` exist and agree.
+- [x] Handles are `uint64_t` ids; a test passes a truncated, freed and random
       id to every entry point and gets `VANEDB_RS_INVALID_HANDLE`, never a
       crash; `vanedb-py` is unaffected (PyO3, not the C ABI); the README's
       C ABI section gains a `ctypes` snippet that sets `restype` and
       `argtypes`, for callers who bypass the header.
-- [ ] Exported symbols of the shared library on Linux, macOS and Windows are
+- [x] Exported symbols of the shared library on Linux, macOS and Windows are
       exactly the `vanedb_rs_*` set; a CI step asserts it with `nm`/`dumpbin`.
-- [ ] A consumer project using only `find_package(vanedb)` builds, links both
+- [x] A consumer project using only `find_package(vanedb)` builds, links both
       imported targets, and passes `acceptance.c` on Linux x86-64, Linux ARM64,
       macOS ARM64, macOS x86-64 and Windows x64.
-- [ ] A consumer using only `pkg-config --cflags --libs vanedb` does the same
+- [x] A consumer using only `pkg-config --cflags --libs vanedb` does the same
       on Linux and macOS.
-- [ ] Header compiles warning-free as C99, C11 and C++17 on Clang, GCC and MSVC.
-- [ ] `abidiff` job present; documented baseline procedure for the first tag.
-- [ ] Release profile applied; shared-library size before and after recorded
+- [x] Header compiles warning-free as C99, C11 and C++17 on Clang, GCC and MSVC.
+- [x] `abidiff` job present; documented baseline procedure for the first tag.
+- [x] Release profile applied; shared-library size before and after recorded
       in the README.
+
+Stage 1 implementation notes, where the result differs from the design text
+above:
+
+- The static-library post-processing is done on Linux and macOS. MSVC ships
+  no equivalent of `objcopy` for COFF archives, so the Windows static library
+  keeps rustc's global symbols; the README says so. Not an acceptance box.
+- On MSVC the shared library's export set comes from rustc's own `/DEF`
+  (link.exe takes one); the generated `.def` is what the `dumpbin` check
+  compares against. ELF and Apple linkers take the generated lists.
+- Release tags are `vanedb-v<version>` in this repository, not
+  `vanedb-crate-v<version>`; the abidiff baseline lookup accepts both.
+- 0 stays the null handle (`VANEDB_RS_NULL_ARGUMENT` on use, no-op on free)
+  so the C cleanup idiom is unchanged; every other bad id is
+  `VANEDB_RS_INVALID_HANDLE`.
+- The profile is a named `capi` profile in the workspace manifest, because
+  `lto` and `panic` cannot be set per package.
 
 Stage 2 (#194):
 
