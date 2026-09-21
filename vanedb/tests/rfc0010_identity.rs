@@ -154,7 +154,8 @@ fn observe() -> Observed {
         ));
     }
     for &id in ids.iter().skip(1).step_by(50) {
-        results.push_str(&vector_line("flat get", id, &flat.get(id).unwrap()));
+        let vector = flat.get(id).unwrap().expect("id was added");
+        results.push_str(&vector_line("flat get", id, &vector));
     }
 
     // ApproxIndex: seeded, ef_search wide enough that the results are exact
@@ -204,7 +205,8 @@ fn observe() -> Observed {
             ));
         }
         for &id in ids.iter().skip(2).step_by(50) {
-            results.push_str(&vector_line("disk get", id, &disk.get(id).unwrap()));
+            let vector = disk.get(id).unwrap().expect("id was added");
+            results.push_str(&vector_line("disk get", id, &vector));
         }
         std::fs::read(&path).unwrap()
     };
@@ -328,7 +330,8 @@ fn disk_goldens_are_written_back_byte_for_byte() {
         for slot in 0..count {
             let off = V1_HEADER + slot * 8;
             let id = u64::from_le_bytes(golden[off..off + 8].try_into().unwrap());
-            builder.add(id, &index.get(id).unwrap()).unwrap();
+            let vector = index.get(id).unwrap().expect("id is in the fixture");
+            builder.add(id, &vector).unwrap();
         }
         let name = path.file_name().unwrap().to_string_lossy().into_owned();
         let out = scratch(&name).join("resaved.vndb");

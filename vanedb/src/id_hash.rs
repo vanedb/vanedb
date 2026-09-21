@@ -139,6 +139,93 @@ mod tests {
             .unwrap()
     }
 
+    /// A `u64` key reaches the map through `Hash::hash`, which calls
+    /// `write_u64` exactly once on a fresh hasher, so the map's hash of a key
+    /// is `mix(key)` and nothing else. A `usize` key takes `write_usize` and
+    /// must agree with the same value as a `u64`.
+    #[test]
+    fn u64_and_usize_keys_hash_to_the_mixer_output() {
+        let build = IdBuildHasher;
+        for key in [0u64, 1, 7, u64::MAX, 0x9E37_79B9_7F4A_7C15, 1 << 63] {
+            assert_eq!(build.hash_one(key), mix(key), "u64 {key:#x}");
+            if let Ok(narrow) = usize::try_from(key) {
+                assert_eq!(build.hash_one(narrow), mix(key), "usize {key:#x}");
+            }
+        }
+        let mut hasher = build.build_hasher();
+        hasher.write_usize(42);
+        assert_eq!(hasher.finish(), mix(42));
+    }
+
+    /// The generic byte path folds each little-endian 8-byte word through
+    /// the mixer, zero-padding the tail. It is never taken by the id maps,
+    /// but the trait requires it, and a differently-typed key must still be
+    /// distributed rather than truncated or ignored.
+    #[test]
+    fn generic_write_folds_every_word_and_the_padded_tail() {
+        fn fold(bytes: &[u8]) -> u64 {
+            let mut hasher = IdBuildHasher.build_hasher();
+            hasher.write(bytes);
+            hasher.finish()
+        }
+        assert_eq!(fold(&[]), 0, "no bytes leave the fresh state alone");
+        // One full word is the same as `write_u64` of that word.
+        let word = 0x0102_0304_0506_0708u64;
+        assert_eq!(fold(&word.to_le_bytes()), mix(word));
+        // A short tail is zero-padded, so it equals the padded word...
+        assert_eq!(fold(&[0x08, 0x07, 0x06]), mix(0x0006_0708));
+        // ...and every byte position in the tail is significant.
+        assert_ne!(fold(&[0x08, 0x07, 0x06]), fold(&[0x08, 0x07, 0x05]));
+        // Two words chain: the second is mixed against the first's output.
+        let mut two = word.to_le_bytes().to_vec();
+        two.extend_from_slice(&0xFFu64.to_le_bytes());
+        assert_eq!(fold(&two), mix(mix(word) ^ 0xFF));
+        // A trailing zero byte still changes the length, and so the hash.
+        let mut padded = word.to_le_bytes().to_vec();
+        padded.push(0);
+        assert_ne!(fold(&padded), fold(&word.to_le_bytes()));
+        // Str keys go through `write` plus the `0xff` terminator and must
+        // be distinct for distinct strings.
+        assert_ne!(
+            IdBuildHasher.hash_one("alpha"),
+            IdBuildHasher.hash_one("alphb")
+        );
+    }
+
+    /// The builder is stateless: every copy, clone and default builds a
+    /// hasher that starts from zero and agrees with every other. The
+    /// `clone` and `default` calls on `Copy` unit types are the point: they
+    /// run the derived impls, which serde and `with_capacity_and_hasher`
+    /// rely on and nothing else in the crate calls directly.
+    #[test]
+    #[allow(clippy::clone_on_copy, clippy::default_constructed_unit_structs)]
+    fn build_hasher_is_stateless_and_freely_copied() {
+        let a = IdBuildHasher;
+        let b = a;
+        let c = a.clone();
+        let d = IdBuildHasher::default();
+        assert_eq!(IdHasher::default().finish(), 0);
+        assert_eq!(a.build_hasher().finish(), 0);
+        let key = 0xDEAD_BEEFu64;
+        assert_eq!(a.hash_one(key), b.hash_one(key));
+        assert_eq!(b.hash_one(key), c.hash_one(key));
+        assert_eq!(c.hash_one(key), d.hash_one(key));
+        let mut hasher = a.build_hasher();
+        hasher.write_u64(key);
+        let copy = hasher;
+        let clone = hasher.clone();
+        assert_eq!(copy.finish(), mix(key));
+        assert_eq!(clone.finish(), mix(key));
+        assert_eq!(format!("{a:?}"), "IdBuildHasher");
+        assert_eq!(format!("{:?}", IdHasher::default()), "IdHasher(0)");
+        // Two maps built from separate defaults see the same buckets: an
+        // `IdMap` moved between them keeps every lookup.
+        let mut map: IdMap<u8> = IdMap::with_capacity_and_hasher(4, d);
+        map.insert(key, 1);
+        assert_eq!(map.get(&key), Some(&1));
+        assert_eq!(map.hasher().hash_one(key), mix(key));
+    }
+
     #[test]
     fn mix_is_a_bijection_on_small_inputs_and_moves_every_bit() {
         // Distinct on a dense range: the multiply is odd and the folds are
