@@ -637,3 +637,67 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         .unwrap();
     assert_eq!(hits.length(), 2);
 }
+
+#[wasm_bindgen_test]
+fn filtered_search_retries_up_to_default_and_explicit_beam_caps() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+    use wasm_bindgen::closure::Closure;
+
+    const N: usize = 2000;
+    const DIM: usize = 16;
+    let mut state = 42u64;
+    let vectors: Vec<f32> = (0..N * DIM)
+        .map(|_| {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 40) as f32 / (1u32 << 24) as f32
+        })
+        .collect();
+    let index = WasmIndex::new(
+        DIM as f64,
+        &JsValue::from_str("l2"),
+        N as f64,
+        16.0,
+        200.0,
+        Some(42.0),
+    )
+    .unwrap();
+    index
+        .add_batch(&(0..N as u64).collect::<Vec<_>>(), &vectors)
+        .unwrap();
+    let calls = Rc::new(Cell::new(0usize));
+    let counter = Rc::clone(&calls);
+    let reject = Closure::<dyn Fn(JsValue) -> bool>::new(move |_| {
+        counter.set(counter.get() + 1);
+        false
+    });
+    let run = |cap: Option<f64>| {
+        calls.set(0);
+        let options = js_sys::Object::new();
+        js_sys::Reflect::set(&options, &"predicate".into(), reject.as_ref()).unwrap();
+        js_sys::Reflect::set(&options, &"efSearch".into(), &10.0.into()).unwrap();
+        if let Some(cap) = cap {
+            js_sys::Reflect::set(&options, &"maxEfSearch".into(), &cap.into()).unwrap();
+        }
+        assert_eq!(
+            index
+                .search(&vectors[..DIM], 10.0, Some(options.into()))
+                .unwrap()
+                .length(),
+            0
+        );
+        calls.get()
+    };
+    let single = run(Some(10.0));
+    assert!(
+        single > 40,
+        "first-pass visits must exceed the beam ceiling"
+    );
+    let explicit = run(Some(40.0));
+    assert!(explicit > single, "explicit cap must permit retries");
+    assert_eq!(
+        run(None),
+        explicit,
+        "default cap is four times the initial beam"
+    );
+}
