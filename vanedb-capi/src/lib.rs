@@ -1,32 +1,56 @@
 //! C ABI (`vanedb_rs_*`) over the VaneDB core. Mirrors vanedb-cpp's C API.
-//! Handle pointers are intentionally non-const and HNSW search takes a per-call
-//! ef_search — these match the parallel C++ ABI so a benchmark harness can call
-//! both through one uniform FFI. Stored vectors and queries must contain only
-//! finite values; raw-pointer wrappers additionally null-guard handles.
-//! An unrecognized metric value is rejected: constructors return null.
+//!
+//! Handles are 64-bit ids into a process-wide table, not pointers (RFC 0002
+//! stage 1): an unknown, stale, truncated or random id fails the call with
+//! `VANEDB_RS_INVALID_HANDLE` instead of being dereferenced. HNSW search takes
+//! a per-call ef_search — this matches the parallel C++ ABI so a benchmark
+//! harness can call both through one uniform FFI. Stored vectors and queries
+//! must contain only finite values; raw-pointer arguments are null-guarded.
+//! An unrecognized metric value is rejected: constructors return
+//! `VANEDB_RS_NULL_HANDLE`.
 use std::cell::RefCell;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 use std::slice;
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use vanedb::distance::distance_fn;
 use vanedb::{ApproxIndex, DiskIndex, DiskIndexBuilder, FlatIndex, Metric};
 
-// cbindgen emits one opaque typedef per exported type name. These aliases
-// give the C header namespaced names without renaming the Rust types.
+/// A handle: a 64-bit id into this library's handle table, never a pointer.
+///
+/// The high 32 bits are a generation counter and the low 32 bits locate the
+/// slot, so a truncated id (high bits cleared, as a `ctypes` caller without
+/// `restype` produces) never matches a live handle, and a freed id is never
+/// reissued. `VANEDB_RS_NULL_HANDLE` (0) is never a live handle.
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_store = FlatIndex;
+pub type vanedb_rs_handle = u64;
+/// A `FlatIndex` handle from `vanedb_rs_store_new`.
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_index = ApproxIndex;
+pub type vanedb_rs_store = vanedb_rs_handle;
+/// An `ApproxIndex` handle from `vanedb_rs_index_new`, `_load` or
+/// `_load_from_buffer`.
 #[allow(non_camel_case_types)]
-pub type vanedb_rs_disk = DiskIndex;
+pub type vanedb_rs_index = vanedb_rs_handle;
+/// A `DiskIndex` handle from `vanedb_rs_disk_open`.
+#[allow(non_camel_case_types)]
+pub type vanedb_rs_disk = vanedb_rs_handle;
+
+/// The ABI version this header describes. Bumped only on an incompatible
+/// change; compare with `vanedb_rs_abi_version()` at runtime.
+pub const VANEDB_RS_ABI_VERSION: u32 = 1;
+
+/// The value a failed constructor returns. Never a live handle: passing it
+/// fails with `VANEDB_RS_NULL_ARGUMENT`, and freeing it is a no-op.
+pub const VANEDB_RS_NULL_HANDLE: vanedb_rs_handle = 0;
 
 /// A synchronous ID predicate, called on the thread performing the search.
 ///
 /// The callback and any memory it accesses through `user_data` must remain valid
-/// for the whole call. It must not access, mutate or free the searched handle,
-/// or modify/free any search buffers; calls using other handles are allowed.
+/// for the whole call. It must not free the searched handle, or modify/free any
+/// search buffers; calls using other handles are allowed.
 /// It must not throw a foreign exception or use `longjmp` across Rust frames.
 /// A Rust callback declared `extern "C-unwind"` may panic; with unwinding enabled
 /// the search reports `VANEDB_RS_PANIC` and leaves the result buffers untouched.
@@ -130,9 +154,9 @@ fn elements(n: usize, dim: usize) -> Option<usize> {
 
 /// Success.
 pub const VANEDB_RS_OK: u32 = 0;
-/// A required handle, buffer or path argument was null. This ABI's own misuse
-/// code: it has no `VaneError` counterpart because the call never reached the
-/// core.
+/// A required buffer or path argument was null, or the handle was
+/// `VANEDB_RS_NULL_HANDLE`. This ABI's own misuse code: it has no `VaneError`
+/// counterpart because the call never reached the core.
 pub const VANEDB_RS_NULL_ARGUMENT: u32 = 1;
 /// The vector's length does not match the handle's dimension.
 pub const VANEDB_RS_DIMENSION_MISMATCH: u32 = 2;
@@ -165,6 +189,10 @@ pub const VANEDB_RS_PANIC: u32 = 14;
 /// `#[non_exhaustive]`, so a caller built against an older header must treat
 /// any unrecognized code as a failure rather than as success.
 pub const VANEDB_RS_UNKNOWN: u32 = 15;
+/// The handle is not a live handle of the kind the function expects: it was
+/// never issued, was freed, was truncated on the way through an FFI that
+/// guessed its type, or belongs to another handle type. The call did nothing.
+pub const VANEDB_RS_INVALID_HANDLE: u32 = 16;
 
 thread_local! {
     static LAST_ERROR: std::cell::Cell<u32> = const { std::cell::Cell::new(VANEDB_RS_OK) };
@@ -245,6 +273,16 @@ fn null_arg<T>(fallback: T) -> T {
     fallback
 }
 
+/// Records a handle that is not live, or not of the expected kind.
+fn invalid_handle<T>(fallback: T) -> T {
+    set_code(
+        VANEDB_RS_INVALID_HANDLE,
+        "not a live handle of this kind: never issued, already freed, truncated, \
+         or created by another vanedb_rs_*_new",
+    );
+    fallback
+}
+
 /// Records a batch whose `n * dim` product overflows. Like a null argument it
 /// never reaches the core, so there is no `VaneError` to map; it is the
 /// 32-bit and wasm32 case that `elements` exists to catch.
@@ -270,6 +308,234 @@ fn bad_metric<T>(fallback: T) -> T {
         "unrecognized metric value: expected 0 (L2), 1 (Cosine) or 2 (Dot)",
     );
     fallback
+}
+
+// ---------------------------------------------------------------------------
+// The handle table.
+//
+// Every handle crossing the boundary is an id into this table. Motivation
+// (RFC 0002): a `ctypes` caller that omits `restype` truncates a returned
+// pointer to a C `int` and the next call dereferences garbage; any FFI that
+// guesses types does the same. A pointer registry cannot catch a truncated
+// pointer that collides with a live one. An id with a generation in its high
+// half can: truncation clears the generation, and generation 0 is never
+// issued.
+//
+// Layout of an id: bits 63..32 generation (1 ..= u32::MAX - 1), bits 31..4
+// slot within the shard plus one, bits 3..0 shard. The plus one keeps the
+// low half nonzero for every live id: without it the first handle issued
+// (shard 0, slot 0) truncates to exactly 0, the null handle, and would be
+// reported as a null argument rather than an invalid handle. Sharded so that concurrent callers
+// on different handles rarely contend; the lock is held only for the lookup,
+// and the caller gets an `Arc` clone, so a search never holds it. Freeing a
+// handle another thread is mid-call on is therefore safe: that call finishes
+// on its own clone, and every later call reports `VANEDB_RS_INVALID_HANDLE`.
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+enum Object {
+    Store(Arc<FlatIndex>),
+    Index(Arc<ApproxIndex>),
+    Disk(Arc<DiskIndex>),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Kind {
+    Store,
+    Index,
+    Disk,
+}
+
+impl Object {
+    fn kind(&self) -> Kind {
+        match self {
+            Object::Store(_) => Kind::Store,
+            Object::Index(_) => Kind::Index,
+            Object::Disk(_) => Kind::Disk,
+        }
+    }
+}
+
+struct Slot {
+    /// The generation a live id must carry. Starts at 1 and is bumped on
+    /// every free, so no id ever matches a slot twice. A slot whose next
+    /// generation would be `u32::MAX` is retired rather than reused:
+    /// `u32::MAX` is what a sign-extended truncated id carries, and 0 is what
+    /// a zero-extended one carries, so neither is ever issued.
+    generation: u32,
+    object: Option<Object>,
+}
+
+struct Shard {
+    slots: Vec<Slot>,
+    /// Indices of slots whose object is `None` and whose generation is still
+    /// issuable.
+    free: Vec<u32>,
+}
+
+const SHARD_BITS: u32 = 4;
+const SHARDS: usize = 1 << SHARD_BITS;
+const SLOT_BITS: u32 = 32 - SHARD_BITS;
+/// One fewer than the field holds: slot numbers are stored plus one.
+const MAX_SLOTS: usize = (1 << SLOT_BITS) - 1;
+const FIRST_GENERATION: u32 = 1;
+/// The last generation that can be issued; the slot retires after it.
+const LAST_GENERATION: u32 = u32::MAX - 1;
+
+static TABLE: [Mutex<Shard>; SHARDS] = [const {
+    Mutex::new(Shard {
+        slots: Vec::new(),
+        free: Vec::new(),
+    })
+}; SHARDS];
+/// Spreads allocations across shards. Wrapping is harmless: only the low
+/// bits are used.
+static NEXT_SHARD: AtomicU32 = AtomicU32::new(0);
+/// Live handles, for `vanedb_rs_handle_count`.
+static LIVE: AtomicUsize = AtomicUsize::new(0);
+
+fn compose(shard: u32, slot: u32, generation: u32) -> u64 {
+    (u64::from(generation) << 32) | u64::from(((slot + 1) << SHARD_BITS) | shard)
+}
+
+fn shard_of(id: u64) -> &'static Mutex<Shard> {
+    &TABLE[(id as u32 & (SHARDS as u32 - 1)) as usize]
+}
+
+/// The slot an id names, or `None` for a low half that names no slot.
+fn slot_of(id: u64) -> Option<usize> {
+    ((id as u32) >> SHARD_BITS)
+        .checked_sub(1)
+        .map(|s| s as usize)
+}
+
+fn generation_of(id: u64) -> u32 {
+    (id >> 32) as u32
+}
+
+/// A poisoned shard is still structurally valid: every mutation below is a
+/// single field write or a `Vec` push/pop, none of which can panic halfway.
+fn lock(shard: &Mutex<Shard>) -> MutexGuard<'_, Shard> {
+    shard
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Registers `object` and returns its id, or `None` if the chosen shard has
+/// issued all of its 2^28 slots.
+fn insert(object: Object) -> Option<u64> {
+    let shard_index = NEXT_SHARD.fetch_add(1, Ordering::Relaxed) % SHARDS as u32;
+    let mut shard = lock(&TABLE[shard_index as usize]);
+    let slot_index = match shard.free.pop() {
+        Some(index) => index,
+        None => {
+            if shard.slots.len() >= MAX_SLOTS {
+                return None;
+            }
+            shard.slots.push(Slot {
+                generation: FIRST_GENERATION,
+                object: None,
+            });
+            (shard.slots.len() - 1) as u32
+        }
+    };
+    let slot = &mut shard.slots[slot_index as usize];
+    debug_assert!(slot.object.is_none());
+    debug_assert!((FIRST_GENERATION..=LAST_GENERATION).contains(&slot.generation));
+    slot.object = Some(object);
+    LIVE.fetch_add(1, Ordering::Relaxed);
+    Some(compose(shard_index, slot_index, slot.generation))
+}
+
+/// The object behind a live id, cloned out from under the lock.
+fn lookup(id: u64) -> Option<Object> {
+    let index = slot_of(id)?;
+    let shard = lock(shard_of(id));
+    let slot = shard.slots.get(index)?;
+    if slot.generation != generation_of(id) {
+        return None;
+    }
+    slot.object.clone()
+}
+
+/// Unregisters a live id of `kind`, returning the object so the caller can
+/// drop it outside the lock. `None` if the id is not live or is another kind:
+/// `vanedb_rs_index_free` must not free a store.
+fn release(id: u64, kind: Kind) -> Option<Object> {
+    let index = slot_of(id)?;
+    let mut shard = lock(shard_of(id));
+    let slot = shard.slots.get_mut(index)?;
+    if slot.generation != generation_of(id) || slot.object.as_ref()?.kind() != kind {
+        return None;
+    }
+    let object = slot.object.take();
+    if slot.generation < LAST_GENERATION {
+        slot.generation += 1;
+        shard.free.push(index as u32);
+    } else {
+        // Retired: no generation left that a truncated id cannot carry.
+        slot.generation = u32::MAX;
+    }
+    LIVE.fetch_sub(1, Ordering::Relaxed);
+    object
+}
+
+/// Registers a new object, reporting a full table as a failure rather than
+/// a crash. Unreachable in practice: it takes 2^28 live handles in one shard.
+fn register(object: Object) -> u64 {
+    insert(object).unwrap_or_else(|| {
+        set_code(
+            VANEDB_RS_INVALID_PARAMETER,
+            "handle table is full: free some handles first",
+        );
+        VANEDB_RS_NULL_HANDLE
+    })
+}
+
+/// The store behind `id`, or `None` with the error recorded.
+fn store(id: vanedb_rs_store) -> Option<Arc<FlatIndex>> {
+    if id == VANEDB_RS_NULL_HANDLE {
+        return null_arg(None);
+    }
+    match lookup(id) {
+        Some(Object::Store(store)) => Some(store),
+        _ => invalid_handle(None),
+    }
+}
+
+/// The graph behind `id`, or `None` with the error recorded.
+fn index(id: vanedb_rs_index) -> Option<Arc<ApproxIndex>> {
+    if id == VANEDB_RS_NULL_HANDLE {
+        return null_arg(None);
+    }
+    match lookup(id) {
+        Some(Object::Index(index)) => Some(index),
+        _ => invalid_handle(None),
+    }
+}
+
+/// The mapped file behind `id`, or `None` with the error recorded.
+fn disk(id: vanedb_rs_disk) -> Option<Arc<DiskIndex>> {
+    if id == VANEDB_RS_NULL_HANDLE {
+        return null_arg(None);
+    }
+    match lookup(id) {
+        Some(Object::Disk(disk)) => Some(disk),
+        _ => invalid_handle(None),
+    }
+}
+
+/// Frees a handle of `kind`. The null handle is a no-op; anything else that is
+/// not a live handle of that kind records `VANEDB_RS_INVALID_HANDLE`. A
+/// successful free preserves the thread's error state (see `guard_preserving`).
+fn free(id: vanedb_rs_handle, kind: Kind) {
+    if id == VANEDB_RS_NULL_HANDLE {
+        return;
+    }
+    match release(id, kind) {
+        Some(object) => drop(object),
+        None => invalid_handle(()),
+    }
 }
 
 /// The code from the calling thread's most recent `vanedb_rs_*` call, or
@@ -332,11 +598,27 @@ pub extern "C" fn vanedb_rs_version() -> *const c_char {
     concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char
 }
 
+/// The ABI version of the loaded library. Equal to `VANEDB_RS_ABI_VERSION`
+/// in the header it was built from; a consumer whose header says otherwise
+/// must not call anything else. Does not count as a call: it leaves the
+/// thread's error state alone.
+#[no_mangle]
+pub extern "C" fn vanedb_rs_abi_version() -> u32 {
+    VANEDB_RS_ABI_VERSION
+}
+
+/// The number of live handles of every kind in this process, for leak tests.
+/// Does not count as a call: it leaves the thread's error state alone.
+#[no_mangle]
+pub extern "C" fn vanedb_rs_handle_count() -> usize {
+    LIVE.load(Ordering::Relaxed)
+}
+
 /// Runs `body`, returning `fallback` if it panics.
 ///
 /// A panic unwinding out of an `extern "C"` function aborts the process, taking
 /// the embedding application with it. Every entry point routes through here so
-/// a bug surfaces as this ABI's ordinary failure value — null, 1, 0 or NaN —
+/// a bug surfaces as this ABI's ordinary failure value — 0, 1, 0 or NaN —
 /// instead. vanedb-cpp wraps every entry point in try/catch for the same reason.
 ///
 /// Entering also clears the thread's error code, which is what makes
@@ -367,6 +649,24 @@ fn guard<T>(fallback: T, body: impl FnOnce() -> T) -> T {
             fallback
         }
     }
+}
+
+/// Copies at most `k` results into the caller's buffers and returns the count.
+///
+/// # Safety
+/// `out_ids` and `out_dists` must each have room for `k` elements.
+unsafe fn write_results(
+    results: &[vanedb::SearchResult],
+    k: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
+    let n = results.len().min(k);
+    for (i, r) in results.iter().take(k).enumerate() {
+        *out_ids.add(i) = r.id;
+        *out_dists.add(i) = r.distance;
+    }
+    n
 }
 
 /// # Safety
@@ -403,39 +703,30 @@ pub unsafe extern "C" fn vanedb_rs_dot_product(a: *const f32, b: *const f32, dim
     })
 }
 
-/// # Safety
-/// Safe to call with any arguments; returns an owning handle (or null on error)
-/// that must eventually be freed with `vanedb_rs_store_free`.
+/// Creates a store. Returns its handle, or `VANEDB_RS_NULL_HANDLE` on error;
+/// free it with `vanedb_rs_store_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> *mut vanedb_rs_store {
-    guard(std::ptr::null_mut(), || {
+pub extern "C" fn vanedb_rs_store_new(dim: usize, metric: u32) -> vanedb_rs_store {
+    guard(VANEDB_RS_NULL_HANDLE, || {
         let Some(metric) = to_metric(metric) else {
-            return bad_metric(std::ptr::null_mut());
+            return bad_metric(VANEDB_RS_NULL_HANDLE);
         };
         match FlatIndex::new(dim, metric) {
-            Ok(s) => Box::into_raw(Box::new(s)),
-            Err(e) => fail(e, std::ptr::null_mut()),
+            Ok(s) => register(Object::Store(Arc::new(s))),
+            Err(e) => fail(e, VANEDB_RS_NULL_HANDLE),
         }
     })
 }
 
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null), and
 /// `v` must point to at least `dim` valid `f32` values (where `dim` matches the store).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_add(
-    s: *mut vanedb_rs_store,
-    id: u64,
-    v: *const f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_store_add(s: vanedb_rs_store, id: u64, v: *const f32) -> i32 {
     guard(1, || {
-        if s.is_null() {
-            return null_arg(1);
-        }
+        let Some(store) = store(s) else { return 1 };
         if v.is_null() {
             return null_arg(1);
         }
-        let store = &*s;
         let vec = slice::from_raw_parts(v, store.dimension());
         match store.add(id, vec) {
             Ok(()) => 0,
@@ -445,24 +736,21 @@ pub unsafe extern "C" fn vanedb_rs_store_add(
 }
 
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `ids` must point to
-/// `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+/// `ids` must point to `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s
+/// (both may be null when `n` is 0).
 /// All-or-nothing: on error (duplicate id, length mismatch) the store is unchanged.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_add_batch(
-    s: *mut vanedb_rs_store,
+    s: vanedb_rs_store,
     ids: *const u64,
     vecs: *const f32,
     n: usize,
 ) -> i32 {
     guard(1, || {
-        if s.is_null() {
-            return null_arg(1);
-        }
+        let Some(store) = store(s) else { return 1 };
         if n != 0 && (ids.is_null() || vecs.is_null()) {
             return null_arg(1);
         }
-        let store = &*s;
         let (id_slice, vec_slice): (&[u64], &[f32]) = if n == 0 {
             (&[], &[])
         } else {
@@ -482,34 +770,24 @@ pub unsafe extern "C" fn vanedb_rs_store_add_batch(
 }
 
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_search(
-    s: *mut vanedb_rs_store,
+    s: vanedb_rs_store,
     q: *const f32,
     k: usize,
     out_ids: *mut u64,
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if s.is_null() {
-            return null_arg(0);
-        }
+        let Some(store) = store(s) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let store = &*s;
         let query = slice::from_raw_parts(q, store.dimension());
         match store.search(query, k) {
-            Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
-                n
-            }
+            Ok(res) => write_results(&res, k, out_ids, out_dists),
             Err(e) => fail(e, 0),
         }
     })
@@ -527,15 +805,15 @@ pub unsafe extern "C" fn vanedb_rs_store_search(
 /// `vanedb_rs_last_error` to distinguish failure from no matches.
 ///
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 /// Each nonempty list must point to its stated number of valid `u64`s. Inputs
 /// must remain valid and unmodified until return, and outputs must not overlap
 /// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
 /// unwinding requirements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
-    s: *mut vanedb_rs_store,
+    s: vanedb_rs_store,
     q: *const f32,
     k: usize,
     filter: vanedb_rs_filter_fn,
@@ -548,13 +826,10 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if s.is_null() {
-            return null_arg(0);
-        }
+        let Some(store) = store(s) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let store = &*s;
         let query = slice::from_raw_parts(q, store.dimension());
 
         if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
@@ -589,11 +864,7 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
 
         match store.search_with(query, k, &params) {
             Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
+                let n = write_results(&res, k, out_ids, out_dists);
                 // A callback may have handled a failing call on another
                 // handle. Report the successful outer search, not that error.
                 clear_error();
@@ -604,33 +875,29 @@ pub unsafe extern "C" fn vanedb_rs_store_search_filtered(
     })
 }
 
-/// # Safety
-/// The handle must have come from `vanedb_rs_store_new` and not been freed already
-/// (or be null, which is a no-op).
+/// Frees a store handle. `VANEDB_RS_NULL_HANDLE` is a no-op; a handle that is
+/// not a live store (freed already, or another kind) fails with
+/// `VANEDB_RS_INVALID_HANDLE`. A successful free preserves the thread's error
+/// state, so a caller can fail, clean up, then report.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_free(s: *mut vanedb_rs_store) {
-    guard_preserving((), || {
-        if !s.is_null() {
-            drop(Box::from_raw(s));
-        }
-    })
+pub extern "C" fn vanedb_rs_store_free(s: vanedb_rs_store) {
+    guard_preserving((), || free(s, Kind::Store))
 }
 
-/// # Safety
-/// Safe to call with any arguments; returns an owning handle (or null on error)
-/// that must eventually be freed with `vanedb_rs_index_free`.
+/// Creates a graph. Returns its handle, or `VANEDB_RS_NULL_HANDLE` on error;
+/// free it with `vanedb_rs_index_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_new(
+pub extern "C" fn vanedb_rs_index_new(
     dim: usize,
     metric: u32,
     capacity: usize,
     m: usize,
     ef_construction: usize,
     seed: u64,
-) -> *mut vanedb_rs_index {
-    guard(std::ptr::null_mut(), || {
+) -> vanedb_rs_index {
+    guard(VANEDB_RS_NULL_HANDLE, || {
         let Some(metric) = to_metric(metric) else {
-            return bad_metric(std::ptr::null_mut());
+            return bad_metric(VANEDB_RS_NULL_HANDLE);
         };
         match ApproxIndex::builder(dim, metric)
             .capacity(capacity)
@@ -639,29 +906,21 @@ pub unsafe extern "C" fn vanedb_rs_index_new(
             .seed(seed)
             .build()
         {
-            Ok(h) => Box::into_raw(Box::new(h)),
-            Err(e) => fail(e, std::ptr::null_mut()),
+            Ok(h) => register(Object::Index(Arc::new(h))),
+            Err(e) => fail(e, VANEDB_RS_NULL_HANDLE),
         }
     })
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null), and
 /// `v` must point to at least `dim` valid `f32` values (where `dim` matches the index).
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_add(
-    h: *mut vanedb_rs_index,
-    id: u64,
-    v: *const f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_add(h: vanedb_rs_index, id: u64, v: *const f32) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
+        let Some(idx) = index(h) else { return 1 };
         if v.is_null() {
             return null_arg(1);
         }
-        let idx = &*h;
         let vec = slice::from_raw_parts(v, idx.dimension());
         match idx.add(id, vec) {
             Ok(()) => 0,
@@ -671,24 +930,21 @@ pub unsafe extern "C" fn vanedb_rs_index_add(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `ids` must point to
-/// `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s (both may be null when `n` is 0).
+/// `ids` must point to `n` valid `u64`s and `vecs` to `n * dim` valid `f32`s
+/// (both may be null when `n` is 0).
 /// All-or-nothing: on error (duplicate id, capacity, length mismatch) the index is unchanged.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_add_batch(
-    h: *mut vanedb_rs_index,
+    h: vanedb_rs_index,
     ids: *const u64,
     vecs: *const f32,
     n: usize,
 ) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
+        let Some(idx) = index(h) else { return 1 };
         if n != 0 && (ids.is_null() || vecs.is_null()) {
             return null_arg(1);
         }
-        let idx = &*h;
         let (id_slice, vec_slice): (&[u64], &[f32]) = if n == 0 {
             (&[], &[])
         } else {
@@ -708,11 +964,11 @@ pub unsafe extern "C" fn vanedb_rs_index_add_batch(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_search(
-    h: *mut vanedb_rs_index,
+    h: vanedb_rs_index,
     q: *const f32,
     k: usize,
     ef_search: usize,
@@ -720,13 +976,10 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if h.is_null() {
-            return null_arg(0);
-        }
+        let Some(idx) = index(h) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let idx = &*h;
         let query = slice::from_raw_parts(q, idx.dimension());
         // Per-call, not a store: mutating the handle here made one caller's
         // beam width visible to every other user of the index, and `save`
@@ -744,14 +997,7 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
             vanedb::SearchParams::new().ef_search(ef_search)
         };
         match idx.search_with(query, k, &params) {
-            Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
-                n
-            }
+            Ok(res) => write_results(&res, k, out_ids, out_dists),
             Err(e) => fail(e, 0),
         }
     })
@@ -769,15 +1015,15 @@ pub unsafe extern "C" fn vanedb_rs_index_search(
 /// `vanedb_rs_last_error` to distinguish failure from no matches.
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 /// Each nonempty list must point to its stated number of valid `u64`s. Inputs
 /// must remain valid and unmodified until return, and outputs must not overlap
 /// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
 /// unwinding requirements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
-    h: *mut vanedb_rs_index,
+    h: vanedb_rs_index,
     q: *const f32,
     k: usize,
     ef_search: usize,
@@ -791,13 +1037,10 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if h.is_null() {
-            return null_arg(0);
-        }
+        let Some(idx) = index(h) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let idx = &*h;
         let query = slice::from_raw_parts(q, idx.dimension());
 
         if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
@@ -836,11 +1079,7 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
 
         match idx.search_with(query, k, &params) {
             Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
+                let n = write_results(&res, k, out_ids, out_dists);
                 // A callback may have handled a failing call on another
                 // handle. Report the successful outer search, not that error.
                 clear_error();
@@ -852,18 +1091,14 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
 }
 
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null);
 /// `path` must be a valid NUL-terminated C string.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_save(h: *mut vanedb_rs_index, path: *const c_char) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_save(h: vanedb_rs_index, path: *const c_char) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
+        let Some(idx) = index(h) else { return 1 };
         if path.is_null() {
             return null_arg(1);
         }
-        let idx = &*h;
         match CStr::from_ptr(path).to_str() {
             Ok(p) => match idx.save(p) {
                 Ok(()) => 0,
@@ -875,20 +1110,20 @@ pub unsafe extern "C" fn vanedb_rs_index_save(h: *mut vanedb_rs_index, path: *co
 }
 
 /// # Safety
-/// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
-/// that must be freed with `vanedb_rs_index_free`.
+/// `path` must be a valid NUL-terminated C string. Returns a handle (or
+/// `VANEDB_RS_NULL_HANDLE`) that must be freed with `vanedb_rs_index_free`.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> *mut vanedb_rs_index {
-    guard(std::ptr::null_mut(), || {
+pub unsafe extern "C" fn vanedb_rs_index_load(path: *const c_char) -> vanedb_rs_index {
+    guard(VANEDB_RS_NULL_HANDLE, || {
         if path.is_null() {
-            return null_arg(std::ptr::null_mut());
+            return null_arg(VANEDB_RS_NULL_HANDLE);
         }
         match CStr::from_ptr(path).to_str() {
             Ok(p) => match ApproxIndex::load(p) {
-                Ok(h) => Box::into_raw(Box::new(h)),
-                Err(e) => fail(e, std::ptr::null_mut()),
+                Ok(h) => register(Object::Index(Arc::new(h))),
+                Err(e) => fail(e, VANEDB_RS_NULL_HANDLE),
             },
-            Err(_) => bad_path(std::ptr::null_mut()),
+            Err(_) => bad_path(VANEDB_RS_NULL_HANDLE),
         }
     })
 }
@@ -923,28 +1158,23 @@ impl std::io::Write for CountingWriter {
 /// so the caller can allocate and retry.
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`,
-/// `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer` (or null).
 /// `written` must be a valid pointer. If `buf` is non-null it must have
 /// room for `cap` bytes.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_save_to_buffer(
-    h: *mut vanedb_rs_index,
+    h: vanedb_rs_index,
     buf: *mut u8,
     cap: usize,
     written: *mut usize,
 ) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
+        let Some(idx) = index(h) else { return 1 };
         if written.is_null() {
             return null_arg(1);
         }
         if buf.is_null() && cap != 0 {
             return null_arg(1);
         }
-        let idx = &*h;
         if buf.is_null() {
             let mut counter = CountingWriter { n: 0 };
             return match idx.save_to(&mut counter) {
@@ -976,36 +1206,31 @@ pub unsafe extern "C" fn vanedb_rs_index_save_to_buffer(
 /// Reads a VNDB graph (or a legacy Rust file) from `buf`.
 ///
 /// # Safety
-/// `buf` must point to `len` valid bytes. Returns an owning handle (or null)
-/// that must be freed with `vanedb_rs_index_free`.
+/// `buf` must point to `len` valid bytes. Returns a handle (or
+/// `VANEDB_RS_NULL_HANDLE`) that must be freed with `vanedb_rs_index_free`.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_load_from_buffer(
     buf: *const u8,
     len: usize,
-) -> *mut vanedb_rs_index {
-    guard(std::ptr::null_mut(), || {
+) -> vanedb_rs_index {
+    guard(VANEDB_RS_NULL_HANDLE, || {
         if buf.is_null() {
-            return null_arg(std::ptr::null_mut());
+            return null_arg(VANEDB_RS_NULL_HANDLE);
         }
         let bytes = slice::from_raw_parts(buf, len);
         match ApproxIndex::from_bytes(bytes) {
-            Ok(h) => Box::into_raw(Box::new(h)),
-            Err(e) => fail(e, std::ptr::null_mut()),
+            Ok(h) => register(Object::Index(Arc::new(h))),
+            Err(e) => fail(e, VANEDB_RS_NULL_HANDLE),
         }
     })
 }
 
-/// # Safety
-/// The handle must have come from `vanedb_rs_index_new`,
-/// `vanedb_rs_index_load` or `vanedb_rs_index_load_from_buffer`
-/// and not been freed already (or be null, which is a no-op).
+/// Frees a graph handle. `VANEDB_RS_NULL_HANDLE` is a no-op; a handle that is
+/// not a live graph fails with `VANEDB_RS_INVALID_HANDLE`. A successful free
+/// preserves the thread's error state.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_free(h: *mut vanedb_rs_index) {
-    guard_preserving((), || {
-        if !h.is_null() {
-            drop(Box::from_raw(h));
-        }
-    })
+pub extern "C" fn vanedb_rs_index_free(h: vanedb_rs_index) {
+    guard_preserving((), || free(h, Kind::Index))
 }
 
 /// # Safety
@@ -1064,57 +1289,47 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
 }
 
 /// # Safety
-/// `path` must be a valid NUL-terminated C string. Returns an owning handle (or null)
-/// that must be freed with `vanedb_rs_disk_free`.
+/// `path` must be a valid NUL-terminated C string. Returns a handle (or
+/// `VANEDB_RS_NULL_HANDLE`) that must be freed with `vanedb_rs_disk_free`.
 /// The underlying file must not be modified or truncated from the start of
 /// this call until the handle is freed. Replacing its path with a newly built
 /// file is allowed; modifying the mapped file in place is not.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> *mut vanedb_rs_disk {
-    guard(std::ptr::null_mut(), || {
+pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> vanedb_rs_disk {
+    guard(VANEDB_RS_NULL_HANDLE, || {
         if path.is_null() {
-            return null_arg(std::ptr::null_mut());
+            return null_arg(VANEDB_RS_NULL_HANDLE);
         }
         match CStr::from_ptr(path).to_str() {
             // The caller guarantees the mapped file remains immutable.
             Ok(p) => match unsafe { DiskIndex::open(p) } {
-                Ok(m) => Box::into_raw(Box::new(m)),
-                Err(e) => fail(e, std::ptr::null_mut()),
+                Ok(m) => register(Object::Disk(Arc::new(m))),
+                Err(e) => fail(e, VANEDB_RS_NULL_HANDLE),
             },
-            Err(_) => bad_path(std::ptr::null_mut()),
+            Err(_) => bad_path(VANEDB_RS_NULL_HANDLE),
         }
     })
 }
 
 /// # Safety
-/// `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_search(
-    m: *mut vanedb_rs_disk,
+    m: vanedb_rs_disk,
     q: *const f32,
     k: usize,
     out_ids: *mut u64,
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if m.is_null() {
-            return null_arg(0);
-        }
+        let Some(store) = disk(m) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let store = &*m;
         let query = slice::from_raw_parts(q, store.dimension());
         match store.search(query, k) {
-            Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
-                n
-            }
+            Ok(res) => write_results(&res, k, out_ids, out_dists),
             Err(e) => fail(e, 0),
         }
     })
@@ -1132,15 +1347,15 @@ pub unsafe extern "C" fn vanedb_rs_disk_search(
 /// `vanedb_rs_last_error` to distinguish failure from no matches.
 ///
 /// # Safety
-/// `m` must be a live handle from `vanedb_rs_disk_open` (or null); `q` must point to
-/// `dim` valid `f32`s; `out_ids` and `out_dists` must each have room for `k` elements.
+/// `q` must point to `dim` valid `f32`s; `out_ids` and `out_dists` must each
+/// have room for `k` elements.
 /// Each nonempty list must point to its stated number of valid `u64`s. Inputs
 /// must remain valid and unmodified until return, and outputs must not overlap
 /// inputs. A callback must obey `vanedb_rs_filter_fn`'s lifetime, reentrancy and
 /// unwinding requirements.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
-    m: *mut vanedb_rs_disk,
+    m: vanedb_rs_disk,
     q: *const f32,
     k: usize,
     filter: vanedb_rs_filter_fn,
@@ -1153,13 +1368,10 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
     out_dists: *mut f32,
 ) -> usize {
     guard(0, || {
-        if m.is_null() {
-            return null_arg(0);
-        }
+        let Some(store) = disk(m) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
             return null_arg(0);
         }
-        let store = &*m;
         let query = slice::from_raw_parts(q, store.dimension());
 
         if !valid_filter_args(filter, allow, allow_len, deny, deny_len) {
@@ -1194,11 +1406,7 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
 
         match store.search_with(query, k, &params) {
             Ok(res) => {
-                let n = res.len().min(k);
-                for (i, r) in res.iter().take(k).enumerate() {
-                    *out_ids.add(i) = r.id;
-                    *out_dists.add(i) = r.distance;
-                }
+                let n = write_results(&res, k, out_ids, out_dists);
                 // A callback may have handled a failing call on another
                 // handle. Report the successful outer search, not that error.
                 clear_error();
@@ -1209,136 +1417,84 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
     })
 }
 
-/// # Safety
-/// The handle must have come from `vanedb_rs_disk_open` and not been freed already
-/// (or be null, which is a no-op).
+/// Frees a mapped-file handle. `VANEDB_RS_NULL_HANDLE` is a no-op; a handle
+/// that is not a live mapped file fails with `VANEDB_RS_INVALID_HANDLE`. A
+/// successful free preserves the thread's error state.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_free(m: *mut vanedb_rs_disk) {
-    guard_preserving((), || {
-        if !m.is_null() {
-            drop(Box::from_raw(m));
-        }
-    })
+pub extern "C" fn vanedb_rs_disk_free(m: vanedb_rs_disk) {
+    guard_preserving((), || free(m, Kind::Disk))
 }
 
 // ---------------------------------------------------------------------------
 // Introspection and mutation.
 //
-// Each function is a thin wrapper over the Rust method of the same name. Null
-// handles and buffers return this ABI's failure value rather than
-// dereferencing, and `guard()` keeps a panic from unwinding across the
+// Each function is a thin wrapper over the Rust method of the same name. An
+// invalid handle or a null buffer returns this ABI's failure value rather
+// than dereferencing, and `guard()` keeps a panic from unwinding across the
 // boundary.
 // ---------------------------------------------------------------------------
 
-/// Number of vectors in the store, or 0 if `s` is null.
-///
-/// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
+/// Number of vectors in the store, or 0 if `s` is not a live store.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_len(s: *const vanedb_rs_store) -> usize {
-    guard(0, || if s.is_null() { null_arg(0) } else { (*s).len() })
+pub extern "C" fn vanedb_rs_store_len(s: vanedb_rs_store) -> usize {
+    guard(0, || store(s).map_or(0, |store| store.len()))
 }
 
-/// Vector dimension of the store, or 0 if `s` is null.
-///
-/// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
+/// Vector dimension of the store, or 0 if `s` is not a live store.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_dimension(s: *const vanedb_rs_store) -> usize {
-    guard(0, || {
-        if s.is_null() {
-            null_arg(0)
-        } else {
-            (*s).dimension()
-        }
-    })
+pub extern "C" fn vanedb_rs_store_dimension(s: vanedb_rs_store) -> usize {
+    guard(0, || store(s).map_or(0, |store| store.dimension()))
 }
 
 /// Metric the store was built with: 0 = L2, 1 = cosine, 2 = dot.
 ///
-/// Returns 0 for a null handle, which is indistinguishable from L2 — check the
-/// handle before trusting it, as with every other accessor here.
-///
-/// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
+/// Returns 0 for an invalid handle, which is indistinguishable from L2 —
+/// check `vanedb_rs_last_error` before trusting it, as with every other
+/// accessor here.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_metric(s: *const vanedb_rs_store) -> u32 {
+pub extern "C" fn vanedb_rs_store_metric(s: vanedb_rs_store) -> u32 {
     guard(0, || {
-        if s.is_null() {
-            null_arg(0)
-        } else {
-            from_metric((*s).metric())
-        }
+        store(s).map_or(0, |store| from_metric(store.metric()))
     })
 }
 
 /// Metric the index was built with: 0 = L2, 1 = cosine, 2 = dot.
 ///
 /// A loaded index reads this from the file, so it is the only way a caller can
-/// confirm their query convention matches what was stored. Returns 0 for null.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+/// confirm their query convention matches what was stored. Returns 0 for an
+/// invalid handle.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_metric(h: *const vanedb_rs_index) -> u32 {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            from_metric((*h).metric())
-        }
-    })
+pub extern "C" fn vanedb_rs_index_metric(h: vanedb_rs_index) -> u32 {
+    guard(0, || index(h).map_or(0, |idx| from_metric(idx.metric())))
 }
 
 /// Metric the mapped file was written with: 0 = L2, 1 = cosine, 2 = dot.
 ///
-/// Returns 0 for null.
-///
-/// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+/// Returns 0 for an invalid handle.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_metric(d: *const vanedb_rs_disk) -> u32 {
-    guard(0, || {
-        if d.is_null() {
-            null_arg(0)
-        } else {
-            from_metric((*d).metric())
-        }
-    })
+pub extern "C" fn vanedb_rs_disk_metric(d: vanedb_rs_disk) -> u32 {
+    guard(0, || disk(d).map_or(0, |disk| from_metric(disk.metric())))
 }
 
-/// Whether `id` is present. False if `s` is null.
-///
-/// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
+/// Whether `id` is present. False if `s` is not a live store.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_contains(s: *const vanedb_rs_store, id: u64) -> bool {
-    guard(false, || {
-        if s.is_null() {
-            null_arg(false)
-        } else {
-            (*s).contains(id)
-        }
-    })
+pub extern "C" fn vanedb_rs_store_contains(s: vanedb_rs_store, id: u64) -> bool {
+    guard(false, || store(s).is_some_and(|store| store.contains(id)))
 }
 
 /// Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
 /// absent or on error.
 ///
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `out` must
-/// have room for `vanedb_rs_store_dimension(s)` floats.
+/// `out` must have room for `vanedb_rs_store_dimension(s)` floats.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_get(
-    s: *const vanedb_rs_store,
-    id: u64,
-    out: *mut f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_store_get(s: vanedb_rs_store, id: u64, out: *mut f32) -> i32 {
     guard(1, || {
-        if s.is_null() || out.is_null() {
+        let Some(store) = store(s) else { return 1 };
+        if out.is_null() {
             return null_arg(1);
         }
-        match (*s).get(id) {
+        match store.get(id) {
             Ok(v) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
@@ -1349,80 +1505,54 @@ pub unsafe extern "C" fn vanedb_rs_store_get(
 }
 
 /// Removes `id`. Returns 0 on success, 1 if absent or on error.
-///
-/// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_store_remove(s: *const vanedb_rs_store, id: u64) -> i32 {
+pub extern "C" fn vanedb_rs_store_remove(s: vanedb_rs_store, id: u64) -> i32 {
     guard(1, || {
-        if s.is_null() {
-            return null_arg(1);
-        }
-        match (*s).remove(id) {
+        let Some(store) = store(s) else { return 1 };
+        match store.remove(id) {
             Ok(()) => 0,
             Err(e) => fail(e, 1),
         }
     })
 }
 
-/// Number of live vectors in the index, or 0 if `h` is null.
+/// Number of live vectors in the index, or 0 if `h` is not a live graph.
 ///
 /// Excludes tombstones; see `vanedb_rs_index_tombstones`.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_len(h: *const vanedb_rs_index) -> usize {
-    guard(0, || if h.is_null() { null_arg(0) } else { (*h).len() })
+pub extern "C" fn vanedb_rs_index_len(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.len()))
 }
 
-/// Vector dimension of the index, or 0 if `h` is null.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
+/// Vector dimension of the index, or 0 if `h` is not a live graph.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_dimension(h: *const vanedb_rs_index) -> usize {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).dimension()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_dimension(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.dimension()))
 }
 
-/// Whether `id` is present and not deleted. False if `h` is null.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
+/// Whether `id` is present and not deleted. False if `h` is not a live graph.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_contains(h: *const vanedb_rs_index, id: u64) -> bool {
-    guard(false, || {
-        if h.is_null() {
-            null_arg(false)
-        } else {
-            (*h).contains(id)
-        }
-    })
+pub extern "C" fn vanedb_rs_index_contains(h: vanedb_rs_index, id: u64) -> bool {
+    guard(false, || index(h).is_some_and(|idx| idx.contains(id)))
 }
 
 /// Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
 /// absent or on error.
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `out` must
-/// have room for `vanedb_rs_index_dimension(h)` floats.
+/// `out` must have room for `vanedb_rs_index_dimension(h)` floats.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_index_get_vector(
-    h: *const vanedb_rs_index,
+    h: vanedb_rs_index,
     id: u64,
     out: *mut f32,
 ) -> i32 {
     guard(1, || {
-        if h.is_null() || out.is_null() {
+        let Some(idx) = index(h) else { return 1 };
+        if out.is_null() {
             return null_arg(1);
         }
-        match (*h).get_vector(id) {
+        match idx.get_vector(id) {
             Ok(v) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
@@ -1436,19 +1566,14 @@ pub unsafe extern "C" fn vanedb_rs_index_get_vector(
 /// success, 1 on error.
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `v` must
-/// point to `vanedb_rs_index_dimension(h)` valid floats.
+/// `v` must point to `vanedb_rs_index_dimension(h)` valid floats.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_upsert(
-    h: *const vanedb_rs_index,
-    id: u64,
-    v: *const f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_upsert(h: vanedb_rs_index, id: u64, v: *const f32) -> i32 {
     guard(1, || {
-        if h.is_null() || v.is_null() {
+        let Some(idx) = index(h) else { return 1 };
+        if v.is_null() {
             return null_arg(1);
         }
-        let idx = &*h;
         let vec = slice::from_raw_parts(v, idx.dimension());
         match idx.upsert(id, vec) {
             Ok(()) => 0,
@@ -1461,117 +1586,67 @@ pub unsafe extern "C" fn vanedb_rs_index_upsert(
 ///
 /// The vector stops being returned by searches immediately; its graph links
 /// are retained until `vanedb_rs_index_compact`.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_remove(h: *const vanedb_rs_index, id: u64) -> i32 {
+pub extern "C" fn vanedb_rs_index_remove(h: vanedb_rs_index, id: u64) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
-        match (*h).remove(id) {
+        let Some(idx) = index(h) else { return 1 };
+        match idx.remove(id) {
             Ok(()) => 0,
             Err(e) => fail(e, 1),
         }
     })
 }
 
-/// Number of tombstoned slots, or 0 if `h` is null.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
+/// Number of tombstoned slots, or 0 if `h` is not a live graph.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_tombstones(h: *const vanedb_rs_index) -> usize {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).tombstones()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_tombstones(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.tombstones()))
 }
 
 /// Rebuilds the graph from live vectors, clearing all tombstones. Returns 0 on
 /// success, 1 on error.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_compact(h: *const vanedb_rs_index) -> i32 {
+pub extern "C" fn vanedb_rs_index_compact(h: vanedb_rs_index) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
-        match (*h).compact() {
+        let Some(idx) = index(h) else { return 1 };
+        match idx.compact() {
             Ok(()) => 0,
             Err(e) => fail(e, 1),
         }
     })
 }
 
-/// Number of vectors in the mapped file, or 0 if `d` is null.
-///
-/// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+/// Number of vectors in the mapped file, or 0 if `d` is not a live mapped file.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_len(d: *const vanedb_rs_disk) -> usize {
-    guard(0, || {
-        if d.is_null() {
-            null_arg(0)
-        } else {
-            (*d).size()
-        }
-    })
+pub extern "C" fn vanedb_rs_disk_len(d: vanedb_rs_disk) -> usize {
+    guard(0, || disk(d).map_or(0, |disk| disk.size()))
 }
 
-/// Vector dimension of the mapped file, or 0 if `d` is null.
-///
-/// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+/// Vector dimension of the mapped file, or 0 if `d` is not a live mapped file.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_dimension(d: *const vanedb_rs_disk) -> usize {
-    guard(0, || {
-        if d.is_null() {
-            null_arg(0)
-        } else {
-            (*d).dimension()
-        }
-    })
+pub extern "C" fn vanedb_rs_disk_dimension(d: vanedb_rs_disk) -> usize {
+    guard(0, || disk(d).map_or(0, |disk| disk.dimension()))
 }
 
-/// Whether `id` is present. False if `d` is null.
-///
-/// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open`, or null.
+/// Whether `id` is present. False if `d` is not a live mapped file.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_contains(d: *const vanedb_rs_disk, id: u64) -> bool {
-    guard(false, || {
-        if d.is_null() {
-            null_arg(false)
-        } else {
-            (*d).contains(id)
-        }
-    })
+pub extern "C" fn vanedb_rs_disk_contains(d: vanedb_rs_disk, id: u64) -> bool {
+    guard(false, || disk(d).is_some_and(|disk| disk.contains(id)))
 }
 
 /// Copies the vector stored under `id` into `out`. Returns 0 on success, 1 if
 /// absent or on error.
 ///
 /// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open` (or null); `out` must
-/// have room for `vanedb_rs_disk_dimension(d)` floats.
+/// `out` must have room for `vanedb_rs_disk_dimension(d)` floats.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_disk_get(
-    d: *const vanedb_rs_disk,
-    id: u64,
-    out: *mut f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_disk_get(d: vanedb_rs_disk, id: u64, out: *mut f32) -> i32 {
     guard(1, || {
-        if d.is_null() || out.is_null() {
+        let Some(disk) = disk(d) else { return 1 };
+        if out.is_null() {
             return null_arg(1);
         }
-        match (*d).get(id) {
+        match disk.get(id) {
             Ok(v) => {
                 ptr::copy_nonoverlapping(v.as_ptr(), out, v.len());
                 0
@@ -1589,14 +1664,9 @@ pub unsafe extern "C" fn vanedb_rs_disk_get(
 /// renaming call sites (#85).
 ///
 /// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new` (or null); `out` must
-/// point to at least `dim` writable `f32`s.
+/// `out` must point to at least `dim` writable `f32`s.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_get(
-    h: *const vanedb_rs_index,
-    id: u64,
-    out: *mut f32,
-) -> i32 {
+pub unsafe extern "C" fn vanedb_rs_index_get(h: vanedb_rs_index, id: u64, out: *mut f32) -> i32 {
     vanedb_rs_index_get_vector(h, id, out)
 }
 
@@ -1604,11 +1674,10 @@ pub unsafe extern "C" fn vanedb_rs_index_get(
 /// handle uses (#85).
 ///
 /// # Safety
-/// `s` must be a live handle from `vanedb_rs_store_new` (or null); `out` must
-/// point to at least `dim` writable `f32`s.
+/// `out` must point to at least `dim` writable `f32`s.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_store_get_vector(
-    s: *const vanedb_rs_store,
+    s: vanedb_rs_store,
     id: u64,
     out: *mut f32,
 ) -> i32 {
@@ -1619,76 +1688,45 @@ pub unsafe extern "C" fn vanedb_rs_store_get_vector(
 /// handle uses (#85).
 ///
 /// # Safety
-/// `d` must be a live handle from `vanedb_rs_disk_open` (or null); `out` must
-/// point to at least `dim` writable `f32`s.
+/// `out` must point to at least `dim` writable `f32`s.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_get_vector(
-    d: *const vanedb_rs_disk,
+    d: vanedb_rs_disk,
     id: u64,
     out: *mut f32,
 ) -> i32 {
     vanedb_rs_disk_get(d, id, out)
 }
 
-/// The graph's `M`, or 0 for a null handle.
+/// The graph's `M`, or 0 for an invalid handle.
 ///
 /// A handle from `vanedb_rs_index_load` read this from the file, and a caller
 /// who did not build it has no other way to know what graph they are searching.
 /// The same argument covers `ef_construction`, `seed` and `capacity`.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_m(h: *const vanedb_rs_index) -> usize {
-    guard(0, || if h.is_null() { null_arg(0) } else { (*h).m() })
+pub extern "C" fn vanedb_rs_index_m(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.m()))
 }
 
-/// The graph's `ef_construction`, or 0 for a null handle.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+/// The graph's `ef_construction`, or 0 for an invalid handle.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_ef_construction(h: *const vanedb_rs_index) -> usize {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).ef_construction()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_ef_construction(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.ef_construction()))
 }
 
-/// The seed the graph was built with, or 0 for a null handle.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
+/// The seed the graph was built with, or 0 for an invalid handle.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_seed(h: *const vanedb_rs_index) -> u64 {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).seed()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_seed(h: vanedb_rs_index) -> u64 {
+    guard(0, || index(h).map_or(0, |idx| idx.seed()))
 }
 
-/// The capacity the graph was built with, or 0 for a null handle.
+/// The capacity the graph was built with, or 0 for an invalid handle.
 ///
 /// This is the build-time hint, not a limit: the index grows past it, so this
 /// may be smaller than `vanedb_rs_index_len`.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_capacity(h: *const vanedb_rs_index) -> usize {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).capacity()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_capacity(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.capacity()))
 }
 
 /// Sets the handle's stored `ef_search` — the beam a search gets when it
@@ -1698,19 +1736,11 @@ pub unsafe extern "C" fn vanedb_rs_index_capacity(h: *const vanedb_rs_index) -> 
 /// cannot disturb another thread's. This exists because without it the stored
 /// value was permanently the default for a C-built index: `0` could only ever
 /// mean 50, and a tuned index could not be saved from C at all.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_set_ef_search(
-    h: *const vanedb_rs_index,
-    ef_search: usize,
-) -> i32 {
+pub extern "C" fn vanedb_rs_index_set_ef_search(h: vanedb_rs_index, ef_search: usize) -> i32 {
     guard(1, || {
-        if h.is_null() {
-            return null_arg(1);
-        }
-        (*h).set_ef_search(ef_search);
+        let Some(idx) = index(h) else { return 1 };
+        idx.set_ef_search(ef_search);
         0
     })
 }
@@ -1719,18 +1749,9 @@ pub unsafe extern "C" fn vanedb_rs_index_set_ef_search(
 ///
 /// There was previously no way to read it back, so a caller could not tell what
 /// a `0` would resolve to.
-///
-/// # Safety
-/// `h` must be a live handle from `vanedb_rs_index_new`/`_load`, or null.
 #[no_mangle]
-pub unsafe extern "C" fn vanedb_rs_index_ef_search(h: *const vanedb_rs_index) -> usize {
-    guard(0, || {
-        if h.is_null() {
-            null_arg(0)
-        } else {
-            (*h).get_ef_search()
-        }
-    })
+pub extern "C" fn vanedb_rs_index_ef_search(h: vanedb_rs_index) -> usize {
+    guard(0, || index(h).map_or(0, |idx| idx.get_ef_search()))
 }
 
 #[cfg(test)]
@@ -1746,11 +1767,9 @@ mod tests {
         assert_eq!(guard(1i32, || panic!("engine bug")), 1);
         assert_eq!(guard(0usize, || panic!("engine bug")), 0);
         assert!(guard(f32::NAN, || panic!("engine bug")).is_nan());
-        assert!(guard(std::ptr::null_mut::<u8>(), || panic!("engine bug")).is_null());
+        assert_eq!(guard(0u64, || panic!("engine bug")), 0);
     }
 
-    /// Null data pointers return this ABI's failure value rather than being
-    /// dereferenced, matching the C++ ABI.
     /// The introspection and mutation surface, end to end through the ABI:
     /// an embedder can read a vector back, delete one, and ask how many the
     /// handle holds.
@@ -1811,43 +1830,35 @@ mod tests {
         }
     }
 
-    /// A null handle or output pointer returns the failure value rather than
-    /// dereferencing, as everywhere else in this ABI.
+    /// The null handle or a null output pointer returns the failure value
+    /// rather than dereferencing, as everywhere else in this ABI.
     #[test]
     fn the_introspection_surface_rejects_nulls() {
+        use super::VANEDB_RS_NULL_HANDLE as NULL;
         unsafe {
             let mut out = [0.0f32; 4];
-            assert_eq!(super::vanedb_rs_store_len(std::ptr::null()), 0);
-            assert_eq!(super::vanedb_rs_store_dimension(std::ptr::null()), 0);
-            assert!(!super::vanedb_rs_store_contains(std::ptr::null(), 1));
-            assert_eq!(
-                super::vanedb_rs_store_get(std::ptr::null(), 1, out.as_mut_ptr()),
-                1
-            );
-            assert_eq!(super::vanedb_rs_store_remove(std::ptr::null(), 1), 1);
+            assert_eq!(super::vanedb_rs_store_len(NULL), 0);
+            assert_eq!(super::vanedb_rs_store_dimension(NULL), 0);
+            assert!(!super::vanedb_rs_store_contains(NULL, 1));
+            assert_eq!(super::vanedb_rs_store_get(NULL, 1, out.as_mut_ptr()), 1);
+            assert_eq!(super::vanedb_rs_store_remove(NULL, 1), 1);
 
-            assert_eq!(super::vanedb_rs_index_len(std::ptr::null()), 0);
-            assert_eq!(super::vanedb_rs_index_dimension(std::ptr::null()), 0);
-            assert!(!super::vanedb_rs_index_contains(std::ptr::null(), 1));
+            assert_eq!(super::vanedb_rs_index_len(NULL), 0);
+            assert_eq!(super::vanedb_rs_index_dimension(NULL), 0);
+            assert!(!super::vanedb_rs_index_contains(NULL, 1));
             assert_eq!(
-                super::vanedb_rs_index_get_vector(std::ptr::null(), 1, out.as_mut_ptr()),
+                super::vanedb_rs_index_get_vector(NULL, 1, out.as_mut_ptr()),
                 1
             );
-            assert_eq!(super::vanedb_rs_index_remove(std::ptr::null(), 1), 1);
-            assert_eq!(super::vanedb_rs_index_tombstones(std::ptr::null()), 0);
-            assert_eq!(super::vanedb_rs_index_compact(std::ptr::null()), 1);
-            assert_eq!(
-                super::vanedb_rs_index_upsert(std::ptr::null(), 1, out.as_ptr()),
-                1
-            );
+            assert_eq!(super::vanedb_rs_index_remove(NULL, 1), 1);
+            assert_eq!(super::vanedb_rs_index_tombstones(NULL), 0);
+            assert_eq!(super::vanedb_rs_index_compact(NULL), 1);
+            assert_eq!(super::vanedb_rs_index_upsert(NULL, 1, out.as_ptr()), 1);
 
-            assert_eq!(super::vanedb_rs_disk_len(std::ptr::null()), 0);
-            assert_eq!(super::vanedb_rs_disk_dimension(std::ptr::null()), 0);
-            assert!(!super::vanedb_rs_disk_contains(std::ptr::null(), 1));
-            assert_eq!(
-                super::vanedb_rs_disk_get(std::ptr::null(), 1, out.as_mut_ptr()),
-                1
-            );
+            assert_eq!(super::vanedb_rs_disk_len(NULL), 0);
+            assert_eq!(super::vanedb_rs_disk_dimension(NULL), 0);
+            assert!(!super::vanedb_rs_disk_contains(NULL, 1));
+            assert_eq!(super::vanedb_rs_disk_get(NULL, 1, out.as_mut_ptr()), 1);
 
             // A live handle with a null output buffer must also be rejected.
             let s = super::vanedb_rs_store_new(4, 0);
@@ -1863,7 +1874,7 @@ mod tests {
     fn null_data_pointers_are_rejected_by_index_and_disk() {
         unsafe {
             let h = super::vanedb_rs_index_new(4, 0, 16, 16, 200, 42);
-            assert!(!h.is_null());
+            assert_ne!(h, super::VANEDB_RS_NULL_HANDLE);
             let (mut ids, mut ds) = ([0u64; 2], [0f32; 2]);
             assert_eq!(
                 super::vanedb_rs_index_search(
@@ -1943,7 +1954,7 @@ mod tests {
     fn null_data_pointers_are_rejected() {
         unsafe {
             let s = super::vanedb_rs_store_new(4, 0);
-            assert!(!s.is_null());
+            assert_ne!(s, super::VANEDB_RS_NULL_HANDLE);
             assert_eq!(super::vanedb_rs_store_add(s, 1, std::ptr::null()), 1);
             assert_eq!(
                 super::vanedb_rs_store_add_batch(s, std::ptr::null(), std::ptr::null(), 3),
@@ -1990,5 +2001,58 @@ mod tests {
     fn a_normal_return_passes_through_untouched() {
         assert_eq!(guard(1i32, || 0i32), 0);
         assert_eq!(guard(0usize, || 7usize), 7);
+    }
+
+    /// The id layout is what makes a truncated id unmatchable: the generation
+    /// lives in the high half, starts at 1, and never reaches `u32::MAX`.
+    #[test]
+    fn id_layout_keeps_generation_in_the_high_half() {
+        let id = super::compose(3, 5, 9);
+        assert_eq!(super::generation_of(id), 9);
+        assert_eq!(super::slot_of(id), Some(5));
+        assert!(std::ptr::eq(super::shard_of(id), &super::TABLE[3]));
+        assert_eq!(super::generation_of(id & 0xFFFF_FFFF), 0);
+        // The very first id (shard 0, slot 0) must not truncate to the null
+        // handle: that would read as a null argument, not an invalid handle.
+        let first = super::compose(0, 0, super::FIRST_GENERATION);
+        assert_ne!(first & 0xFFFF_FFFF, 0);
+        assert_eq!(super::slot_of(first), Some(0));
+        assert_eq!(super::slot_of(0), None, "a zero low half names no slot");
+        // A zero-extended truncation carries generation 0 and a sign-extended
+        // one carries u32::MAX; neither is inside the issuable range.
+        let issuable = super::FIRST_GENERATION..=super::LAST_GENERATION;
+        assert!(!issuable.contains(&0));
+        assert!(!issuable.contains(&u32::MAX));
+    }
+
+    /// A slot on its last issuable generation retires instead of wrapping to
+    /// 0 or `u32::MAX`, the two generations a truncated id can carry.
+    #[test]
+    fn a_slot_at_the_last_generation_retires_rather_than_wrapping() {
+        let store = super::Arc::new(super::FlatIndex::new(1, super::Metric::L2).unwrap());
+        let id = super::insert(super::Object::Store(store.clone())).unwrap();
+        // Age the slot to its final generation by hand.
+        let index = super::slot_of(id).unwrap();
+        let aged = {
+            let mut shard = super::lock(super::shard_of(id));
+            let slot = &mut shard.slots[index];
+            slot.generation = super::LAST_GENERATION;
+            super::compose(
+                (id as u32) & (super::SHARDS as u32 - 1),
+                index as u32,
+                super::LAST_GENERATION,
+            )
+        };
+        assert!(super::lookup(id).is_none(), "the old generation is dead");
+        assert!(super::lookup(aged).is_some());
+        assert!(super::release(aged, super::Kind::Store).is_some());
+        assert!(super::lookup(aged).is_none());
+        let shard = super::lock(super::shard_of(id));
+        let slot = &shard.slots[index];
+        assert_eq!(slot.generation, u32::MAX, "retired");
+        assert!(
+            !shard.free.contains(&(index as u32)),
+            "a retired slot is never handed out again"
+        );
     }
 }

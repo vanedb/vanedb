@@ -23,15 +23,12 @@ fn scratch_path(name: &str) -> String {
 #[test]
 fn search_does_not_mutate_the_handles_beam_width() {
     unsafe {
-        let h = std::ptr::NonNull::new(vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42))
-            .expect("index construction failed");
-        // The constructor transfers a Box allocation. Reclaim ownership so
-        // assertions use safe references and a panic still frees the index.
-        let mut index = Box::from_raw(h.as_ptr());
-        index.set_ef_search(73);
+        let index = vanedb_capi::vanedb_rs_index_new(1, 0, 10, 2, 10, 42);
+        assert_ne!(index, 0, "index construction failed");
+        assert_eq!(vanedb_capi::vanedb_rs_index_set_ef_search(index, 73), 0);
         let vector = [1.0];
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_add(&mut *index, 1, vector.as_ptr()),
+            vanedb_capi::vanedb_rs_index_add(index, 1, vector.as_ptr()),
             0
         );
         let mut ids = [0];
@@ -39,7 +36,7 @@ fn search_does_not_mutate_the_handles_beam_width() {
         for ef in [1, 100] {
             assert_eq!(
                 vanedb_capi::vanedb_rs_index_search(
-                    &mut *index,
+                    index,
                     vector.as_ptr(),
                     1,
                     ef,
@@ -50,22 +47,20 @@ fn search_does_not_mutate_the_handles_beam_width() {
             );
             assert_eq!(ids, [1]);
             assert_eq!(
-                index.get_ef_search(),
+                vanedb_capi::vanedb_rs_index_ef_search(index),
                 73,
                 "a query must not change another query's beam width"
             );
         }
+        vanedb_capi::vanedb_rs_index_free(index);
     }
 }
 
 #[test]
 fn null_path_guards() {
     unsafe {
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_save(std::ptr::null_mut(), std::ptr::null()),
-            1
-        );
-        assert!(vanedb_capi::vanedb_rs_index_load(std::ptr::null()).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_index_save(0, std::ptr::null()), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_load(std::ptr::null()), 0);
         assert_eq!(
             vanedb_capi::vanedb_rs_disk_build(
                 std::ptr::null(),
@@ -77,7 +72,7 @@ fn null_path_guards() {
             ),
             1
         );
-        assert!(vanedb_capi::vanedb_rs_disk_open(std::ptr::null()).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_disk_open(std::ptr::null()), 0);
     }
 }
 
@@ -89,7 +84,7 @@ fn hnsw() {
     let path = std::ffi::CString::new(scratch_path("rs_capi_hnsw")).unwrap();
     unsafe {
         let h = vanedb_capi::vanedb_rs_index_new(2, 0, 100, 16, 200, 42);
-        assert!(!h.is_null());
+        assert_ne!(h, 0);
         assert_eq!(vanedb_capi::vanedb_rs_index_add(h, 10, v0.as_ptr()), 0);
         assert_eq!(vanedb_capi::vanedb_rs_index_add(h, 20, v1.as_ptr()), 0);
         let mut ids = [0u64; 2];
@@ -108,7 +103,7 @@ fn hnsw() {
         vanedb_capi::vanedb_rs_index_free(h);
 
         let h2 = vanedb_capi::vanedb_rs_index_load(path.as_ptr());
-        assert!(!h2.is_null());
+        assert_ne!(h2, 0);
         let mut ids2 = [0u64; 1];
         let mut ds2 = [0.0f32; 1];
         let n2 = vanedb_capi::vanedb_rs_index_search(
@@ -228,7 +223,7 @@ fn hnsw() {
         vanedb_capi::vanedb_rs_index_free(h3);
 
         let h4 = vanedb_capi::vanedb_rs_index_load_from_buffer(buf.as_ptr(), wrote);
-        assert!(!h4.is_null());
+        assert_ne!(h4, 0);
         let mut ids4 = [0u64; 1];
         let mut ds4 = [0.0f32; 1];
         let n4 = vanedb_capi::vanedb_rs_index_search(
@@ -242,16 +237,16 @@ fn hnsw() {
         assert_eq!(n4, 1);
         assert_eq!(ids4[0], 10);
         vanedb_capi::vanedb_rs_index_free(h4);
-        assert!(vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 0).is_null());
-        // negative paths
-        assert!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42).is_null());
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_add(std::ptr::null_mut(), 1, v0.as_ptr()),
-            1
+            vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 0),
+            0
         );
+        // negative paths
+        assert_eq!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(0, 1, v0.as_ptr()), 1);
         assert_eq!(
             vanedb_capi::vanedb_rs_index_search(
-                std::ptr::null_mut(),
+                0,
                 q.as_ptr(),
                 1,
                 50,
@@ -260,10 +255,7 @@ fn hnsw() {
             ),
             0
         );
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_save(std::ptr::null_mut(), path.as_ptr()),
-            1
-        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_save(0, path.as_ptr()), 1);
     }
     let _ = std::fs::remove_file(scratch_path("rs_capi_hnsw"));
 }
@@ -287,7 +279,7 @@ fn mmap() {
             0
         );
         let m = vanedb_capi::vanedb_rs_disk_open(path.as_ptr());
-        assert!(!m.is_null());
+        assert_ne!(m, 0);
         let mut ids = [0u64; 2];
         let mut ds = [0.0f32; 2];
         let n =
@@ -316,13 +308,7 @@ fn mmap() {
         vanedb_capi::vanedb_rs_disk_free(m);
         // negative path
         assert_eq!(
-            vanedb_capi::vanedb_rs_disk_search(
-                std::ptr::null_mut(),
-                q.as_ptr(),
-                2,
-                ids.as_mut_ptr(),
-                ds.as_mut_ptr()
-            ),
+            vanedb_capi::vanedb_rs_disk_search(0, q.as_ptr(), 2, ids.as_mut_ptr(), ds.as_mut_ptr()),
             0
         );
     }
@@ -347,7 +333,7 @@ fn mmap_build_empty_with_null_pointers() {
             0
         );
         let m = vanedb_capi::vanedb_rs_disk_open(path.as_ptr());
-        assert!(!m.is_null());
+        assert_ne!(m, 0);
         let q = [0.0f32, 0.0];
         let mut ids = [0u64; 2];
         let mut ds = [0.0f32; 2];
@@ -380,7 +366,7 @@ fn store() {
     let q = [0.1f32, 0.1];
     unsafe {
         let s = vanedb_capi::vanedb_rs_store_new(2, 0); // L2
-        assert!(!s.is_null());
+        assert_ne!(s, 0);
         assert_eq!(vanedb_capi::vanedb_rs_store_add(s, 10, v0.as_ptr()), 0);
         assert_eq!(vanedb_capi::vanedb_rs_store_add(s, 20, v1.as_ptr()), 0);
         let mut ids = [0u64; 2];
@@ -454,14 +440,11 @@ fn store() {
 
         vanedb_capi::vanedb_rs_store_free(s);
         // negative paths (parity with C++ null guards)
-        assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null()); // dim=0 => Err => null
-        assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(std::ptr::null_mut(), 1, v0.as_ptr()),
-            1
-        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_new(0, 0), 0); // dim=0 => Err => null
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(0, 1, v0.as_ptr()), 1);
         assert_eq!(
             vanedb_capi::vanedb_rs_store_search(
-                std::ptr::null_mut(),
+                0,
                 q.as_ptr(),
                 2,
                 ids.as_mut_ptr(),
@@ -565,12 +548,7 @@ fn store_add_batch() {
 
         // null handle guard
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add_batch(
-                std::ptr::null_mut(),
-                ids.as_ptr(),
-                flat.as_ptr(),
-                3
-            ),
+            vanedb_capi::vanedb_rs_store_add_batch(0, ids.as_ptr(), flat.as_ptr(), 3),
             1
         );
         vanedb_capi::vanedb_rs_store_free(s);
@@ -608,12 +586,7 @@ fn hnsw_add_batch() {
         );
         // null handle guard
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_add_batch(
-                std::ptr::null_mut(),
-                ids.as_ptr(),
-                flat.as_ptr(),
-                2
-            ),
+            vanedb_capi::vanedb_rs_index_add_batch(0, ids.as_ptr(), flat.as_ptr(), 2),
             1
         );
         vanedb_capi::vanedb_rs_index_free(h);
@@ -628,16 +601,18 @@ fn an_unknown_metric_is_rejected_rather_than_treated_as_l2() {
     unsafe {
         for known in [0u32, 1, 2] {
             let h = vanedb_capi::vanedb_rs_store_new(4, known);
-            assert!(!h.is_null(), "metric {known} must be accepted");
+            assert_ne!(h, 0, "metric {known} must be accepted");
             vanedb_capi::vanedb_rs_store_free(h);
         }
         for unknown in [3u32, 99, u32::MAX] {
-            assert!(
-                vanedb_capi::vanedb_rs_store_new(4, unknown).is_null(),
+            assert_eq!(
+                vanedb_capi::vanedb_rs_store_new(4, unknown),
+                0,
                 "metric {unknown} must be rejected"
             );
-            assert!(
-                vanedb_capi::vanedb_rs_index_new(4, unknown, 16, 4, 40, 7).is_null(),
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_new(4, unknown, 16, 4, 40, 7),
+                0,
                 "metric {unknown} must be rejected"
             );
             let path = std::env::temp_dir().join(format!(
@@ -666,29 +641,27 @@ fn every_metric_round_trips_and_is_reportable() {
     // Dot had no coverage through this ABI at all, and no handle could report
     // the metric it was built with — so a caller opening a file someone else
     // wrote had no way to confirm their query convention matched.
-    unsafe {
-        for metric in [0u32, 1, 2] {
-            let s = vanedb_capi::vanedb_rs_store_new(2, metric);
-            assert!(!s.is_null());
-            assert_eq!(vanedb_capi::vanedb_rs_store_metric(s), metric);
-            vanedb_capi::vanedb_rs_store_free(s);
+    for metric in [0u32, 1, 2] {
+        let s = vanedb_capi::vanedb_rs_store_new(2, metric);
+        assert_ne!(s, 0);
+        assert_eq!(vanedb_capi::vanedb_rs_store_metric(s), metric);
+        vanedb_capi::vanedb_rs_store_free(s);
 
-            let h = vanedb_capi::vanedb_rs_index_new(2, metric, 16, 4, 40, 7);
-            assert!(!h.is_null());
-            assert_eq!(vanedb_capi::vanedb_rs_index_metric(h), metric);
-            vanedb_capi::vanedb_rs_index_free(h);
-        }
-        // Null handles report 0, which is L2's value: documented, and the
-        // reason a caller must check the handle first.
-        assert_eq!(vanedb_capi::vanedb_rs_store_metric(std::ptr::null()), 0);
+        let h = vanedb_capi::vanedb_rs_index_new(2, metric, 16, 4, 40, 7);
+        assert_ne!(h, 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_metric(h), metric);
+        vanedb_capi::vanedb_rs_index_free(h);
     }
+    // The null handle reports 0, which is L2's value: documented, and the
+    // reason a caller must check the handle first.
+    assert_eq!(vanedb_capi::vanedb_rs_store_metric(0), 0);
 }
 
 #[test]
 fn dot_ranks_by_largest_inner_product_through_the_abi() {
     unsafe {
         let s = vanedb_capi::vanedb_rs_store_new(2, 2); // dot
-        assert!(!s.is_null());
+        assert_ne!(s, 0);
         for (id, v) in [(1u64, [1.0f32, 0.0]), (2, [4.0, 0.0]), (3, [0.0, 1.0])] {
             assert_eq!(vanedb_capi::vanedb_rs_store_add(s, id, v.as_ptr()), 0);
         }
@@ -722,67 +695,51 @@ fn dot_ranks_by_largest_inner_product_through_the_abi() {
 /// value — so the header tells callers to check the handle first.
 #[test]
 fn every_entry_point_rejects_a_null_handle() {
-    use std::ptr;
     let v = [1.0f32, 0.0];
     let mut ids = [0u64; 4];
     let mut ds = [0f32; 4];
 
     unsafe {
         // Status-code returning calls: 1 on rejection.
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(0, 1, v.as_ptr()), 1);
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(ptr::null_mut(), 1, v.as_ptr()),
+            vanedb_capi::vanedb_rs_store_add_batch(0, ids.as_ptr(), v.as_ptr(), 1),
             1
         );
+        assert_eq!(vanedb_capi::vanedb_rs_store_remove(0, 1), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_store_get(0, 1, ds.as_mut_ptr()), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(0, 1, v.as_ptr()), 1);
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add_batch(ptr::null_mut(), ids.as_ptr(), v.as_ptr(), 1),
+            vanedb_capi::vanedb_rs_index_add_batch(0, ids.as_ptr(), v.as_ptr(), 1),
             1
         );
-        assert_eq!(vanedb_capi::vanedb_rs_store_remove(ptr::null_mut(), 1), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_upsert(0, 1, v.as_ptr()), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_remove(0, 1), 1);
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_get(ptr::null_mut(), 1, ds.as_mut_ptr()),
+            vanedb_capi::vanedb_rs_index_get_vector(0, 1, ds.as_mut_ptr()),
             1
         );
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_add(ptr::null_mut(), 1, v.as_ptr()),
-            1
-        );
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_add_batch(ptr::null_mut(), ids.as_ptr(), v.as_ptr(), 1),
-            1
-        );
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_upsert(ptr::null_mut(), 1, v.as_ptr()),
-            1
-        );
-        assert_eq!(vanedb_capi::vanedb_rs_index_remove(ptr::null_mut(), 1), 1);
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_get_vector(ptr::null_mut(), 1, ds.as_mut_ptr()),
-            1
-        );
-        assert_eq!(vanedb_capi::vanedb_rs_index_compact(ptr::null_mut()), 1);
-        assert_eq!(
-            vanedb_capi::vanedb_rs_disk_get(ptr::null_mut(), 1, ds.as_mut_ptr()),
-            1
-        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_compact(0), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_get(0, 1, ds.as_mut_ptr()), 1);
 
         // Count-returning calls: 0 on rejection.
-        assert_eq!(vanedb_capi::vanedb_rs_store_len(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_store_dimension(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_index_len(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_index_dimension(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_index_tombstones(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_disk_len(ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_disk_dimension(ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_store_len(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_store_dimension(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_len(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_dimension(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_tombstones(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_len(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_dimension(0), 0);
 
         // Membership: false on rejection.
-        assert!(!vanedb_capi::vanedb_rs_store_contains(ptr::null(), 1));
-        assert!(!vanedb_capi::vanedb_rs_index_contains(ptr::null(), 1));
-        assert!(!vanedb_capi::vanedb_rs_disk_contains(ptr::null(), 1));
+        assert!(!vanedb_capi::vanedb_rs_store_contains(0, 1));
+        assert!(!vanedb_capi::vanedb_rs_index_contains(0, 1));
+        assert!(!vanedb_capi::vanedb_rs_disk_contains(0, 1));
 
         // Search: 0 results on rejection.
         assert_eq!(
             vanedb_capi::vanedb_rs_store_search(
-                ptr::null_mut(),
+                0,
                 v.as_ptr(),
                 1,
                 ids.as_mut_ptr(),
@@ -792,7 +749,7 @@ fn every_entry_point_rejects_a_null_handle() {
         );
         assert_eq!(
             vanedb_capi::vanedb_rs_index_search(
-                ptr::null_mut(),
+                0,
                 v.as_ptr(),
                 1,
                 1,
@@ -802,21 +759,15 @@ fn every_entry_point_rejects_a_null_handle() {
             0
         );
         assert_eq!(
-            vanedb_capi::vanedb_rs_disk_search(
-                ptr::null_mut(),
-                v.as_ptr(),
-                1,
-                ids.as_mut_ptr(),
-                ds.as_mut_ptr()
-            ),
+            vanedb_capi::vanedb_rs_disk_search(0, v.as_ptr(), 1, ids.as_mut_ptr(), ds.as_mut_ptr()),
             0
         );
 
         // Freeing a null handle is a no-op, not a crash — C callers free in
         // cleanup paths that may not have allocated.
-        vanedb_capi::vanedb_rs_store_free(ptr::null_mut());
-        vanedb_capi::vanedb_rs_index_free(ptr::null_mut());
-        vanedb_capi::vanedb_rs_disk_free(ptr::null_mut());
+        vanedb_capi::vanedb_rs_store_free(0);
+        vanedb_capi::vanedb_rs_index_free(0);
+        vanedb_capi::vanedb_rs_disk_free(0);
     }
 }
 
@@ -828,9 +779,9 @@ fn null_data_with_a_nonzero_count_is_rejected_but_empty_batches_are_not() {
     use std::ptr;
     unsafe {
         let store = vanedb_capi::vanedb_rs_store_new(2, 0);
-        assert!(!store.is_null());
+        assert_ne!(store, 0);
         let index = vanedb_capi::vanedb_rs_index_new(2, 0, 16, 4, 16, 42);
-        assert!(!index.is_null());
+        assert_ne!(index, 0);
 
         assert_eq!(vanedb_capi::vanedb_rs_store_add(store, 1, ptr::null()), 1);
         assert_eq!(vanedb_capi::vanedb_rs_index_add(index, 1, ptr::null()), 1);
@@ -908,16 +859,16 @@ fn zero_ef_search_means_the_indexs_own_setting() {
 
     unsafe {
         let handle = vanedb_capi::vanedb_rs_index_new(DIM, 0, N as usize, 8, 32, 7);
-        assert!(!handle.is_null());
-        let mut index = Box::from_raw(handle);
+        assert_ne!(handle, 0);
+        let index = handle;
         for (id, vector) in &rows {
             assert_eq!(
-                vanedb_capi::vanedb_rs_index_add(&mut *index, *id, vector.as_ptr()),
+                vanedb_capi::vanedb_rs_index_add(index, *id, vector.as_ptr()),
                 0
             );
         }
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_set_ef_search(&*index, 400),
+            vanedb_capi::vanedb_rs_index_set_ef_search(index, 400),
             0,
             "a C caller must be able to set what 0 resolves to"
         );
@@ -939,11 +890,11 @@ fn zero_ef_search_means_the_indexs_own_setting() {
         let truth: std::collections::HashSet<u64> =
             exact.iter().take(10).map(|(_, id)| *id).collect();
 
-        let mut recall_at = |ef: usize| {
+        let recall_at = |ef: usize| {
             let mut ids = [0u64; 10];
             let mut distances = [0.0f32; 10];
             let n = vanedb_capi::vanedb_rs_index_search(
-                &mut *index,
+                index,
                 query.as_ptr(),
                 10,
                 ef,
@@ -962,7 +913,7 @@ fn zero_ef_search_means_the_indexs_own_setting() {
              ef=0 gave {with_zero}, ef=10 gave {with_ten}"
         );
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_ef_search(&*index),
+            vanedb_capi::vanedb_rs_index_ef_search(index),
             400,
             "resolving 0 must not mutate the handle"
         );
@@ -978,12 +929,12 @@ fn zero_ef_search_means_the_indexs_own_setting() {
 fn failures_are_reported_through_the_error_channel() {
     unsafe {
         let handle = vanedb_capi::vanedb_rs_store_new(3, 0);
-        assert!(!handle.is_null());
-        let mut store = Box::from_raw(handle);
+        assert_ne!(handle, 0);
+        let store = handle;
 
         let vector = [1.0f32, 2.0, 3.0];
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, vector.as_ptr()),
+            vanedb_capi::vanedb_rs_store_add(store, 1, vector.as_ptr()),
             0
         );
         assert_eq!(
@@ -993,7 +944,7 @@ fn failures_are_reported_through_the_error_channel() {
         );
 
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, vector.as_ptr()),
+            vanedb_capi::vanedb_rs_store_add(store, 1, vector.as_ptr()),
             1
         );
         assert_eq!(
@@ -1005,7 +956,7 @@ fn failures_are_reported_through_the_error_channel() {
         let mut ids = [0u64; 4];
         let mut distances = [0.0f32; 4];
         let n = vanedb_capi::vanedb_rs_store_search(
-            &mut *store,
+            store,
             nonfinite.as_ptr(),
             4,
             ids.as_mut_ptr(),
@@ -1020,9 +971,8 @@ fn failures_are_reported_through_the_error_channel() {
 
         // The same zero return, with nothing wrong: an empty store.
         let empty = vanedb_capi::vanedb_rs_store_new(3, 0);
-        let mut empty = Box::from_raw(empty);
         let n = vanedb_capi::vanedb_rs_store_search(
-            &mut *empty,
+            empty,
             vector.as_ptr(),
             4,
             ids.as_mut_ptr(),
@@ -1036,10 +986,7 @@ fn failures_are_reported_through_the_error_channel() {
         );
 
         // A null handle is the ABI's own misuse code, not a core error.
-        assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(std::ptr::null_mut(), 2, vector.as_ptr()),
-            1
-        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(0, 2, vector.as_ptr()), 1);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_NULL_ARGUMENT
@@ -1052,14 +999,14 @@ fn failures_are_reported_through_the_error_channel() {
 #[test]
 fn a_null_returning_constructor_records_why() {
     unsafe {
-        assert!(vanedb_capi::vanedb_rs_store_new(3, 99).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_store_new(3, 99), 0);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_INVALID_PARAMETER
         );
 
         let missing = std::ffi::CString::new("/nonexistent/vanedb/nope.vndb").unwrap();
-        assert!(vanedb_capi::vanedb_rs_index_load(missing.as_ptr()).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_index_load(missing.as_ptr()), 0);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_FILE_NOT_FOUND,
@@ -1079,7 +1026,7 @@ fn the_error_message_carries_the_detail_the_code_cannot() {
         std::fs::write(&path, b"not a vndb file at all").unwrap();
         let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
 
-        assert!(vanedb_capi::vanedb_rs_index_load(c_path.as_ptr()).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_index_load(c_path.as_ptr()), 0);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_CORRUPT
@@ -1104,9 +1051,9 @@ fn the_error_message_carries_the_detail_the_code_cannot() {
 fn a_loaded_handle_reports_the_geometry_it_was_built_with() {
     unsafe {
         let handle = vanedb_capi::vanedb_rs_index_new(4, 1, 512, 6, 48, 1234);
-        assert!(!handle.is_null());
-        let mut index = Box::from_raw(handle);
-        assert_eq!(vanedb_capi::vanedb_rs_index_m(&*index), 6);
+        assert_ne!(handle, 0);
+        let index = handle;
+        assert_eq!(vanedb_capi::vanedb_rs_index_m(index), 6);
         // The accessors exist for a handle the caller did NOT build, so the
         // test has to load one. It previously only ever built.
         {
@@ -1115,41 +1062,31 @@ fn a_loaded_handle_reports_the_geometry_it_was_built_with() {
             let path = dir.join("graph.vndb");
             let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
             let v = [1.0f32, 0.0, 0.0, 0.0];
-            assert_eq!(
-                vanedb_capi::vanedb_rs_index_add(&mut *index, 1, v.as_ptr()),
-                0
-            );
-            assert_eq!(vanedb_capi::vanedb_rs_index_set_ef_search(&*index, 77), 0);
-            assert_eq!(
-                vanedb_capi::vanedb_rs_index_save(&mut *index, c_path.as_ptr()),
-                0
-            );
+            assert_eq!(vanedb_capi::vanedb_rs_index_add(index, 1, v.as_ptr()), 0);
+            assert_eq!(vanedb_capi::vanedb_rs_index_set_ef_search(index, 77), 0);
+            assert_eq!(vanedb_capi::vanedb_rs_index_save(index, c_path.as_ptr()), 0);
             let loaded = vanedb_capi::vanedb_rs_index_load(c_path.as_ptr());
-            assert!(!loaded.is_null());
-            let loaded = Box::from_raw(loaded);
-            assert_eq!(vanedb_capi::vanedb_rs_index_m(&*loaded), 6);
-            assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(&*loaded), 48);
-            assert_eq!(vanedb_capi::vanedb_rs_index_seed(&*loaded), 1234);
+            assert_ne!(loaded, 0);
+            assert_eq!(vanedb_capi::vanedb_rs_index_m(loaded), 6);
+            assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(loaded), 48);
+            assert_eq!(vanedb_capi::vanedb_rs_index_seed(loaded), 1234);
             assert_eq!(
-                vanedb_capi::vanedb_rs_index_ef_search(&*loaded),
+                vanedb_capi::vanedb_rs_index_ef_search(loaded),
                 77,
                 "the stored beam travels with the file"
             );
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(&*index), 48);
-        assert_eq!(vanedb_capi::vanedb_rs_index_seed(&*index), 1234);
-        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(&*index), 512);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(index), 48);
+        assert_eq!(vanedb_capi::vanedb_rs_index_seed(index), 1234);
+        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(index), 512);
 
         // Null is the documented no-handle case for every accessor.
-        assert_eq!(vanedb_capi::vanedb_rs_index_m(std::ptr::null()), 0);
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_ef_construction(std::ptr::null()),
-            0
-        );
-        assert_eq!(vanedb_capi::vanedb_rs_index_seed(std::ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(std::ptr::null()), 0);
-        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(std::ptr::null()), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_m(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_construction(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_seed(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_capacity(0), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(0), 0);
     }
 }
 
@@ -1161,36 +1098,35 @@ fn a_loaded_handle_reports_the_geometry_it_was_built_with() {
 fn both_spellings_of_the_read_exist_on_every_handle() {
     unsafe {
         let handle = vanedb_capi::vanedb_rs_index_new(2, 0, 16, 4, 16, 1);
-        assert!(!handle.is_null());
-        let mut index = Box::from_raw(handle);
+        assert_ne!(handle, 0);
+        let index = handle;
         let vector = [3.0f32, 4.0];
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_add(&mut *index, 9, vector.as_ptr()),
+            vanedb_capi::vanedb_rs_index_add(index, 9, vector.as_ptr()),
             0
         );
 
         let mut through_get = [0.0f32; 2];
         let mut through_get_vector = [0.0f32; 2];
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_get(&*index, 9, through_get.as_mut_ptr()),
+            vanedb_capi::vanedb_rs_index_get(index, 9, through_get.as_mut_ptr()),
             0
         );
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_get_vector(&*index, 9, through_get_vector.as_mut_ptr()),
+            vanedb_capi::vanedb_rs_index_get_vector(index, 9, through_get_vector.as_mut_ptr()),
             0
         );
         assert_eq!(through_get, vector);
         assert_eq!(through_get, through_get_vector);
 
         let store = vanedb_capi::vanedb_rs_store_new(2, 0);
-        let mut store = Box::from_raw(store);
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 9, vector.as_ptr()),
+            vanedb_capi::vanedb_rs_store_add(store, 9, vector.as_ptr()),
             0
         );
         let mut from_store = [0.0f32; 2];
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_get_vector(&*store, 9, from_store.as_mut_ptr()),
+            vanedb_capi::vanedb_rs_store_get_vector(store, 9, from_store.as_mut_ptr()),
             0
         );
         assert_eq!(from_store, vector);
@@ -1228,17 +1164,17 @@ fn the_library_reports_its_own_version() {
 /// failure. That is the point: the failure mode is a dead host process.
 #[test]
 fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
-    struct CallsAtThreadExit(*mut vanedb_capi::vanedb_rs_store);
+    struct CallsAtThreadExit(vanedb_capi::vanedb_rs_store);
     impl Drop for CallsAtThreadExit {
         fn drop(&mut self) {
-            // SAFETY: the handle came from `vanedb_rs_store_new` and is freed
+            // The handle came from `vanedb_rs_store_new` and is freed
             // exactly once, here.
-            unsafe { vanedb_capi::vanedb_rs_store_free(self.0) };
+            vanedb_capi::vanedb_rs_store_free(self.0);
             // A guarded call that FAILS, so it reaches `set_code` and the
-            // message TLS rather than only the code cell.
-            // SAFETY: a zero dimension is rejected; nothing is allocated.
-            let rejected = unsafe { vanedb_capi::vanedb_rs_store_new(0, 0) };
-            assert!(rejected.is_null());
+            // message TLS rather than only the code cell. A zero dimension
+            // is rejected; nothing is allocated.
+            let rejected = vanedb_capi::vanedb_rs_store_new(0, 0);
+            assert_eq!(rejected, 0);
             let _ = vanedb_capi::vanedb_rs_last_error();
             let _ = vanedb_capi::vanedb_rs_last_error_message();
         }
@@ -1249,9 +1185,8 @@ fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
     }
 
     std::thread::spawn(|| {
-        // SAFETY: valid arguments.
-        let handle = unsafe { vanedb_capi::vanedb_rs_store_new(2, 0) };
-        assert!(!handle.is_null());
+        let handle = vanedb_capi::vanedb_rs_store_new(2, 0);
+        assert_ne!(handle, 0);
         // Registered first, so its destructor runs last.
         HANDLE.with(|slot| *slot.borrow_mut() = Some(CallsAtThreadExit(handle)));
         // Registers LAST_MESSAGE now, after HANDLE, so it is destroyed first.
@@ -1295,13 +1230,10 @@ fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
 fn every_reachable_error_code_is_actually_produced() {
     unsafe {
         let handle = vanedb_capi::vanedb_rs_store_new(3, 0);
-        assert!(!handle.is_null());
-        let mut store = Box::from_raw(handle);
+        assert_ne!(handle, 0);
+        let store = handle;
         let v = [1.0f32, 2.0, 3.0];
-        assert_eq!(
-            vanedb_capi::vanedb_rs_store_add(&mut *store, 1, v.as_ptr()),
-            0
-        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_add(store, 1, v.as_ptr()), 0);
 
         let mut ids = [0u64; 4];
         let mut distances = [0.0f32; 4];
@@ -1309,7 +1241,7 @@ fn every_reachable_error_code_is_actually_produced() {
         // InvalidK: k = 0. Previously produced by nothing.
         assert_eq!(
             vanedb_capi::vanedb_rs_store_search(
-                &mut *store,
+                store,
                 v.as_ptr(),
                 0,
                 ids.as_mut_ptr(),
@@ -1324,7 +1256,7 @@ fn every_reachable_error_code_is_actually_produced() {
         );
 
         // ZeroDimension: a store of dimension 0.
-        assert!(vanedb_capi::vanedb_rs_store_new(0, 0).is_null());
+        assert_eq!(vanedb_capi::vanedb_rs_store_new(0, 0), 0);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_ZERO_DIMENSION
@@ -1334,12 +1266,8 @@ fn every_reachable_error_code_is_actually_produced() {
         // mapped this to VANEDB_RS_OK — a failed write reporting success —
         // survived everything before this assertion existed.
         let index = vanedb_capi::vanedb_rs_index_new(3, 0, 8, 4, 16, 1);
-        assert!(!index.is_null());
-        let mut index = Box::from_raw(index);
-        assert_eq!(
-            vanedb_capi::vanedb_rs_index_add(&mut *index, 1, v.as_ptr()),
-            0
-        );
+        assert_ne!(index, 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_add(index, 1, v.as_ptr()), 0);
         let nowhere = std::ffi::CString::new(
             std::env::temp_dir()
                 .join(format!(
@@ -1351,7 +1279,7 @@ fn every_reachable_error_code_is_actually_produced() {
         )
         .unwrap();
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_save(&mut *index, nowhere.as_ptr()),
+            vanedb_capi::vanedb_rs_index_save(index, nowhere.as_ptr()),
             1
         );
         assert_eq!(
@@ -1367,7 +1295,7 @@ fn every_reachable_error_code_is_actually_produced() {
         std::fs::create_dir_all(&dir).unwrap();
         let onto_dir = std::ffi::CString::new(dir.to_str().unwrap()).unwrap();
         assert_eq!(
-            vanedb_capi::vanedb_rs_index_save(&mut *index, onto_dir.as_ptr()),
+            vanedb_capi::vanedb_rs_index_save(index, onto_dir.as_ptr()),
             1
         );
         let code = vanedb_capi::vanedb_rs_last_error();
@@ -1386,7 +1314,7 @@ fn every_reachable_error_code_is_actually_produced() {
 
         // NOT_FOUND: reachable from four entry points and previously asserted
         // by nothing, in the test named for producing every reachable code.
-        assert_eq!(vanedb_capi::vanedb_rs_store_remove(&*store, 4_242), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_store_remove(store, 4_242), 1);
         assert_eq!(
             vanedb_capi::vanedb_rs_last_error(),
             vanedb_capi::VANEDB_RS_NOT_FOUND,
@@ -1394,7 +1322,7 @@ fn every_reachable_error_code_is_actually_produced() {
         );
         let mut out = [0.0f32; 3];
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_get(&*store, 4_242, out.as_mut_ptr()),
+            vanedb_capi::vanedb_rs_store_get(store, 4_242, out.as_mut_ptr()),
             1
         );
         assert_eq!(
@@ -1409,12 +1337,7 @@ fn every_reachable_error_code_is_actually_produced() {
         let batch_ids = [7u64, 8];
         let with_nan = [1.0f32, 2.0, 3.0, f32::NAN, 0.0, 0.0];
         assert_eq!(
-            vanedb_capi::vanedb_rs_store_add_batch(
-                &mut *store,
-                batch_ids.as_ptr(),
-                with_nan.as_ptr(),
-                2,
-            ),
+            vanedb_capi::vanedb_rs_store_add_batch(store, batch_ids.as_ptr(), with_nan.as_ptr(), 2,),
             1
         );
         assert_eq!(
@@ -1422,7 +1345,7 @@ fn every_reachable_error_code_is_actually_produced() {
             vanedb_capi::VANEDB_RS_NON_FINITE_VALUE
         );
         // All-or-nothing: the good vector in that batch must not have landed.
-        assert!(!vanedb_capi::vanedb_rs_store_contains(&*store, 7));
+        assert!(!vanedb_capi::vanedb_rs_store_contains(store, 7));
     }
 }
 
@@ -1436,7 +1359,7 @@ fn every_reachable_error_code_is_actually_produced() {
 fn a_free_preserves_the_error_a_caller_is_about_to_report() {
     unsafe {
         let store = vanedb_capi::vanedb_rs_store_new(2, 0); // L2
-        assert!(!store.is_null());
+        assert_ne!(store, 0);
         let v = [1.0f32, 0.0];
         assert_eq!(vanedb_capi::vanedb_rs_store_add(store, 1, v.as_ptr()), 0);
         assert_eq!(
@@ -1478,7 +1401,7 @@ fn filtered_search_argument_contract_across_indexes() {
         panic!("filtered callback panic");
     }
     unsafe extern "C-unwind" fn sets_nested_error(_: u64, _: *mut c_void) -> bool {
-        assert_eq!(vanedb_rs_store_len(null()), 0);
+        assert_eq!(vanedb_rs_store_len(VANEDB_RS_NULL_HANDLE), 0);
         assert_eq!(vanedb_rs_last_error(), VANEDB_RS_NULL_ARGUMENT);
         true
     }
@@ -1668,13 +1591,13 @@ fn filtered_search_argument_contract_across_indexes() {
     let query = [0.0f32];
     unsafe {
         let s = vanedb_rs_store_new(1, 0);
-        assert!(!s.is_null());
-        let mut store = Box::from_raw(s);
-        store.add(10, &[0.0]).unwrap();
-        store.add(20, &[1.0]).unwrap();
+        assert_ne!(s, 0);
+        let store = s;
+        assert_eq!(vanedb_rs_store_add(store, 10, [0.0f32].as_ptr()), 0);
+        assert_eq!(vanedb_rs_store_add(store, 20, [1.0f32].as_ptr()), 0);
         check(|filter, data, allow, alen, deny, dlen, ids, dists| {
             vanedb_rs_store_search_filtered(
-                &mut *store,
+                store,
                 query.as_ptr(),
                 2,
                 filter,
@@ -1689,13 +1612,13 @@ fn filtered_search_argument_contract_across_indexes() {
         });
 
         let h = vanedb_rs_index_new(1, 0, 2, 2, 10, 42);
-        assert!(!h.is_null());
-        let mut index = Box::from_raw(h);
-        index.add(10, &[0.0]).unwrap();
-        index.add(20, &[1.0]).unwrap();
+        assert_ne!(h, 0);
+        let index = h;
+        assert_eq!(vanedb_rs_index_add(index, 10, [0.0f32].as_ptr()), 0);
+        assert_eq!(vanedb_rs_index_add(index, 20, [1.0f32].as_ptr()), 0);
         check(|filter, data, allow, alen, deny, dlen, ids, dists| {
             vanedb_rs_index_search_filtered(
-                &mut *index,
+                index,
                 query.as_ptr(),
                 2,
                 0,
@@ -1723,11 +1646,11 @@ fn filtered_search_argument_contract_across_indexes() {
             0
         );
         let m = vanedb_rs_disk_open(path.as_ptr());
-        assert!(!m.is_null());
-        let mut disk = Box::from_raw(m);
+        assert_ne!(m, 0);
+        let disk = m;
         check(|filter, data, allow, alen, deny, dlen, ids, dists| {
             vanedb_rs_disk_search_filtered(
-                &mut *disk,
+                disk,
                 query.as_ptr(),
                 2,
                 filter,
@@ -1740,7 +1663,9 @@ fn filtered_search_argument_contract_across_indexes() {
                 dists,
             )
         });
-        drop(disk);
+        vanedb_rs_disk_free(disk);
+        vanedb_rs_index_free(index);
+        vanedb_rs_store_free(store);
         std::fs::remove_file(scratch_path("filter_contract")).unwrap();
     }
 }
