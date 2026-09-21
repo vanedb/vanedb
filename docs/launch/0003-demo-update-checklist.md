@@ -1,80 +1,19 @@
-# Demo update patch notes for `obsidian-vane-search` (issue #198 / residual #242)
+# Official demo release evidence for RFC 0003
 
-Cloud agents without demo-repo write get 403 on push. Unblock with one of:
+The current candidate is [obsidian-vane-search PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20), based on official main `e79bef9`. It supersedes the historical patch in this directory. Candidate `ab598838` synchronizes all version files, checks metadata in CI, runs the full suite before publication, and corrects the walkthrough commands.
 
-1. `DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), or
-2. Cursor GitHub App installed on that repo (contents:write) + a **new** agent
-   boot after `#215` `repositoryDependencies` — `maintainer_cut_demo_0.2.0.sh`
-   then auto-uses `gh auth token` when `/installation/repositories` lists the
-   demo repo.
+The candidate passes 107 automated tests, typecheck, production build, size checks and actionlint. Automated tests use real WASM with fake embedding providers and an Obsidian stub: they do not prove the desktop walkthrough or semantic relevance. The demo remains pinned to published `@vanedb/wasm` 0.1.1 and discloses that fact; demo version 0.2.0 does not imply engine 0.2.0 integration.
 
-Ignore obsolete push steps on [obsidian-vane-search#18](https://github.com/vanedb/obsidian-vane-search/issues/18)
-(lightweight tag + follow-tags onto protected `main`); prefer the one-shot below.
-Reply on vanedb#242 with the official release URL when done.
+## Required sequence
 
-## Verified on tip (agent)
+1. Complete independent review and required CI on the final demo commit.
+2. Follow the candidate README in a separate test vault using real Obsidian and an embedding model. Record versions, source commit, build checksum, note/query, observed results, note opening, restart, update and deletion checks in the demo release checklist. Do not modify a personal vault for release testing.
+3. Merge the reviewed release PR. Create an annotated `0.2.0` tag on the reviewed merged commit and push that tag explicitly only when publication is approved. The demo README contains the exact commands; pushing the tag publishes the release.
+4. Verify the official release contains `main.js`, `manifest.json`, and `LICENSE`, and that its README includes the observed walkthrough.
+5. Record the official release URL and walkthrough evidence on [vanedb#242](https://github.com/vanedb/vanedb/issues/242).
 
-Against `obsidian-vane-search` `main` (`e79bef9`), the patch:
+The historical `maintainer_cut_demo_0.2.0.sh`, `maintainer_closeout_226.sh --cut` and **Cut demo 0.2.0** workflow apply the older patch and publish a tag. They are not the reviewed-PR route above; do not run them for this candidate. A staging artifact on the engine repository is not the official demo release.
 
-1. `git apply` — clean
-2. `npm ci && npm test` — **98/98** vitest passed
-3. `npm run build` — produced `main.js` (215.9 KiB)
+If the engine dependency is upgraded before release, use the demo checklist's disposable candidate-package test first, then pin the actually published package and repeat validation and the real walkthrough. Do not commit an unpublished dependency or local tarball path.
 
-Staging installables (prerelease on **vanedb**, not the demo repo):
-https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
-(`main.js` + `manifest.json` + `LICENSE`, version `0.2.0`). Manual install into
-`<vault>/.obsidian/plugins/vane-search/` works for walkthrough verification;
-AC5 still needs the **official** `obsidian-vane-search` `0.2.0` tag/release.
-
-## Ready-to-apply patch
-
-[`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
-bumps `package.json` / `manifest.json` / `versions.json` to `0.2.0` and adds
-README section **"Try it on a real vault"** (BRAT → Ollama nomic → index →
-one semantic query).
-
-**One-shot** (on **main** via [#219](https://github.com/vanedb/vanedb/pull/219) /
-App-token auto-wire [#246](https://github.com/vanedb/vanedb/pull/246)):
-
-```bash
-bash docs/launch/maintainer_closeout_226.sh --cut
-# or: bash docs/launch/maintainer_cut_demo_0.2.0.sh
-# optional: --skip-tests  (release workflow still builds + publishes assets)
-# or: DEMO_REPO_TOKEN=... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
-# or: --dry-run to validate apply/tag without pushing
-```
-
-**Actions alternative** (`cut-demo-0.2.0.yml` on **main** via
-[#220](https://github.com/vanedb/vanedb/pull/220)): add repo secret
-`DEMO_REPO_TOKEN` (contents:write on `vanedb/obsidian-vane-search`), then
-Actions → **Cut demo 0.2.0** → Run workflow.
-
-Manual equivalent (match the one-shot — demo `main` is PR-protected; use an
-annotated tag so the release workflow sees `refs/tags/0.2.0`):
-
-```bash
-git clone https://github.com/vanedb/obsidian-vane-search.git
-cd obsidian-vane-search
-git apply /path/to/vanedb/docs/launch/0003-obsidian-vane-search-0.2.0.patch
-# or: curl -fsSL https://raw.githubusercontent.com/vanedb/vanedb/<tip>/docs/launch/0003-obsidian-vane-search-0.2.0.patch | git apply
-npm test && npm run build
-git add README.md manifest.json package.json versions.json
-git commit -m "chore(release): 0.2.0 demo slice for vanedb#198"
-git tag -a 0.2.0 -m "obsidian-vane-search 0.2.0 (vanedb#198)"
-git push -u origin "HEAD:refs/heads/release/0.2.0-vanedb-198"
-git push origin refs/tags/0.2.0
-```
-
-Prefer `bash docs/launch/maintainer_cut_demo_0.2.0.sh` (or Actions → **Cut demo
-0.2.0**) over the manual block.
-The demo repo's `release` workflow publishes `main.js` + `manifest.json` +
-`LICENSE` when the tag matches `manifest.json` version.
-
-## Evidence required on #242 (residual of #198)
-
-1. Release URL for `0.2.0` (or successor).
-2. Confirmation the "Try it on a real vault" walkthrough is in that release's
-   README.
-
-Until then, vanedb README links the demo repo but does **not** claim a shipped
-0.2.0 walkthrough.
+Until the official release and walkthrough evidence exist, RFC 0003 demo acceptance remains open.
