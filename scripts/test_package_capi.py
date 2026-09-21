@@ -8,12 +8,16 @@ static archive without `-arch`; these cases pin the commands without a Mac.
 """
 
 import sys
+import struct
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_capi_header  # noqa: E402
 import package_capi  # noqa: E402
+import capi_windows_static as windows  # noqa: E402
 
 ARCHIVE = Path("/pkg/lib/libvanedb_capi.a")
 EXPORTS = Path("/src/vanedb-capi/exports")
@@ -79,8 +83,9 @@ class LocalizeCommands(unittest.TestCase):
                     self.assertNotIn("-arch", argv)
                 self.assertEqual(repack, ["ar", "rcs", str(ARCHIVE), str(COMBINED)])
 
-    def test_windows_has_no_localization(self):
-        self.assertIsNone(commands("windows-x86_64"))
+    def test_windows_must_not_use_a_coff_partial_link(self):
+        with self.assertRaises(ValueError):
+            commands("windows-x86_64")
 
     def test_every_packaged_platform_is_covered(self):
         for platform in ["linux-x86_64", "linux-aarch64", "macos-x86_64", "macos-aarch64"]:
@@ -127,6 +132,66 @@ class StaticLinkLine(unittest.TestCase):
         msvc = "kernel32.lib advapi32.lib /defaultlib:msvcrt"
         self.assertEqual(package_capi.cmake_link_items(msvc), "kernel32.lib;advapi32.lib")
         self.assertEqual(package_capi.pkgconfig_libs_private(msvc), "kernel32.lib advapi32.lib")
+
+
+def ar_member(name, body):
+    header = f"{name:<16}{0:<12}{0:<6}{0:<6}{0:<8}{len(body):<10}`\n".encode()
+    return header + body + (b"\n" if len(body) % 2 else b"")
+
+
+class WindowsStaticIsolation(unittest.TestCase):
+    def test_native_archive_names_and_duplicate_members_are_not_lost(self):
+        for table in (b"bcryptprimitives.dll\0", b"bcryptprimitives.dll/\n"):
+            data = b"!<arch>\n" + ar_member("/", b"index") + ar_member("//", table)
+            data += ar_member("/0", b"first") + ar_member("/0", b"second")
+            self.assertEqual(list(windows.archive_members(data)),
+                             [("bcryptprimitives.dll", b"first"), ("bcryptprimitives.dll", b"second")])
+
+    def test_bad_archive_offsets_and_truncation_fail_closed(self):
+        bad = [b"!<thin>\n", b"!<arch>\nshort",
+               b"!<arch>\n" + ar_member("/42", b"body"),
+               (b"!<arch>\n" + ar_member("x.obj/", b"body"))[:-1],
+               b"!<arch>\n" + ar_member("#1/5", b"abcdebody")]
+        for data in bad:
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                list(windows.archive_members(data))
+
+    def test_import_exceptions_do_not_allow_rust_or_arbitrary_windows_symbols(self):
+        allowed = windows.import_symbols("bcryptprimitives.dll")
+        self.assertIn("__imp_ProcessPrng", allowed)
+        self.assertIn("__IMPORT_DESCRIPTOR_bcryptprimitives", allowed)
+        for name in ("rust_eh_personality", "__rust_alloc", "__imp_Arbitrary", "vanedb_rs_hidden"):
+            self.assertNotIn(name, allowed)
+
+    def test_coff_gate_rejects_bitcode_wrong_machine_and_bigobj(self):
+        def coff(machine, name):
+            return struct.pack("<HHIIIHH", machine, 1, 0, 0, 0, 0, 0) + name.ljust(8, b"\0") + bytes(32)
+        windows.check_object(coff(0x8664, b".text"))
+        for data in (coff(0x8664, b".llvmbc"), coff(0x8664, b".llvmcmd"),
+                     coff(0xAA64, b".text"), bytes(60), b"bad"):
+            with self.subTest(data=data), self.assertRaises(ValueError):
+                windows.check_object(data)
+
+    def test_omitted_implementation_reference_stops_packaging_before_objcopy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            archive = work / "raw.lib"
+            archive.write_bytes(b"!<arch>\n" + ar_member("code.obj/", b"opaque"))
+            def symbol_set(_nm, path, defined=True):
+                if path == archive:
+                    return {"vanedb_rs_api", "required_builtin"}
+                return {"vanedb_rs_api"} if defined else {"required_builtin"}
+            with patch.object(windows, "symbols", side_effect=symbol_set), \
+                    patch.object(windows.subprocess, "run") as run:
+                with self.assertRaisesRegex(SystemExit, "required_builtin"):
+                    windows.isolate(archive, work / "lto.obj", work / "out.lib", work / "stage",
+                                    {"vanedb_rs_api"}, "nm", "ar", "objcopy")
+                run.assert_not_called()
+
+    def test_extra_and_missing_symbols_both_fail_the_exact_gate(self):
+        for actual in ({"vanedb_rs_api", "__rust_alloc"}, set()):
+            with self.assertRaises(SystemExit):
+                windows.require_symbols(actual, {"vanedb_rs_api"}, "test archive")
 
 
 if __name__ == "__main__":

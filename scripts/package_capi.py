@@ -5,8 +5,7 @@ The archive (RFC 0002 stage 1) carries, for one platform:
 
     include/vanedb_rs_capi.h          the generated header
     lib/<shared library>              stripped; exports exactly vanedb_rs_*
-    lib/<static library>              not stripped; on Linux and macOS
-                                      post-processed so only vanedb_rs_* is global
+    lib/<static library>              isolated API globals plus native import glue
     lib/cmake/vanedb/*.cmake          find_package(vanedb): vanedb::shared, vanedb::static
     lib/pkgconfig/vanedb.pc           pkg-config --cflags --libs vanedb
     examples/, consumers/, tests/     the consumer projects CI runs
@@ -37,6 +36,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import capi_exports  # noqa: E402
+import capi_windows_static  # noqa: E402
 
 PROFILE = "capi"
 LIBRARIES = {
@@ -49,6 +49,7 @@ PACKAGED_SOURCES = [
     "examples/CMakeLists.txt", "examples/quickstart.c", "examples/ctypes_quickstart.py",
     "tests/acceptance.c",
     "consumers/cmake/CMakeLists.txt", "consumers/pkgconfig/Makefile",
+    "consumers/cmake/independent.rs",
 ]
 
 
@@ -284,8 +285,8 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
 
     Returns `(combine, repack)`: `combine` is the list of argvs that produce
     `combined` from `archive`, `repack` the argv that rebuilds `archive` from
-    `combined` after the original is removed. `None` when the platform has
-    no localization (Windows).
+    `combined` after the original is removed. Windows must instead use the
+    staticlib-only Rust LTO path in capi_windows_static.
 
     Apple's `ld -r` cannot infer the slice from a static archive ("Missing
     -arch option") and, given an arch, wants the platform and versions too
@@ -327,7 +328,7 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
               "--remove-section=__LLVM,__cmdline", combined]],
             ["libtool", "-static", "-o", archive, combined],
         )
-    return None
+    raise ValueError(f"no safe relocatable-link localization for {platform}")
 
 
 def localize_static(archive, work, platform):
@@ -341,17 +342,13 @@ def localize_static(archive, work, platform):
     system libraries from native-static-libs) are untouched by definition.
 
     Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `clang -r` with
-    `-exported_symbols_list`, then `libtool -static`. Windows: no
-    equivalent of `objcopy` for COFF archives is shipped with MSVC, so the
-    static library is packaged as rustc produced it; this is recorded in the
-    README.
+    `-exported_symbols_list`, then `libtool -static`. Windows is handled by
+    capi_windows_static before this function is reached.
     """
     target = apple_deployment_target(platform) if platform.startswith("macos") else None
     commands = localize_commands(platform, archive, ROOT / "vanedb-capi/exports",
                                  work / "vanedb_capi_combined.o", target,
                                  llvm_objcopy() if platform.startswith("macos") else "objcopy")
-    if commands is None:
-        return False
     combine, repack = commands
     for command in combine:
         subprocess.run(command, check=True)
@@ -443,8 +440,9 @@ def main():
                         help="the `native-static-libs` line to record instead of asking cargo")
     args = parser.parse_args()
     version = tomllib.loads((ROOT / "vanedb-capi/Cargo.toml").read_text())["package"]["version"]
-    native = args.native_static_libs if args.native_static_libs is not None else native_static_libs()
-    print(f"native-static-libs: {native}")
+    native = args.native_static_libs
+    if native is None and sys.platform != "win32":
+        native = native_static_libs()
     names = LIBRARIES[sys.platform]
     name = f"vanedb-capi-{version}-{args.platform}"
     args.output.mkdir(parents=True, exist_ok=True)
@@ -454,15 +452,22 @@ def main():
         package = directory / "stage" / name
         (package / "lib").mkdir(parents=True)
         for kind in ("shared", "static", "import"):
-            if names[kind]:
+            if names[kind] and not (sys.platform == "win32" and kind == "static"):
                 shutil.copy2(args.library_dir / names[kind], package / "lib" / names[kind])
         shared = package / "lib" / names["shared"]
         static = package / "lib" / names["static"]
         before = shared.stat().st_size
         strip_shared(shared)
         print(f"{names['shared']}: {before} bytes before strip, {shared.stat().st_size} after")
-        if localize_static(static, directory, args.platform):
+        if sys.platform == "win32":
+            api = set(capi_exports.functions((ROOT / "vanedb-capi/include/vanedb_rs_capi.h").read_text()))
+            built_native = capi_windows_static.build_and_package(ROOT, static, directory, api)
+            if native is not None and link_tokens(native) != link_tokens(built_native):
+                raise SystemExit("--native-static-libs differs from the isolated Windows build")
+            native = built_native
+        elif localize_static(static, directory, args.platform):
             check_static_globals(static)
+        print(f"native-static-libs: {native}")
         capi_exports.check(shared)
         if sys.platform == "darwin":
             # Rust's default install name points into the build checkout.

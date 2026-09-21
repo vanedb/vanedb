@@ -342,11 +342,26 @@ libraries from `native-static-libs` stay as undefined references. The same
 step removes the LLVM bitcode that fat LTO embeds in every staticlib object
 (`.llvmbc`/`.llvmcmd` on ELF, `__LLVM,__bitcode` on Mach-O): nothing links
 against it, Apple's `nm` cannot read rustc's newer bitcode, and it is most of
-the archive's size. There is no equivalent of `objcopy` for COFF archives in
-the MSVC toolset, so the Windows static library is packaged as rustc produced
-it, with every Rust symbol global and its bitcode in place. Linking it next
-to another Rust-built static library on Windows can therefore collide; use
-the DLL there.
+the archive's size.
+
+On Windows, packaging performs a separate staticlib-only fat-LTO build and
+localizes its single implementation object with GNU COFF `objcopy`.
+`llvm-nm` requires exactly the header's API functions on that object. The
+archive also retains rustc's unchanged native import members for kernel32,
+bcryptprimitives and the synchronization API set; their individually checked
+import descriptors and thunks remain global. No Rust implementation globals
+are allowed. A build that still needs implementation definitions from omitted
+archive members fails packaging. This avoids GNU COFF partial linking, which
+can corrupt COMDAT and weak-symbol metadata.
+
+Windows packaging needs `llvm-tools-preview` for the active Rust toolchain
+and GNU COFF `objcopy` (the hosted Windows image provides binutils). Set
+`VANEDB_COFF_OBJCOPY` to its executable if it is outside the usual MinGW paths.
+LLVM's `objcopy` does not implement this COFF localization operation. The
+installed CMake consumer also links an independently compiled Rust static
+library and exercises allocation, threads, TLS and caught unwinding in that
+library alongside vanedb's full acceptance lifecycle. Successful native
+Windows CI is required to establish that runtime result.
 
 ## ABI compatibility gate
 

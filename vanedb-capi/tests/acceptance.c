@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef VANEDB_COEXISTENCE
+extern uint32_t independent_rust_exercise(void);
+#endif
+
 #define CHECK(expr) do { if (!(expr)) { \
     fprintf(stderr, "line %d: %s failed\n", __LINE__, #expr); exit(1); \
 } } while (0)
@@ -130,6 +134,9 @@ static void exercise(uint32_t metric, const char *directory) {
 
 int main(int argc, char **argv) {
     CHECK(argc == 2);
+#ifdef VANEDB_COEXISTENCE
+    CHECK(independent_rust_exercise() == 42);
+#endif
     /* The library must be the one this header describes. */
     CHECK(vanedb_rs_abi_version() == VANEDB_RS_ABI_VERSION);
     CHECK(strcmp(vanedb_rs_version(), VANEDB_RS_VERSION) == 0);
@@ -137,5 +144,8 @@ int main(int argc, char **argv) {
     exercise(VANEDB_RS_COSINE, argv[1]);
     exercise(VANEDB_RS_DOT, argv[1]);
     CHECK(vanedb_rs_handle_count() == 0);
+#ifdef VANEDB_COEXISTENCE
+    CHECK(independent_rust_exercise() == 42);
+#endif
     return 0;
 }
