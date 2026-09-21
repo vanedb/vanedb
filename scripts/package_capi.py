@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
-"""Package the native C shared library and test an extracted consumer."""
+"""Package the native C libraries and test consumers against the extracted archive.
+
+The archive (RFC 0002 stage 1) carries, for one platform:
+
+    include/vanedb_rs_capi.h          the generated header
+    lib/<shared library>              stripped; exports exactly vanedb_rs_*
+    lib/<static library>              not stripped; on Linux and macOS
+                                      post-processed so only vanedb_rs_* is global
+    lib/cmake/vanedb/*.cmake          find_package(vanedb): vanedb::shared, vanedb::static
+    lib/pkgconfig/vanedb.pc           pkg-config --cflags --libs vanedb
+    examples/, consumers/, tests/     the consumer projects CI runs
+    compatibility.json                inspected binary requirements
+
+The static target's link line and Libs.private come from
+`cargo rustc --print native-static-libs`, run here unless --native-static-libs
+is given. After zipping, the archive is extracted somewhere else and the
+examples, the CMake consumer and (Linux, macOS) the pkg-config consumer are
+built and run from it alone.
+"""
 
 import argparse
 import hashlib
@@ -17,11 +35,21 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import capi_exports  # noqa: E402
+
+PROFILE = "capi"
 LIBRARIES = {
-    "linux": ["libvanedb_capi.so"],
-    "darwin": ["libvanedb_capi.dylib"],
-    "win32": ["vanedb_capi.dll", "vanedb_capi.dll.lib"],
+    "linux": {"shared": "libvanedb_capi.so", "static": "libvanedb_capi.a", "import": None},
+    "darwin": {"shared": "libvanedb_capi.dylib", "static": "libvanedb_capi.a", "import": None},
+    "win32": {"shared": "vanedb_capi.dll", "static": "vanedb_capi.lib", "import": "vanedb_capi.dll.lib"},
 }
+PACKAGED_SOURCES = [
+    "README.md", "include/vanedb_rs_capi.h",
+    "examples/CMakeLists.txt", "examples/quickstart.c", "examples/ctypes_quickstart.py",
+    "tests/acceptance.c",
+    "consumers/cmake/CMakeLists.txt", "consumers/pkgconfig/Makefile",
+]
 
 
 def version_tuple(value):
@@ -63,16 +91,7 @@ def inspect_macho(library, architecture):
 
 
 def inspect_pe(library):
-    dumpbin = shutil.which("dumpbin")
-    if not dumpbin:
-        vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
-        matches = subprocess.check_output([
-            str(vswhere), "-latest", "-products", "*", "-find",
-            r"VC\Tools\MSVC\**\bin\Hostx64\x64\dumpbin.exe",
-        ], text=True).splitlines()
-        if not matches:
-            raise ValueError("MSVC dumpbin was not found; install the C++ build tools")
-        dumpbin = matches[0]
+    dumpbin = capi_exports.dumpbin()
     header = subprocess.check_output([dumpbin, "/headers", str(library)], text=True)
     if not re.search(r"\b8664 machine", header):
         raise ValueError("Expected x86-64 PE library")
@@ -85,7 +104,7 @@ def inspect_pe(library):
             "minimum_windows": None}
 
 
-def compatibility(library, target):
+def compatibility(library, target, native_static_libs):
     family, architecture = target.split("-", 1)
     if family == "linux":
         requirements = inspect_elf(library, architecture)
@@ -94,19 +113,225 @@ def compatibility(library, target):
     else:
         requirements = inspect_pe(library)
     return {"platform": target, "requirements": requirements,
+            "native_static_libs": native_static_libs,
             "tested_host": platform.platform(),
             "runtime_scope": "Consumer acceptance runs on the recorded host only. Binary load requirements are not oldest-OS runtime verification."}
 
 
+# --- the static target's link line -----------------------------------------
+
+def native_static_libs():
+    """What `cargo rustc --print native-static-libs` reports for the staticlib.
+
+    rustc prints the note while producing the staticlib, so this relinks the
+    crate under the shipped profile with the extra flag; the artifacts are
+    the same ones packaged below.
+    """
+    command = ["cargo", "rustc", "-p", "vanedb-capi", "--profile", PROFILE, "--locked",
+               "--", "--print", "native-static-libs"]
+    completed = subprocess.run(command, cwd=ROOT, check=True, text=True, capture_output=True)
+    match = re.search(r"native-static-libs:\s*(.*)", completed.stderr)
+    if not match:
+        raise SystemExit("cargo rustc did not report native-static-libs:\n" + completed.stderr)
+    return match.group(1).strip()
+
+
+def link_tokens(native):
+    """`-framework X` is one item; everything else splits on whitespace."""
+    words = native.split()
+    tokens = []
+    while words:
+        word = words.pop(0)
+        if word == "-framework" and words:
+            tokens.append(f"-framework {words.pop(0)}")
+        else:
+            tokens.append(word)
+    # rustc repeats libraries; the order is what matters, not the count.
+    seen = []
+    for token in tokens:
+        if token not in seen:
+            seen.append(token)
+    return seen
+
+
+def cmake_link_items(native):
+    """INTERFACE_LINK_LIBRARIES items. `-lX` becomes `X`; MSVC's
+    `/defaultlib:msvcrt` is dropped because CMake selects the C runtime
+    itself and a slash-prefixed item would be read as a file path."""
+    items = []
+    for token in link_tokens(native):
+        if token.startswith("-l"):
+            items.append(token[2:])
+        elif token.lower().startswith("/defaultlib:"):
+            continue
+        else:
+            items.append(token)
+    return ";".join(items)
+
+
+def pkgconfig_libs_private(native):
+    return " ".join(t for t in link_tokens(native) if not t.lower().startswith("/defaultlib:"))
+
+
+def render(template, **values):
+    text = (ROOT / "vanedb-capi/packaging" / template).read_text(encoding="utf-8")
+    for key, value in values.items():
+        text = text.replace(f"@{key}@", str(value))
+    leftover = re.findall(r"@[A-Z_]+@", text)
+    if leftover:
+        raise SystemExit(f"{template}: unfilled placeholders {leftover}")
+    return text
+
+
+def write_package_files(package, version, native):
+    header = (ROOT / "vanedb-capi/include/vanedb_rs_capi.h").read_text(encoding="utf-8")
+    abi_version = re.search(r"^#define VANEDB_RS_ABI_VERSION (\d+)$", header, re.MULTILINE)
+    if not abi_version:
+        raise SystemExit("the header does not define VANEDB_RS_ABI_VERSION")
+    core = version.split("-", 1)[0]
+    major, minor, _patch = core.split(".")
+    names = LIBRARIES[sys.platform]
+    import_property = ""
+    if names["import"]:
+        import_property = ('set_target_properties(vanedb::shared PROPERTIES\n'
+                           f'  IMPORTED_IMPLIB "${{_vanedb_prefix}}/lib/{names["import"]}")\n')
+    cmake_dir = package / "lib/cmake/vanedb"
+    cmake_dir.mkdir(parents=True)
+    (cmake_dir / "vanedbConfig.cmake").write_text(
+        render("vanedbConfig.cmake.in", VERSION=version, ABI_VERSION=abi_version.group(1)), encoding="utf-8")
+    (cmake_dir / "vanedbConfigVersion.cmake").write_text(
+        render("vanedbConfigVersion.cmake.in", VERSION_CORE=core, VERSION_MAJOR=major, VERSION_MINOR=minor),
+        encoding="utf-8")
+    (cmake_dir / "vanedbTargets.cmake").write_text(
+        render("vanedbTargets.cmake.in", SHARED_LIBRARY=names["shared"], STATIC_LIBRARY=names["static"],
+               IMPORT_LIBRARY_PROPERTY=import_property, STATIC_LINK_LIBRARIES=cmake_link_items(native)),
+        encoding="utf-8")
+    pc_dir = package / "lib/pkgconfig"
+    pc_dir.mkdir(parents=True)
+    (pc_dir / "vanedb.pc").write_text(
+        render("vanedb.pc.in", VERSION=version, LIBS_PRIVATE=pkgconfig_libs_private(native)), encoding="utf-8")
+
+
+# --- symbol hygiene -----------------------------------------------------------
+
+def strip_shared(library):
+    """Debug info and local symbols go; the dynamic export table stays.
+    MSVC DLLs carry their symbols in the separate .pdb, so nothing to do."""
+    if sys.platform == "linux":
+        subprocess.run(["strip", "--strip-unneeded", str(library)], check=True)
+    elif sys.platform == "darwin":
+        subprocess.run(["strip", "-x", str(library)], check=True)
+
+
+def localize_static(archive, work):
+    """Leave only vanedb_rs_* global in the static library.
+
+    A Rust staticlib exports every Rust symbol as global (thousands), which
+    collides with any other Rust-built static library in the same program. The
+    members are first merged into one relocatable object -- localizing across
+    separate members would break their references to each other -- and then
+    everything not on the allowlist is made local. Undefined symbols (the
+    system libraries from native-static-libs) are untouched by definition.
+
+    Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `ld -r` with
+    `-exported_symbols_list`, then `libtool -static`. Windows: no equivalent
+    of `objcopy` for COFF archives is shipped with MSVC, so the static library
+    is packaged as rustc produced it; this is recorded in the README.
+    """
+    exports = ROOT / "vanedb-capi/exports"
+    combined = work / "vanedb_capi_combined.o"
+    if sys.platform == "linux":
+        subprocess.run(["ld", "-r", "--whole-archive", str(archive), "--no-whole-archive",
+                        "-o", str(combined)], check=True)
+        subprocess.run(["objcopy", f"--keep-global-symbols={exports / 'vanedb_capi.syms'}",
+                        str(combined)], check=True)
+        archive.unlink()
+        subprocess.run(["ar", "rcs", str(archive), str(combined)], check=True)
+    elif sys.platform == "darwin":
+        subprocess.run(["ld", "-r", "-force_load", str(archive),
+                        "-exported_symbols_list", str(exports / "vanedb_capi.exp"),
+                        "-o", str(combined)], check=True)
+        archive.unlink()
+        subprocess.run(["libtool", "-static", "-o", str(archive), str(combined)], check=True)
+    else:
+        return False
+    combined.unlink()
+    return True
+
+
+def static_globals(archive):
+    if sys.platform == "linux":
+        listing = subprocess.check_output(["nm", "--defined-only", "--extern-only", str(archive)], text=True)
+        return sorted({line.split()[-1] for line in listing.splitlines()
+                       if line.strip() and not line.endswith(":") and len(line.split()) >= 3})
+    listing = subprocess.check_output(["nm", "-gU", str(archive)], text=True)
+    names = {line.split()[-1] for line in listing.splitlines()
+             if line.strip() and not line.endswith(":") and len(line.split()) >= 3}
+    return sorted(n[1:] if n.startswith("_") else n for n in names)
+
+
+def check_static_globals(archive):
+    globals_ = static_globals(archive)
+    stray = [n for n in globals_ if not n.startswith("vanedb_rs_")]
+    if stray:
+        raise SystemExit(f"{archive.name} still exports {len(stray)} non-vanedb_rs_ globals, e.g. {stray[:10]}")
+    expected = capi_exports.functions((ROOT / "vanedb-capi/include/vanedb_rs_capi.h").read_text(encoding="utf-8"))
+    missing = sorted(set(expected) - set(globals_))
+    if missing:
+        raise SystemExit(f"{archive.name} lost exported functions: {missing}")
+    print(f"{archive.name}: only the {len(globals_)} vanedb_rs_* functions are global")
+
+
+# --- consumers ----------------------------------------------------------------
+
+def run(command, cwd, env=None):
+    print("+", " ".join(str(c) for c in command), flush=True)
+    subprocess.run([str(c) for c in command], cwd=cwd, check=True, env=env)
+
+
+def test_consumers(extracted, work):
+    """Everything below sees only the extracted archive."""
+    build = work / "examples-build"
+    run(["cmake", "-S", extracted / "examples", "-B", build, "-DCMAKE_BUILD_TYPE=Release"], work)
+    run(["cmake", "--build", build, "--config", "Release"], work)
+    run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure", "--no-tests=error"], work)
+    if sys.platform == "darwin":
+        links = subprocess.check_output(["otool", "-L", str(build / "acceptance")], text=True)
+        if "@rpath/libvanedb_capi.dylib" not in links or str(ROOT) in links:
+            raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
+
+    build = work / "cmake-consumer-build"
+    run(["cmake", "-S", extracted / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
+         f"-DCMAKE_PREFIX_PATH={extracted}"], work)
+    run(["cmake", "--build", build, "--config", "Release"], work)
+    run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure", "--no-tests=error"], work)
+
+    if sys.platform != "win32":
+        if not shutil.which("pkg-config"):
+            raise SystemExit("pkg-config is required to test the pkg-config consumer")
+        env = dict(os.environ, PKG_CONFIG_PATH=str(extracted / "lib/pkgconfig"))
+        out = work / "pkgconfig-consumer-build"
+        out.mkdir()
+        modversion = subprocess.check_output(["pkg-config", "--modversion", "vanedb"], env=env, text=True).strip()
+        print(f"pkg-config reports vanedb {modversion}")
+        run(["make", "-C", extracted / "consumers/pkgconfig", f"OUT={out}", "test"], work, env=env)
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--platform", required=True, choices=[
         "linux-x86_64", "linux-aarch64", "macos-x86_64", "macos-aarch64", "windows-x86_64"
     ])
-    parser.add_argument("--library-dir", type=Path, default=ROOT / "target/release")
+    parser.add_argument("--library-dir", type=Path, default=ROOT / "target" / PROFILE,
+                        help=f"where cargo put the libraries (default: target/{PROFILE})")
     parser.add_argument("--output", type=Path, default=ROOT / "target/c-artifacts")
+    parser.add_argument("--native-static-libs", default=None,
+                        help="the `native-static-libs` line to record instead of asking cargo")
     args = parser.parse_args()
     version = tomllib.loads((ROOT / "vanedb-capi/Cargo.toml").read_text())["package"]["version"]
+    native = args.native_static_libs if args.native_static_libs is not None else native_static_libs()
+    print(f"native-static-libs: {native}")
+    names = LIBRARIES[sys.platform]
     name = f"vanedb-capi-{version}-{args.platform}"
     args.output.mkdir(parents=True, exist_ok=True)
     archive = args.output.resolve() / f"{name}.zip"
@@ -114,21 +339,29 @@ def main():
         directory = Path(temporary)
         package = directory / "stage" / name
         (package / "lib").mkdir(parents=True)
-        for library in LIBRARIES[sys.platform]:
-            shutil.copy2(args.library_dir / library, package / "lib" / library)
+        for kind in ("shared", "static", "import"):
+            if names[kind]:
+                shutil.copy2(args.library_dir / names[kind], package / "lib" / names[kind])
+        shared = package / "lib" / names["shared"]
+        static = package / "lib" / names["static"]
+        before = shared.stat().st_size
+        strip_shared(shared)
+        print(f"{names['shared']}: {before} bytes before strip, {shared.stat().st_size} after")
+        if localize_static(static, directory):
+            check_static_globals(static)
+        capi_exports.check(shared)
         if sys.platform == "darwin":
-            library = package / "lib/libvanedb_capi.dylib"
             # Rust's default install name points into the build checkout.
             # A distributed consumer must load this archive's copy instead.
-            subprocess.run(["install_name_tool", "-id", "@rpath/libvanedb_capi.dylib", str(library)], check=True)
-            subprocess.run(["codesign", "--force", "--sign", "-", str(library)], check=True)
-        for relative in ["README.md", "include/vanedb_rs_capi.h", "examples/CMakeLists.txt",
-                         "examples/quickstart.c", "tests/acceptance.c"]:
+            subprocess.run(["install_name_tool", "-id", "@rpath/libvanedb_capi.dylib", str(shared)], check=True)
+            subprocess.run(["codesign", "--force", "--sign", "-", str(shared)], check=True)
+        for relative in PACKAGED_SOURCES:
             destination = package / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / "vanedb-capi" / relative, destination)
         shutil.copy2(ROOT / "LICENSE", package / "LICENSE")
-        requirements = compatibility(package / "lib" / LIBRARIES[sys.platform][0], args.platform)
+        write_package_files(package, version, native)
+        requirements = compatibility(shared, args.platform, native)
         (package / "compatibility.json").write_text(json.dumps(requirements, indent=2) + "\n")
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
             for source in sorted(package.rglob("*")):
@@ -138,18 +371,7 @@ def main():
         shutil.rmtree(package.parent)
         with zipfile.ZipFile(archive) as packaged:
             packaged.extractall(directory / "extracted")
-        extracted = directory / "extracted" / name
-        build = directory / "build"
-        for command in [
-            ["cmake", "-S", str(extracted / "examples"), "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"],
-            ["cmake", "--build", str(build), "--config", "Release"],
-            ["ctest", "--test-dir", str(build), "--build-config", "Release", "--output-on-failure"],
-        ]:
-            subprocess.run(command, cwd=directory, check=True)
-        if sys.platform == "darwin":
-            links = subprocess.check_output(["otool", "-L", str(build / "acceptance")], text=True)
-            if "@rpath/libvanedb_capi.dylib" not in links or str(ROOT) in links:
-                raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
+        test_consumers(directory / "extracted" / name, directory)
     with archive.open("rb") as packaged:
         digest = hashlib.file_digest(packaged, "sha256").hexdigest()
     archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n")

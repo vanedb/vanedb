@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 project(vanedb_c_example LANGUAGES C)
 
+# Inside an extracted archive the library sits in ../lib. In the source tree
+# it is wherever cargo put it: target/capi for the shipped `capi` profile,
+# target/release for a plain `--release` build.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
     set(default_library_dir "${CMAKE_CURRENT_SOURCE_DIR}/../lib")
+elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../target/capi")
+    set(default_library_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../target/capi")
 else()
     set(default_library_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release")
 endif()
