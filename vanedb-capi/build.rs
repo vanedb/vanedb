@@ -1,12 +1,40 @@
 fn main() {
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+
+    if target_os == "android" {
         // NDK r26 (used in CI) needs explicit alignment for Android 15's
         // 16 KiB page configurations. Static-library consumers set their own
         // final linker flags; these apply to the C ABI shared library.
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384");
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,common-page-size=16384");
     }
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // The exported-symbol allowlist (RFC 0002 stage 1). `exports/` holds
+    // three spellings of the same `vanedb_rs_*` set, generated from the
+    // header by `scripts/capi_exports.py`; a test checks they match the
+    // header and CI checks they match the built library. rustc already
+    // restricts a cdylib's exports to its `#[no_mangle]` items; passing the
+    // list explicitly pins the contract to a file a consumer can read and
+    // makes the shared library's export set independent of how rustc
+    // happens to do that.
+    //
+    // MSVC is the exception: link.exe takes one `/DEF`, rustc already passes
+    // its own, and the generated `.def` there is consumed by the `dumpbin`
+    // check in CI rather than by the link. Windows GNU is left to rustc for
+    // the same reason. The Apple and ELF linkers accept an additional list.
+    let exports = format!("{crate_dir}/exports");
+    if target_os == "macos" || target_os == "ios" {
+        println!(
+            "cargo:rustc-link-arg-cdylib=-Wl,-exported_symbols_list,{exports}/vanedb_capi.exp"
+        );
+        println!("cargo:rerun-if-changed=exports/vanedb_capi.exp");
+    } else if target_os != "windows" && target_env != "msvc" {
+        println!("cargo:rustc-link-arg-cdylib=-Wl,--version-script={exports}/vanedb_capi.map");
+        println!("cargo:rerun-if-changed=exports/vanedb_capi.map");
+    }
+
     let out = format!("{crate_dir}/include/vanedb_rs_capi.h");
     cbindgen::generate(&crate_dir)
         .expect("failed to generate the C ABI header")
