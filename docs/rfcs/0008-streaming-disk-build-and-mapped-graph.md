@@ -1,8 +1,8 @@
 # RFC 0008: Streaming disk build and mapped graph
 
-- Status: accepted (streaming `DiskIndexBuilder`; capacity-study amendment of
-  2026-09-20); the mapped graph remains draft, gated on RFC 0005 and the
-  cold-cache spike below. Direction accepted 2026-09-13.
+- Status: accepted (for the streaming builder); capacity-study amendment
+  2026-09-20; mapped graph draft, gated on RFC 0005 and the cold-cache
+  spike. Direction accepted 2026-09-13.
 - Milestone: 0.4.0
 - Tracking issue: #203; capacity study #210
 - Supersedes / superseded by: none; relies on the RFC 0013 container layout
@@ -52,7 +52,7 @@ on 2026-09-20) answered the questions this RFC was gated on. Its decision
 2. **Split this RFC.** The streaming `DiskIndexBuilder` has no gate and is
    accepted as of this amendment; it fixes the build-time contradiction in
    the shipped product, touches no graph, and is adjacent to RFC 0010's
-   write-path work (study §6, observation 3). The mapped graph stays gated on
+   write-path work (study §6 observation 3 and §7). The mapped graph stays gated on
    (a) RFC 0005 shipped, so the spike can measure binary navigation rather
    than only f32, and (b) the cold-cache spike above. The IVF fallback remains
    the fallback; nothing in the corpus data asks for it ahead of the spike.
@@ -70,8 +70,7 @@ on 2026-09-20) answered the questions this RFC was gated on. Its decision
    workstation or gateway; the revisit condition under "Alternatives
    rejected" is not met.
 
-Numbers this RFC stated that the study corrected (each is also updated in
-place below):
+Figures the study fixed or left open (each is also updated in place below):
 
 - The id map is `HashMap<u64, usize>` in every index, including the
   `DiskIndex` this builder produces, and costs **19 to 39 bytes per entry**
@@ -84,9 +83,10 @@ place below):
 - Links cost **~297 B per node today** in the `Vec<Vec<Vec<usize>>>` layout
   (measured on random vectors, mean layer-0 degree 23.7 of the 32 cap) and
   would be **~116 B per node as flat `u32` arrays**; at a full layer 0 the
-  figures are ~300 to 360 B and ~120 to 150 B. "About 140 bytes per node,
-  half of today's `usize`" was the full-degree mapped case and understated
-  today's cost by 2× (study §4.4).
+  figures are ~300 to 360 B and ~120 to 150 B. This RFC's "about 140 bytes
+  per node" for the mapped layout was within the study's bracket; its "half
+  of today's `usize`" (~280 B) undershot the measured ~297 B and the ~300 to
+  360 B full-degree planning figure (study §4.4).
 - Measurements the study could not make (#210 question 3): resident memory,
   p50/p99 warm and cold, and recall@10 for resident f32, mapped f32 and
   binary-plus-rescoring at 100k, 1M and 10M on one Android device and one
@@ -134,7 +134,8 @@ place below):
   arrays at open (`u32` slots: ~116 B per node of links at M = 16 at the
   degree random vectors reach, ~120 to 150 B at a full layer 0, against
   ~297 B today; plus 13 B of ids, level and tombstone and 19 to 39 B of id
-  map per node; ~169 B per vector in all, at every `d`; study §4.4, §6).
+  map per node; ~169 B per vector in all (at the study's ~120 B links and
+  36 B id map at 1M), at every `d`; study §4.4, §6).
   f32 vectors are read through the mapping during search; the distance
   kernels take slices from the mapping directly.
 - With a quantized `vectors` section (RFC 0005), the int8 or binary vectors

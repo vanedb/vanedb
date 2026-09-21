@@ -29,7 +29,7 @@ decision, until the corresponding RFC is accepted.
 | 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
 | 6 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 2 to 4 | 0.3.0 | accepted |
 | 7 | [0007 Mobile SDKs](rfcs/0007-mobile-sdks.md) | 0.3.0 | accepted |
-| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | accepted for the streaming builder ([capacity study](research/capacity.md) amendment, 2026-09-20); mapped graph gated on RFC 0005 and the cold-cache spike |
+| 8 | [0008 Streaming disk build and mapped graph](rfcs/0008-streaming-disk-build-and-mapped-graph.md) | 0.4.0 | accepted (for the streaming builder); [capacity-study amendment](research/capacity.md) 2026-09-20; mapped graph draft, gated on RFC 0005 and the cold-cache spike |
 | 9 | [0009 Optional payload column](rfcs/0009-payload-column.md) | 0.4.0 | accepted |
 | after the above | [0001 CUDA after the initial release](rfcs/0001-cuda-after-initial-release.md) | none assigned | accepted; ordering amendment accepted 2026-09-13 |
 
