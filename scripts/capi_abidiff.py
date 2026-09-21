@@ -5,7 +5,8 @@ Two layers, because neither alone sees enough:
 
 1. Prototypes. The baseline archive's `include/vanedb_rs_capi.h` and the
    current header are parsed by `scripts/capi_exports.py` into normalised
-   prototypes (return type, name, parameter types; parameter names dropped).
+   prototypes (return type, name, parameter types; typedefs expanded and
+   parameter names dropped).
    A removed or changed prototype fails; an addition passes, which is the
    header's rule. This is the only layer that sees a changed signature: the
    shipped library carries no DWARF (the `capi` profile inherits `release`,
@@ -20,10 +21,10 @@ Two layers, because neither alone sees enough:
    from the library.
 
 `VANEDB_RS_ABI_VERSION` keys the verdict. A baseline whose header carries a
-different version, or none (0.1.1 predates the macro and counts as 0), is an
+lower version, or none (0.1.1 predates the macro and counts as 0), is an
 intentional incompatible release: both layers still run and print what they
 found, and the job passes with a notice. With the same version both layers
-must pass.
+must pass. Tool errors always fail, and ABI-version downgrades are rejected.
 
 The baseline is the newest non-draft GitHub Release tagged
 `vanedb-crate-v<version>` -- the crate release is what carries the C ABI
@@ -154,13 +155,20 @@ def compare_prototypes(baseline_text, current_text):
 
 
 def verdict(baseline_abi, current_abi, diff, abidiff_status):
-    """(exit status, message). Same ABI version: both layers must be clean.
-    Different: intentional break, reported and passed."""
+    """(exit status, message). Only a version increase permits ABI changes;
+    it never permits a failed comparison tool or a version downgrade."""
     broken = diff["removed"] or diff["changed"] or (abidiff_status not in (0, None))
     summary = (f"{len(diff['removed'])} removed, {len(diff['changed'])} changed, "
                f"{len(diff['added'])} added prototypes; abidiff "
                f"{'not run' if abidiff_status is None else f'exit {abidiff_status}'}")
-    if baseline_abi != current_abi:
+    # libabigail statuses are bit flags: 1/2 mean execution/usage errors,
+    # 4/8 mean ABI changes. A signal or unknown bit is not evidence either.
+    if abidiff_status is not None and abidiff_status not in (0, 4, 8, 12):
+        return 1, f"abidiff failed; compatibility was not established ({summary})"
+    if current_abi < baseline_abi:
+        return 1, (f"VANEDB_RS_ABI_VERSION must not decrease: baseline {baseline_abi} "
+                   f"vs current {current_abi} ({summary})")
+    if current_abi > baseline_abi:
         return 0, (f"intentional ABI break: baseline VANEDB_RS_ABI_VERSION {baseline_abi} "
                    f"vs current {current_abi} ({summary})")
     if broken:

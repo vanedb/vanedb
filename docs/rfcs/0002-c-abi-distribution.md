@@ -215,13 +215,18 @@ above:
   baseline, not 0.2.0 as the text above assumed: `vanedb-crate-v0.1.1`
   attaches all five archives. The gate keys on `VANEDB_RS_ABI_VERSION`, so
   ABI 1 is reported as an intentional break against 0.1.1 and passes; the
-  same version must be compatible.
+  same version must be compatible. An ABI-version downgrade fails, and an
+  abidiff execution error, usage error or signal fails regardless of version.
 - The gate has two layers rather than abidiff alone: abidiff on the shipped
   library sees the dynamic symbol table only (no DWARF: the `capi` profile
   inherits `release` and the package is stripped), so it detects removals
   and nothing else. The committed `exports/vanedb_capi.sigs` prototype list,
   diffed against the baseline archive's header, is what detects a changed
-  signature.
+  signature. Typedefs are expanded transitively, including callback arguments
+  and return types, so changing a handle's underlying width cannot hide behind
+  the same alias name. Parameter renames remain compatible. The parser handles
+  the generated header's scalar, pointer, alias and callback declarations and
+  the legacy opaque struct aliases; unsupported syntax fails the gate.
 - The MSVC "C99" leg of the header check is MSVC's default C mode: MSVC has
   no C99-only switch (`/Za` would reject the Windows headers), so the legs
   are default C, `/std:c11` and `/std:c++17`, all under `/W4 /WX`.
