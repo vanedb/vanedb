@@ -35,6 +35,9 @@ Metrics are squared Euclidean distance (`Metric::L2`), cosine distance
 rank first. IDs are unique unsigned 64-bit integers; vectors and queries must
 have the configured dimension and finite components. Approximate search can
 miss a true neighbor; compare recall against exact search for your data.
+Every index reports its count with `len()` and `is_empty()`; `get` and
+`get_vector` return `Ok(None)` for an id that is not stored, while `remove` of
+one is an error.
 
 All three indexes accept filters through `search_with`:
 
@@ -55,6 +58,14 @@ index being searched: the search holds its read lock. Exact indexes scan once.
 An approximate search widens its beam when fewer than `k` results match, up to
 `max_ef_search` (default four times the initial beam). This cap is a recall/work
 tradeoff, not a guarantee of `k` results or a strict bound on distance evaluations.
+
+As a rule of thumb, set `ef_search` on the order of `k` divided by the
+fraction of ids the filter accepts, and leave `max_ef_search` at its default
+of four times the beam, or raise it if results still fall short of `k`.
+Raising only the cap does not improve the quality of results that already
+fill `k`, because widening stops there.
+Measured recall at several selectivities is in
+[the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 Distance kernels select NEON or AVX2 at runtime and fall back to scalar code.
 Capacity is a reserve hint for the growable graph index, not an insertion limit.
@@ -79,8 +90,9 @@ file. Before calling it, ensure no process can rewrite or truncate the underlyin
 file until the index is dropped; violating this requirement can cause undefined
 behavior or a process fault. Replacing the path with `DiskIndexBuilder::save`
 is supported: its atomic rename leaves existing readers on the intact old file.
-`DiskIndex::get` returns `Cow<[f32]>`; use `as_ref()` to borrow or `into_owned()`
-to obtain an independent vector.
+`DiskIndex::get` returns `Option<Cow<[f32]>>`, borrowing from the mapping when
+the id is stored; use `as_ref()` to borrow or `into_owned()` to obtain an
+independent vector.
 
 ## Feature flags
 

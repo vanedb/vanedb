@@ -122,6 +122,19 @@ and the cap, or use an exact index when needed. Widening stops once `k`
 matches are found, so increasing only the cap may not improve their quality.
 The cap bounds beam width, not the total number of distance evaluations.
 
+Tuning rule of thumb: the initial beam is what sets recall, so size
+`ef_search` on the order of `k` divided by the fraction of ids the filter
+accepts — `k = 10` at 10% selectivity wants a beam near 100, at 1% near
+1,000 — and leave `max_ef_search` at its default of four times the beam, or
+raise it if results still fall short of `k`. Raising only the cap does not
+improve quality: a wider cap changes
+which queries fill up to `k`, not how good the matches already returned are.
+The measured table in
+[the 0.2.0 filtered-search validation record](docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings)
+shows the difference: at 1% selectivity, raising the cap from 200 to 1,600
+took recall@10 from 35.5% to 51.7%, while raising the beam to 1,000 took it
+to 96.2%.
+
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
 Python bindings; wasm takes it as a required string argument. Results come back
 nearest
@@ -134,7 +147,16 @@ property in Python, or the corresponding `vanedb_rs_*_metric` C accessor.
 This is useful after loading a file: queries must use its stored distance
 convention. `get` and `get_vector` are the same read under two names, on every
 index type in every binding, so swapping one index for another does not mean
-renaming call sites.
+renaming call sites. A lookup miss is a value, not an error: Rust returns
+`Ok(None)`, Python `None`, JavaScript `undefined`, and the C ABI its
+`VANEDB_RS_NOT_FOUND` status; `contains` is the cheaper probe when the vector
+is not needed, and `remove` of a missing id stays an error. The count is
+`len()` in Rust, `len(index)` in Python (`size()` is kept as an alias), `size()`
+in JavaScript and `vanedb_rs_*_len` in C; the search-beam default is
+`ef_search()`/`set_ef_search()`, the `ef_search` property, the `efSearch`
+property and `vanedb_rs_index_ef_search`/`_set_ef_search` respectively. This
+vocabulary is [RFC 0011](docs/rfcs/0011-api-vocabulary-before-1-0.md), tabled
+in [`conformance/vocabulary/README.md`](conformance/vocabulary/README.md).
 
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
 hint rather than a ceiling. Vector storage grows on demand. Hard limits,
@@ -174,8 +196,8 @@ WebAssembly currently supports add, batch add, search, lookup methods, remove,
 `upsert`, `tombstones`, `compact` and persistence (`toBytes` / `fromBytes`,
 plus `save(name)` / `load(name)` over IndexedDB in the browser and the
 filesystem in Node) on `ApproxIndex`. Approximate search accepts a
-per-query beam override as `search(query, k, ef_search)`, leaving the
-`ef_search` property unchanged. A single id is a
+per-query beam override as `search(query, k, efSearch)`, leaving the
+`efSearch` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
 `wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked`

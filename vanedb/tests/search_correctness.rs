@@ -321,7 +321,7 @@ fn disk_search_reproduces_the_independent_ranking() {
 
             // Stored vectors survive the round trip byte for byte.
             for (&id, v) in ids.iter().zip(&vectors) {
-                assert_eq!(index.get(id).unwrap().as_ref(), v.as_slice());
+                assert_eq!(index.get(id).unwrap().unwrap().as_ref(), v.as_slice());
             }
             drop(index);
             std::fs::remove_file(&path).ok();

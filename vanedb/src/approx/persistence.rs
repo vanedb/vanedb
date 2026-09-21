@@ -532,7 +532,7 @@ mod legacy_fixtures {
                 if metric == Metric::Dot { -1.0 } else { 0.0 }
             );
             assert_eq!(index.contains(202), !deleted);
-            assert_eq!(index.get_vector(101).unwrap(), [1.0, 0.0]);
+            assert_eq!(index.get_vector(101).unwrap().unwrap(), [1.0, 0.0]);
             index.add(303, &[0.25, 0.75]).unwrap();
             let path = std::env::temp_dir()
                 .join(format!("vanedb-legacy-{}-{name}.hnsw", std::process::id()));
@@ -544,7 +544,7 @@ mod legacy_fixtures {
                 index.inner.read().neighbors
             );
             assert_eq!(reloaded.inner.read().levels, index.inner.read().levels);
-            assert_eq!(reloaded.get_vector(303).unwrap(), [0.25, 0.75]);
+            assert_eq!(reloaded.get_vector(303).unwrap().unwrap(), [0.25, 0.75]);
         }
     }
 

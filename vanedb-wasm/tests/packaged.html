@@ -89,10 +89,10 @@ async function main() {
                 for (const value of invalidNumbers) {
                     rejectsNumber(() => index.search(new Float32Array([1, 0, 0]), value));
                     if (index instanceof ApproxIndex) {
-                        index.ef_search = 16;
-                        rejectsNumber(() => { index.ef_search = value; });
+                        index.efSearch = 16;
+                        rejectsNumber(() => { index.efSearch = value; });
                         rejectsNumber(() => index.search(new Float32Array([1, 0, 0]), 2, value));
-                        check(index.ef_search === 16, 'invalid setting changed ef_search');
+                        check(index.efSearch === 16, 'invalid setting changed efSearch');
                     }
                 }
                 const hits = index.search(new Float32Array([1, 0, 0]), 2);
@@ -117,14 +117,14 @@ async function main() {
                             'rejected upsert changed the index');
                         check([...index.get(id)].join(',') === '0,0,1', 'rejected upsert lost the vector');
                     }
-                    index.ef_search = 1;
+                    index.efSearch = 1;
                     for (const ef of [undefined, null, 0, 64, 2 ** 32 - 1]) {
                         const widened = index.search(new Float32Array([1, 0, 0]), 3, ef);
                         try {
                             check(widened.ids.length === 3 && widened.ids[0] === 2n,
                                 'per-query search returned the wrong results');
                         } finally { widened.free(); }
-                        check(index.ef_search === 1, 'per-query search changed the default');
+                        check(index.efSearch === 1, 'per-query search changed the default');
                     }
                     index.compact();
                     check(index.tombstones() === 0 && index.size() === 3, 'compact lost upserted entries');

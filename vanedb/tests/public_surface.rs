@@ -27,10 +27,8 @@ fn both_spellings_of_the_read_agree_on_every_type() {
     let flat = FlatIndex::new(2, Metric::L2).unwrap();
     flat.add(1, &[1.0, 0.0]).unwrap();
     assert_eq!(flat.get(1).unwrap(), flat.get_vector(1).unwrap());
-    assert!(matches!(
-        flat.get_vector(2),
-        Err(VaneError::NotFound { id: 2 })
-    ));
+    assert_eq!(flat.get(1).unwrap(), Some(vec![1.0, 0.0]));
+    assert_eq!(flat.get_vector(2).unwrap(), None);
 
     let approx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
     approx.add(1, &[1.0, 0.0]).unwrap();
@@ -46,48 +44,90 @@ fn both_spellings_of_the_read_agree_on_every_type() {
         // SAFETY: this test does not modify the file while it is mapped.
         let disk = unsafe { vanedb::DiskIndex::open(&path) }.unwrap();
         assert_eq!(disk.get(1).unwrap(), disk.get_vector(1).unwrap());
-        assert!(matches!(
-            disk.get_vector(2),
-            Err(VaneError::NotFound { id: 2 })
-        ));
+        assert_eq!(disk.get(1).unwrap().as_deref(), Some(&[1.0, 0.0][..]));
+        assert_eq!(disk.get_vector(2).unwrap(), None);
         drop(disk);
         std::fs::remove_file(&path).ok();
     }
 }
 
-/// `size` and `len` are the same count under two names so a program is not
-/// tied to one engine (#85). Both spellings must agree on every type, and on
-/// every type `is_empty` must agree with them.
+/// The count has one Rust spelling, `len`, and `is_empty` must agree with it
+/// on every type (RFC 0011). `size` was removed; the conformance table in
+/// `conformance/vocabulary/README.md` names this test as the Rust column.
 #[test]
-fn both_spellings_of_the_count_agree_on_every_type() {
+fn the_count_is_len_and_is_empty_agrees_on_every_type() {
     let flat = FlatIndex::new(2, Metric::L2).unwrap();
-    assert_eq!(flat.size(), 0);
     assert_eq!(flat.len(), 0);
     assert!(flat.is_empty());
     flat.add(1, &[1.0, 0.0]).unwrap();
-    assert_eq!(flat.size(), flat.len());
-    assert_eq!(flat.size(), 1);
+    assert_eq!(flat.len(), 1);
     assert!(!flat.is_empty());
 
     let approx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
-    assert_eq!(approx.size(), 0);
     assert_eq!(approx.len(), 0);
     assert!(approx.is_empty());
     approx.add(1, &[1.0, 0.0]).unwrap();
-    assert_eq!(approx.size(), approx.len());
+    assert_eq!(approx.len(), 1);
     assert!(!approx.is_empty());
 
     #[cfg(feature = "disk")]
     {
         let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
-        assert_eq!(builder.size(), 0);
         assert_eq!(builder.len(), 0);
         assert!(builder.is_empty());
         assert_eq!(builder.dimension(), 2);
         builder.add(1, &[1.0, 0.0]).unwrap();
-        assert_eq!(builder.size(), builder.len());
-        assert_eq!(builder.size(), 1);
+        assert_eq!(builder.len(), 1);
         assert!(!builder.is_empty());
+
+        let path =
+            std::env::temp_dir().join(format!("vanedb-count-spelling-{}.vndb", std::process::id()));
+        builder.save(&path).unwrap();
+        // SAFETY: this test does not modify the file while it is mapped.
+        let disk = unsafe { vanedb::DiskIndex::open(&path) }.unwrap();
+        assert_eq!(disk.len(), 1);
+        assert!(!disk.is_empty());
+        drop(disk);
+        std::fs::remove_file(&path).ok();
+    }
+}
+
+/// A lookup miss is a value, not an error, on every index type (RFC 0011):
+/// `get` and `get_vector` return `Ok(None)`, `contains` stays the cheaper
+/// probe, and `remove` of a missing id stays `NotFound` because a caller that
+/// removes what is not there has a bug.
+#[test]
+fn a_lookup_miss_is_none_and_a_removal_miss_is_an_error() {
+    let flat = FlatIndex::new(2, Metric::L2).unwrap();
+    assert_eq!(flat.get(7).unwrap(), None);
+    assert_eq!(flat.get_vector(7).unwrap(), None);
+    assert!(!flat.contains(7));
+    assert!(matches!(flat.remove(7), Err(VaneError::NotFound { id: 7 })));
+
+    let approx = ApproxIndex::builder(2, Metric::L2).build().unwrap();
+    assert_eq!(approx.get(7).unwrap(), None);
+    assert_eq!(approx.get_vector(7).unwrap(), None);
+    assert!(!approx.contains(7));
+    assert!(matches!(
+        approx.remove(7),
+        Err(VaneError::NotFound { id: 7 })
+    ));
+
+    #[cfg(feature = "disk")]
+    {
+        let path =
+            std::env::temp_dir().join(format!("vanedb-lookup-miss-{}.vndb", std::process::id()));
+        DiskIndexBuilder::new(2, Metric::L2)
+            .unwrap()
+            .save(&path)
+            .unwrap();
+        // SAFETY: this test does not modify the file while it is mapped.
+        let disk = unsafe { vanedb::DiskIndex::open(&path) }.unwrap();
+        assert_eq!(disk.get(7).unwrap(), None);
+        assert_eq!(disk.get_vector(7).unwrap(), None);
+        assert!(!disk.contains(7));
+        drop(disk);
+        std::fs::remove_file(&path).ok();
     }
 }
 
@@ -190,5 +230,5 @@ fn construction_parameters_are_readable_after_building() {
     assert_eq!(index.seed(), 1234);
 
     index.set_ef_search(99);
-    assert_eq!(index.get_ef_search(), 99);
+    assert_eq!(index.ef_search(), 99);
 }

@@ -57,7 +57,7 @@ fn compaction_preserves_every_live_vector_and_its_id() {
     for &id in &survivors {
         assert!(idx.contains(id), "{id} lost in compaction");
         assert_eq!(
-            idx.get_vector(id).unwrap(),
+            idx.get_vector(id).unwrap().unwrap(),
             vec![id as f32, 1.0, 2.0, 3.0],
             "{id} has the wrong vector after compaction"
         );

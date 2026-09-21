@@ -14,11 +14,13 @@ VaneDB is a correct, hardened, bring-your-own-embeddings nearest-neighbour
 library with an unusually strong verification story (cross-engine conformance,
 mutation testing, fuzzed loaders, a signed release record) and no users yet.
 It ships `(u64 id, f32 vector)` storage with exact, HNSW and memory-mapped
-indexes for Rust, Python, C and WebAssembly. It does not ship metadata,
-filtering, quantization, mobile SDKs, browser persistence, or a comparison
-against any competitor. Every one of those is something the on-device market
-already expects from the incumbents. The engine is not the gap; the product
-surface around it is.
+indexes for Rust, Python, C and WebAssembly, and filtered search (0.2.0,
+unreleased) over application-owned ID lists and predicates, with browser
+persistence of the wasm graph index over IndexedDB (0.2.0, unreleased). It
+does not ship metadata storage, quantization, mobile SDKs, or a comparison
+against any competitor. Every one of those is something the
+on-device market already expects from the incumbents. The engine is not the
+gap; the product surface around it is.
 
 ## 2. What the registries say (measured)
 
@@ -139,7 +141,7 @@ counts quoted from search results and are approximate.
 | **hnswlib** (~5.1k) | C++, Python | mark-deleted | callback | no | file | Reference HNSW; no mobile packaging |
 | **FAISS** | C++, Python | limited | id selectors | PQ, SQ, binary, GPU | file | Too large for mobile; the server standard |
 | `instant-distance`, `hnsw_rs`, `hnswlib-rs` | Rust | partial | no | no | file | Rust-only, minimal |
-| **VaneDB** | Rust, Python, C, wasm | yes (tombstone + compact) | no | no | VNDB v1/v2 file; not in wasm | Strongest loader hardening and format spec in the group |
+| **VaneDB** | Rust, Python, C, wasm | yes (tombstone + compact) | yes (0.2.0, unreleased): predicate, allow/deny ID lists | no | VNDB v1/v2 file; wasm graph save/load over IndexedDB (0.2.0, unreleased) | Strongest loader hardening and format spec in the group |
 
 ### Vectors inside SQLite (the "you already ship SQLite" argument)
 
