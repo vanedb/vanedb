@@ -149,12 +149,6 @@ impl DiskIndexBuilder {
     }
 
     /// Number of vectors collected so far.
-    pub fn size(&self) -> usize {
-        self.ids.len()
-    }
-
-    /// Number of vectors collected so far. Same count as [`size`](Self::size);
-    /// both spellings exist so a program is not tied to one engine (#85).
     pub fn len(&self) -> usize {
         self.ids.len()
     }
@@ -418,13 +412,9 @@ impl DiskIndex {
     }
 
     /// Number of vectors in the mapped file.
-    pub fn size(&self) -> usize {
-        self.num_vectors
-    }
-
-    /// Number of vectors in the mapped file. Same count as
-    /// [`size`](Self::size); both spellings exist so a program is not tied
-    /// to one engine (#85).
+    ///
+    /// The one Rust spelling of the count (RFC 0011). The C ABI spells it
+    /// `vanedb_rs_disk_len`, Python `len(index)`.
     pub fn len(&self) -> usize {
         self.num_vectors
     }
@@ -449,7 +439,12 @@ impl DiskIndex {
         self.id_map.contains_key(&id)
     }
 
-    /// The vector stored under `id`.
+    /// The vector stored under `id`, or `None` when no vector is stored
+    /// under it.
+    ///
+    /// A miss is a value, not an error (RFC 0011); the `Result` is reserved
+    /// for a read that cannot be served at all, which a mapped `f32` store
+    /// never hits today.
     ///
     /// Borrows directly from the mapping today, so this copies nothing. The
     /// return type is [`Cow`] rather than `&[f32]` because a slice would make
@@ -457,16 +452,18 @@ impl DiskIndex {
     /// in any form other than native `f32` has nothing to lend and must decode
     /// into a buffer. Callers that want an owned vector can use
     /// [`Cow::into_owned`].
-    pub fn get(&self, id: u64) -> Result<Cow<'_, [f32]>> {
-        let &idx = self.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
-        Ok(Cow::Borrowed(self.get_vec(idx)))
+    pub fn get(&self, id: u64) -> Result<Option<Cow<'_, [f32]>>> {
+        Ok(self
+            .id_map
+            .get(&id)
+            .map(|&idx| Cow::Borrowed(self.get_vec(idx))))
     }
 
     /// The vector stored under `id`. Same as [`get`](Self::get), which is the
     /// spelling `FlatIndex` uses; both exist so a program is not tied to one
     /// index type (#85). The Python and C bindings already carried both
     /// spellings on every index — this is the Rust half of that promise.
-    pub fn get_vector(&self, id: u64) -> Result<Cow<'_, [f32]>> {
+    pub fn get_vector(&self, id: u64) -> Result<Option<Cow<'_, [f32]>>> {
         self.get(id)
     }
 
@@ -555,7 +552,7 @@ mod tests {
         let mut b = DiskIndexBuilder::new(3, Metric::L2).unwrap();
         b.add(1, &[1.0, 2.0, 3.0]).unwrap();
         b.add(2, &[4.0, 5.0, 6.0]).unwrap();
-        assert_eq!(b.size(), 2);
+        assert_eq!(b.len(), 2);
     }
 
     #[test]
@@ -607,14 +604,14 @@ mod tests {
 
         // SAFETY: this test does not modify the file while it is mapped.
         let store = unsafe { DiskIndex::open(&path) }.unwrap();
-        assert_eq!(store.size(), 3);
+        assert_eq!(store.len(), 3);
         assert_eq!(store.dimension(), 3);
         assert!(store.contains(10));
         assert!(!store.contains(99));
 
         // Get (zero-copy)
-        assert_eq!(store.get(10).unwrap().as_ref(), [0.0, 0.0, 0.0]);
-        assert_eq!(store.get(20).unwrap().as_ref(), [1.0, 0.0, 0.0]);
+        assert_eq!(store.get(10).unwrap().unwrap().as_ref(), [0.0, 0.0, 0.0]);
+        assert_eq!(store.get(20).unwrap().unwrap().as_ref(), [1.0, 0.0, 0.0]);
 
         // Search
         let results = store.search(&[0.0, 0.1, 0.0], 2).unwrap();

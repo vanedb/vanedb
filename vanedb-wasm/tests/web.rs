@@ -265,9 +265,12 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
 fn a_stored_vector_can_be_read_back() {
     let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     index.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
-    assert_eq!(index.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
-    assert_eq!(index.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
-    assert!(index.get_vector(99u64.into()).is_err());
+    assert_eq!(
+        index.get_vector(7u64.into()).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(index.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
+    assert_eq!(index.get_vector(99u64.into()).unwrap(), None);
 }
 
 /// Both read spellings exist on both index types (#85). `ApproxIndex` had the
@@ -277,9 +280,12 @@ fn a_stored_vector_can_be_read_back() {
 fn both_read_spellings_exist_on_the_exact_index_too() {
     let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
     store.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
-    assert_eq!(store.get(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
-    assert_eq!(store.get_vector(7u64.into()).unwrap(), vec![1.0, 2.0, 3.0]);
-    assert!(store.get_vector(99u64.into()).is_err());
+    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
+    assert_eq!(
+        store.get_vector(7u64.into()).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(store.get_vector(99u64.into()).unwrap(), None);
 }
 
 /// The seed was hardcoded to 42, so reproducible graph construction was
@@ -350,7 +356,7 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
         1,
         "replacing must not grow the index"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), vec![5.0, 5.0, 5.0]);
+    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
     assert_eq!(
         index.tombstones().unwrap(),
         1,
@@ -372,7 +378,7 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
         index.contains(1u64.into()).unwrap(),
         "a failed upsert must not delete"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), vec![5.0, 5.0, 5.0]);
+    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
 }
 
 /// A beam width for one query, leaving the index's own setting alone.
@@ -477,9 +483,51 @@ fn to_bytes_round_trips_through_from_bytes() {
     assert_eq!(loaded.dimension(), 2);
     assert_eq!(loaded.metric(), "l2");
     assert_eq!(loaded.ef_search(), 32);
-    assert_eq!(loaded.get(101u64.into()).unwrap(), vec![1.0, 0.0]);
+    assert_eq!(loaded.get(101u64.into()).unwrap(), Some(vec![1.0, 0.0]));
     assert_eq!(loaded.search(&[1.0, 0.0], 1.0, None).unwrap().ids()[0], 101);
     assert_eq!(loaded.to_bytes().unwrap(), bytes);
+}
+
+/// The vocabulary settled by RFC 0011, as the WebAssembly column of
+/// `conformance/vocabulary/README.md`: a lookup miss is `undefined` (`None`
+/// here, which wasm-bindgen marshals to `undefined`), the count is `size()`,
+/// emptiness is `size() === 0`, `contains` stays the cheaper probe, `remove`
+/// of a missing id stays an error, and the beam default is the `efSearch`
+/// property — the JS spelling is asserted against the generated declarations
+/// in `tests/node.cjs`.
+#[wasm_bindgen_test]
+fn the_vocabulary_of_rfc_0011() {
+    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
+    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
+    assert_eq!(store.size().unwrap(), 0);
+    assert_eq!(index.size().unwrap(), 0);
+    assert_eq!(store.get(7u64.into()).unwrap(), None);
+    assert_eq!(store.get_vector(7u64.into()).unwrap(), None);
+    assert_eq!(index.get(7u64.into()).unwrap(), None);
+    assert_eq!(index.get_vector(7u64.into()).unwrap(), None);
+    assert!(!store.contains(7u64.into()).unwrap());
+    assert!(!index.contains(7u64.into()).unwrap());
+    assert!(
+        store.remove(7u64.into()).is_err(),
+        "remove is not named get"
+    );
+    assert!(
+        index.remove(7u64.into()).is_err(),
+        "remove is not named get"
+    );
+
+    store.add(7u64.into(), &[1.0, 0.0]).unwrap();
+    index.add(7u64.into(), &[1.0, 0.0]).unwrap();
+    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
+    assert_eq!(index.get_vector(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
+    assert_eq!(store.size().unwrap(), 1);
+    assert_eq!(index.size().unwrap(), 1);
+
+    assert_eq!(index.ef_search(), 50, "documented default");
+    index.set_ef_search(64.0).unwrap();
+    assert_eq!(index.ef_search(), 64);
+    assert!(index.set_ef_search(-1.0).is_err());
+    assert_eq!(index.ef_search(), 64, "a rejected value leaves the setting");
 }
 
 #[wasm_bindgen_test]

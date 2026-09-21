@@ -27,7 +27,7 @@ fn per_query_search_options_preserve_defaults_and_clamp_to_k() {
             .search_with(&query, 5, &SearchParams::new().ef_search(5))
             .unwrap()
     );
-    assert_eq!(index.get_ef_search(), 100);
+    assert_eq!(index.ef_search(), 100);
     assert_eq!(index.search(&query, 5).unwrap(), expected);
 }
 
@@ -167,11 +167,11 @@ fn hnsw_empty_index_save_load_roundtrip() {
     idx.save(&path).unwrap();
     let loaded = ApproxIndex::load(&path).unwrap();
     let _ = std::fs::remove_file(&path);
-    assert_eq!(loaded.size(), 0);
+    assert_eq!(loaded.len(), 0);
     assert_eq!(loaded.capacity(), 10);
     assert!(loaded.search(&[0.0; 4], 3).unwrap().is_empty());
     loaded.add(1, &[1.0, 2.0, 3.0, 4.0]).unwrap();
-    assert_eq!(loaded.size(), 1);
+    assert_eq!(loaded.len(), 1);
 }
 
 #[test]
@@ -199,12 +199,15 @@ fn hnsw_save_load_roundtrip() {
 
     // Verify metadata
     assert_eq!(loaded.dimension(), dim);
-    assert_eq!(loaded.size(), 20);
-    assert_eq!(loaded.get_ef_search(), 100);
+    assert_eq!(loaded.len(), 20);
+    assert_eq!(loaded.ef_search(), 100);
 
     // Verify vectors
     for i in 0..20u64 {
-        assert_eq!(idx.get_vector(i).unwrap(), loaded.get_vector(i).unwrap());
+        assert_eq!(
+            idx.get_vector(i).unwrap().unwrap(),
+            loaded.get_vector(i).unwrap().unwrap()
+        );
     }
 
     // Verify search produces same results
@@ -328,7 +331,7 @@ fn hnsw_add_batch_matches_serial_add() {
     }
     batched.add_batch(&ids, &flat).unwrap();
 
-    assert_eq!(batched.size(), n);
+    assert_eq!(batched.len(), n);
     for i in (0..n).step_by(23) {
         let q: Vec<f32> = (0..dim)
             .map(|j| ((i * 13 + j * 29) % 89) as f32 / 89.0)
@@ -353,7 +356,7 @@ fn hnsw_add_batch_grows_past_the_capacity_hint() {
     let ids: Vec<u64> = (0..8).collect();
     let flat = vec![1.0f32; 32];
     index.add_batch(&ids, &flat).expect("hint is not a ceiling");
-    assert_eq!(index.size(), 9);
+    assert_eq!(index.len(), 9);
     assert!(index.contains(0));
     assert!(index.contains(7));
 }
@@ -371,7 +374,7 @@ fn hnsw_add_batch_duplicate_is_all_or_nothing() {
         result,
         Err(vanedb::VaneError::DuplicateId { id: 5 })
     ));
-    assert_eq!(index.size(), 1);
+    assert_eq!(index.len(), 1);
     assert!(!index.contains(4));
 
     let result = index.add_batch(&[6, 6], &[1.0, 2.0, 3.0, 4.0]);
@@ -379,7 +382,7 @@ fn hnsw_add_batch_duplicate_is_all_or_nothing() {
         result,
         Err(vanedb::VaneError::DuplicateId { id: 6 })
     ));
-    assert_eq!(index.size(), 1);
+    assert_eq!(index.len(), 1);
 }
 
 #[test]
@@ -435,13 +438,13 @@ fn hnsw_add_batch_onto_nonempty_matches_serial_add() {
     }
     mixed.add_batch(&ids, &flat).unwrap();
 
-    assert_eq!(mixed.size(), n);
+    assert_eq!(mixed.len(), n);
     // Both the pre-existing and the batched ids must still resolve to their
     // own data — a batch that restarts at slot zero clobbers the former and
     // misfiles the latter.
     for i in (0..n).step_by(7) {
         assert_eq!(
-            mixed.get_vector(i as u64).unwrap(),
+            mixed.get_vector(i as u64).unwrap().unwrap(),
             vec_for(i),
             "wrong data for id {i}"
         );
@@ -504,7 +507,7 @@ fn per_query_ef_search_actually_takes_effect() {
         .search_with(&query, 10, &SearchParams::new().ef_search(600))
         .unwrap();
     assert_eq!(
-        index.get_ef_search(),
+        index.ef_search(),
         1,
         "search_with must not mutate the index"
     );

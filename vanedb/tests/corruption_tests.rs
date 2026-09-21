@@ -86,14 +86,14 @@ fn hnsw_load_accepts_v1_full_capacity_files() {
     let bytes = hnsw_file_bytes(1, &v1_full_capacity_payload());
     let p = write_tmp("v1_compat", &bytes);
     let idx = load_graph(&p).unwrap();
-    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.len(), 2);
     assert_eq!(idx.capacity(), 4);
-    assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
+    assert_eq!(idx.get_vector(10).unwrap().unwrap(), vec![1.0, 0.0]);
     let results = idx.search(&[1.0, 0.1], 1).unwrap();
     assert_eq!(results[0].id, 10);
     // Spare capacity from the v1 file must remain usable.
     idx.add(30, &[0.5, 0.5]).unwrap();
-    assert_eq!(idx.size(), 3);
+    assert_eq!(idx.len(), 3);
     let _ = fs::remove_file(&p);
 }
 
@@ -340,7 +340,10 @@ fn mmap_load_rejects_nonzero_reserved_header_bytes() {
         // SAFETY: this test file is unchanged until this iteration's map drops.
         let result = unsafe { DiskIndex::open(&path) };
         if reserved == 0 {
-            assert_eq!(result.unwrap().get(7).unwrap().as_ref(), [1.0, 2.0]);
+            assert_eq!(
+                result.unwrap().get(7).unwrap().unwrap().as_ref(),
+                [1.0, 2.0]
+            );
         } else {
             let error = result.unwrap_err();
             assert!(matches!(error, VaneError::Corrupt { .. }));
@@ -444,7 +447,7 @@ fn mmap_load_rejects_a_header_that_understates_the_payload() {
         matches!(opened, Err(VaneError::Corrupt { .. })),
         "a header whose declared geometry is shorter than the file must be \
          rejected, not reinterpreted at the wrong stride: {:?}",
-        opened.map(|i| (i.dimension(), i.size()))
+        opened.map(|i| (i.dimension(), i.len()))
     );
 
     let _ = fs::remove_file(&good);
@@ -482,7 +485,7 @@ fn mmap_load_rejects_every_single_bit_flip_in_the_geometry_fields() {
             let path = write_tmp(&format!("mmap_geometry_{byte}_{bit}"), &bytes);
             // SAFETY: this test owns the file and does not modify it while mapped.
             if let Ok(index) = unsafe { DiskIndex::open(&path) } {
-                accepted.push((byte, bit, index.dimension(), index.size()));
+                accepted.push((byte, bit, index.dimension(), index.len()));
             }
             let _ = fs::remove_file(&path);
         }
@@ -536,9 +539,9 @@ fn a_coordinated_geometry_rewrite_is_still_accepted() {
     let index = unsafe { DiskIndex::open(&path) }
         .expect("the length still matches, so this is accepted -- that is the point");
     assert_eq!(index.dimension(), 6);
-    assert_eq!(index.size(), 80);
+    assert_eq!(index.len(), 80);
     assert_ne!(
-        index.get(3).unwrap().as_ref(),
+        index.get(3).unwrap().unwrap().as_ref(),
         (0..dim).map(|d| (3 * 7 + d * 3) as f32).collect::<Vec<_>>(),
         "a coordinated rewrite yields vectors that were never stored"
     );
@@ -902,10 +905,10 @@ fn hnsw_load_accepts_the_checked_in_v1_fixture() {
     // bytes are frozen.
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/hnsw_v1.bin");
     let idx = load_graph(&path).expect("the committed v1 fixture must load");
-    assert_eq!(idx.size(), 2);
+    assert_eq!(idx.len(), 2);
     assert_eq!(idx.capacity(), 4);
-    assert_eq!(idx.get_vector(10).unwrap(), vec![1.0, 0.0]);
-    assert_eq!(idx.get_vector(20).unwrap(), vec![0.0, 1.0]);
+    assert_eq!(idx.get_vector(10).unwrap().unwrap(), vec![1.0, 0.0]);
+    assert_eq!(idx.get_vector(20).unwrap().unwrap(), vec![0.0, 1.0]);
     let hits = idx.search(&[1.0, 0.1], 1).unwrap();
     assert_eq!(hits[0].id, 10);
 }

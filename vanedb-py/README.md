@@ -66,13 +66,21 @@ Every path argument — `ApproxIndex.save`/`load`, `DiskIndexBuilder.save` and
 needs no `str()` around it.
 
 Supported metrics are `Metric.L2` (squared Euclidean distance),
-`Metric.COSINE`, and `Metric.DOT` (negative dot product).
+`Metric.COSINE`, and `Metric.DOT` (negative dot product). `Metric` is an
+`enum.IntEnum`, so `.name`, `.value`, `list(Metric)` and `Metric(1)` work as
+for any Python enum, and its values are the ones a `.vndb` file stores.
 For each metric, smaller distances rank first. Vectors must match the store or
 index dimension and contain finite values; IDs must be unique unsigned 64-bit
 integers.
 
+`len(index)` is the count on every index type and truth testing says whether
+it is empty; `size()` is kept as an alias for readers coming from C++ or
+JavaScript. `get` and `get_vector` return the stored vector, or `None` when
+nothing is stored under the id, so a lookup miss is a value rather than an
+exception; `contains` is the cheaper probe when the vector is not needed.
+
 Exceptions are chosen so a caller can branch on the type rather than parse the
-message. A missing id raises `KeyError`; validation errors, including negative
+message. Validation errors, including `remove` of a missing id and negative
 or out-of-range integer sizes and seeds, raise `ValueError`; a corrupt file
 raises `ValueError` and an absent one `FileNotFoundError`, so "load it, or build
 it if absent" needs no message matching. Other I/O failures raise `OSError`.

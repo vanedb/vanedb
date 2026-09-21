@@ -183,7 +183,7 @@ impl std::fmt::Debug for ApproxIndex {
         f.debug_struct("ApproxIndex")
             .field("dim", &self.dim)
             .field("metric", &self.metric)
-            .field("size", &self.size())
+            .field("len", &self.len())
             .field("m", &self.m)
             .field("ef_construction", &self.ef_construction)
             .finish()
@@ -257,14 +257,9 @@ impl ApproxIndex {
     }
 
     /// Number of vectors in the graph, excluding deleted ones.
-    pub fn size(&self) -> usize {
-        self.inner.read().live
-    }
-
-    /// Number of vectors in the graph, excluding deleted ones.
     ///
-    /// `len` and `size` are the same call; `len` is the Rust spelling and
-    /// `size` is what the C++ engine and the wasm bindings expose.
+    /// The one Rust spelling of the count (RFC 0011). The C ABI spells it
+    /// `vanedb_rs_index_len`, Python `len(index)` and WebAssembly `size()`.
     pub fn len(&self) -> usize {
         self.inner.read().live
     }
@@ -427,17 +422,19 @@ impl ApproxIndex {
     }
 
     /// Returns a copy of the vector stored under `id`.
-    pub fn get(&self, id: u64) -> Result<Vec<f32>> {
+    pub fn get(&self, id: u64) -> Result<Option<Vec<f32>>> {
         self.get_vector(id)
     }
 
     /// The vector stored under `id`. Same as [`get`](Self::get), which is the
     /// spelling `FlatIndex` and `DiskIndex` use; both exist so a program is
     /// not tied to one index type (#85).
-    pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
+    pub fn get_vector(&self, id: u64) -> Result<Option<Vec<f32>>> {
         let inner = self.inner.read();
-        let &iid = inner.id_map.get(&id).ok_or(VaneError::NotFound { id })?;
-        Ok(inner.vectors.get(iid).to_vec())
+        Ok(inner
+            .id_map
+            .get(&id)
+            .map(|&iid| inner.vectors.get(iid).to_vec()))
     }
 
     /// Sets the search beam width: higher recovers more true neighbours and
@@ -446,7 +443,7 @@ impl ApproxIndex {
     /// **A search uses `max(ef_search, k)`**, so every value at or below `k`
     /// behaves identically — setting 1, 5 or 10 before a `search(_, 10)` gives
     /// the same answers, which reads as the setting being ignored.
-    /// [`get_ef_search`](Self::get_ef_search) reports the stored value, not the
+    /// [`ef_search`](Self::ef_search) reports the stored value, not the
     /// effective one.
     ///
     /// This value is written into the graph file by [`save`](Self::save) and
@@ -458,8 +455,10 @@ impl ApproxIndex {
         self.ef_search.store(ef, Ordering::Relaxed);
     }
 
-    /// The current search beam width.
-    pub fn get_ef_search(&self) -> usize {
+    /// The current search beam width, as set by
+    /// [`set_ef_search`](Self::set_ef_search) or restored by
+    /// [`load`](Self::load). Default 50.
+    pub fn ef_search(&self) -> usize {
         self.ef_search.load(Ordering::Relaxed)
     }
 
@@ -1131,8 +1130,8 @@ mod tests {
         assert_eq!(idx.dimension(), 128);
         assert_eq!(idx.capacity(), 100_000);
         assert!(idx.is_empty());
-        assert_eq!(idx.size(), 0);
-        assert_eq!(idx.get_ef_search(), 50);
+        assert_eq!(idx.len(), 0);
+        assert_eq!(idx.ef_search(), 50);
     }
 
     #[test]
@@ -1169,7 +1168,7 @@ mod tests {
     fn set_ef_search() {
         let idx = ApproxIndex::builder(64, Metric::L2).build().unwrap();
         idx.set_ef_search(100);
-        assert_eq!(idx.get_ef_search(), 100);
+        assert_eq!(idx.ef_search(), 100);
     }
 
     #[test]
@@ -1179,9 +1178,9 @@ mod tests {
             .build()
             .unwrap();
         idx.add(1, &[1.0, 2.0, 3.0]).unwrap();
-        assert_eq!(idx.size(), 1);
+        assert_eq!(idx.len(), 1);
         assert!(idx.contains(1));
-        assert_eq!(idx.get_vector(1).unwrap(), vec![1.0, 2.0, 3.0]);
+        assert_eq!(idx.get_vector(1).unwrap().unwrap(), vec![1.0, 2.0, 3.0]);
     }
 
     #[test]
@@ -1193,7 +1192,7 @@ mod tests {
         for i in 0..50u64 {
             idx.add(i, &[i as f32, 0.0, 0.0]).unwrap();
         }
-        assert_eq!(idx.size(), 50);
+        assert_eq!(idx.len(), 50);
         for i in 0..50u64 {
             assert!(idx.contains(i));
         }
@@ -1228,7 +1227,7 @@ mod tests {
             idx.add(i, &[i as f32, i as f32])
                 .expect("capacity is a hint, not a ceiling");
         }
-        assert_eq!(idx.size(), 50);
+        assert_eq!(idx.len(), 50);
         // The graph must still be usable well past the hint.
         let hits = idx.search(&[49.0, 49.0], 1).unwrap();
         assert_eq!(hits[0].id, 49);
@@ -1260,7 +1259,7 @@ mod tests {
         ));
         assert_eq!(after_count, count);
         assert_eq!(snapshot(), before, "failed growth changed the graph");
-        assert_eq!(index.get_vector(7).unwrap(), [1.0]);
+        assert_eq!(index.get_vector(7).unwrap().unwrap(), [1.0]);
     }
 
     #[test]

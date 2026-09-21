@@ -131,11 +131,11 @@ fn loader_enforces_the_shared_id_map_contract() {
         if case.accept {
             let index =
                 result.unwrap_or_else(|e| panic!("{}: expected load to succeed: {e}", case.name));
-            assert_eq!(index.size(), case.count, "{}", case.name);
+            assert_eq!(index.len(), case.count, "{}", case.name);
             for (i, &ext_id) in case.ext_ids.iter().enumerate() {
                 assert!(index.contains(ext_id), "{}: {ext_id} not found", case.name);
                 assert_eq!(
-                    index.get_vector(ext_id).unwrap(),
+                    index.get_vector(ext_id).unwrap().unwrap(),
                     vec![i as f32, 0.0],
                     "{}: external id {ext_id} resolved to the wrong slot",
                     case.name

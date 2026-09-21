@@ -1,13 +1,16 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::{
-    PyFileNotFoundError, PyKeyError, PyOSError, PyOverflowError, PyRuntimeError, PyTypeError,
-    PyValueError,
+    PyFileNotFoundError, PyOSError, PyOverflowError, PyRuntimeError, PyTypeError, PyValueError,
 };
 use pyo3::prelude::*;
+use pyo3::sync::PyOnceLock;
+use pyo3::types::PyInt;
+use pyo3::Borrowed;
 
 use ::vanedb::approx::{ApproxIndex, Filter, SearchParams};
 use ::vanedb::distance::Metric;
@@ -22,11 +25,12 @@ fn to_pyerr(e: VaneError) -> PyErr {
     match &e {
         VaneError::FileNotFound { .. } => PyFileNotFoundError::new_err(e.to_string()),
         VaneError::Io { .. } => PyOSError::new_err(e.to_string()),
-        // A lookup miss is KeyError in Python, and it subclasses LookupError
-        // rather than ValueError, so `except KeyError` separates "no such id"
-        // from "wrong dimension" without parsing the message.
-        VaneError::NotFound { .. } => PyKeyError::new_err(e.to_string()),
-        // Corrupt data and every validation failure stay ValueError.
+        // A lookup miss is a value, not an error (RFC 0011): `get` returns
+        // `None`, so `NotFound` reaches Python only from `remove`, where a
+        // caller removing what is not there has a bug. That is the
+        // validation bucket, and `KeyError` is no longer raised by any method.
+        //
+        // Corrupt data and every validation failure are ValueError.
         //
         // The catch-all is right for validation, but `VaneError` is
         // `#[non_exhaustive]` and not every future variant is a validation
@@ -352,83 +356,106 @@ fn check_batch_len(ids: &[u64], rows: usize) -> PyResult<()> {
     Ok(())
 }
 
-/// Distance metric enum.
-///
-/// The `Py` prefix disambiguates these wrappers from the core types they hold,
-/// which are imported in this file. It is an implementation detail: the names
-/// exported to Python match `vanedb_cpp` exactly, so swapping engines is an
-/// import-line change.
-// `module` is what makes `__module__`, the class repr and the instance reprs
-// say `vanedb` rather than `builtins`. It is also what makes `__reduce__`
-// below work at all: pickle stores a class as `module.qualname` and resolves
-// it by importing that module, so `builtins.Metric` named nothing an unpickler
-// could find.
-#[pyclass(module = "vanedb", name = "Metric", eq, eq_int, from_py_object)]
+/// The Python `Metric` is a real `enum.IntEnum`, defined in
+/// `python/vanedb/__init__.py`, so it has `.name`, `.value`, iteration,
+/// hashing and pickling the way every other Python enum does (RFC 0011). A
+/// PyO3 class cannot be one: `iter(Metric)` needs `__iter__` on the
+/// *metaclass*, which `#[pyclass]` cannot supply. This side therefore holds
+/// only the wire values, which are also the on-disk `metric` field and the C
+/// ABI's `uint32_t`, and converts at the boundary in both directions.
 #[derive(Clone, Copy, PartialEq)]
-enum PyMetric {
-    L2 = 0,
-    #[pyo3(name = "COSINE")]
-    Cosine = 1,
-    #[pyo3(name = "DOT")]
-    Dot = 2,
+struct PyMetric(Metric);
+
+impl PyMetric {
+    const L2: u8 = 0;
+    const COSINE: u8 = 1;
+    const DOT: u8 = 2;
+
+    fn wire(self) -> u8 {
+        match self.0 {
+            Metric::Cosine => Self::COSINE,
+            Metric::Dot => Self::DOT,
+            // `Metric` is #[non_exhaustive]; a metric this binding does not
+            // know cannot be constructed through it, so L2 is unreachable-but-
+            // total rather than a silent substitution.
+            _ => Self::L2,
+        }
+    }
 }
 
-#[pymethods]
-impl PyMetric {
-    /// `#[pyclass(eq)]` sets `__hash__ = None`, which bars a metric from being
-    /// a dict key, a set member, or an `lru_cache` argument. The discriminant
-    /// is the only consistent choice: `eq_int` makes `Metric.L2 == 0` true, and
-    /// equal objects must hash alike.
-    fn __hash__(&self) -> isize {
-        *self as isize
-    }
+/// `vanedb.Metric`, looked up once. The package's `__init__` defines the
+/// enum after importing this extension, so the lookup happens at first use
+/// rather than at module initialisation, when the name does not exist yet.
+static METRIC_ENUM: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 
-    /// Pickle by name, the way `enum.Enum` does.
-    ///
-    /// PyO3 gives a `#[pyclass]` no `__reduce__`, so protocols 2 and up refused
-    /// at `dumps` while 0 and 1 fell through to `copyreg._reconstructor` and
-    /// *succeeded*, emitting a blob that recorded no variant and failed only at
-    /// `loads` — bytes already written somewhere by then. The variants are
-    /// singletons, so naming one restores the identical object.
-    ///
-    /// These are the Python-visible spellings, tracking the `#[pyo3(name)]`
-    /// renames on the enum rather than the Rust ones.
-    fn __reduce__<'py>(
-        &self,
-        py: Python<'py>,
-    ) -> PyResult<(Bound<'py, PyAny>, (Bound<'py, PyAny>, &'static str))> {
-        let name = match self {
-            PyMetric::L2 => "L2",
-            PyMetric::Cosine => "COSINE",
-            PyMetric::Dot => "DOT",
+fn metric_enum(py: Python<'_>) -> PyResult<&Bound<'_, PyAny>> {
+    METRIC_ENUM
+        .get_or_try_init(py, || {
+            py.import("vanedb")?.getattr("Metric").map(|m| m.unbind())
+        })
+        .map(|m| m.bind(py))
+}
+
+impl<'py> IntoPyObject<'py> for PyMetric {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    /// The `Metric` member for this value: `Metric(0)` is `Metric.L2`, so a
+    /// reported metric is the same singleton a caller passed in.
+    fn into_pyobject(self, py: Python<'py>) -> PyResult<Self::Output> {
+        metric_enum(py)?.call1((self.wire(),))
+    }
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for PyMetric {
+    type Error = PyErr;
+
+    /// A `Metric` member, or any integer holding one of its values: `IntEnum`
+    /// members are ints, so `Metric.COSINE` and `1` name the same metric and
+    /// `Metric(1)` is how the enum itself spells that. "Integer" is decided
+    /// by `__index__`, the way `Metric(...)` itself decides it, so a NumPy
+    /// integer is accepted and so is `bool` (`Metric(True)` is
+    /// `Metric.COSINE`). Anything else is a `TypeError`; an integer naming
+    /// no metric is a `ValueError`, as `Metric(7)` would be.
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+        let py = obj.py();
+        let enum_class = metric_enum(py)?;
+        if !obj.is_instance(enum_class)? && !obj.hasattr("__index__")? {
+            return Err(PyTypeError::new_err(format!(
+                "metric must be a vanedb.Metric, got {}",
+                obj.get_type().name()?
+            )));
+        }
+        // `__index__` turns a member, a NumPy integer or a bool into the plain
+        // int the enum looks up by value; routing through the enum makes an
+        // unknown value fail the way the enum says:
+        // `ValueError: 7 is not a valid Metric`.
+        let value = obj.call_method0("__index__")?;
+        let member = enum_class.call1((value,))?;
+        let metric = match member.getattr("value")?.extract::<u8>()? {
+            Self::L2 => Metric::L2,
+            Self::COSINE => Metric::Cosine,
+            Self::DOT => Metric::Dot,
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "{other} is not a valid Metric"
+                )))
+            }
         };
-        Ok((
-            py.import("builtins")?.getattr("getattr")?,
-            (py.get_type::<PyMetric>().into_any(), name),
-        ))
+        Ok(PyMetric(metric))
     }
 }
 
 impl From<Metric> for PyMetric {
     fn from(m: Metric) -> Self {
-        match m {
-            Metric::Cosine => PyMetric::Cosine,
-            Metric::Dot => PyMetric::Dot,
-            // `Metric` is #[non_exhaustive]; a metric this binding does not
-            // know cannot be constructed through it, so L2 is unreachable-but-
-            // total rather than a silent substitution.
-            _ => PyMetric::L2,
-        }
+        PyMetric(m)
     }
 }
 
 impl From<PyMetric> for Metric {
     fn from(m: PyMetric) -> Self {
-        match m {
-            PyMetric::L2 => Metric::L2,
-            PyMetric::Cosine => Metric::Cosine,
-            PyMetric::Dot => Metric::Dot,
-        }
+        m.0
     }
 }
 
@@ -441,7 +468,7 @@ struct PyStore {
 #[pymethods]
 impl PyStore {
     #[new]
-    #[pyo3(signature = (dim, metric=PyMetric::L2))]
+    #[pyo3(signature = (dim, metric=PyMetric(Metric::L2)))]
     fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         let inner = FlatIndex::new(dim, metric.into()).map_err(to_pyerr)?;
         Ok(Self { inner })
@@ -499,7 +526,14 @@ impl PyStore {
         })
     }
 
-    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+    /// The vector stored under `id`, or `None` when no vector is stored under
+    /// it. A miss is a value, not an error (RFC 0011); `contains` is the
+    /// cheaper probe when the vector is not needed.
+    fn get(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Option<Vec<f32>>> {
         reject_reentry(self)?;
         py.detach(|| self.inner.get(id)).map_err(to_pyerr)
     }
@@ -510,10 +544,13 @@ impl PyStore {
         &self,
         py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
-    ) -> PyResult<Vec<f32>> {
+    ) -> PyResult<Option<Vec<f32>>> {
         self.get(py, id)
     }
 
+    /// Removes the vector stored under `id`. Raises `ValueError` when none is:
+    /// a caller that removes what is not there has a bug, and `remove` is not
+    /// named `get`.
     fn remove(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<()> {
         reject_reentry(self)?;
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
@@ -524,16 +561,15 @@ impl PyStore {
         Ok(py.detach(|| self.inner.contains(id)))
     }
 
+    /// `len(index)` is the count and `not index` the emptiness test, as for
+    /// any Python container.
     fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
         reject_reentry(self)?;
         Ok(py.detach(|| self.inner.len()))
     }
 
-    /// Number of vectors stored.
-    ///
-    /// `len(store)` is the Pythonic spelling; `size()` is what vanedb_cpp and
-    /// the wasm bindings expose. Both work here so neither spelling ties a
-    /// program to one engine (#85).
+    /// Number of vectors stored: an alias of `len(index)`, kept because it is
+    /// the spelling C++ and JavaScript users type first (RFC 0011).
     fn size(&self, py: Python<'_>) -> PyResult<usize> {
         reject_reentry(self)?;
         Ok(py.detach(|| self.inner.len()))
@@ -562,7 +598,7 @@ struct PyIndex {
 #[pymethods]
 impl PyIndex {
     #[new]
-    #[pyo3(signature = (dim, metric=PyMetric::L2, capacity=100000, m=16, ef_construction=200, seed=42))]
+    #[pyo3(signature = (dim, metric=PyMetric(Metric::L2), capacity=100000, m=16, ef_construction=200, seed=42))]
     fn new(
         #[pyo3(from_py_with = one_usize)] dim: usize,
         metric: PyMetric,
@@ -654,11 +690,14 @@ impl PyIndex {
         })
     }
 
+    /// The vector stored under `id`, or `None` when no vector is stored under
+    /// it. A miss is a value, not an error (RFC 0011); `contains` is the
+    /// cheaper probe when the vector is not needed.
     fn get_vector(
         &self,
         py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
-    ) -> PyResult<Vec<f32>> {
+    ) -> PyResult<Option<Vec<f32>>> {
         reject_reentry(self)?;
         py.detach(|| self.inner.get_vector(id)).map_err(to_pyerr)
     }
@@ -666,7 +705,11 @@ impl PyIndex {
     /// The same operation as `get_vector`, under the spelling `FlatIndex` and
     /// `DiskIndex` use. Both exist so a program that outgrows an exact index
     /// does not have to rename every call site (#85).
-    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+    fn get(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Option<Vec<f32>>> {
         self.get_vector(py, id)
     }
 
@@ -705,9 +748,12 @@ impl PyIndex {
         Ok(Self { inner })
     }
 
+    /// The index's own search beam width: the default a `search` without
+    /// `ef_search=` uses, and the value `save` writes into the file. Default
+    /// 50.
     #[getter]
     fn ef_search(&self) -> usize {
-        self.inner.get_ef_search()
+        self.inner.ef_search()
     }
 
     #[setter]
@@ -715,9 +761,11 @@ impl PyIndex {
         self.inner.set_ef_search(ef);
     }
 
+    /// `len(index)` is the live count and `not index` the emptiness test, as
+    /// for any Python container.
     fn __len__(&self, py: Python<'_>) -> PyResult<usize> {
         reject_reentry(self)?;
-        Ok(py.detach(|| self.inner.size()))
+        Ok(py.detach(|| self.inner.len()))
     }
 
     /// Inserts `vector` under `id`, replacing any existing entry.
@@ -754,7 +802,9 @@ impl PyIndex {
         py.detach(|| self.inner.compact()).map_err(to_pyerr)
     }
 
-    /// Removes the vector stored under `id`.
+    /// Removes the vector stored under `id`. Raises `ValueError` when none is:
+    /// a caller that removes what is not there has a bug, and `remove` is not
+    /// named `get`.
     ///
     /// Tombstoned: the node keeps its graph links, which may be the only
     /// route between live neighbourhoods, and simply stops appearing in
@@ -764,10 +814,11 @@ impl PyIndex {
         py.detach(|| self.inner.remove(id)).map_err(to_pyerr)
     }
 
-    /// Number of vectors in the graph. See `FlatIndex.size`.
+    /// Number of vectors in the graph: an alias of `len(index)`. See
+    /// `FlatIndex.size`.
     fn size(&self, py: Python<'_>) -> PyResult<usize> {
         reject_reentry(self)?;
-        Ok(py.detach(|| self.inner.size()))
+        Ok(py.detach(|| self.inner.len()))
     }
 
     /// The metric this index was built with.
@@ -835,7 +886,7 @@ struct PyDiskStoreBuilder {
 #[pymethods]
 impl PyDiskStoreBuilder {
     #[new]
-    #[pyo3(signature = (dim, metric=PyMetric::L2))]
+    #[pyo3(signature = (dim, metric=PyMetric(Metric::L2)))]
     fn new(#[pyo3(from_py_with = one_usize)] dim: usize, metric: PyMetric) -> PyResult<Self> {
         Ok(Self {
             inner: parking_lot::RwLock::new(
@@ -864,11 +915,13 @@ impl PyDiskStoreBuilder {
     }
 
     fn __len__(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.read().size())
+        py.detach(|| self.inner.read().len())
     }
 
+    /// Number of vectors collected so far: an alias of `len(builder)`. See
+    /// `FlatIndex.size`.
     fn size(&self, py: Python<'_>) -> usize {
-        py.detach(|| self.inner.read().size())
+        py.detach(|| self.inner.read().len())
     }
 
     #[getter]
@@ -930,11 +983,18 @@ impl PyDiskStore {
         })
     }
 
-    fn get(&self, py: Python<'_>, #[pyo3(from_py_with = one_id)] id: u64) -> PyResult<Vec<f32>> {
+    /// The vector stored under `id`, or `None` when no vector is stored under
+    /// it. A miss is a value, not an error (RFC 0011); `contains` is the
+    /// cheaper probe when the vector is not needed.
+    fn get(
+        &self,
+        py: Python<'_>,
+        #[pyo3(from_py_with = one_id)] id: u64,
+    ) -> PyResult<Option<Vec<f32>>> {
         reject_reentry(self)?;
         // Reads through the mapping, which can take a major page fault on a
         // cold file — the same reason `search` detaches.
-        py.detach(|| self.inner.get(id).map(|v| v.into_owned()))
+        py.detach(|| self.inner.get(id).map(|v| v.map(Cow::into_owned)))
             .map_err(to_pyerr)
     }
 
@@ -944,7 +1004,7 @@ impl PyDiskStore {
         &self,
         py: Python<'_>,
         #[pyo3(from_py_with = one_id)] id: u64,
-    ) -> PyResult<Vec<f32>> {
+    ) -> PyResult<Option<Vec<f32>>> {
         self.get(py, id)
     }
 
@@ -955,12 +1015,14 @@ impl PyDiskStore {
 
     fn __len__(&self) -> PyResult<usize> {
         reject_reentry(self)?;
-        Ok(self.inner.size())
+        Ok(self.inner.len())
     }
 
+    /// Number of vectors in the mapped file: an alias of `len(index)`. See
+    /// `FlatIndex.size`.
     fn size(&self) -> PyResult<usize> {
         reject_reentry(self)?;
-        Ok(self.inner.size())
+        Ok(self.inner.len())
     }
 
     /// The metric this index was built with.
@@ -985,7 +1047,9 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // disagreed with the wheel's own metadata the first time the
     // version moved.
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add_class::<PyMetric>()?;
+    // `Metric` is defined in `python/vanedb/__init__.py` as an `enum.IntEnum`
+    // (see `PyMetric`), so it is not a class of this module. `__all__` below
+    // is what `__init__` star-imports, and it adds `Metric` itself.
     m.add_class::<PyStore>()?;
     m.add_class::<PyIndex>()?;
     m.add_class::<PyDiskStore>()?;
@@ -996,7 +1060,6 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "__all__",
         vec![
-            "Metric",
             "FlatIndex",
             "ApproxIndex",
             "DiskIndex",

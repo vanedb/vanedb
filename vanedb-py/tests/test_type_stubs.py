@@ -5,6 +5,7 @@ confidently autocompletes a method that does not exist.
 """
 
 import ast
+import enum
 import inspect
 import pathlib
 
@@ -31,11 +32,18 @@ def _stub_classes() -> dict[str, set[str]]:
                     members.add(item.name)
                 elif isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name):
                     members.add(item.target.id)
+                elif isinstance(item, ast.Assign):
+                    # Enum members are plain assignments: `L2 = 0`.
+                    members.update(t.id for t in item.targets if isinstance(t, ast.Name))
             classes[node.name] = members
     return classes
 
 
 def _runtime_members(obj: type) -> set[str]:
+    if issubclass(obj, enum.Enum):
+        # `dir()` on an IntEnum lists every int method; the members are the
+        # surface the stub declares.
+        return set(obj.__members__)
     return {
         name
         for name in dir(obj)

@@ -60,7 +60,7 @@ fn the_id_can_be_reused_after_removal() {
     idx.add(4, &[100.0, 0.0]).unwrap();
     assert!(idx.contains(4));
     assert_eq!(idx.len(), 10);
-    assert_eq!(idx.get_vector(4).unwrap(), vec![100.0, 0.0]);
+    assert_eq!(idx.get_vector(4).unwrap().unwrap(), vec![100.0, 0.0]);
     // The new position is what is found, not the old one.
     let hits = idx.search(&[100.0, 0.0], 1).unwrap();
     assert_eq!(hits[0].id, 4);

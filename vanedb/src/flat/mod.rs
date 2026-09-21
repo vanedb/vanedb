@@ -143,22 +143,29 @@ impl FlatIndex {
         Ok(())
     }
 
-    /// Returns a copy of the vector stored under `id`.
-    pub fn get(&self, id: u64) -> Result<Vec<f32>> {
+    /// A copy of the vector stored under `id`, or `None` when no vector is
+    /// stored under it.
+    ///
+    /// A miss is a value, not an error (RFC 0011): `Ok(None)` is the answer to
+    /// "is there a vector here?", the same way [`contains`](Self::contains)
+    /// answers it without the copy. The `Result` is reserved for a read that
+    /// cannot be served at all; nothing in this store fails that way today.
+    /// The data sits behind a lock, so the vector is copied out rather than
+    /// borrowed.
+    pub fn get(&self, id: u64) -> Result<Option<Vec<f32>>> {
         let inner = self.inner.read();
-        let &index = inner
-            .id_to_index
-            .get(&id)
-            .ok_or(VaneError::NotFound { id })?;
+        let Some(&index) = inner.id_to_index.get(&id) else {
+            return Ok(None);
+        };
         let start = index * self.dim;
-        Ok(inner.data[start..start + self.dim].to_vec())
+        Ok(Some(inner.data[start..start + self.dim].to_vec()))
     }
 
     /// The vector stored under `id`. Same as [`get`](Self::get), which is the
     /// spelling `DiskIndex` uses; both exist so a program is not tied to one
     /// index type (#85). The Python and C bindings already carried both
     /// spellings on every index — this is the Rust half of that promise.
-    pub fn get_vector(&self, id: u64) -> Result<Vec<f32>> {
+    pub fn get_vector(&self, id: u64) -> Result<Option<Vec<f32>>> {
         self.get(id)
     }
 
@@ -193,17 +200,11 @@ impl FlatIndex {
     }
 
     /// Number of vectors stored.
+    ///
+    /// The one Rust spelling of the count (RFC 0011). The C ABI spells it
+    /// `vanedb_rs_store_len`, Python `len(index)` and WebAssembly `size()`.
     pub fn len(&self) -> usize {
         self.inner.read().ids.len()
-    }
-
-    /// Number of vectors stored.
-    ///
-    /// The same count as [`len`](Self::len). Both spellings exist so a program
-    /// is not tied to one engine: `size` is what the C++ engine and the wasm
-    /// bindings expose (#85). The C ABI spells it `vanedb_rs_store_len`.
-    pub fn size(&self) -> usize {
-        self.len()
     }
 
     /// Whether the store holds no vectors.
@@ -303,7 +304,7 @@ mod tests {
         let store = FlatIndex::new(3, Metric::L2).unwrap();
         let vec = vec![1.0, 2.0, 3.0];
         store.add(1, &vec).unwrap();
-        assert_eq!(store.get(1).unwrap(), vec);
+        assert_eq!(store.get(1).unwrap(), Some(vec));
     }
 
     #[test]
@@ -332,7 +333,8 @@ mod tests {
     #[test]
     fn get_missing_id() {
         let store = FlatIndex::new(3, Metric::L2).unwrap();
-        assert!(matches!(store.get(42), Err(VaneError::NotFound { id: 42 })));
+        assert_eq!(store.get(42).unwrap(), None);
+        assert_eq!(store.get_vector(42).unwrap(), None);
     }
 
     #[test]
@@ -344,7 +346,7 @@ mod tests {
         assert!(!store.contains(1));
         assert!(store.contains(2));
         assert_eq!(store.len(), 1);
-        assert_eq!(store.get(2).unwrap(), vec![4.0, 5.0, 6.0]);
+        assert_eq!(store.get(2).unwrap(), Some(vec![4.0, 5.0, 6.0]));
     }
 
     #[test]
@@ -477,7 +479,7 @@ mod tests {
         let vectors = [1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0];
         store.add_batch(&ids, &vectors).unwrap();
         assert_eq!(store.len(), 3);
-        assert_eq!(store.get(2).unwrap(), vec![2.0, 2.0, 2.0]);
+        assert_eq!(store.get(2).unwrap().unwrap(), vec![2.0, 2.0, 2.0]);
         let results = store.search(&[2.0, 2.0, 2.1], 1).unwrap();
         assert_eq!(results[0].id, 2);
     }
@@ -545,7 +547,7 @@ mod tests {
         for id in 1..=5u64 {
             let v = id as f32;
             assert_eq!(
-                store.get(id).unwrap(),
+                store.get(id).unwrap().unwrap(),
                 vec![v, v, v],
                 "wrong data for id {id}"
             );
