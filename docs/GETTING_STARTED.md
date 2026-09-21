@@ -196,8 +196,8 @@ answer the query; this small example is a connectivity check, not a quality benc
    examples here. Other embedding models may call for dot product or L2.
 4. **VaneDB stores only `(id, vector)`.** No text or metadata. Keep
    your own id-to-document mapping — a dict, a JSON file, a SQLite table — and
-   save it alongside the index. Filtered search in the upcoming 0.2.0 release
-   accepts sorted ID allow/deny lists or a predicate over your external metadata;
+   save it alongside the index. Filtered search (0.2.0, unreleased) accepts
+   sorted ID allow/deny lists or a predicate over your external metadata;
    it does not store that metadata for you. Exact indexes return the nearest
    matches; approximate search can miss matches at its beam cap. Predicates
    must not call methods on the index being searched.
