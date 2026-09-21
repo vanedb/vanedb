@@ -125,8 +125,9 @@ The cap bounds beam width, not the total number of distance evaluations.
 Tuning rule of thumb: the initial beam is what sets recall, so size
 `ef_search` on the order of `k` divided by the fraction of ids the filter
 accepts — `k = 10` at 10% selectivity wants a beam near 100, at 1% near
-1,000 — and then raise `max_ef_search` so the cap stays several times the
-beam. Raising only the cap does not improve quality: a wider cap changes
+1,000 — and leave `max_ef_search` at its default of four times the beam, or
+raise it if results still fall short of `k`. Raising only the cap does not
+improve quality: a wider cap changes
 which queries fill up to `k`, not how good the matches already returned are.
 The measured table in
 [the 0.2.0 filtered-search validation record](docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings)

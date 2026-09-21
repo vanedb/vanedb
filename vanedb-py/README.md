@@ -123,8 +123,10 @@ excluded nodes available for graph traversal and can return fewer than `k`
 matches. `max_ef_search` limits beam widening, defaulting to four times the
 effective initial beam; it does not impose a hard limit on nodes visited.
 As a rule of thumb, set `ef_search` on the order of `k` divided by the
-fraction of ids the filter accepts, then raise `max_ef_search`; raising only
-the cap does not improve results that already fill `k`. Measured recall at
+fraction of ids the filter accepts, and leave `max_ef_search` at its default
+of four times the beam, or raise it if results still fall short of `k`;
+raising only the cap does not improve results that already fill `k`.
+Measured recall at
 several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 

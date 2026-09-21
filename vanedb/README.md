@@ -57,9 +57,10 @@ An approximate search widens its beam when fewer than `k` results match, up to
 tradeoff, not a guarantee of `k` results or a strict bound on distance evaluations.
 
 As a rule of thumb, set `ef_search` on the order of `k` divided by the
-fraction of ids the filter accepts, then raise `max_ef_search` so the cap
-stays several times the beam. Raising only the cap does not improve the
-quality of results that already fill `k`, because widening stops there.
+fraction of ids the filter accepts, and leave `max_ef_search` at its default
+of four times the beam, or raise it if results still fall short of `k`.
+Raising only the cap does not improve the quality of results that already
+fill `k`, because widening stops there.
 Measured recall at several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 

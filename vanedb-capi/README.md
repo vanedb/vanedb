@@ -121,12 +121,13 @@ typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
 ```
 
 and returns true to accept an id. It runs synchronously on the calling thread
-while the searched handle's read lock is held, and the graph search may call
-it more than once for the same id as it widens its beam. It must not access,
-modify or free the handle being searched — same-index re-entrancy under that
-lock — and must not modify or free the search buffers. Calls on other handles
-are allowed; an error such a call records does not replace the outer search's
-result. The callback and everything `user_data` points to must stay valid
+while a store or index handle's read lock is held (a disk handle has no
+lock), and the graph search may call it more than once for the same id as it
+widens its beam. It must not access, modify or free the handle being searched
+(re-entering the same index under that lock) and must not modify or free the
+search buffers. Calls on other handles are allowed; an error such a call
+records does not replace the outer search's result. The callback and
+everything `user_data` points to must stay valid
 until the search returns. No foreign exception or `longjmp` may cross the
 callback. A Rust callback declared `extern "C-unwind"` may panic: the panic is
 caught at the boundary, the search returns zero with `VANEDB_RS_PANIC`, the
@@ -134,14 +135,28 @@ result buffers are untouched, and the handle remains usable afterwards. ID
 lists are the fast path because they never cross the language boundary per
 candidate.
 
+For example, a graph search restricted to two ids:
+
+```c
+const uint64_t allow[] = {101, 202};          /* strictly ascending */
+uint64_t ids[10]; float dists[10];
+size_t n = vanedb_rs_index_search_filtered(index, query, 10, 0,
+    NULL, NULL,                                /* no callback */
+    allow, 2, NULL, 0, ids, dists);            /* allow list; no deny list */
+```
+
+The store and disk variants take the same arguments without `ef_search`.
+[`examples/ctypes_quickstart.py`](examples/ctypes_quickstart.py) makes the
+store call from Python, including the `CFUNCTYPE` declaration for a callback.
+
 `vanedb_rs_index_search_filtered` takes `ef_search` under the same rule as the
 plain graph search: `0` uses the handle's setting. The C ABI omits the beam
 cap (`max_ef_search` in Rust, Python and WebAssembly) by design: a filtered
 graph search widens its beam up to the core's default of four times the
-initial beam, capped at the stored slot count. Raise `ef_search` on the call
-to improve recall under a selective filter — on the order of `k` divided by
-the fraction of ids the filter accepts — since the cap alone does not improve
-results that already fill `k`. Measured recall at several selectivities is in
+initial beam. Raise `ef_search` on the call to improve recall under a
+selective filter — on the order of `k` divided by the fraction of ids the
+filter accepts — since the cap alone does not improve results that already
+fill `k`. Measured recall at several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 ### Calling from Python with ctypes

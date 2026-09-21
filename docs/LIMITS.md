@@ -19,7 +19,7 @@ a limit are named beside it.
 | `k` | at least 1; the graph's effective beam is at least `k` | validation | none planned |
 | Payload | none stored | | RFC 0009 |
 | Metadata filtering | external ID allow/deny lists and predicates (0.2.0, unreleased); no metadata is stored | `SearchParams::filter` on every index (RFC 0004) | RFC 0009 adds stored payload |
-| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included | `ApproxIndex::search_with`; bounds the beam, not the distance evaluations | none planned |
+| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included | `ApproxIndex::search_with`; bounds the beam, not the distance evaluations | the widening fix (RFC 0004 follow-up) |
 | Allow/deny list length | no limit beyond address space (the C ABI rejects a length above `isize::MAX / 8`); entries must be strictly ascending with no duplicates | validation on every search | none planned |
 | Filter predicates | synchronous, called on the searching thread, possibly more than once per id on the graph; run under the index's read lock (`FlatIndex`, `ApproxIndex`) so they must not touch the searched index, though they may consult other indexes; a C callback must not unwind a foreign exception or `longjmp` | `Filter::Predicate`; C `vanedb_rs_filter_fn` | none planned |
 | `ef_search` / `max_ef_search` on `FlatIndex` and `DiskIndex` | ignored: exact scans have no beam, only the filter is read | `SearchParams` | none planned |
