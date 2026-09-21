@@ -94,6 +94,71 @@ handle's own setting, which `vanedb_rs_index_ef_search()` reports. Note that
 `vanedb_cpp_index_search` rejects `0` rather than resolving it — the two ABIs
 are otherwise callable through one uniform FFI.
 
+### Filtered search
+
+`vanedb_rs_store_search_filtered`, `vanedb_rs_index_search_filtered` and
+`vanedb_rs_disk_search_filtered` take the same query, `k` and output buffers
+as the plain searches, plus at most one filter: a callback with its
+`user_data`, an allow list, or a deny list. A callback combined with a list,
+or both lists together, fails with `VANEDB_RS_INVALID_PARAMETER`. With a null
+callback and null list pointers the call is an ordinary unfiltered search.
+
+A list is selected by pointer presence, not by length. A non-null pointer with
+a length of zero is an empty list: an empty allow list matches nothing and an
+empty deny list matches everything. A null pointer must come with a zero
+length; null with a nonzero length fails with `VANEDB_RS_NULL_ARGUMENT`. Lists
+must be sorted strictly ascending with no duplicates — an unsorted or
+duplicated id fails with `VANEDB_RS_INVALID_PARAMETER`, as does a length that
+cannot fit in the platform's address space. Every rejected call returns zero
+and leaves `out_ids` and `out_dists` untouched, so as with the other searches,
+branch on `vanedb_rs_last_error()` to tell a rejected call from a search that
+found no matches.
+
+A callback has the type
+
+```c
+typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
+```
+
+and returns true to accept an id. It runs synchronously on the calling thread
+while a store or index handle's read lock is held (a disk handle has no
+lock), and the graph search may call it more than once for the same id as it
+widens its beam. It must not access, modify or free the handle being searched
+(re-entering the same index under that lock) and must not modify or free the
+search buffers. Calls on other handles are allowed; an error such a call
+records does not replace the outer search's result. The callback and
+everything `user_data` points to must stay valid
+until the search returns. No foreign exception or `longjmp` may cross the
+callback. A Rust callback declared `extern "C-unwind"` may panic: the panic is
+caught at the boundary, the search returns zero with `VANEDB_RS_PANIC`, the
+result buffers are untouched, and the handle remains usable afterwards. ID
+lists are the fast path because they never cross the language boundary per
+candidate.
+
+For example, a graph search restricted to two ids:
+
+```c
+const uint64_t allow[] = {101, 202};          /* strictly ascending */
+uint64_t ids[10]; float dists[10];
+size_t n = vanedb_rs_index_search_filtered(index, query, 10, 0,
+    NULL, NULL,                                /* no callback */
+    allow, 2, NULL, 0, ids, dists);            /* allow list; no deny list */
+```
+
+The store and disk variants take the same arguments without `ef_search`.
+[`examples/ctypes_quickstart.py`](examples/ctypes_quickstart.py) makes the
+store call from Python, including the `CFUNCTYPE` declaration for a callback.
+
+`vanedb_rs_index_search_filtered` takes `ef_search` under the same rule as the
+plain graph search: `0` uses the handle's setting. The C ABI omits the beam
+cap (`max_ef_search` in Rust, Python and WebAssembly) by design: a filtered
+graph search widens its beam up to the core's default of four times the
+initial beam. Raise `ef_search` on the call to improve recall under a
+selective filter — on the order of `k` divided by the fraction of ids the
+filter accepts — since the cap alone does not improve results that already
+fill `k`. Measured recall at several selectivities is in
+[the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
+
 ### Calling from Python with ctypes
 
 Declare `restype` and `argtypes` for **every** function before calling it.
