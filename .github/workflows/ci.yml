@@ -133,6 +133,10 @@ jobs:
         shell: bash
         run: python3 scripts/test_capi_abidiff.py
 
+      - name: Signed C ABI release inventory and publication guard tests
+        shell: bash
+        run: python3 scripts/test_capi_release.py
+
       # Every RFC needs a valid status line and a row in both indexes, or the
       # roadmap stops being an index of anything.
       - name: RFC index checks

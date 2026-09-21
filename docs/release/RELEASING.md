@@ -173,11 +173,14 @@ through protected main.
 
   Scoped packages default to private, which is why the publish step passes
   `--access public`.
-- C library archives come from the
-  approved commit's CI artifacts. Attach the C archives with their runtime
-  compatibility metadata, and `vanedb-wasm-<version>-nodejs.tgz` and
-  `vanedb-wasm-<version>-web.tgz`, each with its matching checksum. There is no
-  automatic C++ package publication.
+- C library archives use the same `vanedb-crate-v<version>` tag through
+  `publish-capi.yml`. It builds and tests all five native distributions,
+  creates target-specific CycloneDX SBOMs and signs every release payload
+  before the protected `capi-release` job attaches the retained bytes. See
+  the signed C distribution procedure below. Do not manually replace those
+  assets. Raw `vanedb-wasm-<version>-nodejs.tgz` and
+  `vanedb-wasm-<version>-web.tgz` assets, when attached, retain their matching
+  checksums. There is no automatic C++ package publication.
 
 After publication, verify registry version metadata and install the published
 packages in clean environments. Run the documented quickstarts and check that
@@ -190,3 +193,71 @@ If publication fails, inspect which versions and files were actually accepted
 before retrying. Preserve published versions and tags; do not delete or move
 them to conceal a partial release. Record the failure and choose the next action
 with the maintainer.
+
+
+## Signed C distribution (RFC 0002 stage 5)
+
+Before the first release, configure the `capi-release` GitHub environment with
+required maintainer reviewers and the intended release-tag deployment rule.
+The workflow names the environment; that alone does not prove its protection
+is configured. No new registry credentials or long-lived signing key is used.
+Only the signing job receives `id-token: write`; only the tag publication job
+receives `contents: write`. Native build jobs have read-only repository access.
+
+Rehearse **from the candidate branch** with
+`gh workflow run publish-crate.yml --ref "$candidate_branch"`. Its reusable
+`publish-capi.yml` runs from that same commit, so this also works before the
+new C workflow exists on the default branch. Dispatches naming
+a tag are rejected, and the upload job additionally requires a tag **push**.
+A rehearsal generates real keyless signatures with its branch identity and
+retains the verified set in the `capi-signed-release` workflow artifact; it
+creates no GitHub Release and publishes no package. Record its run URL and
+source commit, download that artifact into an empty directory, and run:
+
+```sh
+python3 scripts/capi_release.py verify --directory /path/to/capi-signed-release \
+  --ref "refs/heads/$candidate_branch" --version 0.2.0 --commit <approved-full-sha>
+```
+
+Use the actual candidate version until the version-bump PR lands. Install the
+pinned cosign version listed in `CAPI-VERIFYING.md`. The verifier checks every
+signature's exact workflow identity and OIDC issuer, all checksums, versions,
+source provenance, archive contents and the complete five-platform inventory.
+A branch signature cannot satisfy the tag-identity check after release.
+
+The workflow builds natively on Linux x86-64/ARM64, macOS ARM64/x86-64 and
+Windows x64 with the `capi` profile and Rust 1.94.0. Each job runs C ABI tests,
+header checks, and `package_capi.py`'s extracted static/shared CMake and
+pkg-config acceptance before upload. Cargo CycloneDX 0.5.9 generates a separate
+CycloneDX 1.5 JSON file for each target using the same lockfile and default C
+ABI features. The lockfile must remain unchanged. SBOMs include build-time
+Cargo dependencies, not the OS libraries recorded in `compatibility.json`.
+The five native platforms are an explicit release tripwire; future mobile or
+additional platform assets require updating the matrix, inventory and tests
+together. This release does not claim stages 2–4.
+
+The assembled set contains 13 payloads and 13 Sigstore bundles: five archives,
+five SBOMs, `CAPI-RELEASE.json`, `CAPI-VERIFYING.md`, and `SHA256SUMS`.
+`SHA256SUMS` lists the other 12 payloads; it is separately signed, as is each
+payload. The manifest records the exact source SHA, target compatibility
+metadata and archive/SBOM hashes. Signing uses pinned cosign 3.1.3 via an
+immutable installer action, and verifies the signatures before retaining them.
+
+After explicit release authorization, a matching crate-tag push must resolve
+to the approved commit on main. The protected publication job downloads the
+retained signed artifact, verifies it again, and attaches it to that tag's
+release without rebuilding. If the release is absent it creates a draft,
+uploads the complete set, downloads and verifies the actual remote bytes, then
+publishes the draft. If a release already exists its human-written notes are
+preserved and the exact verification instructions appended. Existing assets
+are accepted only when byte-identical; no `--clobber`, tag deletion or tag
+movement is used. The published notes contain copyable verification commands
+with the exact tag identity and approved source SHA.
+
+If upload is interrupted, preserve the draft and any uploaded files. Re-run
+only the failed publication job so it retrieves the same signed artifact;
+regenerating signatures or rebuilding produces a different set and is rejected
+when existing remote assets differ. Inspect any disagreement before deciding
+how to recover; never overwrite an already published artifact to make a retry
+pass. A release or registry publication is not complete until its actual
+remote bytes and installed consumers have been verified.
