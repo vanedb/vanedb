@@ -11,7 +11,8 @@ signature list the ABI gate diffs against a baseline release's header:
     vanedb-capi/exports/vanedb_capi.syms  one symbol per line, no decoration
     vanedb-capi/exports/vanedb_capi.sigs  one normalised prototype per line:
                                           return type, name, parameter types
-                                          (parameter names dropped), sorted
+                                          (typedefs expanded, parameter
+                                          names dropped), sorted
 
 `check <library>` lists the defined, external symbols of a built shared
 library with the platform's tool (`nm -D --defined-only`, `nm -gU`, or
@@ -38,7 +39,7 @@ PREFIX = "vanedb_rs_"
 # its name followed by `)`, so it does not match, and the handle typedefs
 # have no parenthesis at all.
 DECLARATION = re.compile(r"\b(vanedb_rs_[a-z0-9_]+)\s*\(")
-COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.DOTALL)
 
 
 def functions(header_text):
@@ -56,36 +57,121 @@ STATEMENT = re.compile(r"\s*(.*?)\s*\b(vanedb_rs_[a-z0-9_]+)\s*\((.*)\)\s*", re.
 ABI_VERSION = re.compile(r"^#define VANEDB_RS_ABI_VERSION (\d+)$", re.MULTILINE)
 
 
-def normalise_parameter(parameter):
-    """`const float *q` -> `const float *`: the type only, so renaming a
-    parameter is not a signature change while retyping one is."""
-    parameter = " ".join(parameter.split())
-    tokens = [t for t in re.split(r"(\*)|\s+", parameter) if t]
-    if len(tokens) >= 2 and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", tokens[-1]) and tokens[-2] != "const":
-        parameter = parameter[: len(parameter) - len(tokens[-1])].rstrip()
-    return parameter
+# Deliberately support the generated header's small C declaration subset,
+# including the opaque struct aliases in the 0.1.1 baseline. Unknown types
+# or syntax fail closed: the stripped binary cannot verify what we skip.
+IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
+SCALAR_TYPES = {
+    "void", "bool", "char", "signed char", "unsigned char", "short",
+    "short int", "unsigned short", "unsigned short int", "int", "unsigned",
+    "unsigned int", "long", "long int", "unsigned long", "unsigned long int",
+    "long long", "long long int", "unsigned long long", "unsigned long long int",
+    "float", "double", "long double", "size_t", "ptrdiff_t", "intptr_t", "uintptr_t",
+    *(f"{prefix}int{width}_t" for prefix in ("", "u") for width in (8, 16, 32, 64)),
+}
+TYPEDEF = re.compile(rf"typedef\s+(.+?)\s+({IDENTIFIER})", re.DOTALL)
+CALLBACK = re.compile(rf"typedef\s+(.+?)\(\s*\*\s*({IDENTIFIER})\s*\)\s*\((.*)\)", re.DOTALL)
 
 
 def prototypes(header_text):
-    """{name: normalised prototype} for every function the header declares.
+    """Function prototypes with names removed and typedefs fully expanded.
 
-    Statements end in `;`; preprocessor lines and the extern "C" braces are
-    removed first so a declaration's return type is what precedes its name
-    within the statement. The function-pointer typedef and the handle
-    typedefs start with `typedef` and are skipped.
+    Scalar aliases, alias chains, opaque struct aliases and callback typedefs
+    cover the current generated header and the legacy release. This is not a
+    general C parser: arrays, inline callbacks, struct bodies and attributes
+    require an explicit extension before the gate can accept them.
     """
     text = BRACES.sub("", PREPROCESSOR.sub("", COMMENT.sub("", header_text)))
-    found = {}
-    for statement in text.split(";"):
-        if statement.strip().startswith("typedef"):
+    aliases, declarations = {}, []
+    for raw in text.split(";"):
+        statement = raw.strip()
+        if not statement:
             continue
-        match = STATEMENT.fullmatch(statement)
+        if statement.startswith("typedef"):
+            callback = CALLBACK.fullmatch(statement)
+            alias = TYPEDEF.fullmatch(statement)
+            if callback:
+                returns, name, parameters = callback.groups()
+                definition = (returns, parameters)
+            elif alias:
+                definition, name = alias.groups()
+            else:
+                raise SystemExit(f"unsupported C ABI typedef: {statement}")
+            if name in aliases:
+                raise SystemExit(f"duplicate C ABI typedef: {name}")
+            aliases[name] = definition
+        else:
+            match = STATEMENT.fullmatch(statement)
+            if not match:
+                raise SystemExit(f"unsupported C ABI declaration: {statement}")
+            declarations.append(match.groups())
+
+    resolved = {}
+
+    def resolve_alias(name, visiting):
+        if name in visiting:
+            raise ValueError(f"cyclic typedef: {name}")
+        if name not in resolved:
+            definition = aliases[name]
+            visiting = visiting | {name}
+            if isinstance(definition, tuple):
+                returns, parameters = definition
+                resolved[name] = f"{normalise_type(returns, visiting)} (*)({parameter_types(parameters, visiting)})"
+            else:
+                resolved[name] = normalise_type(definition, visiting)
+        return resolved[name]
+
+    def normalise_type(value, visiting):
+        value = " ".join(value.split())
+        match = re.fullmatch(r"(const )?([A-Za-z_][A-Za-z0-9_ ]*?)(\s*\*(?:\s*const)?)*", value)
         if not match:
-            continue
-        returns, name, parameters = match.groups()
-        returns = " ".join(returns.split())
-        parameters = ", ".join(normalise_parameter(p) for p in parameters.split(","))
-        found[name] = re.sub(r"\*\s+vanedb", "*vanedb", f"{returns} {name}({parameters})")
+            raise ValueError(f"unsupported type: {value}")
+        # Split at the first '*' to retain every pointer in e.g. char **.
+        base, *pointers = value.split("*")
+        base = base.strip()
+        qualifier = "const " if base.startswith("const ") else ""
+        base = base.removeprefix("const ")
+        if base in aliases:
+            base = resolve_alias(base, visiting)
+            if ("(*)" in base and pointers) or ("*" in base and qualifier):
+                raise ValueError(f"unsupported qualified alias type: {value}")
+        elif base not in SCALAR_TYPES and not re.fullmatch(rf"struct {IDENTIFIER}", base):
+            raise ValueError(f"unknown type: {base}")
+        return qualifier + base + "".join(" *" + (" const" if p.strip() else "") for p in pointers)
+
+    def normalise_parameter(value, visiting):
+        value = " ".join(value.split())
+        try:
+            return normalise_type(value, visiting)
+        except ValueError as unnamed_error:
+            # A named parameter ends in an identifier after whitespace or '*'.
+            match = re.fullmatch(rf"(.+[\s*])({IDENTIFIER})", value)
+            if not match or match.group(2) in {
+                "const", "volatile", "restrict", "signed", "unsigned", "short",
+                "long", "void", "char", "int", "float", "double", "struct",
+            }:
+                raise unnamed_error
+            return normalise_type(match.group(1).strip(), visiting)
+
+    def parameter_types(parameters, visiting):
+        if not parameters.strip():
+            raise ValueError("unspecified argument list; use void for no arguments")
+        return ", ".join(normalise_parameter(p, visiting) for p in parameters.split(","))
+
+    found = {}
+    try:
+        # Validate even unused aliases so adding unsupported public syntax
+        # cannot silently weaken the header comparison.
+        for name in aliases:
+            resolve_alias(name, set())
+        for returns, name, parameters in declarations:
+            if name in found:
+                raise ValueError(f"duplicate function: {name}")
+            returns = normalise_type(returns, set())
+            parameters = parameter_types(parameters, set())
+            found[name] = re.sub(r"\*\s+vanedb", "*vanedb", f"{returns} {name}({parameters})")
+    except ValueError as error:
+        raise SystemExit(f"unsupported C ABI declaration: {error}") from None
     if not found:
         raise SystemExit("no vanedb_rs_* prototypes found; is the header generated?")
     return found
