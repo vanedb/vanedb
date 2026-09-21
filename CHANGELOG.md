@@ -90,6 +90,9 @@ has a bug. No file-format change. The conformance table is
   crate README no longer presents it as a capability; `docs/LIMITS.md` records
   what it does and does not do. The feature, its tests and its CI jobs are
   unchanged.
+- `Filter` is `#[non_exhaustive]`: a `match` on it needs a `_` arm, so the
+  payload filter variant planned in RFC 0009 will not be a breaking change.
+  Unreleased, so no released code is affected.
 
 ### Deprecated
 
@@ -97,6 +100,28 @@ has a bug. No file-format change. The conformance table is
   GitHub's `macos-15-intel` runner retires in August 2027. No cross-compiled
   or `universal2` substitute is published; the sdist and `cargo build` keep
   working on Intel Macs (RFC 0012, #47).
+
+### Fixed
+
+- Filtered beam widening on `ApproxIndex` ended after a single pass at default
+  settings: the loop compared the number of nodes a pass visited against
+  `max_ef_search`, and one `ef_search = 50` pass on an `M = 16` graph already
+  visits far more than 4 x 50 nodes. `max_ef_search` now bounds beam width
+  only, as documented. On the pinned 100k embedding fixture a 1%-selectivity
+  allow list at default settings returns `k` matches for 99.0% of queries
+  instead of 30.8%, and recall@10 at 1% rises from 35.54% to 51.50%. A query
+  whose first pass finds fewer than `k` matches now runs the additional
+  widening passes the cap allows, so such queries do more work than before;
+  queries that fill `k` on the first pass are unchanged. Unreleased, so no
+  released behaviour changes.
+- Python and WebAssembly predicates that call a method on the index being
+  searched (`add` inside the callback, or a nested `search` while another
+  thread has a writer queued) deadlocked on that index's read lock. The call
+  now raises `RuntimeError` in Python and throws an `Error` with
+  `code === "ERR_REENTRANT_SEARCH"` in JavaScript. The guard covers every
+  call on the searched index from its predicate, including nested reads
+  such as `len`, `contains` or a second `search` that previously happened to
+  succeed when no writer was waiting.
 
 ## [0.1.1] - 2026-09-10
 

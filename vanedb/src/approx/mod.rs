@@ -746,7 +746,13 @@ impl ApproxIndex {
                 &inner.ext_ids,
             );
 
-            if top.len() >= k || current_ef >= max_ef || visited_count >= max_ef {
+            // Stop once `k` matches are found, the beam has reached the cap,
+            // or the pass already scored every stored slot (a wider beam
+            // cannot reach anything new). `max_ef_search` bounds the beam
+            // width alone: comparing the visit count against it would end
+            // widening after one pass at default settings, since a single
+            // ef=50 pass on an M=16 graph visits far more than 4 x 50 nodes.
+            if top.len() >= k || current_ef >= max_ef || visited_count >= inner.count {
                 let mut results: Vec<SearchResult> = top
                     .into_iter()
                     .map(|(dist, iid)| SearchResult::new(inner.ext_ids[iid], dist))

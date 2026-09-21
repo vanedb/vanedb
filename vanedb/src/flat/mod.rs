@@ -230,6 +230,12 @@ impl FlatIndex {
     }
 
     /// [`search`](Self::search) with per-query options such as filters.
+    ///
+    /// Only the filter applies. This is an exact scan, so
+    /// [`SearchParams::ef_search`] and [`SearchParams::max_ef_search`] are
+    /// beam settings for [`ApproxIndex`](crate::approx::ApproxIndex) and are
+    /// ignored here without error, which lets one `SearchParams` serve both
+    /// index types.
     pub fn search_with(
         &self,
         query: &[f32],

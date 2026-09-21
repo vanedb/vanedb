@@ -45,17 +45,17 @@
       "selectivity": 0.01,
       "ef_search": 50,
       "max_ef_search": 200,
-      "recall_at_10": 0.3554,
-      "fraction_with_10_results": 0.308,
-      "mean_result_count": 7.358
+      "recall_at_10": 0.515,
+      "fraction_with_10_results": 0.99,
+      "mean_result_count": 9.981
     },
     {
       "selectivity": 0.01,
       "ef_search": 50,
       "max_ef_search": 1600,
-      "recall_at_10": 0.5166000000000001,
-      "fraction_with_10_results": 0.995,
-      "mean_result_count": 9.987
+      "recall_at_10": 0.518,
+      "fraction_with_10_results": 1.0,
+      "mean_result_count": 10.0
     }
   ]
 }

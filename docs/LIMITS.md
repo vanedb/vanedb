@@ -19,7 +19,7 @@ a limit are named beside it.
 | `k` | at least 1; the graph's effective beam is at least `k` | validation | none planned |
 | Payload | none stored | | RFC 0009 |
 | Metadata filtering | external ID allow/deny lists and predicates (0.2.0, unreleased); no metadata is stored | `SearchParams::filter` on every index (RFC 0004) | RFC 0009 adds stored payload |
-| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included | `ApproxIndex::search_with`; bounds the beam, not the distance evaluations | the widening fix (RFC 0004 follow-up) |
+| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included | `ApproxIndex::search_with`; bounds the beam width alone, not the visited nodes or distance evaluations, and widening runs pass after pass up to it until `k` matches are found or every stored slot has been scored (PR #263) | none planned |
 | Allow/deny list length | no limit beyond address space (the C ABI rejects a length above `isize::MAX / 8`); entries must be strictly ascending with no duplicates | validation on every search | none planned |
 | Filter predicates | synchronous, called on the searching thread, possibly more than once per id on the graph; run under the index's read lock (`FlatIndex`, `ApproxIndex`) so they must not touch the searched index, though they may consult other indexes; a C callback must not unwind a foreign exception or `longjmp` | `Filter::Predicate`; C `vanedb_rs_filter_fn` | none planned |
 | `ef_search` / `max_ef_search` on `FlatIndex` and `DiskIndex` | ignored: exact scans have no beam, only the filter is read | `SearchParams` | none planned |
@@ -77,9 +77,12 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 - One index, one `RwLock`: many readers or one writer. Searches hold a read
   lock; `add`, `remove`, `upsert` hold the write lock; `compact()` holds it for
   the whole rebuild.
-- Filter predicates run inside that read lock, so a predicate that calls
-  into the same index, or waits for another thread to modify it, can
-  deadlock. `DiskIndex` is immutable and has no lock.
+- Filter predicates run inside that read lock, so a Rust predicate that
+  calls into the same index, or waits for another thread to modify it, can
+  deadlock. The Python and WebAssembly bindings detect a same-index call
+  from a predicate and raise (`RuntimeError`; an `Error` with
+  `code === "ERR_REENTRANT_SEARCH"`) instead; waiting on another thread is
+  still a deadlock there. `DiskIndex` is immutable and has no lock.
 - No cross-process coordination. A mapped `DiskIndex` file must not change
   while any mapping is open; nothing enforces this (`DiskIndex::open` is
   `unsafe` for this reason).
