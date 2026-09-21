@@ -30,7 +30,7 @@ fn bench_hnsw(c: &mut Criterion) {
             for _ in 0..iterations {
                 let start = Instant::now();
                 let h = unsafe { ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED) };
-                assert_ne!(h, 0);
+                assert!(!h.is_null());
                 for i in 0..N {
                     assert_eq!(
                         unsafe {

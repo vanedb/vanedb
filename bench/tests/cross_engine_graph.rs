@@ -111,11 +111,8 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
             }
             let count = if source_rust {
                 // Remove the entry's possible ID and reuse an existing identity.
-                assert_eq!(unsafe { rust::vanedb_rs_index_remove(rs.0, u64::MAX) }, 0);
-                assert_eq!(
-                    unsafe { rust::vanedb_rs_index_remove(rs.0, u64::MAX - 1) },
-                    0
-                );
+                assert_eq!(rust::vanedb_rs_index_remove(rs.0, u64::MAX), 0);
+                assert_eq!(rust::vanedb_rs_index_remove(rs.0, u64::MAX - 1), 0);
                 assert_eq!(
                     unsafe { rust::vanedb_rs_index_add(rs.0, u64::MAX - 1, vector(N).as_ptr()) },
                     0
