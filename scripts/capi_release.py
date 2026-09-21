@@ -55,7 +55,7 @@ def identity(ref):
 
 
 def version_at(root=ROOT):
-    versions = {tomllib.loads((root / name / "Cargo.toml").read_text())["package"]["version"]
+    versions = {tomllib.loads((root / name / "Cargo.toml").read_text(encoding="utf-8"))["package"]["version"]
                 for name in ("vanedb", "vanedb-capi")}
     if len(versions) != 1:
         raise ValueError("core and C ABI versions disagree")
@@ -96,7 +96,7 @@ def require_files(directory, expected):
 
 
 def check_sbom(path, version, platform, commit):
-    bom = json.loads(path.read_text())
+    bom = json.loads(path.read_text(encoding="utf-8"))
     root = bom.get("metadata", {}).get("component", {})
     if (bom.get("bomFormat") != "CycloneDX" or bom.get("specVersion") != "1.5"
             or root.get("name") != "vanedb-capi" or root.get("version") != version):
@@ -113,7 +113,7 @@ def check_sbom(path, version, platform, commit):
 
 
 def stage_sbom(source, directory, platform, version, commit):
-    bom = json.loads(source.read_text())
+    bom = json.loads(source.read_text(encoding="utf-8"))
     metadata = bom.setdefault("metadata", {})
     props = metadata.setdefault("properties", [])
     for key, value in {"vanedb:source-commit": commit, "vanedb:target": TARGETS[platform],
@@ -123,7 +123,7 @@ def stage_sbom(source, directory, platform, version, commit):
         props.append({"name": key, "value": value})
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"vanedb-capi-{version}-{platform}.cdx.json"
-    path.write_text(json.dumps(bom, indent=2) + "\n")
+    path.write_text(json.dumps(bom, indent=2) + "\n", encoding="utf-8")
     check_sbom(path, version, platform, commit)
 
 
@@ -171,7 +171,8 @@ checksums before using any archive:
 ```sh
 cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \\
   --certificate-identity '{subject}' \\
-  --certificate-oidc-issuer '{ISSUER}'
+  --certificate-oidc-issuer '{ISSUER}' \\
+  --certificate-github-workflow-sha '{commit}'
 sha256sum --check SHA256SUMS  # macOS: shasum -a 256 --check SHA256SUMS
 ```
 
@@ -185,7 +186,8 @@ python3 scripts/capi_release.py verify --directory /path/to/downloads \\
 ```
 
 The expected identity above is exact. A branch-rehearsal signature is not a
-release-tag signature. Issuer, certificate and transparency-log verification
+release-tag signature. The certificate must also bind the expected source SHA.
+Issuer, certificate and transparency-log verification
 must all succeed; do not disable them. Neither checksums alone nor an arbitrary
 GitHub Actions identity authenticates a release.
 """
@@ -200,7 +202,7 @@ def assemble(source, directory, version, commit, ref):
     platforms = {}
     for platform in TARGETS:
         name = f"vanedb-capi-{version}-{platform}.zip"
-        if (source / (name + ".sha256")).read_text() != f"{digest(source / name)}  {name}\n":
+        if (source / (name + ".sha256")).read_text(encoding="utf-8") != f"{digest(source / name)}  {name}\n":
             raise ValueError(f"native artifact checksum mismatch: {name}")
         platforms[platform] = check_archive(source / name, version, platform)
         check_sbom(source / name.replace(".zip", ".cdx.json"), version, platform, commit)
@@ -209,11 +211,11 @@ def assemble(source, directory, version, commit, ref):
     manifest = {"schema": 1, "version": version, "source_commit": commit,
                 "signing_identity": identity(ref), "platforms": platforms,
                 "sha256": {name: digest(directory / name) for name in expected}}
-    (directory / MANIFEST).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    (directory / NOTES).write_text(verification_notes(version, ref, commit))
+    (directory / MANIFEST).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (directory / NOTES).write_text(verification_notes(version, ref, commit), encoding="utf-8")
     payloads = expected + [MANIFEST, NOTES]
     (directory / SUMS).write_text("".join(f"{digest(directory / name)}  {name}\n"
-                                         for name in sorted(payloads)))
+                                         for name in sorted(payloads)), encoding="utf-8")
 
 
 def verify_contents(directory, version, commit, ref, signed):
@@ -221,16 +223,16 @@ def verify_contents(directory, version, commit, ref, signed):
     require_files(directory, payloads + ([n + BUNDLE for n in payloads] if signed else []))
     expected_sums = "".join(f"{digest(directory / name)}  {name}\n"
                             for name in sorted(n for n in payloads if n != SUMS))
-    if (directory / SUMS).read_text() != expected_sums:
+    if (directory / SUMS).read_text(encoding="utf-8") != expected_sums:
         raise ValueError("SHA256SUMS does not match the complete release payload")
-    manifest = json.loads((directory / MANIFEST).read_text())
+    manifest = json.loads((directory / MANIFEST).read_text(encoding="utf-8"))
     if (manifest.get("schema") != 1 or manifest.get("version") != version
             or manifest.get("source_commit") != commit
             or manifest.get("signing_identity") != identity(ref)
             or set(manifest.get("platforms", {})) != set(TARGETS)
             or manifest.get("sha256") != {n: digest(directory / n) for n in names(version)}):
         raise ValueError("release manifest identity or inventory mismatch")
-    if (directory / NOTES).read_text() != verification_notes(version, ref, commit):
+    if (directory / NOTES).read_text(encoding="utf-8") != verification_notes(version, ref, commit):
         raise ValueError("verification notes do not match the release identity")
     for platform in TARGETS:
         base = f"vanedb-capi-{version}-{platform}"
@@ -252,6 +254,7 @@ def verify(directory, version, commit, ref):
     for name in payloads:
         run("cosign", "verify-blob", "--bundle", directory / (name + BUNDLE),
             "--certificate-identity", identity(ref), "--certificate-oidc-issuer", ISSUER,
+            "--certificate-github-workflow-sha", commit,
             directory / name)
     return payloads
 
@@ -273,6 +276,7 @@ def publish(directory, version, commit, ref):
     payloads = verify(directory, version, commit, ref)
     assets = sorted(payloads + [n + BUNDLE for n in payloads])
     tag = ref.removeprefix("refs/tags/")
+    prerelease = "-" in version
     # Only a 404 proves absence; permission/network errors are not permission
     # to create another release or conceal a partial previous publication.
     response = subprocess.run(["gh", "api", f"repos/{REPOSITORY}/releases/tags/{tag}"],
@@ -281,10 +285,14 @@ def publish(directory, version, commit, ref):
         if "HTTP 404" not in response.stderr:
             raise ValueError(f"cannot inspect release: {response.stderr}")
         run("gh", "release", "create", tag, "--repo", REPOSITORY, "--verify-tag", "--draft",
-            "--title", f"VaneDB {version}", "--notes-file", directory / NOTES)
-        release = {"draft": True, "body": (directory / NOTES).read_text(), "assets": []}
+            "--title", f"VaneDB {version}", "--notes-file", directory / NOTES,
+            *(["--prerelease"] if prerelease else []))
+        release = {"draft": True, "prerelease": prerelease,
+                   "body": (directory / NOTES).read_text(encoding="utf-8"), "assets": []}
     else:
         release = json.loads(response.stdout)
+    if bool(release.get("prerelease")) != prerelease:
+        raise ValueError("existing release prerelease status disagrees with the version")
     existing = {asset["name"] for asset in release["assets"]}
     unexpected = {n for n in existing if n.startswith("vanedb-capi-")} - set(assets)
     if unexpected:
@@ -305,11 +313,11 @@ def publish(directory, version, commit, ref):
     # Preserve human-authored release notes and append exact verification
     # instructions once. No --clobber and no moving/recreating published tags.
     body = release.get("body") or ""
-    notes = (directory / NOTES).read_text()
+    notes = (directory / NOTES).read_text(encoding="utf-8")
     if notes not in body:
         with tempfile.TemporaryDirectory() as temporary:
             combined = Path(temporary) / "notes.md"
-            combined.write_text(body + "\n\n" + notes)
+            combined.write_text(body + "\n\n" + notes, encoding="utf-8")
             run("gh", "release", "edit", tag, "--repo", REPOSITORY, "--notes-file", combined)
     if release.get("draft"):
         run("gh", "release", "edit", tag, "--repo", REPOSITORY, "--draft=false")
@@ -333,7 +341,7 @@ def main():
         check_context(version, os.environ.get("GITHUB_EVENT_NAME", ""), args.ref,
                       os.environ.get("GITHUB_REPOSITORY", ""))
         if os.environ.get("GITHUB_OUTPUT"):
-            with open(os.environ["GITHUB_OUTPUT"], "a") as handle:
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
                 handle.write(f"version={version}\ncommit={commit}\n")
         print(f"validated C ABI {version}, source {commit}")
     elif args.command == "stage-sbom":

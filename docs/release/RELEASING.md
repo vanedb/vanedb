@@ -176,7 +176,8 @@ through protected main.
 - C library archives use the same `vanedb-crate-v<version>` tag through
   `publish-capi.yml`. It builds and tests all five native distributions,
   creates target-specific CycloneDX SBOMs and signs every release payload
-  before the protected `capi-release` job attaches the retained bytes. See
+  before the C asset job, protected by the existing `crates-io` environment,
+  attaches the retained bytes. See
   the signed C distribution procedure below. Do not manually replace those
   assets. Raw `vanedb-wasm-<version>-nodejs.tgz` and
   `vanedb-wasm-<version>-web.tgz` assets, when attached, retain their matching
@@ -197,10 +198,16 @@ with the maintainer.
 
 ## Signed C distribution (RFC 0002 stage 5)
 
-Before the first release, configure the `capi-release` GitHub environment with
-required maintainer reviewers and the intended release-tag deployment rule.
-The workflow names the environment; that alone does not prove its protection
-is configured. No new registry credentials or long-lived signing key is used.
+C asset publication reuses the existing `crates-io` GitHub environment, the
+same approval boundary as the crate published from `vanedb-crate-v<version>`.
+A read-only check on 2026-09-22 confirmed required reviewer `tsvet01` and a
+custom **tag** policy matching `vanedb-crate-v*`. Both publication jobs must
+pass this environment's approval; the C job does not exchange its token for a
+crates.io credential. Re-check the environment's reviewer and tag policy
+before releasing; naming an environment alone does not protect it. Do not
+introduce a new environment name without first configuring and verifying its
+protection: GitHub otherwise creates it without required reviewers. No new
+registry credentials or long-lived signing key is used.
 Only the signing job receives `id-token: write`; only the tag publication job
 receives `contents: write`. Native build jobs have read-only repository access.
 
@@ -221,8 +228,9 @@ python3 scripts/capi_release.py verify --directory /path/to/capi-signed-release 
 
 Use the actual candidate version until the version-bump PR lands. Install the
 pinned cosign version listed in `CAPI-VERIFYING.md`. The verifier checks every
-signature's exact workflow identity and OIDC issuer, all checksums, versions,
-source provenance, archive contents and the complete five-platform inventory.
+signature's exact workflow identity, OIDC issuer and source-SHA certificate
+claim, all checksums, versions, source provenance, archive contents and the
+complete five-platform inventory.
 A branch signature cannot satisfy the tag-identity check after release.
 
 The workflow builds natively on Linux x86-64/ARM64, macOS ARM64/x86-64 and
@@ -248,8 +256,10 @@ to the approved commit on main. The protected publication job downloads the
 retained signed artifact, verifies it again, and attaches it to that tag's
 release without rebuilding. If the release is absent it creates a draft,
 uploads the complete set, downloads and verifies the actual remote bytes, then
-publishes the draft. If a release already exists its human-written notes are
-preserved and the exact verification instructions appended. Existing assets
+publishes the draft. Prerelease versions (for example `0.2.0-rc.1`) create
+GitHub prereleases; an existing release with a contradictory prerelease flag
+fails without changing that flag. If a release already exists its human-written
+notes are preserved and the exact verification instructions appended. Existing assets
 are accepted only when byte-identical; no `--clobber`, tag deletion or tag
 movement is used. The published notes contain copyable verification commands
 with the exact tag identity and approved source SHA.

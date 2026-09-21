@@ -54,7 +54,8 @@ sha256sum --check SHA256SUMS  # macOS: shasum -a 256 --check SHA256SUMS
 ```
 
 The release notes and `CAPI-VERIFYING.md` contain the complete verification
-command with the approved source commit. To verify one archive independently,
+command with the approved source commit and its matching OIDC certificate SHA
+claim. The full verifier enforces both. To verify one archive independently,
 replace `SHA256SUMS` and its bundle with that archive and its bundle, retaining
 the exact certificate identity and issuer. Do not accept a branch identity for
 a tagged release. The SBOM inventories Cargo dependencies (including build

@@ -151,7 +151,9 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-crate-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    environment: capi-release
+    # Reuse the existing reviewer-protected crate-tag environment. A new
+    # environment name would be created without required reviewers.
+    environment: crates-io
     permissions:
       contents: write
     steps:

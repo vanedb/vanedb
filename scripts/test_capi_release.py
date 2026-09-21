@@ -58,6 +58,29 @@ class ReleaseTests(unittest.TestCase):
         for name in release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]:
             (self.directory / (name + release.BUNDLE)).write_text("fixture signature")
 
+    def test_sbom_uses_utf8_on_a_cp1252_host(self):
+        # cargo-cyclonedx emits UTF-8 names. U+0101's UTF-8 contains 0x81,
+        # undefined in CP1252: exactly the Windows rehearsal failure.
+        source = self.root / "unicode-sbom.json"
+        bom = {"bomFormat": "CycloneDX", "specVersion": "1.5",
+               "metadata": {"component": {"name": "vanedb-capi", "version": VERSION},
+                            "authors": [{"name": "Māris"}]},
+               "components": [{"name": "vanedb", "version": VERSION}]}
+        source.write_text(json.dumps(bom, ensure_ascii=False), encoding="utf-8")
+        read_text, write_text = Path.read_text, Path.write_text
+        def read_in_legacy_locale(path, encoding=None, **kwargs):
+            return read_text(path, encoding=encoding or "cp1252", **kwargs)
+        def write_in_legacy_locale(path, text, encoding=None, **kwargs):
+            return write_text(path, text, encoding=encoding or "cp1252", **kwargs)
+        with patch.object(Path, "read_text", read_in_legacy_locale), \
+                patch.object(Path, "write_text", write_in_legacy_locale):
+            release.stage_sbom(source, self.source, "windows-x86_64", VERSION, COMMIT)
+            self.assemble()
+            self.unsigned()
+        path = self.directory / "vanedb-capi-0.2.0-windows-x86_64.cdx.json"
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["metadata"]["authors"][0]["name"], "Māris")
+        self.assertIn("—", (self.directory / release.NOTES).read_text(encoding="utf-8"))
+
     def test_complete_inventory_has_all_five_archives_and_target_sboms(self):
         self.assemble()
         self.assertEqual(len(self.unsigned()), 13)
@@ -159,6 +182,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(args[0:2], ("cosign", "verify-blob"))
             self.assertEqual(args[args.index("--certificate-identity") + 1], release.identity(REF))
             self.assertEqual(args[args.index("--certificate-oidc-issuer") + 1], release.ISSUER)
+            self.assertEqual(args[args.index("--certificate-github-workflow-sha") + 1], COMMIT)
             self.assertFalse(any("ignore" in str(arg) or "insecure" in str(arg) for arg in args))
             verified.add(args[-1].name)
         self.assertEqual(verified, set(release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]))
@@ -244,6 +268,32 @@ class ReleaseTests(unittest.TestCase):
         create = next(c for c in run.call_args_list if c.args[:3] == ("gh", "release", "create"))
         self.assertIn("--draft", create.args)
         self.assertIn("--verify-tag", create.args)
+        self.assertNotIn("--prerelease", create.args)
+
+    def test_prerelease_tag_creates_a_prerelease_and_refuses_stable_mismatch(self):
+        self.assemble()
+        version = "0.2.0-rc.1"
+        ref = "refs/tags/vanedb-crate-v" + version
+        for existing in (False, True):
+            response = (release.subprocess.CompletedProcess([], 0, json.dumps(
+                {"draft": False, "prerelease": False, "assets": []}), "") if existing else
+                release.subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)"))
+            with self.subTest(existing=existing), patch.dict(os.environ,
+                    {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": ref,
+                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
+                    patch.object(release, "source_commit", return_value=COMMIT), \
+                    patch.object(release, "output", return_value=COMMIT), \
+                    patch.object(release, "verify", return_value=[]), \
+                    patch.object(release.subprocess, "run", return_value=response), \
+                    patch.object(release, "run") as run:
+                if existing:
+                    with self.assertRaisesRegex(ValueError, "prerelease status"):
+                        release.publish(self.directory, version, COMMIT, ref)
+                    self.assertFalse(any(c.args[:2] == ("gh", "release") for c in run.call_args_list))
+                else:
+                    release.publish(self.directory, version, COMMIT, ref)
+                    create = next(c for c in run.call_args_list if c.args[:3] == ("gh", "release", "create"))
+                    self.assertIn("--prerelease", create.args)
 
     def test_api_failure_is_not_treated_as_missing_release(self):
         self.assemble()
@@ -286,7 +336,7 @@ class WorkflowTests(unittest.TestCase):
                          "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-crate-v')")
         self.assertEqual(set(jobs["sign"]["needs"]), {"identity", "native"})
         self.assertEqual(set(jobs["publish"]["needs"]), {"identity", "sign"})
-        self.assertEqual(jobs["publish"]["environment"], "capi-release")
+        self.assertEqual(jobs["publish"]["environment"], "crates-io")
         for job in jobs.values():
             for step in job["steps"]:
                 if "uses" in step:
