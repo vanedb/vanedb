@@ -31,6 +31,51 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 - Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
   `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
 
+### Changed — breaking
+
+One API vocabulary across the four bindings, settled before 1.0 while the
+user count is zero ([RFC 0011](docs/rfcs/0011-api-vocabulary-before-1-0.md),
+#206; folds #85 and #86). A lookup miss is a value, not an error; the count
+has one canonical spelling per binding; the search-beam default has one shape
+per binding. `contains` and `remove` are unchanged everywhere: `remove` of a
+missing id stays an error, because a caller that removes what is not there
+has a bug. No file-format change. The conformance table is
+[`conformance/vocabulary/README.md`](conformance/vocabulary/README.md).
+
+- **Rust**: `get` and `get_vector` return `Result<Option<Vec<f32>>>` on
+  `FlatIndex` and `ApproxIndex` and `Result<Option<Cow<[f32]>>>` on
+  `DiskIndex`; a missing id is `Ok(None)`, no longer
+  `Err(VaneError::NotFound)`. `size()` is removed from `FlatIndex`,
+  `ApproxIndex`, `DiskIndex` and `DiskIndexBuilder`; `len()` and `is_empty()`
+  stay on all of them. `ApproxIndex::get_ef_search` is renamed `ef_search`.
+  Migration: `.size()` → `.len()`, `get_ef_search()` → `ef_search()`, and
+  where a miss was an error, `index.get(id)?` →
+  `index.get(id)?.ok_or(VaneError::NotFound { id })?`.
+- **Python**: `get` and `get_vector` return `None` for a missing id instead
+  of raising; `KeyError` is no longer raised by any method, and `remove` of a
+  missing id raises `ValueError` like every other invalid argument. `Metric`
+  is an `enum.IntEnum` — `.name`, `.value`, `list(Metric)`, `Metric(1)`,
+  hashing and pickling all work — with the same integer values, and the
+  constructors accept a member or its value. `len(index)` is the count and
+  truth testing the emptiness test; `size()` is kept as a documented alias.
+  Migration: `try: v = index.get(id) except KeyError: ...` →
+  `if (v := index.get(id)) is None: ...`, and `except KeyError` around
+  `remove` → `except ValueError`.
+- **WebAssembly**: `get` and `get_vector` return `undefined` for a missing id
+  instead of throwing; the `ef_search` property is renamed `efSearch`,
+  matching the `{ efSearch }` search option, and the number-argument error
+  message names it that way. In the TypeScript declarations the return type
+  of `get`/`get_vector` becomes `Float32Array | undefined`, which is a
+  compile error under strict null checks until the miss is handled, and
+  `ApproxIndex.search`'s third parameter is declared `efSearchOrOptions`
+  (positional, so no runtime change). Migration:
+  `try { index.get(id) } catch { ... }` → `index.get(id) ?? fallback`, and
+  `index.ef_search` → `index.efSearch`.
+- **C ABI**: unchanged. `vanedb_rs_store_len`, `vanedb_rs_index_len` and
+  `vanedb_rs_disk_len` already spell the count, a miss is already the
+  `VANEDB_RS_NOT_FOUND` status, and `vanedb_rs_index_ef_search` /
+  `_set_ef_search` already exist; the regenerated header is identical.
+
 ### Changed
 
 - Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only

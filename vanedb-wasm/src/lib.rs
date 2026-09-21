@@ -340,8 +340,10 @@ impl WasmStore {
         Ok(WasmSearchResults::from(results.map_err(to_jserr)?))
     }
 
-    /// The vector stored under `id`, as a `Float32Array`.
-    pub fn get(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+    /// The vector stored under `id`, as a `Float32Array`, or `undefined` when
+    /// no vector is stored under it. A miss is a value, not an error (RFC
+    /// 0011); an id outside the unsigned 64-bit range still throws.
+    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
         self.inner.get(one_id(id)?).map_err(to_jserr)
     }
 
@@ -349,7 +351,7 @@ impl WasmStore {
     /// accepts. Both exist on both index types so a program is not tied to one
     /// (#85) — `ApproxIndex` had the pair and `FlatIndex` only `get`, so the
     /// one swap the pair exists for was the one that broke.
-    pub fn get_vector(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
         self.get(id)
     }
 
@@ -361,6 +363,8 @@ impl WasmStore {
         Ok(self.inner.contains(one_id(id)?))
     }
 
+    /// Number of vectors. `size()` is the Map/Set spelling JavaScript
+    /// callers expect (RFC 0011); `size() === 0` is the emptiness test.
     pub fn size(&self) -> usize {
         self.inner.len()
     }
@@ -472,30 +476,33 @@ impl WasmIndex {
     /// 2^24 are not exactly representable, so distinct records collided and
     /// callers could act on the wrong record (#39).
     ///
-    /// `ef_search` widens the beam for this query alone and leaves the index's
-    /// own setting untouched. The property is shared state, so raising it to
-    /// rescue one hard query silently pays for it on every later one; this is
-    /// the way to spend that cost once. Measure recall and latency on your own
-    /// data when choosing one.
+    /// A numeric third argument widens the beam for this query alone and
+    /// leaves the index's own `efSearch` untouched. The property is shared
+    /// state, so raising it to rescue one hard query silently pays for it on
+    /// every later one; this is the way to spend that cost once. Measure
+    /// recall and latency on your own data when choosing one.
     ///
-    /// `options` may be either a number (`ef_search`), or an options object containing
+    /// `options` may be either a number (`efSearch`), or an options object containing
     /// `{ efSearch?: number, maxEfSearch?: number, allow?: number[] | bigint[], deny?: number[] | bigint[], predicate?: (id: bigint) => boolean }`.
     /// Choose exactly one filter; ID lists must be sorted and unique.
     /// Predicates run per candidate and may run more than once for an ID.
     /// They must be stable and synchronous and must not access this same
     /// index while search holds its read lock. Exceptions propagate.
     /// `maxEfSearch` caps beam widening, not the number of visited nodes.
+    // The parameter name reaches the TypeScript declarations verbatim, so it
+    // is spelled the way RFC 0004 and the JavaScript surface spell it.
+    #[allow(non_snake_case)]
     pub fn search(
         &self,
         query: &[f32],
         k: f64,
         #[wasm_bindgen(unchecked_optional_param_type = "number | ApproxSearchOptions | null")]
-        ef_search_or_options: Option<JsValue>,
+        efSearchOrOptions: Option<JsValue>,
     ) -> Result<WasmSearchResults, JsValue> {
         let k = count(k, "k")?;
         let mut params = SearchParams::new();
 
-        let parsed = match ef_search_or_options {
+        let parsed = match efSearchOrOptions {
             Some(ref val) if val.is_object() => {
                 if let Some(ef) = optional_count(val, "efSearch")? {
                     params = params.ef_search(ef);
@@ -508,7 +515,7 @@ impl WasmIndex {
             }
             Some(ref val) => {
                 if let Some(num) = val.as_f64() {
-                    params = params.ef_search(count(num, "ef_search")?);
+                    params = params.ef_search(count(num, "efSearch")?);
                 } else if !val.is_null() && !val.is_undefined() {
                     return Err(JsError::new("search options must be a number or an object").into());
                 }
@@ -542,19 +549,23 @@ impl WasmIndex {
         Ok(self.inner.contains(one_id(id)?))
     }
 
-    /// The vector stored under `id`, as a `Float32Array`.
-    pub fn get_vector(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+    /// The vector stored under `id`, as a `Float32Array`, or `undefined` when
+    /// no vector is stored under it. A miss is a value, not an error (RFC
+    /// 0011); an id outside the unsigned 64-bit range still throws.
+    pub fn get_vector(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
         self.inner.get_vector(one_id(id)?).map_err(to_jserr)
     }
 
     /// The same operation as `get_vector`, under the spelling `FlatIndex` uses.
     /// Both exist so a program is not tied to one index type (#85).
-    pub fn get(&self, id: BigInt) -> Result<Vec<f32>, JsError> {
+    pub fn get(&self, id: BigInt) -> Result<Option<Vec<f32>>, JsError> {
         self.get_vector(id)
     }
 
+    /// Number of live vectors. `size()` is the Map/Set spelling JavaScript
+    /// callers expect (RFC 0011); `size() === 0` is the emptiness test.
     pub fn size(&self) -> usize {
-        self.inner.size()
+        self.inner.len()
     }
 
     /// The metric this index was built with, in the spelling the constructor
@@ -588,14 +599,20 @@ impl WasmIndex {
         self.inner.capacity()
     }
 
-    #[wasm_bindgen(getter)]
+    /// The index's own search beam width: the default a `search` without a
+    /// per-query width uses, and the value `toBytes` writes into the file.
+    /// Default 50. Exposed as the `efSearch` property, in the camelCase the
+    /// search options object already uses (RFC 0011).
+    #[wasm_bindgen(getter, js_name = efSearch)]
     pub fn ef_search(&self) -> usize {
-        self.inner.get_ef_search()
+        self.inner.ef_search()
     }
 
-    #[wasm_bindgen(setter)]
+    /// Sets `efSearch`. Rejects anything but an integer between 0 and
+    /// 4294967295, leaving the current value in place.
+    #[wasm_bindgen(setter, js_name = efSearch)]
     pub fn set_ef_search(&self, ef: f64) -> Result<(), JsError> {
-        self.inner.set_ef_search(count(ef, "ef_search")?);
+        self.inner.set_ef_search(count(ef, "efSearch")?);
         Ok(())
     }
 

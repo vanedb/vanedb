@@ -35,6 +35,9 @@ Metrics are squared Euclidean distance (`Metric::L2`), cosine distance
 rank first. IDs are unique unsigned 64-bit integers; vectors and queries must
 have the configured dimension and finite components. Approximate search can
 miss a true neighbor; compare recall against exact search for your data.
+Every index reports its count with `len()` and `is_empty()`; `get` and
+`get_vector` return `Ok(None)` for an id that is not stored, while `remove` of
+one is an error.
 
 All three indexes accept filters through `search_with`:
 
@@ -87,8 +90,9 @@ file. Before calling it, ensure no process can rewrite or truncate the underlyin
 file until the index is dropped; violating this requirement can cause undefined
 behavior or a process fault. Replacing the path with `DiskIndexBuilder::save`
 is supported: its atomic rename leaves existing readers on the intact old file.
-`DiskIndex::get` returns `Cow<[f32]>`; use `as_ref()` to borrow or `into_owned()`
-to obtain an independent vector.
+`DiskIndex::get` returns `Option<Cow<[f32]>>`, borrowing from the mapping when
+the id is stored; use `as_ref()` to borrow or `into_owned()` to obtain an
+independent vector.
 
 ## Feature flags
 

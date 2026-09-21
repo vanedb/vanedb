@@ -50,7 +50,7 @@ fn search_does_not_mutate_the_handles_beam_width() {
             );
             assert_eq!(ids, [1]);
             assert_eq!(
-                index.get_ef_search(),
+                index.ef_search(),
                 73,
                 "a query must not change another query's beam width"
             );
@@ -1743,4 +1743,124 @@ fn filtered_search_argument_contract_across_indexes() {
         drop(disk);
         std::fs::remove_file(scratch_path("filter_contract")).unwrap();
     }
+}
+
+/// The vocabulary settled by RFC 0011, as the C ABI column of
+/// `conformance/vocabulary/README.md`. Nothing here is new — this binding is
+/// the one the others were aligned to — but the RFC's table names it, so it
+/// is asserted in one place: a lookup miss is the `VANEDB_RS_NOT_FOUND`
+/// status under both read spellings on all three handles, the count is `_len`
+/// on all three, emptiness is `_len() == 0`, `_contains` stays the cheaper
+/// probe, `_remove` of a missing id stays `VANEDB_RS_NOT_FOUND`, and the beam
+/// default is `_ef_search` / `_set_ef_search`.
+#[test]
+fn the_vocabulary_of_rfc_0011() {
+    let path = std::ffi::CString::new(scratch_path("rs_capi_vocabulary")).unwrap();
+    unsafe {
+        let store = vanedb_capi::vanedb_rs_store_new(2, 0);
+        let index = vanedb_capi::vanedb_rs_index_new(2, 0, 16, 4, 16, 7);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_disk_build(
+                path.as_ptr(),
+                2,
+                0,
+                std::ptr::null(),
+                std::ptr::null(),
+                0
+            ),
+            0
+        );
+        let disk = vanedb_capi::vanedb_rs_disk_open(path.as_ptr());
+        assert!(!store.is_null() && !index.is_null() && !disk.is_null());
+
+        // Empty is `_len() == 0`; there is no `_is_empty`.
+        assert_eq!(vanedb_capi::vanedb_rs_store_len(store), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_len(index), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_disk_len(disk), 0);
+
+        // A miss is a status code, checked right after each call because the
+        // error slot is per thread and holds only the latest failure.
+        let mut out = [0.0f32; 2];
+        macro_rules! not_found {
+            ($name:literal, $call:expr) => {
+                assert_eq!($call, 1, $name);
+                assert_eq!(
+                    vanedb_capi::vanedb_rs_last_error(),
+                    vanedb_capi::VANEDB_RS_NOT_FOUND,
+                    $name
+                );
+            };
+        }
+        not_found!(
+            "store_get",
+            vanedb_capi::vanedb_rs_store_get(store, 7, out.as_mut_ptr())
+        );
+        not_found!(
+            "store_get_vector",
+            vanedb_capi::vanedb_rs_store_get_vector(store, 7, out.as_mut_ptr())
+        );
+        not_found!(
+            "index_get",
+            vanedb_capi::vanedb_rs_index_get(index, 7, out.as_mut_ptr())
+        );
+        not_found!(
+            "index_get_vector",
+            vanedb_capi::vanedb_rs_index_get_vector(index, 7, out.as_mut_ptr())
+        );
+        not_found!(
+            "disk_get",
+            vanedb_capi::vanedb_rs_disk_get(disk, 7, out.as_mut_ptr())
+        );
+        not_found!(
+            "disk_get_vector",
+            vanedb_capi::vanedb_rs_disk_get_vector(disk, 7, out.as_mut_ptr())
+        );
+        assert!(!vanedb_capi::vanedb_rs_store_contains(store, 7));
+        assert!(!vanedb_capi::vanedb_rs_index_contains(index, 7));
+        assert!(!vanedb_capi::vanedb_rs_disk_contains(disk, 7));
+        not_found!(
+            "store_remove",
+            vanedb_capi::vanedb_rs_store_remove(store, 7)
+        );
+        not_found!(
+            "index_remove",
+            vanedb_capi::vanedb_rs_index_remove(index, 7)
+        );
+
+        let vector = [1.0f32, 0.0];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_add(store, 7, vector.as_ptr()),
+            0
+        );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add(index, 7, vector.as_ptr()),
+            0
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_store_len(store), 1);
+        assert_eq!(vanedb_capi::vanedb_rs_index_len(index), 1);
+        assert_eq!(
+            vanedb_capi::vanedb_rs_store_get(store, 7, out.as_mut_ptr()),
+            0
+        );
+        assert_eq!(out, vector);
+        out = [0.0; 2];
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_get_vector(index, 7, out.as_mut_ptr()),
+            0
+        );
+        assert_eq!(out, vector);
+
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_ef_search(index),
+            50,
+            "documented default"
+        );
+        assert_eq!(vanedb_capi::vanedb_rs_index_set_ef_search(index, 64), 0);
+        assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(index), 64);
+
+        vanedb_capi::vanedb_rs_store_free(store);
+        vanedb_capi::vanedb_rs_index_free(index);
+        vanedb_capi::vanedb_rs_disk_free(disk);
+    }
+    let _ = std::fs::remove_file(path.to_str().unwrap());
 }

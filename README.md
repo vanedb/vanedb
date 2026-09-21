@@ -147,7 +147,16 @@ property in Python, or the corresponding `vanedb_rs_*_metric` C accessor.
 This is useful after loading a file: queries must use its stored distance
 convention. `get` and `get_vector` are the same read under two names, on every
 index type in every binding, so swapping one index for another does not mean
-renaming call sites.
+renaming call sites. A lookup miss is a value, not an error: Rust returns
+`Ok(None)`, Python `None`, JavaScript `undefined`, and the C ABI its
+`VANEDB_RS_NOT_FOUND` status; `contains` is the cheaper probe when the vector
+is not needed, and `remove` of a missing id stays an error. The count is
+`len()` in Rust, `len(index)` in Python (`size()` is kept as an alias), `size()`
+in JavaScript and `vanedb_rs_*_len` in C; the search-beam default is
+`ef_search()`/`set_ef_search()`, the `ef_search` property, the `efSearch`
+property and `vanedb_rs_index_ef_search`/`_set_ef_search` respectively. This
+vocabulary is [RFC 0011](docs/rfcs/0011-api-vocabulary-before-1-0.md), tabled
+in [`conformance/vocabulary/README.md`](conformance/vocabulary/README.md).
 
 `ApproxIndex` allocates chunks as vectors arrive, so `capacity` is a reserve
 hint rather than a ceiling. Vector storage grows on demand. Hard limits,
@@ -187,8 +196,8 @@ WebAssembly currently supports add, batch add, search, lookup methods, remove,
 `upsert`, `tombstones`, `compact` and persistence (`toBytes` / `fromBytes`,
 plus `save(name)` / `load(name)` over IndexedDB in the browser and the
 filesystem in Node) on `ApproxIndex`. Approximate search accepts a
-per-query beam override as `search(query, k, ef_search)`, leaving the
-`ef_search` property unchanged. A single id is a
+per-query beam override as `search(query, k, efSearch)`, leaving the
+`efSearch` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
 `Float32Array`. Build a browser package from the repository root with
 `wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked`

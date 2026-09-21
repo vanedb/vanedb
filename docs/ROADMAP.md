@@ -23,7 +23,7 @@ decision, until the corresponding RFC is accepted.
 | 2 | [0006 WebAssembly persistence](rfcs/0006-wasm-persistence.md) | 0.2.0 | implemented |
 | 3 | [0002 C ABI distribution](rfcs/0002-c-abi-distribution.md), stages 1 and 5 | 0.2.0 | accepted |
 | 4 | [0010 Write-path gaps](rfcs/0010-write-path-gaps.md) | 0.2.0 | accepted |
-| 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | accepted |
+| 4 | [0011 API vocabulary before 1.0](rfcs/0011-api-vocabulary-before-1-0.md) | 0.2.0 | implemented |
 | 4 | [0012 Platform support policy](rfcs/0012-platform-support-policy.md) | 0.2.0 | implemented |
 | 5 | [0013 VNDB v3 container format](rfcs/0013-vndb-v3-container.md) | 0.3.0 | accepted |
 | 5 | [0005 Quantized storage](rfcs/0005-quantized-storage.md) | 0.3.0 | accepted |
@@ -52,8 +52,14 @@ iPhone and Android runs are an acceptance criterion of
 [RFC 0007](rfcs/0007-mobile-sdks.md) and must be recorded before any
 device-support claim.
 
-## Decided for 0.2: `get` returns `None` instead of raising
+## Settled for 0.2: the API vocabulary
 
-Recorded with its precedent survey in
-[RFC 0011](rfcs/0011-api-vocabulary-before-1-0.md), which also settles the
-count spelling, `Metric` ergonomics and the `ef_search` shape.
+`get` returns `None` (`Ok(None)` in Rust, `undefined` in JavaScript) instead
+of raising, the count is `len`, `Metric` is an `IntEnum` and `ef_search` has
+one shape per binding. Implemented by
+[RFC 0011](rfcs/0011-api-vocabulary-before-1-0.md), which records the
+precedent survey; the contract table is
+[`conformance/vocabulary/README.md`](../conformance/vocabulary/README.md).
+The one piece the RFC's design table deferred, typed error classes in Python
+and an `Error` with `code` in WebAssembly, is tracked in
+[#262](https://github.com/vanedb/vanedb/issues/262).
