@@ -61,10 +61,16 @@ if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && app_demo_in_scope; t
   fi
 fi
 
-# Honor a pre-set DEMO_URL (CI bare-remote tests use file://…). Only synthesize
-# the HTTPS URL when the caller did not override it.
-if [[ -n "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]]; then
-  DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/vanedb/obsidian-vane-search.git"
+# Honor a pre-set DEMO_URL (CI bare-remote tests use file://…). When TOKEN is
+# set, embed it into plain https://github.com/… URLs so push cannot fall back
+# to ambient Cursor url.*.insteadOf credentials. Leave file:// and already-
+# credentialed URLs alone.
+if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
+  if [[ -z "${DEMO_URL:-}" ]]; then
+    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/vanedb/obsidian-vane-search.git"
+  elif [[ "$DEMO_URL" == https://github.com/* ]]; then
+    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/${DEMO_URL#https://github.com/}"
+  fi
 elif [[ -z "${DEMO_URL:-}" ]]; then
   DEMO_URL="https://github.com/vanedb/obsidian-vane-search.git"
 fi
@@ -73,15 +79,22 @@ redact_url() {
   sed -E 's#://[^/@]+@#://***@#g' <<<"$1"
 }
 
-# Cursor cloud (and similar) inject GH_TOKEN scoped to vanedb only. Using that
-# credential for a public HTTPS clone of obsidian-vane-search yields 403; strip
-# ambient tokens unless DEMO_REPO_TOKEN explicitly authenticates the clone.
+# Cursor cloud injects global url.*.insteadOf rewrites that map every
+# https://github.com/… URL to a vanedb-scoped App token. That rewrite survives
+# `env -u GH_TOKEN` and 403s demo-repo writes. Disable global/system gitconfig
+# for clone/push so DEMO_REPO_TOKEN (or anonymous HTTPS) is what git uses.
+# Use `env` (not a shell function) so `env -u …` can wrap the same invocation.
+git_no_ambient_url_rewrite() {
+  env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git "$@"
+}
+
 clone_demo() {
   local dest="$1"
   if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
-    git clone --depth 50 "$DEMO_URL" "$dest"
+    git_no_ambient_url_rewrite clone --depth 50 "$DEMO_URL" "$dest"
   else
     env -u GH_TOKEN -u GITHUB_TOKEN -u GH_ENTERPRISE_TOKEN \
+      GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null \
       git clone --depth 50 "$DEMO_URL" "$dest"
   fi
 }
@@ -141,8 +154,8 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 fi
 
 echo "==> push branch + tag (triggers .github/workflows/release.yml)"
-git push -u origin "HEAD:refs/heads/$BRANCH"
-git push origin "refs/tags/$TAG"
+git_no_ambient_url_rewrite push -u origin "HEAD:refs/heads/$BRANCH"
+git_no_ambient_url_rewrite push origin "refs/tags/$TAG"
 
 echo
 echo "Pushed tag $TAG. Release workflow will attach main.js + manifest.json + LICENSE."

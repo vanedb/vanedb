@@ -591,15 +591,24 @@ jobs:
           test "$ver" = "0.2.0"
           echo "ok: demo cut script tagged 0.2.0 against local bare remote"
       - name: maintainer_cut_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN
-        # Cursor cloud injects GH_TOKEN scoped to vanedb; that credential 403s a
-        # public clone of obsidian-vane-search. --dry-run must still succeed.
+        # Cursor cloud injects GH_TOKEN and global url.*.insteadOf rewrites
+        # scoped to vanedb; those credentials 403 demo-repo writes. --dry-run
+        # must still succeed with anonymous HTTPS (no ambient rewrite).
         if: matrix.os == 'ubuntu-latest'
         env:
           GH_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
           GITHUB_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
         run: |
           set -euo pipefail
-          out=$(bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests --dry-run)
+          CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
+          grep -q 'git_no_ambient_url_rewrite' "$CUT"
+          grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$CUT"
+          grep -qF 'https://github.com/*' "$CUT"
+          # Plant a Cursor-like insteadOf rewrite; the cut script must ignore it.
+          git config --global \
+            "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
+            "https://github.com/"
+          out=$(bash "$CUT" --skip-tests --dry-run)
           echo "$out" | grep -q -- '--dry-run: skipping push'
           echo "$out" | grep -q 'Local tag ready:'
-          echo "ok: --dry-run strips ambient GH_TOKEN and skips push"
+          echo "ok: --dry-run ignores ambient GH_TOKEN + url.*.insteadOf"
