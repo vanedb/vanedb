@@ -169,14 +169,19 @@ def test_stub_search_keywords_match_runtime_signatures():
     assert checked == 3, "FlatIndex, ApproxIndex and DiskIndex each declare search"
 
 
-def test_search_accepts_every_stubbed_keyword():
+def test_search_accepts_every_stubbed_keyword(tmp_path):
     """Belt and braces for the signature comparison: each keyword the stub
-    declares is accepted by a real call on a tiny index."""
+    declares is accepted by a real call on a tiny index of each class."""
     flat = vanedb.FlatIndex(1)
     flat.add(1, [0.])
     approx = vanedb.ApproxIndex(1)
     approx.add(1, [0.])
-    for index in (flat, approx):
+    builder = vanedb.DiskIndexBuilder(1)
+    builder.add(1, [0.])
+    path = str(tmp_path / "store.vndb")
+    builder.save(path)
+    disk = vanedb.DiskIndex.open(path)
+    for index in (flat, approx, disk):
         assert index.search([0.], 1, filter=lambda _: True) == [(1, 0.)]
         assert index.search([0.], 1, allow_ids=[1]) == [(1, 0.)]
         assert index.search([0.], 1, deny_ids=[2]) == [(1, 0.)]

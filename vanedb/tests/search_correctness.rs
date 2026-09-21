@@ -477,9 +477,10 @@ fn filtered_search_exact_matches_reference() {
     for hit in &store_hits {
         assert_eq!(hit.id % 4, 0);
     }
-    // With 100 stored vectors the default cap (4 x 50) exceeds the slot
-    // count, so widening reaches the whole graph and the graph search must
-    // reproduce the exact ranking, not only its first entry.
+    // One ef=50 pass already scores all 100 slots, so no widening pass runs
+    // here: this pins the graph ranking against the exact reference, whole
+    // and in order, rather than exercising widening (filtered_widening.rs
+    // does that).
     assert_eq!(ids_of(&index_hits), ids_of(&store_hits));
 
     // 2. Allow list: explicitly allow a subset of 5 IDs
@@ -779,9 +780,12 @@ fn filtered_graph_search_recall_and_tombstones() {
             .count();
         let recall = (matched as f64) / (k as f64);
         eprintln!("recall at {selectivity}: {recall}");
-        // The default cap (4 x 50) is two thirds of the 300 slots, so widening
-        // reaches most of the graph: measured 1.0 at every selectivity on this
-        // seed. At 1% all three allowed ids must come back, exactly as ranked.
+        // One ef=50 pass already scores 258 of the 300 slots (measured with a
+        // reject-all predicate), so the beam covers most of the graph before
+        // any widening: these assertions pin the ranking against the exact
+        // reference, not widening (filtered_widening.rs does that). Measured
+        // 1.0 at every selectivity on this seed. At 1% all three allowed ids
+        // must come back, exactly as ranked.
         if selectivity == "1%" {
             assert_eq!(ids_of(&approx_hits), ids_of(&exact_hits));
         } else {
