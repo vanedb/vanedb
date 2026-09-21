@@ -33,11 +33,25 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   (RFC 0010, #109); `DiskIndexBuilder::add` and the batch adds check
   finiteness block-wise (#77). No format or API change: saved bytes and
   result order are pinned by `vanedb/tests/rfc0010_identity.rs`.
+- Platform support is tiered in `docs/PLATFORMS.md` (RFC 0012), the only
+  place a tier is asserted. It records what CI proves on each platform, the
+  floors (Rust 1.85, glibc 2.34 for C archives, macOS 11.0/10.12, Android
+  API 21, Python 3.11 to 3.14; iOS 13 as a declared target and Node.js 22 as
+  the tested version over a declared floor of 18) and a dated change log.
+  The README summarises and links it, `SECURITY.md` links it, and a test
+  fails when the README names a platform the page does not.
 - The `gpu-metal` feature is documented as experimental (#208): it exposes the
   standalone `MetalCompute` scan API on macOS and accelerates no index. The
   crate README no longer presents it as a capability; `docs/LIMITS.md` records
   what it does and does not do. The feature, its tests and its CI jobs are
   unchanged.
+
+### Deprecated
+
+- Native x86-64 macOS wheels and the `macos-x86_64` C archive end when
+  GitHub's `macos-15-intel` runner retires in August 2027. No cross-compiled
+  or `universal2` substitute is published; the sdist and `cargo build` keep
+  working on Intel Macs (RFC 0012, #47).
 
 ## [0.1.1] - 2026-09-10
 
