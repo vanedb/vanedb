@@ -59,7 +59,8 @@ class LocalizeCommands(unittest.TestCase):
         # Fat LTO keeps embed-bitcode=yes; Apple's nm cannot read rustc's
         # LLVM 22 bitcode and the Linux archive would ship it for nothing.
         combine, _ = commands("macos-aarch64", "11.0")
-        self.assertEqual(combine[1], ["xcrun", "bitcode_strip", "-r", str(COMBINED), "-o", str(COMBINED)])
+        self.assertEqual(combine[1], ["llvm-objcopy", "--remove-section=__LLVM,__bitcode",
+                                    "--remove-section=__LLVM,__cmdline", str(COMBINED)])
         combine, _ = commands("linux-x86_64")
         objcopy = combine[1]
         self.assertEqual(objcopy[0], "objcopy")

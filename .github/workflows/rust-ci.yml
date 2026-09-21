@@ -252,6 +252,9 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
+      - name: Install the Mach-O object editor
+        if: runner.os == 'macOS'
+        run: rustup component add llvm-tools-preview
       - name: Build and run C consumer acceptance
         # Runs on windows-latest too, where the default shell is pwsh: it does
         # not stop on a native non-zero exit, so a failed build would leave

@@ -261,7 +261,24 @@ def apple_deployment_target(platform):
     return parse_deployment_target(output)
 
 
-def localize_commands(platform, archive, exports, combined, deployment_target=None):
+def llvm_objcopy():
+    """Find the active Rust toolchain's object editor (llvm-tools-preview)."""
+    sysroot = subprocess.check_output(["rustc", "--print", "sysroot"], text=True).strip()
+    version = subprocess.check_output(["rustc", "-vV"], text=True)
+    host = next(line.removeprefix("host: ") for line in version.splitlines()
+                if line.startswith("host: "))
+    bundled = Path(sysroot) / "lib/rustlib" / host / "bin/llvm-objcopy"
+    if bundled.is_file():
+        return str(bundled)
+    external = shutil.which("llvm-objcopy")
+    if external:
+        return external
+    raise SystemExit("macOS static packaging requires llvm-objcopy; install "
+                     "llvm-tools-preview for the active Rust toolchain or put llvm-objcopy on PATH")
+
+
+def localize_commands(platform, archive, exports, combined, deployment_target=None,
+                      objcopy="llvm-objcopy"):
     """The commands that merge a static library into one relocatable object
     with only vanedb_rs_* global, and the one that repacks it.
 
@@ -283,8 +300,9 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
     `__LLVM,__bitcode` on Mach-O, `.llvmbc` and `.llvmcmd` on ELF. Apple's
     `nm` (LLVM 17 in Xcode 16) fails to parse bitcode written by rustc's
     LLVM 22, and on Linux it is dead weight in the shipped archive. It is
-    stripped from the combined object: `xcrun bitcode_strip -r` on macOS,
-    `objcopy --remove-section` on Linux. Nothing links against it.
+    stripped from the combined object with objcopy. Apple's bitcode_strip
+    invokes an obsolete linker option that fails on current Xcode, so macOS
+    uses llvm-objcopy's Mach-O section removal. Nothing links against it.
     """
     archive, combined = str(archive), str(combined)
     exports = Path(exports)
@@ -305,7 +323,8 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
               f"-Wl,-force_load,{archive}",
               f"-Wl,-exported_symbols_list,{exports / 'vanedb_capi.exp'}",
               "-o", combined],
-             ["xcrun", "bitcode_strip", "-r", combined, "-o", combined]],
+             [objcopy, "--remove-section=__LLVM,__bitcode",
+              "--remove-section=__LLVM,__cmdline", combined]],
             ["libtool", "-static", "-o", archive, combined],
         )
     return None
@@ -329,7 +348,8 @@ def localize_static(archive, work, platform):
     """
     target = apple_deployment_target(platform) if platform.startswith("macos") else None
     commands = localize_commands(platform, archive, ROOT / "vanedb-capi/exports",
-                                 work / "vanedb_capi_combined.o", target)
+                                 work / "vanedb_capi_combined.o", target,
+                                 llvm_objcopy() if platform.startswith("macos") else "objcopy")
     if commands is None:
         return False
     combine, repack = commands

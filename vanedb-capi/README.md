@@ -115,7 +115,9 @@ cmake --build target/c-example --config Release
 ctest --test-dir target/c-example --build-config Release --output-on-failure
 ```
 
-A plain `--release` build still works and lands in `target/release/`; the
+A plain `--release` build still works and lands in `target/release/`. On
+macOS, packaging also needs `rustup component add llvm-tools-preview`
+for the active toolchain (or `llvm-objcopy` on `PATH`). The CMake
 examples look for `target/capi` first. `scripts/package_capi.py --platform
 <platform>` produces the archive above from the `capi` build and runs every
 consumer against it.
