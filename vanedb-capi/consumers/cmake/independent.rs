@@ -6,6 +6,17 @@ thread_local! {
 }
 
 #[no_mangle]
+pub extern "C" fn independent_rust_filter(_id: u64, data: *mut std::ffi::c_void) -> bool {
+    // Catch the independent runtime's panic before returning through VaneDB.
+    let outcome = std::panic::catch_unwind(|| panic!("locally contained callback panic"));
+    if outcome.is_err() {
+        // The C acceptance caller supplies a live counter for this synchronous call.
+        unsafe { *data.cast::<u32>() += 1 };
+    }
+    false
+}
+
+#[no_mangle]
 pub extern "C" fn independent_rust_exercise() -> u32 {
     // Keep allocation, TLS, threading and unwinding live in this library.
     std::panic::catch_unwind(|| {

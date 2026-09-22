@@ -412,8 +412,9 @@ def test_consumers(extracted, work):
             raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
 
     build = work / "cmake-consumer-build"
+    coexistence = ["-DVANEDB_TEST_RUST_COEXISTENCE=ON"] if sys.platform == "win32" else []
     run(["cmake", "-S", extracted / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
-         f"-DCMAKE_PREFIX_PATH={extracted}"], work)
+         f"-DCMAKE_PREFIX_PATH={extracted}", *coexistence], work)
     run(["cmake", "--build", build, "--config", "Release"], work)
     run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure", "--no-tests=error"], work)
 

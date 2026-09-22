@@ -7,6 +7,7 @@
 
 #ifdef VANEDB_COEXISTENCE
 extern uint32_t independent_rust_exercise(void);
+extern bool independent_rust_filter(uint64_t id, void *data);
 #endif
 
 #define CHECK(expr) do { if (!(expr)) { \
@@ -143,6 +144,25 @@ int main(int argc, char **argv) {
     exercise(VANEDB_RS_L2, argv[1]);
     exercise(VANEDB_RS_COSINE, argv[1]);
     exercise(VANEDB_RS_DOT, argv[1]);
+#ifdef VANEDB_COEXISTENCE
+    {
+        const float vector[] = {1.0f};
+        uint64_t id = 99;
+        float distance = 99.0f;
+        uint32_t callbacks = 0;
+        vanedb_rs_store store = vanedb_rs_store_new(1, VANEDB_RS_L2);
+        CHECK(store != VANEDB_RS_NULL_HANDLE);
+        CHECK(vanedb_rs_store_add(store, 42, vector) == 0);
+        CHECK(vanedb_rs_store_search_filtered(store, vector, 1,
+            independent_rust_filter, &callbacks, NULL, 0, NULL, 0, &id, &distance) == 0);
+        CHECK(callbacks == 1);
+        CHECK(vanedb_rs_last_error() == VANEDB_RS_OK);
+        CHECK(id == 99 && distance == 99.0f);
+        CHECK(vanedb_rs_store_search(store, vector, 1, &id, &distance) == 1);
+        CHECK(id == 42);
+        vanedb_rs_store_free(store);
+    }
+#endif
     CHECK(vanedb_rs_handle_count() == 0);
 #ifdef VANEDB_COEXISTENCE
     CHECK(independent_rust_exercise() == 42);

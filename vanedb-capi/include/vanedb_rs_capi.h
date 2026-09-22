@@ -199,9 +199,10 @@ typedef vanedb_rs_handle vanedb_rs_store;
  * for the whole call. It must not access, mutate, or free the searched handle:
  * the search holds its read lock. It must not modify/free any search buffers;
  * calls using other handles are allowed.
- * It must not throw a foreign exception or use `longjmp` across Rust frames.
- * A Rust callback declared `extern "C-unwind"` may panic; with unwinding enabled
- * the search reports `VANEDB_RS_PANIC` and leaves the result buffers untouched.
+ * It must contain its own panics and exceptions: no unwinding or `longjmp`
+ * may leave the callback. A panic from a separately linked Rust runtime is a
+ * foreign exception and may abort the process even with `extern "C-unwind"`.
+ * The library's panic boundary contains engine panics, not foreign exceptions.
  */
 typedef bool (*vanedb_rs_filter_fn)(uint64_t id, void *user_data);
 

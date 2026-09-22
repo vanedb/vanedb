@@ -83,6 +83,9 @@ only the installed layout.
   `opt-level = 3`; the shared library is stripped, the static library is not.
   `panic = "unwind"` is retained: `panic = "abort"` would make the existing
   `catch_unwind` boundary inert and abort the host process.
+  This contains engine panics. External callbacks must contain their own
+  exceptions and panics: a separately linked Rust runtime's panic is a foreign
+  exception and can abort rather than being caught by this boundary.
 
 ### Stage 2: Apple (0.3.0)
 

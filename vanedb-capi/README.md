@@ -243,10 +243,13 @@ widens its beam. It must not access, modify or free the handle being searched
 search buffers. Calls on other handles are allowed; an error such a call
 records does not replace the outer search's result. The callback and
 everything `user_data` points to must stay valid
-until the search returns. No foreign exception or `longjmp` may cross the
-callback. A Rust callback declared `extern "C-unwind"` may panic: the panic is
-caught at the boundary, the search returns zero with `VANEDB_RS_PANIC`, the
-result buffers are untouched, and the handle remains usable afterwards. ID
+until the search returns. Every external callback must contain its own panics
+and exceptions; neither unwinding nor `longjmp` may leave it. This includes
+Rust callbacks declared `extern "C-unwind"`: a panic from a separately linked
+Rust runtime is a foreign exception and can abort the process. The library's
+panic boundary contains engine panics; it cannot promise recovery from another
+runtime's exception. A Rust callback can use its own `catch_unwind` and return
+false on a locally handled failure. ID
 lists are the fast path because they never cross the language boundary per
 candidate.
 
@@ -358,9 +361,11 @@ Windows packaging needs `llvm-tools-preview` for the active Rust toolchain
 and GNU COFF `objcopy` (the hosted Windows image provides binutils). Set
 `VANEDB_COFF_OBJCOPY` to its executable if it is outside the usual MinGW paths.
 LLVM's `objcopy` does not implement this COFF localization operation. The
-installed CMake consumer also links an independently compiled Rust static
-library and exercises allocation, threads, TLS and caught unwinding in that
-library alongside vanedb's full acceptance lifecycle. Successful native
+plain C consumer requires only a C toolchain. Packaging explicitly enables
+`-DVANEDB_TEST_RUST_COEXISTENCE=ON` to additionally link an independently
+compiled Rust static library and exercise allocation, threads, TLS and
+locally caught unwinding alongside vanedb's full acceptance lifecycle. This
+optional check requires rustc; it is off for normal consumers. Successful native
 Windows CI is required to establish that runtime result.
 
 ## ABI compatibility gate
