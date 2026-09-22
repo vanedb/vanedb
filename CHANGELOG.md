@@ -9,6 +9,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+Target: **0.2.0**. This is an unreleased candidate; the version bump does not
+establish release readiness or publication. The [draft release notes](docs/release/0.2.0-notes.md)
+record the remaining integration and evidence dependencies.
+
 ### Added
 
 - Filtered search (RFC 0004 / #199): Predicate, Allow, and Deny filters across `FlatIndex`, `ApproxIndex`, and `DiskIndex`.
