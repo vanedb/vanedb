@@ -609,6 +609,15 @@ jobs:
             echo "$out" | grep -q -- '--cut refused'
             echo "$out" | grep -q 'obsidian-vane-search/pull/20'
           fi
+          # --all must still refuse --cut even when --fill fails (shared runner).
+          set +e
+          all_out=$(bash "$CLOSE" --all 2>&1)
+          all_rc=$?
+          set -e
+          echo "$all_out"
+          echo "$all_out" | grep -q -- '--cut refused'
+          test "$all_rc" -eq 2
+          echo "ok: --all refuses historical cut (exit $all_rc) after fill attempt"
           # Current AC5 helper: annotated tag on merged demo PR #20.
           TAGSCR=docs/launch/maintainer_tag_demo_0.2.0.sh
           test -f "$TAGSCR"

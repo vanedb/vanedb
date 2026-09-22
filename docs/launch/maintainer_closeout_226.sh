@@ -121,8 +121,15 @@ if [[ "$DO_FILL" -eq 1 ]]; then
     echo "==> --fill skipped: no Pending cells"
   else
     echo "==> --fill: maintainer_fill_host_comparison.sh (Apple/Linux dedicated only)"
-    bash bench/compare/scripts/maintainer_fill_host_comparison.sh
-    echo "    Open a PR with COMPARISON.md + runs/ (main is PR-protected)."
+    # Do not let set -e abort before --cut/--all refusal: shared-runner fill
+    # failure must still surface the historical-cut refuse (exit 2).
+    if bash bench/compare/scripts/maintainer_fill_host_comparison.sh; then
+      echo "    Open a PR with COMPARISON.md + runs/ (main is PR-protected)."
+    else
+      fill_rc=$?
+      echo "==> --fill failed (exit $fill_rc)" >&2
+      exit_code=$fill_rc
+    fi
   fi
 fi
 
