@@ -3,9 +3,11 @@
 # Residual tracking issue: https://github.com/vanedb/vanedb/issues/242
 # (#226 was auto-closed by a merge keyword; do not use close/fix/#N in PRs.)
 #
-# Reports gaps, then optionally runs the Apple/Linux fill one-shot:
+# Reports gaps, then optionally runs fill / annotated tag helpers:
 #   bash docs/launch/maintainer_closeout_226.sh           # status only
 #   bash docs/launch/maintainer_closeout_226.sh --fill    # + Apple/Linux fill
+#   bash docs/launch/maintainer_closeout_226.sh --tag \
+#     --confirm-vault-walkthrough [--dry-run]             # + AC5 annotated tag
 #
 # AC5 for the current candidate is NOT `--cut`. Historical
 # `maintainer_cut_demo_0.2.0.sh` / Actions → Cut demo 0.2.0 apply an older
@@ -13,12 +15,12 @@
 #   https://github.com/vanedb/obsidian-vane-search/pull/20
 #   docs/launch/0003-demo-update-checklist.md
 # (independent review + CI → real Obsidian/Ollama vault walkthrough → merge →
-# annotated 0.2.0 tag on the reviewed merged commit). Tag push still needs
+# `maintainer_tag_demo_0.2.0.sh` annotated 0.2.0 tag). Tag push still needs
 # DEMO_REPO_TOKEN or Cursor GitHub App on vanedb/obsidian-vane-search
 # (contents:write) after #215 repositoryDependencies.
 #
 # Legacy flags (refused for this candidate; exit 2):
-#   --cut / --all / --cut --dry-run / --skip-tests (cut-only options)
+#   --cut / --all / --skip-tests (historical cut-only options)
 #
 # AC3 Android still needs ANDROID.md (this driver refuses android labels).
 # Cloud/CI shells are refused by the fill helper. Official AC5 URL must be
@@ -27,17 +29,23 @@ set -euo pipefail
 
 DO_FILL=0
 DO_CUT=0
-SKIP_TESTS=0
+DO_TAG=0
+CONFIRM_VAULT=0
 DRY_RUN=0
 for arg in "$@"; do
   case "$arg" in
     --fill) DO_FILL=1 ;;
     --cut) DO_CUT=1 ;;
+    --tag) DO_TAG=1 ;;
     --all) DO_FILL=1; DO_CUT=1 ;;
-    --skip-tests) SKIP_TESTS=1 ;;
+    --confirm-vault-walkthrough) CONFIRM_VAULT=1 ;;
+    --skip-tests)
+      echo "unknown arg for current AC5 path: --skip-tests (historical cut only)" >&2
+      exit 2
+      ;;
     --dry-run) DRY_RUN=1 ;;
     -h|--help)
-      sed -n '1,26p' "$0"
+      sed -n '1,28p' "$0"
       exit 0
       ;;
     *)
@@ -124,12 +132,40 @@ if [[ "$DO_CUT" -eq 1 ]]; then
   # muscle-memory fails loudly instead of publishing the wrong tag.
   echo "==> --cut refused: historical patch cut is not the current AC5 candidate" >&2
   echo "    Current candidate: https://github.com/vanedb/obsidian-vane-search/pull/20" >&2
-  echo "    Sequence: review+CI → real vault walkthrough → merge → annotated 0.2.0 tag" >&2
+  echo "    Sequence: review+CI → real vault walkthrough → merge → --tag" >&2
   echo "    Checklist: docs/launch/0003-demo-update-checklist.md" >&2
-  if [[ "$DRY_RUN" -eq 1 || "$SKIP_TESTS" -eq 1 ]]; then
-    echo "    (--dry-run/--skip-tests do not re-enable historical cut)" >&2
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "    (--dry-run does not re-enable historical cut)" >&2
   fi
   exit_code=2
+fi
+
+if [[ "$DO_TAG" -eq 1 ]]; then
+  if [[ -n "$demo_tag" ]]; then
+    echo "==> --tag skipped: 0.2.0 already exists"
+  else
+    echo "==> --tag: maintainer_tag_demo_0.2.0.sh"
+    tag_args=()
+    if [[ "$CONFIRM_VAULT" -eq 1 ]]; then
+      tag_args+=(--confirm-vault-walkthrough)
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      tag_args+=(--dry-run)
+    fi
+    if bash docs/launch/maintainer_tag_demo_0.2.0.sh "${tag_args[@]}"; then
+      if command -v gh >/dev/null 2>&1; then
+        if gh release view 0.2.0 -R vanedb/obsidian-vane-search >/dev/null 2>&1 \
+          || gh api repos/vanedb/obsidian-vane-search/git/ref/tags/0.2.0 >/dev/null 2>&1; then
+          demo_tag="0.2.0"
+        fi
+      fi
+      if [[ -z "$demo_tag" && "$DRY_RUN" -eq 1 ]]; then
+        echo "    (dry-run: official 0.2.0 still missing until a real tag push)"
+      fi
+    else
+      exit_code=2
+    fi
+  fi
 fi
 
 pending_after="$pending"
@@ -144,7 +180,8 @@ if [[ "$pending_after" -ne 0 ]]; then
 fi
 if [[ -z "$demo_tag" ]]; then
   echo "    AC5: demo PR https://github.com/vanedb/obsidian-vane-search/pull/20"
-  echo "         → vault walkthrough → merge → annotated 0.2.0 tag (not historical --cut)"
+  echo "         → vault walkthrough → merge → $0 --tag --confirm-vault-walkthrough"
+  echo "         (not historical --cut; helper: docs/launch/maintainer_tag_demo_0.2.0.sh)"
   echo "         Checklist: docs/launch/0003-demo-update-checklist.md"
   echo "         Tag push: DEMO_REPO_TOKEN or Cursor App on vanedb/obsidian-vane-search"
 fi

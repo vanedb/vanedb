@@ -559,6 +559,7 @@ jobs:
           grep -q 'shared runner markers' "$CLOSE"
           grep -q 'obsidian-vane-search/pull/20' "$CLOSE"
           grep -q -- '--cut refused' "$CLOSE"
+          grep -q 'maintainer_tag_demo_0.2.0.sh' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
@@ -591,7 +592,38 @@ jobs:
             echo "$out" | grep -q -- '--cut refused'
             echo "$out" | grep -q 'obsidian-vane-search/pull/20'
           fi
-          echo "ok: residual tracking points at #242; closeout refuses historical --cut"
+          # Current AC5 helper: annotated tag on merged demo PR #20.
+          TAGSCR=docs/launch/maintainer_tag_demo_0.2.0.sh
+          test -f "$TAGSCR"
+          grep -q 'git_no_ambient_url_rewrite' "$TAGSCR"
+          grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$TAGSCR"
+          grep -qF 'https://github.com/*' "$TAGSCR"
+          grep -q 'confirm-vault-walkthrough' "$TAGSCR"
+          grep -q 'obsidian-vane-search/pull/20' "$TAGSCR"
+          grep -q 'issues/242' "$TAGSCR"
+          if grep -q 'issues/226' "$TAGSCR"; then
+            echo "::error::$TAGSCR must not reply on auto-closed #226; use #242" >&2
+            exit 1
+          fi
+          if out=$(bash "$TAGSCR" --dry-run 2>&1); then
+            echo "::error::$TAGSCR must refuse without --confirm-vault-walkthrough" >&2
+            echo "$out" >&2
+            exit 1
+          else
+            echo "$out" | grep -qi 'confirm-vault-walkthrough'
+          fi
+          # While demo PR #20 is still open, even a confirmed dry-run must stop.
+          demo20_state="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state -q .state)"
+          if [[ "$demo20_state" != "MERGED" ]]; then
+            if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
+              echo "::error::$TAGSCR must refuse while demo PR #20 is $demo20_state" >&2
+              echo "$out" >&2
+              exit 1
+            else
+              echo "$out" | grep -qi 'MERGED'
+            fi
+          fi
+          echo "ok: residual tracking points at #242; closeout refuses historical --cut; tag helper gated"
       - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.
