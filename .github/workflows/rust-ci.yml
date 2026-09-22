@@ -294,7 +294,22 @@ jobs:
       # find_package(vanedb) consumer against both targets, and on Linux and
       # macOS the pkg-config consumer -- all from the extracted archive.
       - name: Package C libraries and test the CMake and pkg-config consumers from the archive
-        run: python scripts/package_capi.py --platform ${{ matrix.artifact }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            python scripts/package_capi.py --platform ${{ matrix.artifact }} --work-dir target/capi-diagnostics
+          else
+            python scripts/package_capi.py --platform ${{ matrix.artifact }}
+          fi
+      - name: Retain failed Windows static diagnostics
+        if: failure() && runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-capi-windows-diagnostics
+          path: |
+            target/capi-diagnostics/**
+            target/c-artifacts/*
+          if-no-files-found: warn
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: vanedb-capi-${{ matrix.artifact }}

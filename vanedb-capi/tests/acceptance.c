@@ -10,7 +10,14 @@ extern uint32_t independent_rust_exercise(void);
 extern bool independent_rust_filter(uint64_t id, void *data);
 #endif
 
-#define CHECK(expr) do { if (!(expr)) { \
+static void trace_check(int line, const char *expression) {
+    if (getenv("VANEDB_CAPI_TRACE") != NULL) {
+        fprintf(stderr, "trace line %d: %s\n", line, expression);
+        fflush(stderr);
+    }
+}
+
+#define CHECK(expr) do { trace_check(__LINE__, #expr); if (!(expr)) { \
     fprintf(stderr, "line %d: %s failed\n", __LINE__, #expr); exit(1); \
 } } while (0)
 
@@ -134,6 +141,7 @@ static void exercise(uint32_t metric, const char *directory) {
 }
 
 int main(int argc, char **argv) {
+    trace_check(__LINE__, "entered main");
     CHECK(argc == 2);
 #ifdef VANEDB_COEXISTENCE
     CHECK(independent_rust_exercise() == 42);

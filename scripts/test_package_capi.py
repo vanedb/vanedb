@@ -8,7 +8,9 @@ static archive without `-arch`; these cases pin the commands without a Mac.
 """
 
 import sys
+import json
 import struct
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -192,6 +194,78 @@ class WindowsStaticIsolation(unittest.TestCase):
         for actual in ({"vanedb_rs_api", "__rust_alloc"}, set()):
             with self.assertRaises(SystemExit):
                 windows.require_symbols(actual, {"vanedb_rs_api"}, "test archive")
+
+
+class PackagingDiagnostics(unittest.TestCase):
+    def test_default_work_directory_is_removed_on_failure(self):
+        with self.assertRaisesRegex(RuntimeError, "failed"):
+            with package_capi.packaging_work_directory() as directory:
+                self.assertTrue(directory.is_dir())
+                raise RuntimeError("failed")
+        self.assertFalse(directory.exists())
+
+    def test_requested_work_directory_survives_failure_and_is_unique(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            with self.assertRaisesRegex(RuntimeError, "failed"):
+                with package_capi.packaging_work_directory(parent) as first:
+                    (first / "evidence").write_text("retained")
+                    raise RuntimeError("failed")
+            with package_capi.packaging_work_directory(parent) as second:
+                self.assertNotEqual(first, second)
+            self.assertEqual((first / "evidence").read_text(), "retained")
+            self.assertTrue(second.is_dir())
+
+    def check_consumer_results(self, packaged_fails, control_fails):
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            extracted = work / "extracted"
+            (extracted / "lib").mkdir(parents=True)
+            (extracted / "lib/vanedb_capi.lib").write_bytes(b"localized")
+            raw = work / "windows-raw-static.lib"
+            raw.write_bytes(b"untouched rust archive")
+            errors = {}
+            commands = []
+
+            def run(command, cwd, env=None):
+                commands.append(command)
+                if command[0] != "ctest":
+                    return
+                self.assertEqual(env["VANEDB_CAPI_TRACE"], "1")
+                control = command[2].name == "raw-static-control-build"
+                if control:
+                    self.assertIn("^acceptance_static$", command)
+                    self.assertEqual((work / "raw-static-control-package/lib/vanedb_capi.lib").read_bytes(),
+                                     raw.read_bytes())
+                if control_fails if control else packaged_fails:
+                    error = subprocess.CalledProcessError(8, list(map(str, command)))
+                    errors["control" if control else "packaged"] = error
+                    raise error
+
+            with patch.object(package_capi.sys, "platform", "win32"), \
+                    patch.object(package_capi, "run", side_effect=run):
+                if packaged_fails or control_fails:
+                    with self.assertRaises(subprocess.CalledProcessError) as raised:
+                        package_capi.test_cmake_consumer(extracted, work, raw)
+                    self.assertIs(raised.exception, errors["packaged" if packaged_fails else "control"])
+                else:
+                    package_capi.test_cmake_consumer(extracted, work, raw)
+            self.assertEqual(sum(command[0] == "ctest" for command in commands), 2)
+            self.assertEqual((extracted / "lib/vanedb_capi.lib").read_bytes(), b"localized")
+            results = json.loads((work / "consumer-results.json").read_text())
+            self.assertEqual(set(results), {"packaged", "raw-static-control"})
+
+    def test_control_cannot_mask_packaged_failure(self):
+        self.check_consumer_results(packaged_fails=True, control_fails=False)
+
+    def test_both_failures_preserve_packaged_error(self):
+        self.check_consumer_results(packaged_fails=True, control_fails=True)
+
+    def test_control_failure_also_gates(self):
+        self.check_consumer_results(packaged_fails=False, control_fails=True)
+
+    def test_both_consumers_pass(self):
+        self.check_consumer_results(packaged_fails=False, control_fails=False)
 
 
 if __name__ == "__main__":

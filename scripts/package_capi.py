@@ -19,6 +19,7 @@ built and run from it alone.
 """
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -400,7 +401,60 @@ def run(command, cwd, env=None):
     subprocess.run([str(c) for c in command], cwd=cwd, check=True, env=env)
 
 
-def test_consumers(extracted, work):
+@contextmanager
+def packaging_work_directory(parent=None):
+    """Keep a unique diagnostic directory only when explicitly requested."""
+    if parent is None:
+        with tempfile.TemporaryDirectory(prefix="vanedb-c-package-") as temporary:
+            yield Path(temporary)
+    else:
+        parent = parent.resolve()
+        parent.mkdir(parents=True, exist_ok=True)
+        directory = Path(tempfile.mkdtemp(prefix="vanedb-c-package-", dir=parent))
+        print(f"Retaining package diagnostics in {directory}", flush=True)
+        yield directory
+
+
+def test_cmake_consumer(extracted, work, raw_static=None):
+    """The optional control substitutes only the same-build, unmodified archive."""
+    diagnostic = raw_static is not None
+    env = dict(os.environ, VANEDB_CAPI_TRACE="1") if diagnostic else None
+    failure = None
+    results = {}
+    variants = ["packaged", "raw-static-control"] if diagnostic else ["packaged"]
+    for variant in variants:
+        source = extracted
+        build = work / "cmake-consumer-build"
+        options = ["-DVANEDB_TEST_RUST_COEXISTENCE=ON"] if sys.platform == "win32" else []
+        targets, tests = [], []
+        if variant == "raw-static-control":
+            source = work / "raw-static-control-package"
+            shutil.copytree(extracted, source)
+            shutil.copy2(raw_static, source / "lib/vanedb_capi.lib")
+            build = work / "raw-static-control-build"
+            # The raw Rust archive does not promise runtime isolation. Run the
+            # identical static acceptance executable, without coexistence.
+            options = []
+            targets = ["--target", "acceptance_static"]
+            tests = ["-R", "^acceptance_static$"]
+        try:
+            run(["cmake", "-S", source / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
+                 f"-DCMAKE_PREFIX_PATH={source}", *options], work)
+            run(["cmake", "--build", build, "--config", "Release", *targets], work)
+            run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure",
+                 "--no-tests=error", *(["--verbose"] if diagnostic else []), *tests], work, env=env)
+            results[variant] = "passed"
+        except subprocess.CalledProcessError as error:
+            results[variant] = {"exit_code": error.returncode, "command": error.cmd}
+            if failure is None:
+                failure = error
+        if diagnostic:
+            (work / "consumer-results.json").write_text(json.dumps(results, indent=2) + "\n")
+    if failure is not None:
+        raise failure
+
+
+def test_consumers(extracted, work, raw_static=None):
     """Everything below sees only the extracted archive."""
     build = work / "examples-build"
     run(["cmake", "-S", extracted / "examples", "-B", build, "-DCMAKE_BUILD_TYPE=Release"], work)
@@ -411,12 +465,7 @@ def test_consumers(extracted, work):
         if "@rpath/libvanedb_capi.dylib" not in links or str(ROOT) in links:
             raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
 
-    build = work / "cmake-consumer-build"
-    coexistence = ["-DVANEDB_TEST_RUST_COEXISTENCE=ON"] if sys.platform == "win32" else []
-    run(["cmake", "-S", extracted / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
-         f"-DCMAKE_PREFIX_PATH={extracted}", *coexistence], work)
-    run(["cmake", "--build", build, "--config", "Release"], work)
-    run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure", "--no-tests=error"], work)
+    test_cmake_consumer(extracted, work, raw_static)
 
     if sys.platform != "win32":
         if not shutil.which("pkg-config"):
@@ -437,6 +486,8 @@ def main():
     parser.add_argument("--library-dir", type=Path, default=ROOT / "target" / PROFILE,
                         help=f"where cargo put the libraries (default: target/{PROFILE})")
     parser.add_argument("--output", type=Path, default=ROOT / "target/c-artifacts")
+    parser.add_argument("--work-dir", type=Path,
+                        help="retain a unique build directory here; on Windows also trace and run a raw-static control")
     parser.add_argument("--native-static-libs", default=None,
                         help="the `native-static-libs` line to record instead of asking cargo")
     args = parser.parse_args()
@@ -448,8 +499,8 @@ def main():
     name = f"vanedb-capi-{version}-{args.platform}"
     args.output.mkdir(parents=True, exist_ok=True)
     archive = args.output.resolve() / f"{name}.zip"
-    with tempfile.TemporaryDirectory(prefix="vanedb-c-package-") as temporary:
-        directory = Path(temporary)
+    with packaging_work_directory(args.work_dir) as directory:
+        raw_static = None
         package = directory / "stage" / name
         (package / "lib").mkdir(parents=True)
         for kind in ("shared", "static", "import"):
@@ -462,7 +513,10 @@ def main():
         print(f"{names['shared']}: {before} bytes before strip, {shared.stat().st_size} after")
         if sys.platform == "win32":
             api = set(capi_exports.functions((ROOT / "vanedb-capi/include/vanedb_rs_capi.h").read_text()))
-            built_native = capi_windows_static.build_and_package(ROOT, static, directory, api)
+            built_native = capi_windows_static.build_and_package(
+                ROOT, static, directory, api, diagnostics=args.work_dir is not None)
+            if args.work_dir is not None:
+                raw_static = directory / "windows-raw-static.lib"
             if native is not None and link_tokens(native) != link_tokens(built_native):
                 raise SystemExit("--native-static-libs differs from the isolated Windows build")
             native = built_native
@@ -491,7 +545,7 @@ def main():
         shutil.rmtree(package.parent)
         with zipfile.ZipFile(archive) as packaged:
             packaged.extractall(directory / "extracted")
-        test_consumers(directory / "extracted" / name, directory)
+        test_consumers(directory / "extracted" / name, directory, raw_static)
     with archive.open("rb") as packaged:
         digest = hashlib.file_digest(packaged, "sha256").hexdigest()
     archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n")

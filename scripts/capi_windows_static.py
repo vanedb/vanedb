@@ -6,6 +6,7 @@ instead. Native import members stay byte-for-byte as rustc produced them.
 """
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -187,7 +188,7 @@ def isolate(raw_archive, lto_object, output, work, api, nm, ar, objcopy):
     return allowed
 
 
-def build_and_package(root, output, work, api):
+def build_and_package(root, output, work, api, diagnostics=False):
     nm, ar, objcopy = llvm_tool("llvm-nm"), llvm_tool("llvm-ar"), gnu_objcopy()
     target_dir = root / "target/capi-windows-static"
     lto_object = work / "windows-lto.obj"
@@ -195,13 +196,32 @@ def build_and_package(root, output, work, api):
                "--profile", "capi", "--target", TARGET, "--target-dir", str(target_dir),
                "--locked", "--color", "never", "--", f"--emit=obj={lto_object}",
                "-C", "lto=fat", "-C", "codegen-units=1", "--print", "native-static-libs"]
+    if diagnostics:
+        versions = {}
+        for tool in (["git", "rev-parse", "HEAD"], ["rustc", "-vV"], ["cargo", "--version"],
+                     [nm, "--version"], [ar, "--version"], [objcopy, "--version"],
+                     ["cmake", "--version"], ["cl"]):
+            try:
+                result = subprocess.run(tool, cwd=root, check=False, text=True, capture_output=True)
+                versions[" ".join(tool)] = {"exit_code": result.returncode,
+                                            "output": result.stdout + result.stderr}
+            except OSError as error:
+                # CMake can discover MSVC even when cl is absent from PATH;
+                # its retained configure logs identify the selected compiler.
+                versions[" ".join(tool)] = {"unavailable": str(error)}
+        (work / "build-diagnostics.json").write_text(
+            json.dumps({"command": command, "tools": versions}, indent=2) + "\n")
     built = subprocess.run(command, cwd=root, check=False, text=True, capture_output=True,
                            env=dict(os.environ, CARGO_TERM_COLOR="never"))
+    if diagnostics:
+        (work / "rust-static-build.log").write_text(built.stdout + built.stderr)
     if built.returncode:
         raise SystemExit(f"staticlib-only Rust build failed:\n{built.stdout}{built.stderr}")
     match = re.search(r"native-static-libs:\s*(.*)", built.stderr)
     if not match or not lto_object.is_file():
         raise SystemExit("staticlib-only Rust build did not produce its object and native link requirements")
     raw = target_dir / TARGET / "capi/vanedb_capi.lib"
+    if diagnostics:
+        shutil.copy2(raw, work / "windows-raw-static.lib")
     isolate(raw, lto_object, output, work / "windows-static", api, nm, ar, objcopy)
     return match[1].strip()
