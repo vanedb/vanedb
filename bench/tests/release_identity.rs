@@ -55,6 +55,98 @@ fn release_core(version: &str) -> &str {
     version.split_once('-').map_or(version, |(core, _)| core)
 }
 
+// Benchmark harnesses have independent versions. Only the shipping path
+// dependencies carry the release identity; registry/git packages are historical
+// dependency records and must not be changed by a release bump.
+const RELEASE_LOCKFILES: &[(&str, &[&str])] = &[
+    (
+        "Cargo.lock",
+        &["vanedb", "vanedb-capi", "vanedb-py", "vanedb-wasm"],
+    ),
+    ("bench/Cargo.lock", &["vanedb", "vanedb-capi"]),
+    ("bench/compare/Cargo.lock", &["vanedb"]),
+];
+
+/// Read package records in Cargo's generated lockfile format without adding a
+/// parser dependency to the benchmark workspace. Match whole scalar keys so
+/// dependency references cannot masquerade as a package's name or version.
+fn lockfile_version_problems(text: &str, packages: &[&str], expected: &str) -> Vec<String> {
+    let field = |record: &str, key: &str| {
+        record.lines().find_map(|line| {
+            line.strip_prefix(&format!("{key} = \""))?
+                .strip_suffix('"')
+                .map(str::to_owned)
+        })
+    };
+    let records: Vec<_> = text.split("[[package]]").skip(1).collect();
+    let mut problems = Vec::new();
+    for name in packages {
+        let local: Vec<_> = records
+            .iter()
+            .filter(|record| {
+                field(record, "name").as_deref() == Some(*name) && field(record, "source").is_none()
+            })
+            .collect();
+        if local.len() != 1 {
+            problems.push(format!(
+                "{name}: expected one local package, found {}",
+                local.len()
+            ));
+        } else if field(local[0], "version").as_deref() != Some(expected) {
+            problems.push(format!(
+                "{name} says {:?}, expected {expected}",
+                field(local[0], "version")
+            ));
+        }
+    }
+    problems
+}
+
+#[test]
+fn every_lockfile_records_the_release_path_dependencies() {
+    let expected = toml_version("vanedb/Cargo.toml");
+    for (path, packages) in RELEASE_LOCKFILES {
+        let problems = lockfile_version_problems(&read(path), packages, &expected);
+        assert!(problems.is_empty(), "{path}: {}", problems.join("; "));
+    }
+}
+
+#[test]
+fn stale_path_dependencies_are_rejected_in_each_lockfile() {
+    let expected = toml_version("vanedb/Cargo.toml");
+    for (path, packages) in RELEASE_LOCKFILES {
+        for name in *packages {
+            let original = read(path).replace("\r\n", "\n");
+            let current = format!("name = \"{name}\"\nversion = \"{expected}\"");
+            let stale = original.replace(
+                &current,
+                &format!("name = \"{name}\"\nversion = \"0.0.0-stale\""),
+            );
+            assert_ne!(stale, original, "{path}: fixture must alter {name}");
+            let problems = lockfile_version_problems(&stale, packages, &expected);
+            assert_eq!(problems.len(), 1, "{path}: {problems:?}");
+            assert!(problems[0].contains("0.0.0-stale"), "{path}: {problems:?}");
+        }
+    }
+}
+
+#[test]
+fn a_registry_package_cannot_replace_the_local_release_record() {
+    let registry = "[[package]]\nname = \"vanedb\"\nversion = \"1.2.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
+    assert_eq!(
+        lockfile_version_problems(registry, &["vanedb"], "1.2.3").len(),
+        1
+    );
+    let local = "[[package]]\nname = \"vanedb\"\nversion = \"1.2.3\"\n";
+    assert!(
+        lockfile_version_problems(&format!("{registry}{local}"), &["vanedb"], "1.2.3").is_empty()
+    );
+    assert_eq!(
+        lockfile_version_problems(&format!("{local}{local}"), &["vanedb"], "1.2.3").len(),
+        1
+    );
+}
+
 /// Every site that states the release version, as (what it is, the value).
 fn declared_versions() -> Vec<(&'static str, String)> {
     let mut sites: Vec<(&'static str, String)> = [
