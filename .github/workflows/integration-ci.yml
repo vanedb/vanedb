@@ -590,6 +590,24 @@ jobs:
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')
           test "$ver" = "0.2.0"
           echo "ok: demo cut script tagged 0.2.0 against local bare remote"
+      - name: maintainer_cut_demo_0.2.0.sh refuses real cut without write creds
+        # Without DEMO_REPO_TOKEN / App scope / non-github DEMO_URL, a real cut
+        # must fail fast (before npm) with unlock URLs — not after a full build.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
+          grep -q 'cut_has_write_creds' "$CUT"
+          grep -q 'refusing: DEMO_REPO_TOKEN unset' "$CUT"
+          set +e
+          out=$(env -u DEMO_REPO_TOKEN -u DEMO_URL bash "$CUT" --skip-tests 2>&1)
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          echo "$out" | grep -q 'refusing: DEMO_REPO_TOKEN unset'
+          echo "$out" | grep -q 'settings/secrets/actions'
+          echo "$out" | grep -qv 'npm ci'
+          echo "ok: real cut refuses without write creds before npm"
       - name: maintainer_cut_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN
         # Cursor cloud injects GH_TOKEN and global url.*.insteadOf rewrites
         # scoped to vanedb; those credentials 403 demo-repo writes. --dry-run

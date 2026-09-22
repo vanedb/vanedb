@@ -8,7 +8,8 @@
 # vanedb/obsidian-vane-search (contents:write) and boot a new agent after
 # #215 repositoryDependencies — when the demo repo is in
 # /installation/repositories this script uses `gh auth token` automatically.
-# Use --dry-run to validate without pushing.
+# Real cuts refuse before clone/build when write creds are missing; use
+# --dry-run to validate without pushing.
 #
 # Usage (from any clone of vanedb, or with VANEDB_ROOT set):
 #   bash docs/launch/maintainer_cut_demo_0.2.0.sh
@@ -73,6 +74,25 @@ if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
   fi
 elif [[ -z "${DEMO_URL:-}" ]]; then
   DEMO_URL="https://github.com/vanedb/obsidian-vane-search.git"
+fi
+
+# Real cuts need write credentials before clone/build. --dry-run may use
+# anonymous HTTPS. Pre-set DEMO_URL that is not plain https://github.com/…
+# (file:// bare remotes in CI, or already-tokenized URLs) counts as a write path.
+cut_has_write_creds() {
+  [[ -n "${DEMO_REPO_TOKEN:-}" ]] && return 0
+  [[ "${DEMO_URL:-}" == https://*:*@* ]] && return 0
+  [[ -n "${DEMO_URL:-}" && "${DEMO_URL}" != https://github.com/* ]] && return 0
+  return 1
+}
+
+if [[ "$DRY_RUN" -eq 0 ]] && ! cut_has_write_creds; then
+  echo "refusing: DEMO_REPO_TOKEN unset and Cursor App missing vanedb/obsidian-vane-search" >&2
+  echo "Set DEMO_REPO_TOKEN, install App on the demo repo + boot a new agent," >&2
+  echo "use Actions → Cut demo 0.2.0, or pass --dry-run." >&2
+  echo "App configure: https://github.com/apps/cursor/installations/new/permissions?target_id=272005268" >&2
+  echo "Secret: https://github.com/vanedb/vanedb/settings/secrets/actions" >&2
+  exit 1
 fi
 
 redact_url() {
