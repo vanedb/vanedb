@@ -56,21 +56,30 @@ if [[ "$CONFIRM_VAULT" -ne 1 ]]; then
   exit 2
 fi
 
-if ! command -v gh >/dev/null 2>&1; then
-  echo "gh CLI required to verify demo PR #$DEMO_PR merge state" >&2
-  exit 1
+# Local bare-remote CI only: file:// DEMO_URL with an explicit --commit skips
+# the live GitHub PR merge check (no network write; proves tag+push plumbing).
+SKIP_PR_GATE=0
+if [[ -n "${DEMO_URL:-}" && "$DEMO_URL" == file://* && -n "$COMMIT" ]]; then
+  SKIP_PR_GATE=1
+  echo "==> file:// DEMO_URL + --commit: skipping live PR #$DEMO_PR merge gate (CI)"
 fi
 
-pr_json="$(gh pr view "$DEMO_PR" -R "$DEMO_REPO" --json state,mergedAt,mergeCommit,headRefOid,url)"
-pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
-if [[ "$pr_state" != "MERGED" ]]; then
-  echo "refused: demo PR #$DEMO_PR is $pr_state (must be MERGED before tagging)" >&2
-  echo "  $(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')" >&2
-  exit 2
-fi
+if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "gh CLI required to verify demo PR #$DEMO_PR merge state" >&2
+    exit 1
+  fi
 
-if [[ -z "$COMMIT" ]]; then
-  COMMIT="$(printf '%s' "$pr_json" | python3 -c '
+  pr_json="$(gh pr view "$DEMO_PR" -R "$DEMO_REPO" --json state,mergedAt,mergeCommit,headRefOid,url)"
+  pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
+  if [[ "$pr_state" != "MERGED" ]]; then
+    echo "refused: demo PR #$DEMO_PR is $pr_state (must be MERGED before tagging)" >&2
+    echo "  $(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')" >&2
+    exit 2
+  fi
+
+  if [[ -z "$COMMIT" ]]; then
+    COMMIT="$(printf '%s' "$pr_json" | python3 -c '
 import json,sys
 p=json.load(sys.stdin)
 mc=p.get("mergeCommit") or {}
@@ -79,6 +88,12 @@ if not sha:
     raise SystemExit("mergeCommit.oid missing")
 print(sha)
 ')"
+  fi
+fi
+
+if [[ -z "$COMMIT" ]]; then
+  echo "refused: need a merge commit (PR #$DEMO_PR MERGED) or --commit=<sha>" >&2
+  exit 2
 fi
 if [[ ! "$COMMIT" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
   echo "invalid --commit SHA: $COMMIT" >&2

@@ -641,8 +641,55 @@ jobs:
             fi
           fi
           echo "ok: residual tracking points at #242; closeout refuses historical --cut; tag helper gated"
+      - name: maintainer_tag_demo_0.2.0.sh push to local bare remote
+        # Proves the current AC5 tag path (no historical patch) against a local
+        # bare remote. Uses demo PR #20 head (manifest already 0.2.0). Official
+        # release still needs PR merge + vault confirm + push to GitHub.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          BARE=$(mktemp -d)
+          SRC=$(mktemp -d)
+          git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$SRC/repo"
+          git -C "$SRC/repo" fetch --depth 50 origin pull/20/head:pr20
+          git -C "$SRC/repo" checkout pr20
+          COMMIT="$(git -C "$SRC/repo" rev-parse HEAD)"
+          ver="$(python3 -c 'import json; print(json.load(open("'"$SRC/repo"'/manifest.json"))["version"])')"
+          test "$ver" = "0.2.0"
+          git clone --bare "$SRC/repo" "$BARE/repo.git"
+          git -C "$SRC/repo" push "$BARE/repo.git" HEAD:refs/heads/main
+          DEMO_URL="file://$BARE/repo.git" \
+            bash docs/launch/maintainer_tag_demo_0.2.0.sh \
+              --confirm-vault-walkthrough --commit="$COMMIT"
+          git --git-dir="$BARE/repo.git" rev-parse "refs/tags/0.2.0"
+          tagged="$(git --git-dir="$BARE/repo.git" rev-list -n 1 refs/tags/0.2.0)"
+          test "$tagged" = "$COMMIT"
+          echo "ok: demo tag script annotated 0.2.0 at PR #20 head on local bare remote"
+      - name: maintainer_tag_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
+          GITHUB_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
+        run: |
+          set -euo pipefail
+          TAGSCR=docs/launch/maintainer_tag_demo_0.2.0.sh
+          grep -q 'git_no_ambient_url_rewrite' "$TAGSCR"
+          grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$TAGSCR"
+          # Plant a Cursor-like insteadOf rewrite; dry-run must ignore it.
+          git config --global \
+            "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
+            "https://github.com/"
+          # Without file:// + --commit, live PR gate still refuses while #20 open.
+          if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
+            echo "::error::expected refuse while demo PR #20 unmerged" >&2
+            echo "$out" >&2
+            exit 1
+          fi
+          echo "$out" | grep -qi 'MERGED'
+          echo "ok: tag --dry-run still gated on PR merge; ambient token ignored for gate path"
       - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
-        # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
+        # Proves the historical patch cut against a local bare remote (not the
+        # current AC5 candidate — see maintainer_tag_demo_0.2.0.sh above).
         # Official release still needs a maintainer push to obsidian-vane-search.
         if: matrix.os == 'ubuntu-latest'
         run: |
