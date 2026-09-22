@@ -182,6 +182,8 @@ if [[ -z "$demo_tag" ]]; then
   echo "    AC5: demo PR https://github.com/vanedb/obsidian-vane-search/pull/20"
   echo "         → vault walkthrough → merge → $0 --tag --confirm-vault-walkthrough"
   echo "         (not historical --cut; helper: docs/launch/maintainer_tag_demo_0.2.0.sh)"
+  echo "         or Actions → Tag demo 0.2.0 (confirm vault + secret DEMO_REPO_TOKEN)"
+  echo "         Tag workflow: https://github.com/vanedb/vanedb/actions/workflows/tag-demo-0.2.0.yml"
   echo "         Checklist: docs/launch/0003-demo-update-checklist.md"
   echo "         Tag push: DEMO_REPO_TOKEN or Cursor App on vanedb/obsidian-vane-search"
 fi

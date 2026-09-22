@@ -529,11 +529,28 @@ jobs:
           grep -q 'concurrency:' "$WF"
           grep -q 'cut-demo-0.2.0' "$WF"
           grep -q 'maintainer_cut_demo_0.2.0.sh --skip-tests' "$WF"
+          grep -qi 'Historical' "$WF"
           if grep -qE '^\s*(push|pull_request):' "$WF"; then
             echo "::error::$WF must not run on tip push/PR" >&2
             exit 1
           fi
-          echo "ok: cut-demo workflow is dispatch-only with concurrency"
+          echo "ok: cut-demo workflow is dispatch-only with concurrency (historical)"
+      - name: tag-demo-0.2.0.yml is dispatch-only with vault confirm + secret
+        run: |
+          set -euo pipefail
+          WF=.github/workflows/tag-demo-0.2.0.yml
+          grep -q 'workflow_dispatch' "$WF"
+          grep -q 'confirm_vault_walkthrough' "$WF"
+          grep -q 'DEMO_REPO_TOKEN' "$WF"
+          grep -q 'concurrency:' "$WF"
+          grep -q 'tag-demo-0.2.0' "$WF"
+          grep -q 'maintainer_tag_demo_0.2.0.sh' "$WF"
+          grep -q -- '--confirm-vault-walkthrough' "$WF"
+          if grep -qE '^\s*(push|pull_request):' "$WF"; then
+            echo "::error::$WF must not run on tip push/PR" >&2
+            exit 1
+          fi
+          echo "ok: tag-demo workflow is dispatch-only with vault confirm"
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
         # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical
