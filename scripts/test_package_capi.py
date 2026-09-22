@@ -142,6 +142,33 @@ def ar_member(name, body):
 
 
 class WindowsStaticIsolation(unittest.TestCase):
+    def test_archive_gate_preserves_repeated_dll_names_order_and_payloads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            members = []
+            for index, body in enumerate((b"descriptor", b"null descriptor", b"thunk")):
+                path = work / str(index) / "kernel32.dll"
+                path.parent.mkdir()
+                path.write_bytes(body)
+                members.append(path)
+            archive = work / "test.lib"
+            entries = [(path.name, path.read_bytes()) for path in members]
+
+            def write(items):
+                archive.write_bytes(b"!<arch>\n" + b"".join(ar_member(name + "/", body)
+                                                            for name, body in items))
+
+            write(entries)
+            windows.verify_archive_members(archive, members)
+            invalid = [list(reversed(entries)), entries[:-1],
+                       [(f"import-{index}.obj", body) for index, (_name, body) in enumerate(entries)],
+                       [(name, body + b"changed") for name, body in entries]]
+            for items in invalid:
+                with self.subTest(items=items):
+                    write(items)
+                    with self.assertRaisesRegex(SystemExit, "member names, order"):
+                        windows.verify_archive_members(archive, members)
+
     def test_native_archive_names_and_duplicate_members_are_not_lost(self):
         for table in (b"bcryptprimitives.dll\0", b"bcryptprimitives.dll/\n"):
             data = b"!<arch>\n" + ar_member("/", b"index") + ar_member("//", table)

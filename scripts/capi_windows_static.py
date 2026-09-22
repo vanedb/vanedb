@@ -132,6 +132,15 @@ def check_object(data):
         raise ValueError("localized COFF object still carries embedded LLVM bitcode")
 
 
+def verify_archive_members(archive, members):
+    """COFF import grouping depends on member names as well as their bytes."""
+    expected = [(path.name, hashlib.sha256(path.read_bytes()).digest()) for path in members]
+    actual = [(name, hashlib.sha256(body).digest())
+              for name, body in archive_members(archive.read_bytes())]
+    if actual != expected:
+        raise SystemExit("archive writer changed member names, order, or implementation/native import payloads")
+
+
 def isolate(raw_archive, lto_object, output, work, api, nm, ar, objcopy):
     """Independently check the implementation and each retained import member."""
     work.mkdir(parents=True, exist_ok=True)
@@ -149,7 +158,11 @@ def isolate(raw_archive, lto_object, output, work, api, nm, ar, objcopy):
         if digest in seen:
             continue
         seen.add(digest)
-        path = work / f"import-{len(imports):03d}.obj"
+        # MSVC groups the import descriptor and thunk members by their original
+        # DLL basename. Renaming them to import-NNN.obj leaves zero ILT/IAT
+        # pointers in the linked PE even though every payload is unchanged.
+        path = work / f"import-{len(imports):03d}" / name
+        path.parent.mkdir(exist_ok=True)
         path.write_bytes(body)
         exported = symbols(nm, path)
         if not exported or not exported <= import_symbols(name):
@@ -172,16 +185,12 @@ def isolate(raw_archive, lto_object, output, work, api, nm, ar, objcopy):
     require_symbols(symbols(nm, localized), api, "localized Windows implementation")
     require_symbols(symbols(nm, localized, defined=False), undefined,
                     "Windows implementation undefined references")
-    # Always create a new archive: `ar r` must not retain stale old members.
+    # Always create a new archive. Quick append preserves repeated DLL member
+    # basenames; replacement mode must not collapse descriptor/thunk members.
     replacement = work / "vanedb_capi.lib"
     replacement.unlink(missing_ok=True)
-    subprocess.run([ar, "rcs", str(replacement), str(localized), *map(str, imports)], check=True)
-    expected_payloads = sorted(hashlib.sha256(path.read_bytes()).digest()
-                               for path in [localized, *imports])
-    actual_payloads = sorted(hashlib.sha256(body).digest()
-                             for _name, body in archive_members(replacement.read_bytes()))
-    if actual_payloads != expected_payloads:
-        raise SystemExit("archive writer changed the implementation/native import members")
+    subprocess.run([ar, "qcs", str(replacement), str(localized), *map(str, imports)], check=True)
+    verify_archive_members(replacement, [localized, *imports])
     require_symbols(symbols(nm, replacement), api | allowed, "Windows static archive")
     shutil.copy2(replacement, output)
     print(f"{output.name}: {len(api)} API globals plus {len(allowed)} checked native import symbols")
