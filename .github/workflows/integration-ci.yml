@@ -536,6 +536,9 @@ jobs:
           echo "ok: cut-demo workflow is dispatch-only with concurrency"
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
+        # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical
+        # patch cut remains in-tree for local bare-remote tests but closeout
+        # must refuse --cut for this candidate.
         run: |
           set -euo pipefail
           CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
@@ -554,23 +557,41 @@ jobs:
           grep -q -- '--paginate' "$CLOSE"
           grep -q 'git/ref/tags/0.2.0' "$CLOSE"
           grep -q 'shared runner markers' "$CLOSE"
+          grep -q 'obsidian-vane-search/pull/20' "$CLOSE"
+          grep -q -- '--cut refused' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
           grep -q 'gh auth token' "$CUT"
           grep -q 'vanedb#242' "$DEMO"
-          grep -q 'repositoryDependencies' "$DEMO"
-          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
-            echo "::error::merge closing keywords next to residual issue numbers" >&2
+          # Tip still has historical cut docs until #271 merges; after that the
+          # checklist names demo PR #20 / annotated tag. Accept either wording.
+          if ! grep -qE 'obsidian-vane-search/pull/20|repositoryDependencies' "$DEMO"; then
+            echo "::error::$DEMO must name demo PR #20 or (pre-#271) repositoryDependencies" >&2
             exit 1
           fi
           if grep -q 'git push --follow-tags' "$DEMO"; then
             echo "::error::$DEMO must not use lightweight tag + --follow-tags onto protected main" >&2
             exit 1
           fi
-          grep -q 'git tag -a 0.2.0' "$DEMO"
-          grep -q 'release/0.2.0-vanedb-198' "$DEMO"
-          echo "ok: residual tracking points at #242; manual cut matches one-shot"
+          if ! grep -qE 'annotated.*0\.2\.0|git tag -a 0\.2\.0' "$DEMO"; then
+            echo "::error::$DEMO must require an annotated 0.2.0 tag" >&2
+            exit 1
+          fi
+          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
+            echo "::error::merge closing keywords next to residual issue numbers" >&2
+            exit 1
+          fi
+          # closeout --cut must refuse (historical patch is not the candidate).
+          if out=$(bash "$CLOSE" --cut 2>&1); then
+            echo "::error::$CLOSE --cut must exit non-zero for current AC5 candidate" >&2
+            echo "$out" >&2
+            exit 1
+          else
+            echo "$out" | grep -q -- '--cut refused'
+            echo "$out" | grep -q 'obsidian-vane-search/pull/20'
+          fi
+          echo "ok: residual tracking points at #242; closeout refuses historical --cut"
       - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
         # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
         # Official release still needs a maintainer push to obsidian-vane-search.

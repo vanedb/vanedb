@@ -1,21 +1,27 @@
 #!/usr/bin/env bash
-# Remaining #198 AC3/AC5 closeout driver (host fill + demo cut).
+# Remaining #198 AC3/AC5 closeout driver (host fill + AC5 status).
 # Residual tracking issue: https://github.com/vanedb/vanedb/issues/242
 # (#226 was auto-closed by a merge keyword; do not use close/fix/#N in PRs.)
 #
-# Reports gaps, then optionally runs the existing one-shots:
+# Reports gaps, then optionally runs the Apple/Linux fill one-shot:
 #   bash docs/launch/maintainer_closeout_226.sh           # status only
 #   bash docs/launch/maintainer_closeout_226.sh --fill    # + Apple/Linux fill
-#   bash docs/launch/maintainer_closeout_226.sh --cut     # + demo 0.2.0 cut
-#   bash docs/launch/maintainer_closeout_226.sh --all     # fill then cut
-#   bash docs/launch/maintainer_closeout_226.sh --cut --dry-run  # validate cut, no push
+#
+# AC5 for the current candidate is NOT `--cut`. Historical
+# `maintainer_cut_demo_0.2.0.sh` / Actions → Cut demo 0.2.0 apply an older
+# patch. Use the reviewed-PR sequence instead:
+#   https://github.com/vanedb/obsidian-vane-search/pull/20
+#   docs/launch/0003-demo-update-checklist.md
+# (independent review + CI → real Obsidian/Ollama vault walkthrough → merge →
+# annotated 0.2.0 tag on the reviewed merged commit). Tag push still needs
+# DEMO_REPO_TOKEN or Cursor GitHub App on vanedb/obsidian-vane-search
+# (contents:write) after #215 repositoryDependencies.
+#
+# Legacy flags (refused for this candidate; exit 2):
+#   --cut / --all / --cut --dry-run / --skip-tests (cut-only options)
 #
 # AC3 Android still needs ANDROID.md (this driver refuses android labels).
-# Cloud/CI shells are refused by the fill helper. Demo cut needs write via
-# DEMO_REPO_TOKEN, or Cursor GitHub App on vanedb/obsidian-vane-search
-# (contents:write) plus a new agent boot after #215 repositoryDependencies
-# (cut auto-uses `gh auth token` when /installation/repositories includes the
-# demo repo; or --dry-run to validate apply/tag only). Official AC5 URL must be
+# Cloud/CI shells are refused by the fill helper. Official AC5 URL must be
 # obsidian-vane-search 0.2.0 (vanedb demo-0.2.0-staging is not enough).
 set -euo pipefail
 
@@ -31,7 +37,7 @@ for arg in "$@"; do
     --skip-tests) SKIP_TESTS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     -h|--help)
-      sed -n '1,19p' "$0"
+      sed -n '1,26p' "$0"
       exit 0
       ;;
     *)
@@ -81,9 +87,9 @@ if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
 else
   echo "    DEMO_REPO_TOKEN: unset"
 fi
-# App path: cut auto-uses `gh auth token` only when the demo repo is in scope.
+# App path: needed to push the annotated 0.2.0 tag after demo PR #20 + vault.
 if app_demo_in_scope; then
-  echo "    Cursor App scope: includes obsidian-vane-search (--cut can use App token)"
+  echo "    Cursor App scope: includes obsidian-vane-search (can push annotated 0.2.0 tag)"
 elif command -v gh >/dev/null 2>&1 && gh api /installation/repositories >/dev/null 2>&1; then
   echo "    Cursor App scope: missing obsidian-vane-search (install App or set DEMO_REPO_TOKEN)"
   # vanedb org id 272005268 — Configure → add obsidian-vane-search (contents:write)
@@ -100,6 +106,8 @@ if [[ "$pending" -eq 0 && -n "$demo_tag" ]]; then
   exit 0
 fi
 
+exit_code=0
+
 if [[ "$DO_FILL" -eq 1 ]]; then
   if [[ "$pending" -eq 0 ]]; then
     echo "==> --fill skipped: no Pending cells"
@@ -111,32 +119,17 @@ if [[ "$DO_FILL" -eq 1 ]]; then
 fi
 
 if [[ "$DO_CUT" -eq 1 ]]; then
-  if [[ -n "$demo_tag" ]]; then
-    echo "==> --cut skipped: 0.2.0 already exists"
-  else
-    echo "==> --cut: maintainer_cut_demo_0.2.0.sh"
-    cut_args=()
-    if [[ "$SKIP_TESTS" -eq 1 ]]; then
-      cut_args+=(--skip-tests)
-    fi
-    if [[ "$DRY_RUN" -eq 1 ]]; then
-      cut_args+=(--dry-run)
-    fi
-    bash docs/launch/maintainer_cut_demo_0.2.0.sh "${cut_args[@]}"
-    # Re-query after cut so the summary reflects a successful publish (tag
-    # may land before the release workflow finishes).
-    if command -v gh >/dev/null 2>&1; then
-      if gh release view 0.2.0 -R vanedb/obsidian-vane-search >/dev/null 2>&1 \
-        || gh api repos/vanedb/obsidian-vane-search/git/ref/tags/0.2.0 >/dev/null 2>&1; then
-        demo_tag="0.2.0"
-      else
-        demo_tag=""
-      fi
-    fi
-    if [[ -z "$demo_tag" && "$DRY_RUN" -eq 1 ]]; then
-      echo "    (dry-run: official 0.2.0 still missing until a real cut)"
-    fi
+  # Historical patch cut is not the current AC5 candidate (see #271 /
+  # 0003-demo-update-checklist.md). Keep --cut/--all parseable so old
+  # muscle-memory fails loudly instead of publishing the wrong tag.
+  echo "==> --cut refused: historical patch cut is not the current AC5 candidate" >&2
+  echo "    Current candidate: https://github.com/vanedb/obsidian-vane-search/pull/20" >&2
+  echo "    Sequence: review+CI → real vault walkthrough → merge → annotated 0.2.0 tag" >&2
+  echo "    Checklist: docs/launch/0003-demo-update-checklist.md" >&2
+  if [[ "$DRY_RUN" -eq 1 || "$SKIP_TESTS" -eq 1 ]]; then
+    echo "    (--dry-run/--skip-tests do not re-enable historical cut)" >&2
   fi
+  exit_code=2
 fi
 
 pending_after="$pending"
@@ -150,9 +143,10 @@ if [[ "$pending_after" -ne 0 ]]; then
   echo "         Fill workflow: https://github.com/vanedb/vanedb/actions/workflows/fill-comparison-self-hosted.yml"
 fi
 if [[ -z "$demo_tag" ]]; then
-  echo "    AC5: DEMO_REPO_TOKEN=… $0 --cut"
-  echo "         or Cursor App on vanedb/obsidian-vane-search (contents:write) + new agent + $0 --cut"
-  echo "         or Actions → Cut demo 0.2.0 (repo secret DEMO_REPO_TOKEN)"
-  echo "         Cut workflow: https://github.com/vanedb/vanedb/actions/workflows/cut-demo-0.2.0.yml"
-  echo "         Secret: https://github.com/vanedb/vanedb/settings/secrets/actions"
+  echo "    AC5: demo PR https://github.com/vanedb/obsidian-vane-search/pull/20"
+  echo "         → vault walkthrough → merge → annotated 0.2.0 tag (not historical --cut)"
+  echo "         Checklist: docs/launch/0003-demo-update-checklist.md"
+  echo "         Tag push: DEMO_REPO_TOKEN or Cursor App on vanedb/obsidian-vane-search"
 fi
+
+exit "$exit_code"
