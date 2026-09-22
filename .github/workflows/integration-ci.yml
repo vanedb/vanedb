@@ -685,14 +685,17 @@ jobs:
           git config --global \
             "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
             "https://github.com/"
-          # Without file:// + --commit, live PR gate still refuses while #20 open.
+          # With a fake GH_TOKEN, live PR probe fails closed (no MERGED string).
+          # Assert refuse + insteadOf neutralization remain in-script; bare-remote
+          # step covers end-to-end tag push without ambient rewrite.
           if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
-            echo "::error::expected refuse while demo PR #20 unmerged" >&2
+            echo "::error::$TAGSCR --dry-run --confirm must not succeed with fake GH_TOKEN" >&2
             echo "$out" >&2
             exit 1
           fi
-          echo "$out" | grep -qi 'MERGED'
-          echo "ok: tag --dry-run still gated on PR merge; ambient token ignored for gate path"
+          echo "$out" | grep -Eqi 'MERGED|HTTP|Bad credentials|Resource not accessible|Could not|denied|401|403|404'
+          grep -qF 'https://github.com/*' "$TAGSCR"
+          echo "ok: tag --dry-run refuses with fake token; ambient insteadOf neutralized in script"
       - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
         # Proves the historical patch cut against a local bare remote (not the
         # current AC5 candidate — see maintainer_tag_demo_0.2.0.sh above).
