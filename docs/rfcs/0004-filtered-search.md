@@ -113,8 +113,10 @@ zero: an empty allow list matches nothing, an empty deny list matches all.
 Null list pointers require zero lengths; at most one filter may be supplied.
 Invalid combinations fail without writing output buffers. The C API uses the
 default four-times beam cap; it does not expose a separate maximum parameter.
-A Rust panic from a `C-unwind` callback is caught at the boundary and reported
-as `VANEDB_RS_PANIC`; foreign exceptions and `longjmp` must not cross the callback.
+Every external callback must contain its own panics and exceptions; neither
+unwinding nor `longjmp` may leave it. This includes `C-unwind` callbacks from
+separately linked Rust runtimes, whose panics are foreign exceptions and can
+abort the process. The library's panic boundary contains engine panics.
 
 ### Errors
 
