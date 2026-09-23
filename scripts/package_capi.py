@@ -5,8 +5,7 @@ The archive (RFC 0002 stage 1) carries, for one platform:
 
     include/vanedb_rs_capi.h          the generated header
     lib/<shared library>              stripped; exports exactly vanedb_rs_*
-    lib/<static library>              not stripped; on Linux and macOS
-                                      post-processed so only vanedb_rs_* is global
+    lib/<static library>              isolated API globals plus native import glue
     lib/cmake/vanedb/*.cmake          find_package(vanedb): vanedb::shared, vanedb::static
     lib/pkgconfig/vanedb.pc           pkg-config --cflags --libs vanedb
     examples/, consumers/, tests/     the consumer projects CI runs
@@ -20,6 +19,7 @@ built and run from it alone.
 """
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -37,6 +37,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import capi_exports  # noqa: E402
+import capi_windows_static  # noqa: E402
 
 PROFILE = "capi"
 LIBRARIES = {
@@ -49,6 +50,7 @@ PACKAGED_SOURCES = [
     "examples/CMakeLists.txt", "examples/quickstart.c", "examples/ctypes_quickstart.py",
     "tests/acceptance.c",
     "consumers/cmake/CMakeLists.txt", "consumers/pkgconfig/Makefile",
+    "consumers/cmake/independent.rs",
 ]
 
 
@@ -284,8 +286,8 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
 
     Returns `(combine, repack)`: `combine` is the list of argvs that produce
     `combined` from `archive`, `repack` the argv that rebuilds `archive` from
-    `combined` after the original is removed. `None` when the platform has
-    no localization (Windows).
+    `combined` after the original is removed. Windows must instead use the
+    staticlib-only Rust LTO path in capi_windows_static.
 
     Apple's `ld -r` cannot infer the slice from a static archive ("Missing
     -arch option") and, given an arch, wants the platform and versions too
@@ -327,7 +329,7 @@ def localize_commands(platform, archive, exports, combined, deployment_target=No
               "--remove-section=__LLVM,__cmdline", combined]],
             ["libtool", "-static", "-o", archive, combined],
         )
-    return None
+    raise ValueError(f"no safe relocatable-link localization for {platform}")
 
 
 def localize_static(archive, work, platform):
@@ -341,17 +343,13 @@ def localize_static(archive, work, platform):
     system libraries from native-static-libs) are untouched by definition.
 
     Linux: `ld -r` + `objcopy --keep-global-symbols`. macOS: `clang -r` with
-    `-exported_symbols_list`, then `libtool -static`. Windows: no
-    equivalent of `objcopy` for COFF archives is shipped with MSVC, so the
-    static library is packaged as rustc produced it; this is recorded in the
-    README.
+    `-exported_symbols_list`, then `libtool -static`. Windows is handled by
+    capi_windows_static before this function is reached.
     """
     target = apple_deployment_target(platform) if platform.startswith("macos") else None
     commands = localize_commands(platform, archive, ROOT / "vanedb-capi/exports",
                                  work / "vanedb_capi_combined.o", target,
                                  llvm_objcopy() if platform.startswith("macos") else "objcopy")
-    if commands is None:
-        return False
     combine, repack = commands
     for command in combine:
         subprocess.run(command, check=True)
@@ -403,7 +401,60 @@ def run(command, cwd, env=None):
     subprocess.run([str(c) for c in command], cwd=cwd, check=True, env=env)
 
 
-def test_consumers(extracted, work):
+@contextmanager
+def packaging_work_directory(parent=None):
+    """Keep a unique diagnostic directory only when explicitly requested."""
+    if parent is None:
+        with tempfile.TemporaryDirectory(prefix="vanedb-c-package-") as temporary:
+            yield Path(temporary)
+    else:
+        parent = parent.resolve()
+        parent.mkdir(parents=True, exist_ok=True)
+        directory = Path(tempfile.mkdtemp(prefix="vanedb-c-package-", dir=parent))
+        print(f"Retaining package diagnostics in {directory}", flush=True)
+        yield directory
+
+
+def test_cmake_consumer(extracted, work, raw_static=None):
+    """The optional control substitutes only the same-build, unmodified archive."""
+    diagnostic = raw_static is not None
+    env = dict(os.environ, VANEDB_CAPI_TRACE="1") if diagnostic else None
+    failure = None
+    results = {}
+    variants = ["packaged", "raw-static-control"] if diagnostic else ["packaged"]
+    for variant in variants:
+        source = extracted
+        build = work / "cmake-consumer-build"
+        options = ["-DVANEDB_TEST_RUST_COEXISTENCE=ON"] if sys.platform == "win32" else []
+        targets, tests = [], []
+        if variant == "raw-static-control":
+            source = work / "raw-static-control-package"
+            shutil.copytree(extracted, source)
+            shutil.copy2(raw_static, source / "lib/vanedb_capi.lib")
+            build = work / "raw-static-control-build"
+            # The raw Rust archive does not promise runtime isolation. Run the
+            # identical static acceptance executable, without coexistence.
+            options = []
+            targets = ["--target", "acceptance_static"]
+            tests = ["-R", "^acceptance_static$"]
+        try:
+            run(["cmake", "-S", source / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
+                 f"-DCMAKE_PREFIX_PATH={source}", *options], work)
+            run(["cmake", "--build", build, "--config", "Release", *targets], work)
+            run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure",
+                 "--no-tests=error", *(["--verbose"] if diagnostic else []), *tests], work, env=env)
+            results[variant] = "passed"
+        except subprocess.CalledProcessError as error:
+            results[variant] = {"exit_code": error.returncode, "command": error.cmd}
+            if failure is None:
+                failure = error
+        if diagnostic:
+            (work / "consumer-results.json").write_text(json.dumps(results, indent=2) + "\n")
+    if failure is not None:
+        raise failure
+
+
+def test_consumers(extracted, work, raw_static=None):
     """Everything below sees only the extracted archive."""
     build = work / "examples-build"
     run(["cmake", "-S", extracted / "examples", "-B", build, "-DCMAKE_BUILD_TYPE=Release"], work)
@@ -414,11 +465,7 @@ def test_consumers(extracted, work):
         if "@rpath/libvanedb_capi.dylib" not in links or str(ROOT) in links:
             raise SystemExit(f"C consumer links outside the extracted archive:\n{links}")
 
-    build = work / "cmake-consumer-build"
-    run(["cmake", "-S", extracted / "consumers/cmake", "-B", build, "-DCMAKE_BUILD_TYPE=Release",
-         f"-DCMAKE_PREFIX_PATH={extracted}"], work)
-    run(["cmake", "--build", build, "--config", "Release"], work)
-    run(["ctest", "--test-dir", build, "--build-config", "Release", "--output-on-failure", "--no-tests=error"], work)
+    test_cmake_consumer(extracted, work, raw_static)
 
     if sys.platform != "win32":
         if not shutil.which("pkg-config"):
@@ -439,30 +486,43 @@ def main():
     parser.add_argument("--library-dir", type=Path, default=ROOT / "target" / PROFILE,
                         help=f"where cargo put the libraries (default: target/{PROFILE})")
     parser.add_argument("--output", type=Path, default=ROOT / "target/c-artifacts")
+    parser.add_argument("--work-dir", type=Path,
+                        help="retain a unique build directory here; on Windows also trace and run a raw-static control")
     parser.add_argument("--native-static-libs", default=None,
                         help="the `native-static-libs` line to record instead of asking cargo")
     args = parser.parse_args()
     version = tomllib.loads((ROOT / "vanedb-capi/Cargo.toml").read_text())["package"]["version"]
-    native = args.native_static_libs if args.native_static_libs is not None else native_static_libs()
-    print(f"native-static-libs: {native}")
+    native = args.native_static_libs
+    if native is None and sys.platform != "win32":
+        native = native_static_libs()
     names = LIBRARIES[sys.platform]
     name = f"vanedb-capi-{version}-{args.platform}"
     args.output.mkdir(parents=True, exist_ok=True)
     archive = args.output.resolve() / f"{name}.zip"
-    with tempfile.TemporaryDirectory(prefix="vanedb-c-package-") as temporary:
-        directory = Path(temporary)
+    with packaging_work_directory(args.work_dir) as directory:
+        raw_static = None
         package = directory / "stage" / name
         (package / "lib").mkdir(parents=True)
         for kind in ("shared", "static", "import"):
-            if names[kind]:
+            if names[kind] and not (sys.platform == "win32" and kind == "static"):
                 shutil.copy2(args.library_dir / names[kind], package / "lib" / names[kind])
         shared = package / "lib" / names["shared"]
         static = package / "lib" / names["static"]
         before = shared.stat().st_size
         strip_shared(shared)
         print(f"{names['shared']}: {before} bytes before strip, {shared.stat().st_size} after")
-        if localize_static(static, directory, args.platform):
+        if sys.platform == "win32":
+            api = set(capi_exports.functions((ROOT / "vanedb-capi/include/vanedb_rs_capi.h").read_text()))
+            built_native = capi_windows_static.build_and_package(
+                ROOT, static, directory, api, diagnostics=args.work_dir is not None)
+            if args.work_dir is not None:
+                raw_static = directory / "windows-raw-static.lib"
+            if native is not None and link_tokens(native) != link_tokens(built_native):
+                raise SystemExit("--native-static-libs differs from the isolated Windows build")
+            native = built_native
+        elif localize_static(static, directory, args.platform):
             check_static_globals(static)
+        print(f"native-static-libs: {native}")
         capi_exports.check(shared)
         if sys.platform == "darwin":
             # Rust's default install name points into the build checkout.
@@ -485,7 +545,7 @@ def main():
         shutil.rmtree(package.parent)
         with zipfile.ZipFile(archive) as packaged:
             packaged.extractall(directory / "extracted")
-        test_consumers(directory / "extracted" / name, directory)
+        test_consumers(directory / "extracted" / name, directory, raw_static)
     with archive.open("rb") as packaged:
         digest = hashlib.file_digest(packaged, "sha256").hexdigest()
     archive.with_suffix(".zip.sha256").write_text(f"{digest}  {archive.name}\n")

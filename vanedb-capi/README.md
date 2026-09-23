@@ -203,6 +203,14 @@ a leak test. Each call does one lookup under a sharded lock and then runs on
 its own reference, so a search never holds the lock and freeing a handle
 another thread is using is safe (that call completes; later calls fail).
 
+**Mapped files must outlive in-flight calls.** From the start of
+`vanedb_rs_disk_open`, keep the underlying file unmodified and untruncated
+until its handle has been freed **and every in-flight call using it has
+returned**. `vanedb_rs_disk_free` does not wait for these calls; each retains
+its own mapping. Synchronize with all calling threads before modifying or
+truncating that file. Replacing its path with a newly built file is allowed;
+modifying the mapped file in place is not.
+
 Use `vanedb_rs_store_*` for exact in-memory search, `vanedb_rs_index_*` for an
 approximate graph, and `vanedb_rs_disk_*` for a read-only mapped file. Metrics
 are `VANEDB_RS_L2` (squared distance), `VANEDB_RS_COSINE` and `VANEDB_RS_DOT`
@@ -275,10 +283,13 @@ widens its beam. It must not access, modify or free the handle being searched
 search buffers. Calls on other handles are allowed; an error such a call
 records does not replace the outer search's result. The callback and
 everything `user_data` points to must stay valid
-until the search returns. No foreign exception or `longjmp` may cross the
-callback. A Rust callback declared `extern "C-unwind"` may panic: the panic is
-caught at the boundary, the search returns zero with `VANEDB_RS_PANIC`, the
-result buffers are untouched, and the handle remains usable afterwards. ID
+until the search returns. Every external callback must contain its own panics
+and exceptions; neither unwinding nor `longjmp` may leave it. This includes
+Rust callbacks declared `extern "C-unwind"`: a panic from a separately linked
+Rust runtime is a foreign exception and can abort the process. The library's
+panic boundary contains engine panics; it cannot promise recovery from another
+runtime's exception. A Rust callback can use its own `catch_unwind` and return
+false on a locally handled failure. ID
 lists are the fast path because they never cross the language boundary per
 candidate.
 
@@ -374,11 +385,28 @@ libraries from `native-static-libs` stay as undefined references. The same
 step removes the LLVM bitcode that fat LTO embeds in every staticlib object
 (`.llvmbc`/`.llvmcmd` on ELF, `__LLVM,__bitcode` on Mach-O): nothing links
 against it, Apple's `nm` cannot read rustc's newer bitcode, and it is most of
-the archive's size. There is no equivalent of `objcopy` for COFF archives in
-the MSVC toolset, so the Windows static library is packaged as rustc produced
-it, with every Rust symbol global and its bitcode in place. Linking it next
-to another Rust-built static library on Windows can therefore collide; use
-the DLL there.
+the archive's size.
+
+On Windows, packaging performs a separate staticlib-only fat-LTO build and
+localizes its single implementation object with GNU COFF `objcopy`.
+`llvm-nm` requires exactly the header's API functions on that object. The
+archive also retains rustc's unchanged native import members for kernel32,
+bcryptprimitives and the synchronization API set; their individually checked
+import descriptors and thunks remain global. No Rust implementation globals
+are allowed. A build that still needs implementation definitions from omitted
+archive members fails packaging. This avoids GNU COFF partial linking, which
+can corrupt COMDAT and weak-symbol metadata.
+
+Windows packaging needs `llvm-tools-preview` for the active Rust toolchain
+and GNU COFF `objcopy` (the hosted Windows image provides binutils). Set
+`VANEDB_COFF_OBJCOPY` to its executable if it is outside the usual MinGW paths.
+LLVM's `objcopy` does not implement this COFF localization operation. The
+plain C consumer requires only a C toolchain. Packaging explicitly enables
+`-DVANEDB_TEST_RUST_COEXISTENCE=ON` to additionally link an independently
+compiled Rust static library and exercise allocation, threads, TLS and
+locally caught unwinding alongside vanedb's full acceptance lifecycle. This
+optional check requires rustc; it is off for normal consumers. Successful native
+Windows CI is required to establish that runtime result.
 
 ## ABI compatibility gate
 

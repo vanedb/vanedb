@@ -7,6 +7,7 @@
 #   ctest --test-dir build --build-config Release --output-on-failure
 cmake_minimum_required(VERSION 3.20)
 project(vanedb_cmake_consumer LANGUAGES C)
+option(VANEDB_TEST_RUST_COEXISTENCE "Test the Windows package alongside an independent Rust library" OFF)
 
 find_package(vanedb REQUIRED CONFIG)
 message(STATUS "vanedb ${vanedb_VERSION}, ABI ${vanedb_ABI_VERSION}")
@@ -26,4 +27,21 @@ if(WIN32)
   add_custom_command(TARGET acceptance_shared POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:vanedb::shared> $<TARGET_FILE_DIR:acceptance_shared>)
+endif()
+
+if(WIN32 AND VANEDB_TEST_RUST_COEXISTENCE)
+  # A separate Rust runtime must coexist with the installed static library.
+  # Compile this independent source without Cargo or any repository crates.
+  find_program(RUSTC rustc REQUIRED)
+  set(independent "${CMAKE_CURRENT_BINARY_DIR}/independent.lib")
+  add_custom_command(OUTPUT "${independent}"
+    COMMAND "${RUSTC}" --edition=2021 --crate-name independent --crate-type staticlib
+      --target x86_64-pc-windows-msvc -C opt-level=3 -C panic=unwind
+      "${CMAKE_CURRENT_SOURCE_DIR}/independent.rs" -o "${independent}"
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/independent.rs" VERBATIM)
+  add_executable(acceptance_coexistence "${acceptance_source}" "${independent}")
+  set_target_properties(acceptance_coexistence PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+  target_compile_definitions(acceptance_coexistence PRIVATE VANEDB_COEXISTENCE)
+  target_link_libraries(acceptance_coexistence PRIVATE vanedb::static "${independent}")
+  add_test(NAME acceptance_coexistence COMMAND acceptance_coexistence "${CMAKE_CURRENT_BINARY_DIR}")
 endif()

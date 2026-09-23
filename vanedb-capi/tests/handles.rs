@@ -687,3 +687,109 @@ fn freeing_under_concurrent_use_is_rejected_afterwards_not_a_crash() {
     assert_eq!(vanedb_rs_index_len(h), 0);
     assert_eq!(vanedb_rs_last_error(), VANEDB_RS_INVALID_HANDLE);
 }
+
+/// Disk free invalidates the id before an in-flight search releases its map.
+/// The caller must preserve the backing file until that search returns.
+#[test]
+fn disk_mapping_survives_free_until_in_flight_search_returns() {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    const TIMEOUT: Duration = Duration::from_secs(10);
+    struct CallbackGate {
+        entered: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+        paused: bool,
+    }
+    unsafe extern "C-unwind" fn pause_once(_: u64, data: *mut c_void) -> bool {
+        let gate = unsafe { &mut *data.cast::<CallbackGate>() };
+        if !gate.paused {
+            gate.paused = true;
+            gate.entered.send(()).expect("main must wait for callback");
+            gate.resume
+                .recv_timeout(TIMEOUT)
+                .expect("callback must be released");
+        }
+        true
+    }
+
+    let path = std::env::temp_dir().join(format!(
+        "vanedb-disk-in-flight-free-{}.bin",
+        std::process::id()
+    ));
+    let c_path = std::ffi::CString::new(path.to_str().unwrap()).unwrap();
+    assert_eq!(
+        unsafe {
+            vanedb_rs_disk_build(
+                c_path.as_ptr(),
+                2,
+                0, // L2
+                [11, 22].as_ptr(),
+                [0.0, 0.0, 3.0, 4.0].as_ptr(),
+                2,
+            )
+        },
+        0
+    );
+    let disk = unsafe { vanedb_rs_disk_open(c_path.as_ptr()) };
+    assert_ne!(disk, NULL);
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (resume_tx, resume_rx) = mpsc::channel();
+    let (done_tx, done_rx) = mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let mut gate = CallbackGate {
+            entered: entered_tx,
+            resume: resume_rx,
+            paused: false,
+        };
+        let (mut ids, mut distances) = ([0; 2], [0.0; 2]);
+        let n = unsafe {
+            vanedb_rs_disk_search_filtered(
+                disk,
+                [0.0, 0.0].as_ptr(),
+                2,
+                Some(pause_once),
+                (&mut gate as *mut CallbackGate).cast(),
+                null(),
+                0,
+                null(),
+                0,
+                ids.as_mut_ptr(),
+                distances.as_mut_ptr(),
+            )
+        };
+        done_tx
+            .send((n, vanedb_rs_last_error(), ids, distances))
+            .expect("main must wait for search results");
+    });
+    entered_rx
+        .recv_timeout(TIMEOUT)
+        .expect("search must own its mapping before free");
+
+    // Bound the wait so a free that incorrectly waits for the callback fails
+    // instead of hanging. Do not change the backing file while it is mapped.
+    let (freed_tx, freed_rx) = mpsc::channel();
+    let freeing = std::thread::spawn(move || {
+        vanedb_rs_disk_free(disk);
+        freed_tx.send(vanedb_rs_last_error()).unwrap();
+    });
+    assert_eq!(
+        freed_rx
+            .recv_timeout(TIMEOUT)
+            .expect("disk free must not wait for search"),
+        VANEDB_RS_OK
+    );
+    assert_eq!(vanedb_rs_disk_len(disk), 0);
+    assert_eq!(vanedb_rs_last_error(), VANEDB_RS_INVALID_HANDLE);
+    resume_tx.send(()).expect("search must still be paused");
+    assert_eq!(
+        done_rx
+            .recv_timeout(TIMEOUT)
+            .expect("search must finish using its retained mapping"),
+        (2, VANEDB_RS_OK, [11, 22], [0.0, 25.0])
+    );
+    freeing.join().expect("free must not panic");
+    worker.join().expect("search must not panic");
+    // Only now have both lifetime obligations ended.
+    std::fs::remove_file(path).unwrap();
+}

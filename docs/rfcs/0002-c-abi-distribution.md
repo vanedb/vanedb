@@ -83,6 +83,9 @@ only the installed layout.
   `opt-level = 3`; the shared library is stripped, the static library is not.
   `panic = "unwind"` is retained: `panic = "abort"` would make the existing
   `catch_unwind` boundary inert and abort the host process.
+  This contains engine panics. External callbacks must contain their own
+  exceptions and panics: a separately linked Rust runtime's panic is a foreign
+  exception and can abort rather than being caught by this boundary.
 
 ### Stage 2: Apple (0.3.0)
 
@@ -193,10 +196,18 @@ Stage 1 (#193), implemented 2026-09-21:
 Stage 1 implementation notes, where the result differs from the design text
 above:
 
-- The static-library post-processing is done on Linux and macOS. MSVC ships
-  no equivalent of `objcopy` for COFF archives, so the Windows static library
-  keeps rustc's global symbols; the README says so. Not an acceptance box.
-  The same step strips the LLVM bitcode that fat LTO embeds in every
+- Windows static packaging uses a separate staticlib-only fat-LTO build to
+  emit one implementation object, then GNU COFF `objcopy` localizes it.
+  LLVM's symbol inspection requires exactly the header's functions on that
+  object. The final archive additionally retains individually checked native
+  import descriptors and thunks from the same Rust build; these are the
+  system-link exceptions, not exported Rust implementation symbols. Packaging
+  fails if an omitted archive member still supplies a required implementation
+  symbol. The installed Windows consumer links an independently built Rust
+  static library alongside vanedb and exercises both; a green native run is
+  required before claiming acceptance. GNU COFF partial linking is avoided
+  because it can corrupt COMDAT and weak-external alias metadata.
+- The localization step strips the LLVM bitcode that fat LTO embeds in every
   staticlib object (rustc keeps `embed-bitcode=yes` under LTO): Apple's `nm`
   cannot parse rustc's newer bitcode, and on Linux it was most of the
   shipped archive. On macOS the relocatable link is driven through `clang`

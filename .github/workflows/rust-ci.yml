@@ -252,8 +252,8 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
-      - name: Install the Mach-O object editor
-        if: runner.os == 'macOS'
+      - name: Install the native object tools
+        if: runner.os == 'macOS' || runner.os == 'Windows'
         run: rustup component add llvm-tools-preview
       - name: Build and run C consumer acceptance
         # Runs on windows-latest too, where the default shell is pwsh: it does
@@ -294,7 +294,22 @@ jobs:
       # find_package(vanedb) consumer against both targets, and on Linux and
       # macOS the pkg-config consumer -- all from the extracted archive.
       - name: Package C libraries and test the CMake and pkg-config consumers from the archive
-        run: python scripts/package_capi.py --platform ${{ matrix.artifact }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            python scripts/package_capi.py --platform ${{ matrix.artifact }} --work-dir target/capi-diagnostics
+          else
+            python scripts/package_capi.py --platform ${{ matrix.artifact }}
+          fi
+      - name: Retain failed Windows static diagnostics
+        if: failure() && runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-capi-windows-diagnostics
+          path: |
+            target/capi-diagnostics/**
+            target/c-artifacts/*
+          if-no-files-found: warn
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: vanedb-capi-${{ matrix.artifact }}
