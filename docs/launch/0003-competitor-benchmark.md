@@ -47,7 +47,7 @@ CI / cloud timings are discarded by policy and must never appear in the post.
 **Demo:** Obsidian vault search powered by the WASM build —
 https://github.com/vanedb/obsidian-vane-search — *(official 0.2.0 walkthrough
 still tracked under [#242](https://github.com/vanedb/vanedb/issues/242); use
-`docs/launch/maintainer_closeout_226.sh --cut`).* Index a vault and run one
+the reviewed demo PR and checklist below).* Index a vault and run one
 semantic search locally (Ollama + nomic-embed-text, or any OpenAI-compatible
 embeddings endpoint) once that release is live.
 
@@ -59,13 +59,10 @@ quantization, mobile SDKs, wasm persistence) would unblock a real project.
 
 ## Demo update checklist (`obsidian-vane-search`, separate repo)
 
-Prefer the one-shot / Actions path in
-[`0003-demo-update-checklist.md`](0003-demo-update-checklist.md) (patch + cut
-`0.2.0`). Manual summary:
-
-1. Apply `0003-obsidian-vane-search-0.2.0.patch` (bumps to `0.2.0` + vault
-   walkthrough README).
-2. Cut official tag/release `0.2.0` on `vanedb/obsidian-vane-search`
-   (`maintainer_cut_demo_0.2.0.sh` or Actions → **Cut demo 0.2.0**).
-3. Reply on [#242](https://github.com/vanedb/vanedb/issues/242) with the release
-   URL (vanedb `demo-0.2.0-staging` does not count).
+Use the reviewed-PR sequence in
+[`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). The current
+candidate is [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20).
+Complete independent review, CI and the real Obsidian/Ollama walkthrough,
+then publish the approved merged candidate. Record its official release URL
+and walkthrough evidence on [#242](https://github.com/vanedb/vanedb/issues/242).
+The historical staging release does not meet this requirement.
