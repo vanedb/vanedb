@@ -430,10 +430,11 @@ Three observations.
 1. **The measurements in issue question 3 are not done.** Resident memory,
    p50/p99 warm and cold, and recall@10 for resident f32, mapped f32 and
    binary-plus-rescoring at 100k, 1M and 10M on one Android device and one
-   NVMe laptop need the RFC 0003 fixture (`embeddings.vnef`) and dedicated
-   hardware; neither exists in a cloud sandbox. They belong to RFC 0008's
-   spike and to RFC 0005's recall table, and this page should be amended with
-   the table when they land.
+   NVMe laptop require dedicated hardware. The RFC 0003 fixture
+   (`embeddings.vnef`) is now hosted and was used for question 2 below; the
+   device/mode measurements remain outstanding. They belong to RFC 0008's
+   spike and RFC 0005's recall table, and this page should be amended with
+   that table when they land.
 2. **Real-embedding link density.** The graph's link memory (section 4.4) was
    measured on pseudo-random vectors; embedding corpora at the same M usually
    fill layer 0 closer to the 2M cap. The [real-fixture allocator study](capacity-fixture-probe/REPORT.md)
