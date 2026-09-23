@@ -11,7 +11,7 @@
 /* The version this header was generated from. Compare against
  * vanedb_rs_version() at runtime to catch a shared object that does not
  * match the header you compiled against. */
-#define VANEDB_RS_VERSION "0.1.1"
+#define VANEDB_RS_VERSION "0.2.0"
 
 /* Distance metric, passed as uint32_t: */
 #define VANEDB_RS_L2     0u
