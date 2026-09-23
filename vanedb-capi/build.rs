@@ -1,12 +1,38 @@
 fn main() {
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+
+    if target_os == "android" {
         // NDK r26 (used in CI) needs explicit alignment for Android 15's
         // 16 KiB page configurations. Static-library consumers set their own
         // final linker flags; these apply to the C ABI shared library.
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,max-page-size=16384");
         println!("cargo:rustc-link-arg-cdylib=-Wl,-z,common-page-size=16384");
     }
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    // The exported-symbol allowlist (RFC 0002 stage 1). `exports/` holds
+    // the `vanedb_rs_*` set generated from the header by
+    // `scripts/capi_exports.py`; a test checks it matches the header and CI
+    // checks the built library exports exactly that set. rustc already
+    // restricts a cdylib's exports to its `#[no_mangle]` items on every
+    // platform, so the list is only handed to a linker that accepts a second
+    // copy beside rustc's own.
+    //
+    // Apple's ld64 does. GNU ld does not: rustc's list is an anonymous
+    // version script and ld refuses any other version script beside it
+    // ("anonymous version tag cannot be combined with other version tags";
+    // lld tolerates the pair, which is why only the ARM64 leg, still on ld,
+    // failed). On ELF the CI `nm` assertion is the gate. MSVC's link.exe
+    // takes one `/DEF`, which rustc passes; the generated `.def` there feeds
+    // the `dumpbin` check. Windows GNU is left to rustc for the ld reason.
+    let exports = format!("{crate_dir}/exports");
+    if target_os == "macos" || target_os == "ios" {
+        println!(
+            "cargo:rustc-link-arg-cdylib=-Wl,-exported_symbols_list,{exports}/vanedb_capi.exp"
+        );
+        println!("cargo:rerun-if-changed=exports/vanedb_capi.exp");
+    }
+
     let out = format!("{crate_dir}/include/vanedb_rs_capi.h");
     cbindgen::generate(&crate_dir)
         .expect("failed to generate the C ABI header")

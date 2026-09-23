@@ -14,10 +14,10 @@ impl Drop for Cpp {
         unsafe { ffi::vanedb_cpp_index_free(self.0) }
     }
 }
-struct Rust(*mut rust::vanedb_rs_index);
+struct Rust(rust::vanedb_rs_index);
 impl Drop for Rust {
     fn drop(&mut self) {
-        unsafe { rust::vanedb_rs_index_free(self.0) }
+        rust::vanedb_rs_index_free(self.0)
     }
 }
 fn path(path: &Path) -> CString {
@@ -83,12 +83,17 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
             let roundtrip = dir.join("roundtrip.vndb");
             // Keep this small graph fully connected so every live ID can be
             // compared. Recall of sparse graphs has separate workload tests.
-            let rs = Rust(unsafe {
-                rust::vanedb_rs_index_new(DIM, metric, N + 4, N + 4, N + 4, u64::MAX)
-            });
+            let rs = Rust(rust::vanedb_rs_index_new(
+                DIM,
+                metric,
+                N + 4,
+                N + 4,
+                N + 4,
+                u64::MAX,
+            ));
             let cpp =
                 Cpp(unsafe { ffi::vanedb_cpp_index_new(DIM, metric, N + 4, N + 4, N + 4, 42) });
-            assert!(!rs.0.is_null() && !cpp.0.is_null());
+            assert!(rs.0 != 0 && !cpp.0.is_null());
             for i in 0..N {
                 // Include IDs beyond f64's exact range and the u64 endpoint.
                 let id = u64::MAX - i as u64;
@@ -106,11 +111,8 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
             }
             let count = if source_rust {
                 // Remove the entry's possible ID and reuse an existing identity.
-                assert_eq!(unsafe { rust::vanedb_rs_index_remove(rs.0, u64::MAX) }, 0);
-                assert_eq!(
-                    unsafe { rust::vanedb_rs_index_remove(rs.0, u64::MAX - 1) },
-                    0
-                );
+                assert_eq!(rust::vanedb_rs_index_remove(rs.0, u64::MAX), 0);
+                assert_eq!(rust::vanedb_rs_index_remove(rs.0, u64::MAX - 1), 0);
                 assert_eq!(
                     unsafe { rust::vanedb_rs_index_add(rs.0, u64::MAX - 1, vector(N).as_ptr()) },
                     0
@@ -132,7 +134,7 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
             let bytes = fs::read(&original).unwrap();
             let rs_loaded = Rust(unsafe { rust::vanedb_rs_index_load(path(&original).as_ptr()) });
             let cpp_loaded = Cpp(unsafe { ffi::vanedb_cpp_index_load(path(&original).as_ptr()) });
-            assert!(!rs_loaded.0.is_null() && !cpp_loaded.0.is_null());
+            assert!(rs_loaded.0 != 0 && !cpp_loaded.0.is_null());
             // Search changes ef, so prove exact preservation before running it.
             assert_eq!(
                 unsafe { rust::vanedb_rs_index_save(rs_loaded.0, path(&roundtrip).as_ptr()) },
@@ -172,7 +174,7 @@ fn engine_written_graphs_cross_load_preserve_topology_and_remain_mutable() {
                     Rust(unsafe { rust::vanedb_rs_index_load(path(&roundtrip).as_ptr()) });
                 let other_cpp =
                     Cpp(unsafe { ffi::vanedb_cpp_index_load(path(&roundtrip).as_ptr()) });
-                assert!(!other_rs.0.is_null() && !other_cpp.0.is_null());
+                assert!(other_rs.0 != 0 && !other_cpp.0.is_null());
                 agree(&other_rs, &other_cpp, count + 1);
             }
             fs::remove_dir_all(dir).unwrap();
@@ -207,9 +209,9 @@ fn a_sparse_multi_level_graph_survives_cross_loading_byte_for_byte() {
             let original = dir.join("original.vndb");
             let roundtrip = dir.join("roundtrip.vndb");
 
-            let rs = Rust(unsafe { rust::vanedb_rs_index_new(DIM, metric, SPARSE_N, M, 200, 42) });
+            let rs = Rust(rust::vanedb_rs_index_new(DIM, metric, SPARSE_N, M, 200, 42));
             let cpp = Cpp(unsafe { ffi::vanedb_cpp_index_new(DIM, metric, SPARSE_N, M, 200, 42) });
-            assert!(!rs.0.is_null() && !cpp.0.is_null());
+            assert!(rs.0 != 0 && !cpp.0.is_null());
 
             for i in 0..SPARSE_N {
                 let v = vector(i % 64);
@@ -250,7 +252,7 @@ fn a_sparse_multi_level_graph_survives_cross_loading_byte_for_byte() {
             let rs_loaded = Rust(unsafe { rust::vanedb_rs_index_load(path(&original).as_ptr()) });
             let cpp_loaded = Cpp(unsafe { ffi::vanedb_cpp_index_load(path(&original).as_ptr()) });
             assert!(
-                !rs_loaded.0.is_null() && !cpp_loaded.0.is_null(),
+                rs_loaded.0 != 0 && !cpp_loaded.0.is_null(),
                 "both engines must load a sparse graph written by {}",
                 if source_rust { "Rust" } else { "C++" }
             );
