@@ -67,7 +67,7 @@
   "mean_links_per_node": 27.6069,
   "exact_fit_neighbor_bytes_64bit": 2704488,
   "exact_fit_scope": "n node Vec headers + one Vec header per layer + 8 bytes per edge; excludes outer stack header; assumes exact-fit capacities, NOT observed heap capacity",
-  "file": "/Users/anton/code/codex/020-capacity-fixture-probe/results/approx-10000.vndb",
+  "file": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-10000.vndb",
   "file_bytes": 33173960,
   "sha256": "12f3b2ad3036ca8573e1cecdcb4b6dfd6b4713812461a63e9aab0f4fac81d76f",
   "checks": "bounds/header/EOF and fixture ID/vector bytes verified"

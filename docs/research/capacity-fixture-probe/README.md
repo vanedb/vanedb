@@ -73,3 +73,27 @@ QA report records the independent check while those files were available,
 and a fresh run regenerates and validates them. Raw per-file sizes and SHA-256
 values are retained in `results/*file-verification.json`. The initial failed
 formula assumption and ARM control-tail correction are explained in the report.
+
+## Safe calibration rerun
+
+CodeQL flagged a raw-pointer write in the original calibration self-test. The
+current source replaces that test with safe owned `Vec<u8>` operations for
+allocation, zeroing, growth, shrinkage and deallocation; simulated null-result
+accounting checks remain separate. The global allocator wrapper and measured
+workload are unchanged. The alert was not dismissed or suppressed.
+
+All nine cases were rerun after the correction. This archive's `results/` now
+contains the fresh run from the original workspace's `results-safe-calibration/`.
+Every heap delta, calibrated map count, graph statistic and generated-file
+checksum is identical to the earlier run. Absolute live counters increased by
+17 bytes because the retained output-path argument is longer; that common
+offset cancels from every delta.
+
+[The semantic comparison](safe-calibration-semantic-diff.json) and
+[independent fix QA](QA-SAFE-CALIBRATION-REVIEW.md) and
+[analyst review](ANALYST-SAFE-CALIBRATION-REVIEW.md) document the correction.
+`QA-REVIEW.md` and `ANALYST-REVIEW.md` retain the earlier campaign's identities
+as historical evidence; current measured source and binary hashes are in
+`results/metadata.json`. Original source and text outputs remain in the preceding Git revision. The
+original binary and large files remain in the task workspace. The raw-pointer
+self-test is not retained as active source in this directory.

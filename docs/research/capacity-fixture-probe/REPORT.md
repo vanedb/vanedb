@@ -1,6 +1,6 @@
 # Real-embedding requested-heap study — 23 September 2026
 
-**PASS for the bounded allocator/link-density study.** All nine fresh-process cases completed, their retained files passed independent format/fixture checks, and candidate source remained clean at `35758c6ccac0b9e657be8d80e84d1744378df120`. Independent reviews are recorded in [QA-REVIEW.md](QA-REVIEW.md) and [ANALYST-REVIEW.md](ANALYST-REVIEW.md). This supplies the missing real-fixture sanity check from capacity-study open question 2; it does not complete the issue #210 hardware/mode table or alter the release scope.
+**PASS for the bounded allocator/link-density study.** All nine fresh-process cases completed, their retained files passed independent format/fixture checks, and candidate source remained clean at `35758c6ccac0b9e657be8d80e84d1744378df120`. Independent reviews of the original campaign are recorded in [QA-REVIEW.md](QA-REVIEW.md) and [ANALYST-REVIEW.md](ANALYST-REVIEW.md). The safe-calibration rerun has [separate QA](QA-SAFE-CALIBRATION-REVIEW.md), [analyst review](ANALYST-SAFE-CALIBRATION-REVIEW.md) and [identical semantic results](safe-calibration-semantic-diff.json); current provenance is in `results/metadata.json`. This supplies the missing real-fixture sanity check from capacity-study open question 2; it does not complete the issue #210 hardware/mode table or alter the release scope.
 
 ## Measurements
 

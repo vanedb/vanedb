@@ -3,5 +3,5 @@
   "flat",
   "100000",
   "/Users/anton/code/codex/vanedb-pr-214/bench/compare/fixtures/embeddings.vnef",
-  "/Users/anton/code/codex/020-capacity-fixture-probe/results/flat-100000.vndb"
+  "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/flat-100000.vndb"
 ]

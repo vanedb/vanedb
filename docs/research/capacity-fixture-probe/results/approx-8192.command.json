@@ -3,5 +3,5 @@
   "approx",
   "8192",
   "/Users/anton/code/codex/vanedb-pr-214/bench/compare/fixtures/embeddings.vnef",
-  "/Users/anton/code/codex/020-capacity-fixture-probe/results/approx-8192.vndb"
+  "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-8192.vndb"
 ]

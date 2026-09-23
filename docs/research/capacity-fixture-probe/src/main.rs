@@ -60,36 +60,43 @@ unsafe impl GlobalAlloc for Counting {
 static HEAP: Counting = Counting::new();
 
 fn self_test() {
-    // A separate counter isolates allocator calibration from process/runtime I/O.
-    let c = Counting::new();
-    unsafe {
-        let l = Layout::from_size_align(113, 16).unwrap();
-        let p = c.alloc(l);
-        assert!(!p.is_null());
-        assert_eq!(c.live(), 113);
-        p.write(31);
-        let p = c.realloc(p, l, 257);
-        assert!(!p.is_null());
-        assert_eq!(p.read(), 31);
-        assert_eq!(c.live(), 257);
-        let l2 = Layout::from_size_align(257, 16).unwrap();
-        let p = c.realloc(p, l2, 17);
-        assert!(!p.is_null());
-        assert_eq!(p.read(), 31);
-        assert_eq!(c.live(), 17);
-        c.dealloc(p, Layout::from_size_align(17, 16).unwrap());
-        assert_eq!(c.live(), 0);
-        let z = c.alloc_zeroed(l);
-        assert!(!z.is_null());
-        assert!(std::slice::from_raw_parts(z, 113).iter().all(|x| *x == 0));
-        assert_eq!(c.live(), 113);
-        // Deterministic failure-result simulation, avoiding an OOM request.
-        c.allocated(std::ptr::null_mut(), 999);
-        c.resized(std::ptr::null_mut(), 113, 999);
-        assert_eq!(c.live(), 113);
-        c.dealloc(z, l);
-        assert_eq!(c.live(), 0);
-    }
+    // Safe containers exercise the global allocator without raw-pointer access.
+    // black_box keeps the allocations observable in this optimized executable.
+    let baseline = HEAP.live();
+    let mut bytes = Vec::<u8>::new();
+    bytes.reserve_exact(std::hint::black_box(113));
+    bytes.resize(113, 31);
+    std::hint::black_box(&mut bytes);
+    assert_eq!(bytes.capacity(), 113);
+    assert_eq!(HEAP.live() - baseline, 113);
+
+    bytes.reserve_exact(std::hint::black_box(257 - bytes.len()));
+    std::hint::black_box(&mut bytes);
+    assert_eq!(bytes.capacity(), 257);
+    assert_eq!(bytes[0], 31);
+    assert_eq!(HEAP.live() - baseline, 257);
+
+    bytes.truncate(17);
+    bytes.shrink_to_fit();
+    std::hint::black_box(&mut bytes);
+    assert_eq!(bytes.capacity(), 17);
+    assert!(bytes.iter().all(|byte| *byte == 31));
+    assert_eq!(HEAP.live() - baseline, 17);
+    drop(bytes);
+    assert_eq!(HEAP.live(), baseline);
+
+    let zeros = vec![0u8; std::hint::black_box(113)];
+    std::hint::black_box(&zeros);
+    assert!(zeros.iter().all(|byte| *byte == 0));
+    assert_eq!(HEAP.live() - baseline, 113);
+    drop(zeros);
+    assert_eq!(HEAP.live(), baseline);
+
+    // Simulate failed return values without an OOM request or dereferencing them.
+    let c = Counting(AtomicUsize::new(113));
+    c.allocated(std::ptr::null_mut(), 999);
+    c.resized(std::ptr::null_mut(), 113, 999);
+    assert_eq!(c.live(), 113);
     println!("allocator calibration PASS: alloc/zeroed/grow/shrink/dealloc/null results");
 }
 
