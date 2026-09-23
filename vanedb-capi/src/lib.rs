@@ -1312,8 +1312,10 @@ pub unsafe extern "C" fn vanedb_rs_disk_build(
 /// `path` must be a valid NUL-terminated C string. Returns a handle (or
 /// `VANEDB_RS_NULL_HANDLE`) that must be freed with `vanedb_rs_disk_free`.
 /// The underlying file must not be modified or truncated from the start of
-/// this call until the handle is freed. Replacing its path with a newly built
-/// file is allowed; modifying the mapped file in place is not.
+/// this call until the handle has been freed AND all in-flight calls using it
+/// have returned. Freeing the handle does not wait for those calls or release
+/// their mappings. Replacing its path with a newly built file is allowed;
+/// modifying the mapped file in place is not.
 #[no_mangle]
 pub unsafe extern "C" fn vanedb_rs_disk_open(path: *const c_char) -> vanedb_rs_disk {
     guard(VANEDB_RS_NULL_HANDLE, || {
@@ -1418,6 +1420,9 @@ pub unsafe extern "C" fn vanedb_rs_disk_search_filtered(
 /// Frees a mapped-file handle. `VANEDB_RS_NULL_HANDLE` is a no-op; a handle
 /// that is not a live mapped file fails with `VANEDB_RS_INVALID_HANDLE`. A
 /// successful free preserves the thread's error state.
+/// This does not wait for in-flight calls, which retain their mappings until
+/// they return. The underlying file must remain unmodified and untruncated
+/// until this handle has been freed AND all calls using it have returned.
 #[no_mangle]
 pub extern "C" fn vanedb_rs_disk_free(m: vanedb_rs_disk) {
     guard_preserving((), || free(m, Kind::Disk))

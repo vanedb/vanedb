@@ -171,6 +171,14 @@ a leak test. Each call does one lookup under a sharded lock and then runs on
 its own reference, so a search never holds the lock and freeing a handle
 another thread is using is safe (that call completes; later calls fail).
 
+**Mapped files must outlive in-flight calls.** From the start of
+`vanedb_rs_disk_open`, keep the underlying file unmodified and untruncated
+until its handle has been freed **and every in-flight call using it has
+returned**. `vanedb_rs_disk_free` does not wait for these calls; each retains
+its own mapping. Synchronize with all calling threads before modifying or
+truncating that file. Replacing its path with a newly built file is allowed;
+modifying the mapped file in place is not.
+
 Use `vanedb_rs_store_*` for exact in-memory search, `vanedb_rs_index_*` for an
 approximate graph, and `vanedb_rs_disk_*` for a read-only mapped file. Metrics
 are `VANEDB_RS_L2` (squared distance), `VANEDB_RS_COSINE` and `VANEDB_RS_DOT`
