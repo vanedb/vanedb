@@ -7,6 +7,9 @@ twenty minutes in. The first such failure was Apple's `ld -r` refusing a
 static archive without `-arch`; these cases pin the commands without a Mac.
 """
 
+import ctypes
+import io
+import runpy
 import sys
 import json
 import struct
@@ -14,7 +17,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_capi_header  # noqa: E402
@@ -28,6 +32,34 @@ COMBINED = Path("/work/vanedb_capi_combined.o")
 
 def commands(platform, deployment_target=None):
     return package_capi.localize_commands(platform, ARCHIVE, EXPORTS, COMBINED, deployment_target)
+
+
+class CtypesQuickstart(unittest.TestCase):
+    def test_incompatible_abi_is_queried_once_before_any_other_api_is_accessed(self):
+        example = Path(__file__).resolve().parents[1] / "vanedb-capi/examples/ctypes_quickstart.py"
+        quickstart = runpy.run_path(str(example))
+        incompatible_abi = quickstart["ABI_VERSION"] + 1
+
+        def query_abi():
+            self.assertIs(abi_version.restype, ctypes.c_uint32)
+            self.assertEqual(abi_version.argtypes, [])
+            return incompatible_abi
+
+        abi_version = Mock(side_effect=query_abi)
+        # Any attempt to resolve another API on this incompatible library fails.
+        library = SimpleNamespace(vanedb_rs_abi_version=abi_version)
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "incompatible-library"
+            path.touch()
+            with patch.object(ctypes, "CDLL", return_value=library), \
+                    patch.object(sys, "argv", [str(example), str(path)]), \
+                    patch.object(sys, "stdout", output):
+                self.assertEqual(quickstart["main"](), 1)
+        abi_version.assert_called_once_with()
+        self.assertEqual(output.getvalue(),
+                         f"library speaks ABI {incompatible_abi}, "
+                         f"these bindings speak {quickstart['ABI_VERSION']}\n")
 
 
 class LocalizeCommands(unittest.TestCase):
