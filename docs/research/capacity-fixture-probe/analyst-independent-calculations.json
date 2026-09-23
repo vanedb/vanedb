@@ -1,0 +1,41 @@
+[
+  {
+    "n": 8192,
+    "built": 28121480,
+    "released": 28105096,
+    "retained": 16384,
+    "layers": 8745,
+    "links": 226615,
+    "mean_deg0": 26.5865478515625,
+    "exact_fit": 2219408,
+    "neighbor_residual": 2553472,
+    "neighbor_per_node": 311.703125,
+    "nonlink": 25551624
+  },
+  {
+    "n": 10000,
+    "built": 35014312,
+    "released": 34981544,
+    "retained": 32768,
+    "layers": 10664,
+    "links": 276069,
+    "mean_deg0": 26.5487,
+    "exact_fit": 2704488,
+    "neighbor_residual": 3114768,
+    "neighbor_per_node": 311.4768,
+    "nonlink": 31866776
+  },
+  {
+    "n": 100000,
+    "built": 342442992,
+    "released": 342180848,
+    "retained": 262144,
+    "layers": 106517,
+    "links": 2743127,
+    "mean_deg0": 26.38885,
+    "exact_fit": 26901424,
+    "neighbor_residual": 31148320,
+    "neighbor_per_node": 311.4832,
+    "nonlink": 311032528
+  }
+]

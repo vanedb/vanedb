@@ -1,0 +1,11 @@
+{
+  "format": "VNDB_v1",
+  "dim": 768,
+  "count": 10000,
+  "metric": 1,
+  "vector_bits_match": true,
+  "file": "/Users/anton/code/codex/020-capacity-fixture-probe/results/disk-10000.vndb",
+  "file_bytes": 30800032,
+  "sha256": "3ede6854ceae452f89de777336def71e55d92a791cc33704d6c772e7dd130419",
+  "checks": "bounds/header/EOF and fixture ID/vector bytes verified"
+}
