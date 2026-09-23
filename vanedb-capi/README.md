@@ -122,7 +122,7 @@ cc app.c $(pkg-config --cflags vanedb) \
 
 Not available on Windows.
 
-### Without either
+### Standalone examples with CMake
 
 Run the examples from the top-level directory of the archive:
 

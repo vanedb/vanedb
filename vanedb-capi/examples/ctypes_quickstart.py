@@ -42,15 +42,13 @@ FILTER_FN = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_uint64, ctypes.c_void_p)
 
 
 def bind(lib: ctypes.CDLL) -> None:
-    """Every signature this example uses. Nothing is called before it is bound."""
+    """Bind the remaining signatures after the library passes the ABI check."""
     u64 = ctypes.c_uint64
     usize = ctypes.c_size_t
     f32p = ctypes.POINTER(ctypes.c_float)
 
     lib.vanedb_rs_version.restype = ctypes.c_char_p
     lib.vanedb_rs_version.argtypes = []
-    lib.vanedb_rs_abi_version.restype = ctypes.c_uint32
-    lib.vanedb_rs_abi_version.argtypes = []
     lib.vanedb_rs_handle_count.restype = usize
     lib.vanedb_rs_handle_count.argtypes = []
 
@@ -136,12 +134,15 @@ def main() -> int:
         return 2
 
     lib = ctypes.CDLL(str(library))
-    bind(lib)
-    print("vanedb", lib.vanedb_rs_version().decode())
-    if lib.vanedb_rs_abi_version() != ABI_VERSION:
-        print(f"library speaks ABI {lib.vanedb_rs_abi_version()}, "
+    lib.vanedb_rs_abi_version.restype = ctypes.c_uint32
+    lib.vanedb_rs_abi_version.argtypes = []
+    library_abi = lib.vanedb_rs_abi_version()
+    if library_abi != ABI_VERSION:
+        print(f"library speaks ABI {library_abi}, "
               f"these bindings speak {ABI_VERSION}")
         return 1
+    bind(lib)
+    print("vanedb", lib.vanedb_rs_version().decode())
 
     dim = 3
     floats = ctypes.c_float * dim
