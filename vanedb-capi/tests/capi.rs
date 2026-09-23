@@ -1885,7 +1885,7 @@ fn filtered_search_uses_default_beam_widening() {
         .collect();
     unsafe {
         let index = vanedb_capi::vanedb_rs_index_new(DIM, 0, N, 16, 200, 42);
-        assert!(!index.is_null());
+        assert_ne!(index, Default::default());
         let ids: Vec<u64> = (0..N as u64).collect();
         assert_eq!(
             vanedb_capi::vanedb_rs_index_add_batch(index, ids.as_ptr(), vectors.as_ptr(), N),
