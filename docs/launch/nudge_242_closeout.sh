@@ -2,7 +2,7 @@
 # Post a maintainer nudge on residual #242 (AC3/AC5 unlocks).
 # Cloud agents often lack issues:write; Actions GITHUB_TOKEN can comment.
 # Never shuts #242 / #198 / #226.
-# When --apply and residuals remain, reopens #242 if it was shut early.
+# When --apply and residuals remain, reopens #242 and #198 if shut early.
 #
 # Usage:
 #   bash docs/launch/nudge_242_closeout.sh           # print comment body
@@ -106,7 +106,7 @@ Status probe: ${token_line}; ${app_line}.
 
 How on this issue should already show \`--tag --confirm-vault-walkthrough\` (not historical \`--cut\`). Refresh via Actions → **Sync #242 How** if needed.
 
-Leave this issue open until Pending=0 **and** the official 0.2.0 release URL is recorded. If it was shut early, \`nudge_242_closeout.sh --apply\` reopens it while residuals remain.
+Leave #242 (and #198) open until Pending=0 **and** the official 0.2.0 release URL is recorded. If either was shut early, \`nudge_242_closeout.sh --apply\` reopens them while residuals remain.
 EOF
 }
 
@@ -127,14 +127,16 @@ if [[ "$residuals" -eq 0 ]]; then
   exit 0
 fi
 
-issue_state="$(gh issue view 242 --repo vanedb/vanedb --json state -q .state 2>/dev/null || echo unknown)"
-if [[ "$issue_state" == "CLOSED" ]]; then
-  # Reopen residual tracker while AC3/AC5 evidence is still missing.
-  # Do not put GitHub merge-closing verbs next to #198 / #226 / #242 in commits.
-  gh issue reopen 242 --repo vanedb/vanedb \
-    --comment "Auto-reopened: residual AC3/AC5 still open (Pending=${pending}; official 0.2.0 ${official_020})."
-  echo "==> reopened https://github.com/vanedb/vanedb/issues/242 (was CLOSED with residuals)"
-fi
+# Reopen residual trackers while AC3/AC5 evidence is still missing.
+# Do not put GitHub merge-closing verbs next to issue numbers in commits.
+for issue in 242 198; do
+  issue_state="$(gh issue view "$issue" --repo vanedb/vanedb --json state -q .state 2>/dev/null || echo unknown)"
+  if [[ "$issue_state" == "CLOSED" ]]; then
+    gh issue reopen "$issue" --repo vanedb/vanedb \
+      --comment "Auto-reopened: residual AC3/AC5 still open (Pending=${pending}; official 0.2.0 ${official_020})."
+    echo "==> reopened https://github.com/vanedb/vanedb/issues/${issue} (was CLOSED with residuals)"
+  fi
+done
 
 tmp="$(mktemp)"
 printf '%s\n' "$body" >"$tmp"
