@@ -1,7 +1,9 @@
 # Closing #198 / residual tracking — maintainer closeout
 
-One-shot status / fill / cut driver:
-`bash docs/launch/maintainer_closeout_226.sh` (`--fill`, `--cut`, or `--all`).
+Status / benchmark-fill driver:
+`bash docs/launch/maintainer_closeout_226.sh` (status or `--fill`).
+For the demo, use the reviewed-PR sequence in §3; the historical cut path
+applies an older patch and is not the current release candidate.
 
 Harness + fixture landed on **main** via
 [#212](https://github.com/vanedb/vanedb/pull/212) (`bead8c0`). ARM64 proptest
@@ -115,36 +117,17 @@ automatically after both metrics record.
 
 ## 3. Demo (AC5) — **open (official 0.2.0 missing)**
 
-Applyable patch + one-shot are on **main** via
-[#219](https://github.com/vanedb/vanedb/pull/219):
-[`0003-obsidian-vane-search-0.2.0.patch`](0003-obsidian-vane-search-0.2.0.patch)
-and `docs/launch/maintainer_cut_demo_0.2.0.sh`. Cloud agents without demo-repo
-write get push **403**. One-shot for a maintainer with write access:
-
-```bash
-bash docs/launch/maintainer_cut_demo_0.2.0.sh
-```
-
-Or Actions → **Cut demo 0.2.0** with secret `DEMO_REPO_TOKEN`
-(`cut-demo-0.2.0.yml` on **main** via [#220](https://github.com/vanedb/vanedb/pull/220)).
-App-scoped agents can also cut after [#246](https://github.com/vanedb/vanedb/pull/246)
-(`gh auth token` when `/installation/repositories` includes the demo repo).
-
-To let a **future** cloud agent cut AC5 itself:
-[#215](https://github.com/vanedb/vanedb/pull/215) merged
-`repositoryDependencies` for `github.com/vanedb/obsidian-vane-search`. Remaining:
-install the Cursor GitHub App on that repo with `contents:write`, ensure the
-agent's environment actually lists that dependency (a Personal env that only
-scopes `vanedb/vanedb` overrides the committed `.cursor/environment.json`),
-then **start a new** cloud agent (existing run tokens do not pick up App scope).
-
-Ignore obsolete demo-repo #18 push guidance (lightweight tag + follow-tags onto
-protected `main`); prefer the one-shot / Actions paths above. Reply on
-[#242](https://github.com/vanedb/vanedb/issues/242) with the official release URL.
-
-Staging artifacts (vanedb prerelease, **not** official demo release):
-https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging
-Until the official demo tag exists, AC5 stays open.
+The current candidate is [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20).
+Vault acceptance + screenshot are recorded on the PR head; remaining steps are
+maintainer merge, then annotated tag via
+`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
+(or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN` /
+Cursor App write on `obsidian-vane-search`). See
+[the updated demo checklist](0003-demo-update-checklist.md). Automated tests and
+the historical staging artifacts do not prove the official release. Record the
+release URL and walkthrough evidence on [#242](https://github.com/vanedb/vanedb/issues/242).
+(The GitHub #242 issue How-section may still mention historical `--cut`; ignore
+that and use `--tag` above.)
 
 ## 4. Launch (AC6)
 
