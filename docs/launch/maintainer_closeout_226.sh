@@ -132,7 +132,7 @@ if [[ -n "$demo_pr_state" ]]; then
     echo "    demo PR #$DEMO_PR: OPEN mergeable=${demo_pr_mergeable:-?} status=${demo_pr_merge_status:-?}"
     if [[ "$demo_pr_vault" == "recorded" ]]; then
       echo "    demo PR #$DEMO_PR vault: recorded (0.2.0-desktop-acceptance.md on head ${demo_pr_head:0:12})"
-      echo "    demo PR #$DEMO_PR next: maintainer merge, then --tag --confirm-vault-walkthrough"
+      echo "    demo PR #$DEMO_PR next: --tag --confirm-vault-walkthrough (--merge-if-open) or Actions → Tag demo 0.2.0"
     elif [[ "$demo_pr_vault" == "missing" ]]; then
       echo "    demo PR #$DEMO_PR vault: MISSING (need real Obsidian/Ollama acceptance on head)"
     fi
@@ -206,6 +206,8 @@ if [[ "$DO_TAG" -eq 1 ]]; then
     if [[ "$CONFIRM_VAULT" -eq 1 ]]; then
       tag_args+=(--confirm-vault-walkthrough)
     fi
+    # Fold maintainer merge into the tag step when write creds can merge #20.
+    tag_args+=(--merge-if-open)
     if [[ "$DRY_RUN" -eq 1 ]]; then
       tag_args+=(--dry-run)
     fi
@@ -240,7 +242,7 @@ if [[ -z "$demo_tag" ]]; then
   if [[ "$demo_pr_state" == "MERGED" ]]; then
     echo "         → PR merged; run $0 --tag --confirm-vault-walkthrough"
   elif [[ "$demo_pr_state" == "OPEN" && "$demo_pr_vault" == "recorded" ]]; then
-    echo "         → vault recorded; maintainer merge → $0 --tag --confirm-vault-walkthrough"
+    echo "         → vault recorded; $0 --tag --confirm-vault-walkthrough (--merge-if-open)"
   else
     echo "         → vault walkthrough → merge → $0 --tag --confirm-vault-walkthrough"
   fi
