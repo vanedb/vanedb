@@ -1,0 +1,60 @@
+# Annotated 0.2.0 tag for the current AC5 candidate (demo PR #20).
+# Requires: DEMO_REPO_TOKEN (contents:write on vanedb/obsidian-vane-search),
+# demo PR #20 MERGED, and an explicit vault-walkthrough confirmation input.
+# Historical patch cut is cut-demo-0.2.0.yml — do not use it for this candidate.
+# Does not run on push/PR.
+name: Tag demo 0.2.0
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_vault_walkthrough:
+        description: "I completed the real Obsidian/Ollama vault checklist on the reviewed merged commit"
+        type: boolean
+        required: true
+        default: false
+      commit:
+        description: "Optional merge-commit SHA (default: demo PR #20 merge commit)"
+        type: string
+        required: false
+        default: ""
+
+concurrency:
+  group: tag-demo-0.2.0
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require vault confirmation
+        if: ${{ inputs.confirm_vault_walkthrough != true }}
+        run: |
+          echo "::error::Set confirm_vault_walkthrough=true after completing the real vault checklist (demo docs/releases/0.2.0.md)."
+          exit 1
+
+      - name: Require DEMO_REPO_TOKEN
+        env:
+          DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
+        run: |
+          if [ -z "${DEMO_REPO_TOKEN}" ]; then
+            echo "::error::Add repository secret DEMO_REPO_TOKEN (contents:write on vanedb/obsidian-vane-search), then re-run."
+            exit 1
+          fi
+
+      - name: Tag official 0.2.0 on reviewed merged commit
+        env:
+          DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          args=(--confirm-vault-walkthrough)
+          if [ -n "${{ inputs.commit }}" ]; then
+            args+=(--commit="${{ inputs.commit }}")
+          fi
+          bash docs/launch/maintainer_tag_demo_0.2.0.sh "${args[@]}"

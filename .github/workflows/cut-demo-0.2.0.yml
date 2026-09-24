@@ -1,6 +1,7 @@
-# Manual cut of the official obsidian-vane-search 0.2.0 release for #198 AC5.
-# Requires repository secret DEMO_REPO_TOKEN (PAT/fine-grained token with
-# contents:write on vanedb/obsidian-vane-search). Does not run on push/PR.
+# Historical: apply 0003-obsidian-vane-search-0.2.0.patch and tag 0.2.0.
+# NOT the current AC5 candidate — use workflow "Tag demo 0.2.0" (demo PR #20
+# + vault confirmation) instead. Requires repository secret DEMO_REPO_TOKEN
+# (contents:write on vanedb/obsidian-vane-search). Does not run on push/PR.
 name: Cut demo 0.2.0
 
 on:

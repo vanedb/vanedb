@@ -122,7 +122,14 @@ Follow [the updated demo checklist](0003-demo-update-checklist.md): independent
 reviews and CI, real Obsidian/Ollama vault acceptance, then the approved
 reviewed merged commit's annotated release tag. Automated tests and the
 historical staging artifacts do not prove the real walkthrough or official
-release. Record both evidence links on [#242](https://github.com/vanedb/vanedb/issues/242).
+release. The current candidate's desktop acceptance and synthetic-vault screenshot
+are recorded in demo PR #20. Revalidate its final merged bundle identity and
+any subsequent fixes before confirming the walkthrough. After review, CI,
+merge and publication approval, the annotated-tag helper is
+`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
+(or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN`). Record both evidence
+links on [#242](https://github.com/vanedb/vanedb/issues/242). Historical `--cut`
+instructions do not apply to this candidate.
 
 ## 4. Launch (AC6)
 

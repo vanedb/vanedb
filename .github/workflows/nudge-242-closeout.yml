@@ -1,0 +1,36 @@
+# Post a maintainer nudge on residual #242 listing AC3/AC5 unlocks.
+# Cloud agents often lack issues:write; Actions GITHUB_TOKEN can comment.
+# Does not shut #242 / #198 / #226.
+name: Nudge #242 closeout
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "docs/launch/nudge_242_closeout.sh"
+      - ".github/workflows/nudge-242-closeout.yml"
+
+concurrency:
+  group: nudge-242-closeout
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Comment unlock checklist on #242
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Optional: used only for status probe text in the comment.
+          DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          bash docs/launch/nudge_242_closeout.sh --apply
+          echo "ok: posted #242 closeout nudge"

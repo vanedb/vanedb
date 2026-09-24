@@ -63,6 +63,9 @@ Use the reviewed-PR sequence in
 [`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). The current
 candidate is [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20).
 Complete independent review, CI and the real Obsidian/Ollama walkthrough,
-then publish the approved merged candidate. Record its official release URL
+then verify the final bundle and publish the approved merged candidate via
+`maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`. The recorded
+walkthrough covers its identified bundle, not subsequent provider-transition
+fixes. Record its official release URL
 and walkthrough evidence on [#242](https://github.com/vanedb/vanedb/issues/242).
 The historical staging release does not meet this requirement.
