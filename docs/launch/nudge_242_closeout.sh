@@ -2,10 +2,11 @@
 # Post a maintainer nudge on residual #242 (AC3/AC5 unlocks).
 # Cloud agents often lack issues:write; Actions GITHUB_TOKEN can comment.
 # Never shuts #242 / #198 / #226.
+# When --apply and residuals remain, reopens #242 if it was shut early.
 #
 # Usage:
 #   bash docs/launch/nudge_242_closeout.sh           # print comment body
-#   bash docs/launch/nudge_242_closeout.sh --apply   # gh issue comment 242
+#   bash docs/launch/nudge_242_closeout.sh --apply   # reopen if needed + comment
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,7 +15,7 @@ for arg in "$@"; do
   case "$arg" in
     --apply) APPLY=1 ;;
     -h|--help)
-      sed -n '2,10p' "$0"
+      sed -n '2,11p' "$0"
       exit 0
       ;;
     *)
@@ -33,6 +34,7 @@ tip="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 demo_state="unknown"
 demo_mergeable=""
 demo_vault=""
+official_020="missing"
 if command -v gh >/dev/null 2>&1; then
   if pr_json="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state,mergeable,headRefOid 2>/dev/null)"; then
     demo_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
@@ -46,6 +48,9 @@ if command -v gh >/dev/null 2>&1; then
         demo_vault="missing"
       fi
     fi
+  fi
+  if gh release view 0.2.0 -R vanedb/obsidian-vane-search >/dev/null 2>&1; then
+    official_020="present"
   fi
 fi
 
@@ -65,10 +70,18 @@ if command -v gh >/dev/null 2>&1; then
 fi
 
 ac5_line="official \`obsidian-vane-search\` **0.2.0** missing. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
+if [[ "$official_020" == "present" ]]; then
+  ac5_line="official \`obsidian-vane-search\` **0.2.0** release is live. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
+fi
 if [[ "$demo_vault" == "recorded" ]]; then
   ac5_line="${ac5_line} Vault acceptance **recorded** on PR head."
 elif [[ "$demo_vault" == "missing" ]]; then
   ac5_line="${ac5_line} Vault acceptance **missing** on PR head."
+fi
+
+residuals=0
+if [[ "$pending" -gt 0 || "$official_020" != "present" ]]; then
+  residuals=1
 fi
 
 # Emit via a function so the heredoc is not nested inside body="$(…)" —
@@ -93,7 +106,7 @@ Status probe: ${token_line}; ${app_line}.
 
 How on this issue should already show \`--tag --confirm-vault-walkthrough\` (not historical \`--cut\`). Refresh via Actions → **Sync #242 How** if needed.
 
-Leave this issue open until Pending=0 **and** the official 0.2.0 release URL is recorded.
+Leave this issue open until Pending=0 **and** the official 0.2.0 release URL is recorded. If it was shut early, \`nudge_242_closeout.sh --apply\` reopens it while residuals remain.
 EOF
 }
 
@@ -107,6 +120,20 @@ fi
 if ! command -v gh >/dev/null 2>&1; then
   echo "refused: gh not available for --apply" >&2
   exit 1
+fi
+
+if [[ "$residuals" -eq 0 ]]; then
+  echo "==> residuals cleared (Pending=0 and official 0.2.0 present); skip reopen/nudge"
+  exit 0
+fi
+
+issue_state="$(gh issue view 242 --repo vanedb/vanedb --json state -q .state 2>/dev/null || echo unknown)"
+if [[ "$issue_state" == "CLOSED" ]]; then
+  # Reopen residual tracker while AC3/AC5 evidence is still missing.
+  # Do not put GitHub merge-closing verbs next to #198 / #226 / #242 in commits.
+  gh issue reopen 242 --repo vanedb/vanedb \
+    --comment "Auto-reopened: residual AC3/AC5 still open (Pending=${pending}; official 0.2.0 ${official_020})."
+  echo "==> reopened https://github.com/vanedb/vanedb/issues/242 (was CLOSED with residuals)"
 fi
 
 tmp="$(mktemp)"
