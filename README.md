@@ -209,11 +209,32 @@ The [JavaScript guide](vanedb-wasm/README.md) includes runnable Node and browser
 examples. Initialize that module before constructing an index. For example, the approximate
 constructor takes `(3, "cosine", 100, 16, 200)`.
 
-Build the native C library with `cargo build -p vanedb-capi --release --locked`.
-See the [C guide](vanedb-capi/README.md) for a complete example that links and
-runs against the shared library. The library is written to `target/release`; use the generated
+Build the native C library with `cargo build -p vanedb-capi --profile capi --locked`
+(the shipped profile: fat LTO, one codegen unit; a plain `--release` build
+works too). See the [C guide](vanedb-capi/README.md) for a complete example
+that links and runs against the shared library, and for the `find_package(vanedb)`
+and `pkg-config` files the packaged archive carries. The library is written
+to `target/capi`; use the generated
 [C header](vanedb-capi/include/vanedb_rs_capi.h) for ownership, buffer sizes,
-return conventions, and metric constants.
+return conventions, and metric constants. Handles are `uint64_t` ids, not
+pointers: a stale, truncated or random id fails with
+`VANEDB_RS_INVALID_HANDLE` instead of crashing, and `vanedb_rs_abi_version()`
+must equal the header's `VANEDB_RS_ABI_VERSION` (currently 1) before anything
+else is called. From Python with `ctypes`, declare every signature and bind
+handles as `c_uint64`:
+
+```python
+import ctypes
+lib = ctypes.CDLL("target/capi/libvanedb_capi.so")
+HANDLE, usize, f32p = ctypes.c_uint64, ctypes.c_size_t, ctypes.POINTER(ctypes.c_float)
+lib.vanedb_rs_abi_version.restype, lib.vanedb_rs_abi_version.argtypes = ctypes.c_uint32, []
+lib.vanedb_rs_store_new.restype, lib.vanedb_rs_store_new.argtypes = HANDLE, [usize, ctypes.c_uint32]
+lib.vanedb_rs_store_add.restype, lib.vanedb_rs_store_add.argtypes = ctypes.c_int32, [HANDLE, ctypes.c_uint64, f32p]
+lib.vanedb_rs_store_search.restype = usize
+lib.vanedb_rs_store_search.argtypes = [HANDLE, f32p, usize, ctypes.POINTER(ctypes.c_uint64), f32p]
+lib.vanedb_rs_store_free.restype, lib.vanedb_rs_store_free.argtypes = None, [HANDLE]
+assert lib.vanedb_rs_abi_version() == 1
+```
 
 Support tiers, version floors and the dated change log live in
 [`docs/PLATFORMS.md`](docs/PLATFORMS.md), the only place a tier is asserted.

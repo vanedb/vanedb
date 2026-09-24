@@ -53,6 +53,13 @@ jobs:
         run: |
           cargo build -p vanedb-capi --locked
           git diff --exit-code -- vanedb-capi/include
+      # The exported-symbol allowlist under vanedb-capi/exports is generated
+      # from that header: build.rs hands the Apple list to ld64, the plain
+      # list localizes the static library, and the .def feeds the Windows
+      # export check. A stale copy would ship a library that hides a newly
+      # declared function.
+      - name: Export lists are in sync with the header
+        run: python3 scripts/capi_exports.py generate --verify
 
   docs:
     name: Rustdoc (docs.rs configuration)
@@ -245,6 +252,9 @@ jobs:
           toolchain: stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo test --workspace --exclude vanedb-py --features ${{ matrix.features }} --locked
+      - name: Install the native object tools
+        if: runner.os == 'macOS' || runner.os == 'Windows'
+        run: rustup component add llvm-tools-preview
       - name: Build and run C consumer acceptance
         # Runs on windows-latest too, where the default shell is pwsh: it does
         # not stop on a native non-zero exit, so a failed build would leave
@@ -253,7 +263,9 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
         run: |
-          cargo build -p vanedb-capi --release --locked
+          # The `capi` profile (fat LTO, one codegen unit) is what ships; the
+          # examples find target/capi on their own.
+          cargo build -p vanedb-capi --profile capi --locked
           cmake -S vanedb-capi/examples -B target/c-example -DCMAKE_BUILD_TYPE=Release
           cmake --build target/c-example --config Release
           # ctest exits 0 when it finds no tests, so a broken add_test
@@ -263,8 +275,41 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.14'
-      - name: Package C libraries and test an extracted consumer
-        run: python scripts/package_capi.py --platform ${{ matrix.artifact }}
+      # C99, C11 and C++17 under -Wall -Wextra -pedantic -Werror with the
+      # host's GCC and Clang, and MSVC /W4 /WX on Windows: the header is
+      # vendored by hand into consumers' builds, whose warning settings are
+      # not ours to choose.
+      - name: Header compiles warning-free as C99, C11 and C++17
+        shell: bash
+        run: python scripts/check_capi_header.py
+      # The pkg-config consumer needs pkg-config; the macOS images carry it as
+      # pkgconf, but a missing binary must not turn into a skipped check.
+      - name: Ensure pkg-config is present
+        if: runner.os == 'macOS'
+        run: command -v pkg-config || brew install pkgconf
+      # Packages lib/, include/, the CMake package (vanedb::shared and
+      # vanedb::static) and the pkg-config file, asserts the shared library
+      # exports exactly the header's vanedb_rs_* set (nm on Linux and macOS,
+      # dumpbin on Windows), then builds and runs the examples, the
+      # find_package(vanedb) consumer against both targets, and on Linux and
+      # macOS the pkg-config consumer -- all from the extracted archive.
+      - name: Package C libraries and test the CMake and pkg-config consumers from the archive
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            python scripts/package_capi.py --platform ${{ matrix.artifact }} --work-dir target/capi-diagnostics
+          else
+            python scripts/package_capi.py --platform ${{ matrix.artifact }}
+          fi
+      - name: Retain failed Windows static diagnostics
+        if: failure() && runner.os == 'Windows'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: vanedb-capi-windows-diagnostics
+          path: |
+            target/capi-diagnostics/**
+            target/c-artifacts/*
+          if-no-files-found: warn
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: vanedb-capi-${{ matrix.artifact }}
@@ -334,9 +379,48 @@ jobs:
       # reported as a WASM failure.
       - name: Run the ctypes example against a built library
         run: |
-          cargo build -p vanedb-capi --release --locked
+          cargo build -p vanedb-capi --profile capi --locked
           python3 vanedb-capi/examples/ctypes_quickstart.py \
-            target/release/libvanedb_capi.so
+            target/capi/libvanedb_capi.so
+      # The shared library's dynamic symbol table must be exactly the
+      # header's function set: nothing from the Rust standard library, and
+      # nothing the header does not declare (RFC 0002 stage 1). The same
+      # assertion runs on macOS and Windows inside package_capi.py.
+      - name: Shared library exports exactly the vanedb_rs_* set
+        run: |
+          nm -D --defined-only target/capi/libvanedb_capi.so
+          python3 scripts/capi_exports.py check target/capi/libvanedb_capi.so
+      - name: Header compiles warning-free as C99, C11 and C++17 (GCC and Clang)
+        run: python3 scripts/check_capi_header.py
+
+  abidiff:
+    name: C ABI gate against the previous release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Install libabigail
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends abigail-tools
+          abidiff --version
+      - run: cargo build -p vanedb-capi --profile capi --locked
+      # Two layers against the previous vanedb-crate-v<version> release's
+      # Linux x86-64 archive (0.1.1 is the first): the header's prototypes,
+      # diffed against the archive's header, fail on a removed or changed
+      # signature; abidiff on the stripped .so sees the dynamic symbol table
+      # only, so it fails on a removed symbol and nothing else. A baseline at
+      # another VANEDB_RS_ABI_VERSION is an intentional break: reported,
+      # passed with a notice. Same version: both layers must be clean. The
+      # procedure is documented in vanedb-capi/README.md.
+      - name: Compare the shared library against the previous tagged release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/capi_abidiff.py target/capi/libvanedb_capi.so
 
   sanitize:
     name: AddressSanitizer (unsafe paths)
