@@ -2,7 +2,9 @@
 # Requires: DEMO_REPO_TOKEN (contents:write + pull_requests:write on
 # vanedb/obsidian-vane-search) and an explicit vault-walkthrough confirmation.
 # Passes --merge-if-open so one dispatch can merge #20 (merge commit) then tag
-# when the PR is still OPEN with vault acceptance recorded.
+# when the PR is still OPEN with vault acceptance recorded. Tagging then requires
+# green merged-commit CI and an exact rebuild/desktop-acceptance checksum match;
+# rerun after CI completes if the first dispatch only merges.
 # Historical patch cut is cut-demo-0.2.0.yml — do not use it for this candidate.
 # Does not run on push/PR.
 name: Tag demo 0.2.0
@@ -34,6 +36,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
       - name: Require vault confirmation
         if: ${{ inputs.confirm_vault_walkthrough != true }}
         run: |
@@ -49,15 +55,16 @@ jobs:
             exit 1
           fi
 
-      - name: Merge demo PR #20 if open, then tag official 0.2.0
+      - name: Merge demo PR #20 if open, then validate final CI and bundle before tagging
         env:
           # Demo-repo token for both gh (merge/view) and git push — not GITHUB_TOKEN.
           DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
           GH_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
+          DEMO_COMMIT_INPUT: ${{ inputs.commit }}
         run: |
           set -euo pipefail
           args=(--confirm-vault-walkthrough --merge-if-open)
-          if [ -n "${{ inputs.commit }}" ]; then
-            args+=(--commit="${{ inputs.commit }}")
+          if [ -n "${DEMO_COMMIT_INPUT}" ]; then
+            args+=(--commit="${DEMO_COMMIT_INPUT}")
           fi
           bash docs/launch/maintainer_tag_demo_0.2.0.sh "${args[@]}"

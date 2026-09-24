@@ -10,8 +10,9 @@
 #
 # Step 3 can be folded into this script with --merge-if-open (merge commit,
 # not squash) when DEMO_REPO_TOKEN / App write can merge the PR. Actions →
-# Tag demo 0.2.0 always passes --merge-if-open so one dispatch finishes AC5
-# after vault confirmation + secret.
+# Tag demo 0.2.0 passes --merge-if-open after vault confirmation + secret.
+# Tagging also requires green merged-commit CI and a rebuilt bundle matching
+# desktop acceptance. If CI is pending, rerun after that exact commit passes.
 #
 # Requires: write access to vanedb/obsidian-vane-search (DEMO_REPO_TOKEN or
 # Cursor GitHub App contents:write on that repo after #215
@@ -122,7 +123,7 @@ if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
   fi
 
   pr_json="$(gh_demo pr view "$DEMO_PR" -R "$DEMO_REPO" \
-    --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,url)"
+    --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,statusCheckRollup,url)"
   pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
 
   if [[ "$pr_state" == "OPEN" && "$MERGE_IF_OPEN" -eq 1 ]]; then
@@ -133,10 +134,29 @@ if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
       echo "refused: demo PR #$DEMO_PR is OPEN but mergeable=$mergeable (need MERGEABLE)" >&2
       exit 2
     fi
-    # CLEAN is the happy path. Block DRAFT / DIRTY / BLOCKED / BEHIND.
-    if [[ "$merge_status" == "DIRTY" || "$merge_status" == "DRAFT" \
-        || "$merge_status" == "BLOCKED" || "$merge_status" == "BEHIND" ]]; then
+    # Fail closed: UNKNOWN/UNSTABLE/HAS_HOOKS are not green evidence.
+    if [[ "$merge_status" != "CLEAN" ]]; then
       echo "refused: demo PR #$DEMO_PR mergeStateStatus=$merge_status (need CLEAN)" >&2
+      exit 2
+    fi
+    if [[ ! "$head_oid" =~ ^[0-9a-fA-F]{40}$ ]]; then
+      echo "refused: demo PR #$DEMO_PR has no valid reviewed head SHA" >&2
+      exit 2
+    fi
+    if ! printf '%s' "$pr_json" | python3 -c '
+import json,sys
+checks=json.load(sys.stdin).get("statusCheckRollup") or []
+def green(check):
+    if check.get("__typename") == "StatusContext":
+        return check.get("state") == "SUCCESS"
+    return check.get("status") == "COMPLETED" and check.get("conclusion") in ("SUCCESS", "SKIPPED")
+if not any(check.get("name") == "test" and green(check) and check.get("conclusion") == "SUCCESS" for check in checks) or not all(green(check) for check in checks):
+    raise SystemExit("refused: demo PR checks must all finish successfully before merging")
+'; then
+      exit 2
+    fi
+    if [[ -n "$COMMIT" ]]; then
+      echo "refused: --commit cannot select a commit before PR #$DEMO_PR is merged" >&2
       exit 2
     fi
     if [[ -n "$head_oid" ]]; then
@@ -159,9 +179,9 @@ if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
         exit 2
       fi
       echo "==> merging demo PR #$DEMO_PR (merge commit, not squash)"
-      gh_demo pr merge "$DEMO_PR" -R "$DEMO_REPO" --merge
+      gh_demo pr merge "$DEMO_PR" -R "$DEMO_REPO" --merge --match-head-commit "$head_oid"
       pr_json="$(gh_demo pr view "$DEMO_PR" -R "$DEMO_REPO" \
-        --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,url)"
+        --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,statusCheckRollup,url)"
       pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
     fi
   fi
@@ -179,16 +199,21 @@ if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
     fi
   fi
 
-  if [[ -z "$COMMIT" ]]; then
-    COMMIT="$(printf '%s' "$pr_json" | python3 -c '
+  if [[ "$pr_state" == "MERGED" ]]; then
+    merge_oid="$(printf '%s' "$pr_json" | python3 -c '
 import json,sys
-p=json.load(sys.stdin)
-mc=p.get("mergeCommit") or {}
-sha=mc.get("oid") or ""
-if not sha:
-    raise SystemExit("mergeCommit.oid missing")
-print(sha)
+mc=json.load(sys.stdin).get("mergeCommit") or {}
+print(mc.get("oid") or "")
 ')"
+    if [[ ! "$merge_oid" =~ ^[0-9a-fA-F]{40}$ ]]; then
+      echo "refused: mergeCommit.oid missing or invalid" >&2
+      exit 2
+    fi
+    if [[ -n "$COMMIT" && ( ! "$COMMIT" =~ ^[0-9a-fA-F]{7,40}$ || "$merge_oid" != "$COMMIT" ) ]]; then
+      echo "refused: --commit must identify the reviewed PR #$DEMO_PR merge commit" >&2
+      exit 2
+    fi
+    COMMIT="$merge_oid"
   fi
 fi
 
@@ -249,6 +274,49 @@ ver="$(python3 -c 'import json; print(json.load(open("manifest.json"))["version"
 if [[ "$ver" != "$TAG" ]]; then
   echo "refused: manifest.json version is '$ver' (want $TAG) at $COMMIT" >&2
   exit 1
+fi
+
+# Only the explicit local file:// bare-remote test skips GitHub CI and bundle
+# acceptance. It cannot publish to GitHub; it tests tag/push plumbing alone.
+if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
+  echo "==> verify CI on final merged commit $COMMIT"
+  gh_demo api --paginate --slurp \
+    "repos/${DEMO_REPO}/commits/${COMMIT}/check-runs?per_page=100" >"$WORKDIR/check-runs.json"
+  gh_demo api --paginate --slurp \
+    "repos/${DEMO_REPO}/commits/${COMMIT}/status?per_page=100" >"$WORKDIR/statuses.json"
+  python3 - "$WORKDIR/check-runs.json" "$WORKDIR/statuses.json" <<'PYCI'
+import json,sys
+from pathlib import Path
+runs=[run for page in json.loads(Path(sys.argv[1]).read_text()) for run in page.get("check_runs", [])]
+statuses=[status for page in json.loads(Path(sys.argv[2]).read_text()) for status in page.get("statuses", [])]
+green_runs=all(run.get("status") == "completed" and run.get("conclusion") in ("success", "skipped") for run in runs)
+green_statuses=all(status.get("state") == "success" for status in statuses)
+has_success=any(run.get("name") == "test" and run.get("conclusion") == "success" for run in runs)
+if not (has_success and green_runs and green_statuses):
+    raise SystemExit("refused: final merged-commit CI is missing, pending, or unsuccessful; wait for green CI and rerun before tagging")
+PYCI
+
+  echo "==> validate and rebuild final merged demo"
+  npm ci
+  npm run check:release
+  npm run typecheck
+  npm test
+  npm run build
+  node scripts/check-size.mjs
+  python3 - <<'PYBUNDLE'
+import hashlib,re
+from pathlib import Path
+record=Path("docs/releases/0.2.0-desktop-acceptance.md")
+if not record.is_file():
+    raise SystemExit("refused: desktop acceptance record missing on final merged commit")
+matches=re.findall(r"^\| Installed `main\.js` SHA-256 \| `([0-9a-f]{64})` \|$", record.read_text(), re.MULTILINE)
+if len(matches) != 1:
+    raise SystemExit("refused: desktop acceptance must contain exactly one valid installed main.js SHA-256")
+bundle=Path("main.js")
+if not bundle.is_file() or hashlib.sha256(bundle.read_bytes()).hexdigest() != matches[0]:
+    raise SystemExit("refused: rebuilt main.js differs from desktop acceptance; repeat the walkthrough and record the new accepted bundle before tagging")
+print("ok: rebuilt final bundle matches recorded desktop acceptance")
+PYBUNDLE
 fi
 
 if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then

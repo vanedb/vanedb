@@ -86,6 +86,7 @@ Maintainer unlocks needed:
 
 1. Set repo secret \`DEMO_REPO_TOKEN\` (contents:write **and** pull_requests:write on the demo repo) **or** add \`vanedb/obsidian-vane-search\` to the Cursor GitHub App install.
 2. Actions → **Tag demo 0.2.0** with \`confirm_vault_walkthrough=true\` (passes \`--merge-if-open\`: merge commit on #20 if still OPEN, then annotated tag) — or \`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough\`.
+   If the merge starts fresh CI, rerun after that merged commit is green. A changed bundle requires a new desktop walkthrough before tagging.
 3. Dedicated HW / self-hosted runners for the six COMPARISON slots.
 
 Status probe: ${token_line}; ${app_line}.

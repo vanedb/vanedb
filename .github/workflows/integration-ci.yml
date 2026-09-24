@@ -552,6 +552,8 @@ jobs:
             exit 1
           fi
           echo "ok: tag-demo workflow is dispatch-only with vault confirm + merge-if-open"
+      - name: Demo merge gate regression tests
+        run: python3 scripts/test_demo_tag_gate.py
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
         # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical
