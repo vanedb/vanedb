@@ -611,13 +611,15 @@ jobs:
           grep -q 'issues: write' "$NUDGEWF"
           grep -q 'nudge_242_closeout.sh --apply' "$NUDGEWF"
           grep -q 'gh issue reopen' "$NUDGE"
-          grep -q 'reopens it while residuals remain' "$NUDGE"
-          grep -q 'Reopen #242 if needed' "$NUDGEWF"
+          grep -q 'reopens them while residuals remain' "$NUDGE"
+          grep -q 'for issue in 242 198' "$NUDGE"
+          grep -q 'Reopen #242/#198 if needed' "$NUDGEWF"
+          grep -q 'cron:' "$NUDGEWF"
           nudge_out="$(bash "$NUDGE")"
           echo "$nudge_out" | grep -q -- '--tag --confirm-vault-walkthrough'
           echo "$nudge_out" | grep -q 'obsidian-vane-search/pull/20'
           echo "$nudge_out" | grep -q -- '--merge-if-open'
-          echo "$nudge_out" | grep -q 'reopens it while residuals remain'
+          echo "$nudge_out" | grep -q 'reopens them while residuals remain'
           if echo "$nudge_out" | grep -Eiq '(close|closes|fix|fixes)[[:space:]]+#(198|226|242)\b'; then
             echo "::error::$NUDGE must not use merge-closing keywords next to residual issues" >&2
             exit 1
