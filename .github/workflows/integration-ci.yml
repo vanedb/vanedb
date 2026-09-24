@@ -617,6 +617,8 @@ jobs:
           grep -q 'cron:' "$NUDGEWF"
           grep -q -- '--merge-if-open' "$NUDGE"
           grep -q 'token/App only' "$NUDGE"
+          grep -q 'unlock_steps_merged' "$NUDGE"
+          grep -q 'unlock_steps_open' "$NUDGE"
           nudge_out="$(bash "$NUDGE")"
           echo "$nudge_out" | grep -q -- '--tag --confirm-vault-walkthrough'
           echo "$nudge_out" | grep -q 'obsidian-vane-search/pull/20'
