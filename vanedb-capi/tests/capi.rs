@@ -241,6 +241,10 @@ fn hnsw() {
             vanedb_capi::vanedb_rs_index_load_from_buffer(std::ptr::null(), 0),
             0
         );
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_load_from_buffer(buf.as_ptr(), 0),
+            Default::default()
+        );
         // negative paths
         assert_eq!(vanedb_capi::vanedb_rs_index_new(0, 0, 100, 16, 200, 42), 0);
         assert_eq!(vanedb_capi::vanedb_rs_index_add(0, 1, v0.as_ptr()), 1);

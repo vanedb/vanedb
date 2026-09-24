@@ -98,6 +98,7 @@ def main() -> None:
             cwd=consumer, env=env, check=True, capture_output=True,
         )
         shutil.copy2(TEST, consumer / "npm_package.mjs")
+        shutil.copy2(TEST.with_name("atomic_write_child.cjs"), consumer / "atomic_write_child.cjs")
         shutil.copy2(FIXTURE, consumer / "l2_rng1.vndb")
         subprocess.run(["node", "npm_package.mjs"], cwd=consumer, env=env, check=True)
 
