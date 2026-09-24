@@ -615,10 +615,13 @@ jobs:
           grep -q 'for issue in 242 198' "$NUDGE"
           grep -q 'Reopen #242/#198 if needed' "$NUDGEWF"
           grep -q 'cron:' "$NUDGEWF"
+          grep -q -- '--merge-if-open' "$NUDGE"
+          grep -q 'token/App only' "$NUDGE"
           nudge_out="$(bash "$NUDGE")"
           echo "$nudge_out" | grep -q -- '--tag --confirm-vault-walkthrough'
           echo "$nudge_out" | grep -q 'obsidian-vane-search/pull/20'
-          echo "$nudge_out" | grep -q -- '--merge-if-open'
+          # Live #20 may be OPEN (merge-if-open path) or MERGED (token-only path).
+          echo "$nudge_out" | grep -Eq -- '--merge-if-open|token/App only'
           echo "$nudge_out" | grep -q 'reopens them while residuals remain'
           if echo "$nudge_out" | grep -Eiq '(close|closes|fix|fixes)[[:space:]]+#(198|226|242)\b'; then
             echo "::error::$NUDGE must not use merge-closing keywords next to residual issues" >&2

@@ -79,6 +79,23 @@ elif [[ "$demo_vault" == "missing" ]]; then
   ac5_line="${ac5_line} Vault acceptance **missing** on PR head."
 fi
 
+if [[ "$demo_state" == "MERGED" ]]; then
+  unlock_steps="$(cat <<'EOF'
+1. Set repo secret `DEMO_REPO_TOKEN` (contents:write on the demo repo) **or** add `vanedb/obsidian-vane-search` to the Cursor GitHub App install — **AC5 is token/App only now** (#20 already MERGED with a merge commit).
+2. Actions → **Tag demo 0.2.0** with `confirm_vault_walkthrough=true` — or `bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`. Expected: https://github.com/vanedb/obsidian-vane-search/releases/tag/0.2.0
+3. Dedicated HW / self-hosted runners for the six COMPARISON slots.
+EOF
+)"
+else
+  unlock_steps="$(cat <<'EOF'
+1. Set repo secret `DEMO_REPO_TOKEN` (contents:write **and** pull_requests:write on the demo repo) **or** add `vanedb/obsidian-vane-search` to the Cursor GitHub App install.
+2. Actions → **Tag demo 0.2.0** with `confirm_vault_walkthrough=true` (passes `--merge-if-open`: merge commit on #20 if still OPEN, then annotated tag) — or `bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`.
+   If the merge starts fresh CI, rerun after that merged commit is green. A changed bundle requires a new desktop walkthrough before tagging.
+3. Dedicated HW / self-hosted runners for the six COMPARISON slots.
+EOF
+)"
+fi
+
 residuals=0
 if [[ "$pending" -gt 0 || "$official_020" != "present" ]]; then
   residuals=1
@@ -97,10 +114,7 @@ Residual acceptance still open:
 
 Maintainer unlocks needed:
 
-1. Set repo secret \`DEMO_REPO_TOKEN\` (contents:write **and** pull_requests:write on the demo repo) **or** add \`vanedb/obsidian-vane-search\` to the Cursor GitHub App install.
-2. Actions → **Tag demo 0.2.0** with \`confirm_vault_walkthrough=true\` (passes \`--merge-if-open\`: merge commit on #20 if still OPEN, then annotated tag) — or \`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough\`.
-   If the merge starts fresh CI, rerun after that merged commit is green. A changed bundle requires a new desktop walkthrough before tagging.
-3. Dedicated HW / self-hosted runners for the six COMPARISON slots.
+${unlock_steps}
 
 Status probe: ${token_line}; ${app_line}.
 
