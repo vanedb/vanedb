@@ -580,6 +580,7 @@ jobs:
           grep -q '0.2.0-desktop-acceptance.md' "$CLOSE"
           grep -q 'maintainer merge, then --tag --confirm-vault-walkthrough' "$CLOSE"
           grep -q 'vault recorded; maintainer merge' "$CLOSE"
+          grep -q '#242 How (paste into' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
