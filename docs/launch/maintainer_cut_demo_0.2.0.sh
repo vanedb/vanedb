@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Cut the official obsidian-vane-search 0.2.0 release for vanedb#198 / AC5.
+# Historical one-shot: apply docs/launch/0003-obsidian-vane-search-0.2.0.patch
+# and tag 0.2.0. NOT the current AC5 candidate — that is demo PR #20 + vault
+# walkthrough + docs/launch/maintainer_tag_demo_0.2.0.sh (see vanedb#271).
+# Kept for local bare-remote CI coverage of the old patch path only.
 #
 # Requires: git push access to vanedb/obsidian-vane-search, network, Node 20+
 # (unless --skip-tests; the demo repo Release workflow still builds assets).

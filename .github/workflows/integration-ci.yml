@@ -529,13 +529,33 @@ jobs:
           grep -q 'concurrency:' "$WF"
           grep -q 'cut-demo-0.2.0' "$WF"
           grep -q 'maintainer_cut_demo_0.2.0.sh --skip-tests' "$WF"
+          grep -qi 'Historical' "$WF"
           if grep -qE '^\s*(push|pull_request):' "$WF"; then
             echo "::error::$WF must not run on tip push/PR" >&2
             exit 1
           fi
-          echo "ok: cut-demo workflow is dispatch-only with concurrency"
+          echo "ok: cut-demo workflow is dispatch-only with concurrency (historical)"
+      - name: tag-demo-0.2.0.yml is dispatch-only with vault confirm + secret
+        run: |
+          set -euo pipefail
+          WF=.github/workflows/tag-demo-0.2.0.yml
+          grep -q 'workflow_dispatch' "$WF"
+          grep -q 'confirm_vault_walkthrough' "$WF"
+          grep -q 'DEMO_REPO_TOKEN' "$WF"
+          grep -q 'concurrency:' "$WF"
+          grep -q 'tag-demo-0.2.0' "$WF"
+          grep -q 'maintainer_tag_demo_0.2.0.sh' "$WF"
+          grep -q -- '--confirm-vault-walkthrough' "$WF"
+          if grep -qE '^\s*(push|pull_request):' "$WF"; then
+            echo "::error::$WF must not run on tip push/PR" >&2
+            exit 1
+          fi
+          echo "ok: tag-demo workflow is dispatch-only with vault confirm"
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
+        # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical
+        # patch cut remains in-tree for local bare-remote tests but closeout
+        # must refuse --cut for this candidate.
         run: |
           set -euo pipefail
           CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
@@ -554,25 +574,143 @@ jobs:
           grep -q -- '--paginate' "$CLOSE"
           grep -q 'git/ref/tags/0.2.0' "$CLOSE"
           grep -q 'shared runner markers' "$CLOSE"
+          grep -q 'obsidian-vane-search/pull/20' "$CLOSE"
+          grep -q -- '--cut refused' "$CLOSE"
+          grep -q 'maintainer_tag_demo_0.2.0.sh' "$CLOSE"
+          grep -q '0.2.0-desktop-acceptance.md' "$CLOSE"
+          grep -q 'maintainer merge, then --tag --confirm-vault-walkthrough' "$CLOSE"
+          grep -q 'vault recorded; maintainer merge' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
           grep -q 'gh auth token' "$CUT"
           grep -q 'vanedb#242' "$DEMO"
-          grep -q 'repositoryDependencies' "$DEMO"
-          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
-            echo "::error::merge closing keywords next to residual issue numbers" >&2
+          # Tip still has historical cut docs until #271 merges; after that the
+          # checklist names demo PR #20 / annotated tag. Accept either wording.
+          if ! grep -qE 'obsidian-vane-search/pull/20|repositoryDependencies' "$DEMO"; then
+            echo "::error::$DEMO must name demo PR #20 or (pre-#271) repositoryDependencies" >&2
             exit 1
           fi
           if grep -q 'git push --follow-tags' "$DEMO"; then
             echo "::error::$DEMO must not use lightweight tag + --follow-tags onto protected main" >&2
             exit 1
           fi
-          grep -q 'git tag -a 0.2.0' "$DEMO"
-          grep -q 'release/0.2.0-vanedb-198' "$DEMO"
-          echo "ok: residual tracking points at #242; manual cut matches one-shot"
+          if ! grep -qE 'annotated.*0\.2\.0|git tag -a 0\.2\.0' "$DEMO"; then
+            echo "::error::$DEMO must require an annotated 0.2.0 tag" >&2
+            exit 1
+          fi
+          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
+            echo "::error::merge closing keywords next to residual issue numbers" >&2
+            exit 1
+          fi
+          # closeout --cut must refuse (historical patch is not the candidate).
+          if out=$(bash "$CLOSE" --cut 2>&1); then
+            echo "::error::$CLOSE --cut must exit non-zero for current AC5 candidate" >&2
+            echo "$out" >&2
+            exit 1
+          else
+            echo "$out" | grep -q -- '--cut refused'
+            echo "$out" | grep -q 'obsidian-vane-search/pull/20'
+          fi
+          # --all must still refuse --cut even when --fill fails (shared runner).
+          set +e
+          all_out=$(bash "$CLOSE" --all 2>&1)
+          all_rc=$?
+          set -e
+          echo "$all_out"
+          echo "$all_out" | grep -q -- '--cut refused'
+          test "$all_rc" -eq 2
+          echo "ok: --all refuses historical cut (exit $all_rc) after fill attempt"
+          # Current AC5 helper: annotated tag on merged demo PR #20.
+          TAGSCR=docs/launch/maintainer_tag_demo_0.2.0.sh
+          test -f "$TAGSCR"
+          grep -q 'git_no_ambient_url_rewrite' "$TAGSCR"
+          grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$TAGSCR"
+          grep -qF 'https://github.com/*' "$TAGSCR"
+          grep -q 'confirm-vault-walkthrough' "$TAGSCR"
+          grep -q 'obsidian-vane-search/pull/20' "$TAGSCR"
+          grep -q 'issues/242' "$TAGSCR"
+          if grep -q 'issues/226' "$TAGSCR"; then
+            echo "::error::$TAGSCR must not reply on auto-closed #226; use #242" >&2
+            exit 1
+          fi
+          if out=$(bash "$TAGSCR" --dry-run 2>&1); then
+            echo "::error::$TAGSCR must refuse without --confirm-vault-walkthrough" >&2
+            echo "$out" >&2
+            exit 1
+          else
+            echo "$out" | grep -qi 'confirm-vault-walkthrough'
+          fi
+          # Live PR #20 gate: Actions GITHUB_TOKEN is repo-scoped and often cannot
+          # read vanedb/obsidian-vane-search. Probe when readable; otherwise assert
+          # the refuse string is present (bare-remote step covers tag plumbing).
+          grep -q 'must be MERGED before tagging' "$TAGSCR"
+          if demo20_state="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state -q .state 2>/dev/null)"; then
+            if [[ "$demo20_state" != "MERGED" ]]; then
+              if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
+                echo "::error::$TAGSCR must refuse while demo PR #20 is $demo20_state" >&2
+                echo "$out" >&2
+                exit 1
+              else
+                echo "$out" | grep -qi 'MERGED'
+              fi
+            fi
+          else
+            echo "note: skipping live PR #20 gh probe (token cannot read demo repo)"
+          fi
+          echo "ok: residual tracking points at #242; closeout refuses historical --cut; tag helper gated"
+      - name: maintainer_tag_demo_0.2.0.sh push to local bare remote
+        # Proves the current AC5 tag path (no historical patch) against a local
+        # bare remote. Uses demo PR #20 head (manifest already 0.2.0). Official
+        # release still needs PR merge + vault confirm + push to GitHub.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          BARE=$(mktemp -d)
+          SRC=$(mktemp -d)
+          git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$SRC/repo"
+          git -C "$SRC/repo" fetch --depth 50 origin pull/20/head:pr20
+          git -C "$SRC/repo" checkout pr20
+          COMMIT="$(git -C "$SRC/repo" rev-parse HEAD)"
+          ver="$(python3 -c 'import json; print(json.load(open("'"$SRC/repo"'/manifest.json"))["version"])')"
+          test "$ver" = "0.2.0"
+          git clone --bare "$SRC/repo" "$BARE/repo.git"
+          git -C "$SRC/repo" push "$BARE/repo.git" HEAD:refs/heads/main
+          DEMO_URL="file://$BARE/repo.git" \
+            bash docs/launch/maintainer_tag_demo_0.2.0.sh \
+              --confirm-vault-walkthrough --commit="$COMMIT"
+          git --git-dir="$BARE/repo.git" rev-parse "refs/tags/0.2.0"
+          tagged="$(git --git-dir="$BARE/repo.git" rev-list -n 1 refs/tags/0.2.0)"
+          test "$tagged" = "$COMMIT"
+          echo "ok: demo tag script annotated 0.2.0 at PR #20 head on local bare remote"
+      - name: maintainer_tag_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
+          GITHUB_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
+        run: |
+          set -euo pipefail
+          TAGSCR=docs/launch/maintainer_tag_demo_0.2.0.sh
+          grep -q 'git_no_ambient_url_rewrite' "$TAGSCR"
+          grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$TAGSCR"
+          # Plant a Cursor-like insteadOf rewrite; dry-run must ignore it.
+          git config --global \
+            "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
+            "https://github.com/"
+          # With a fake GH_TOKEN, live PR probe fails closed (no MERGED string).
+          # Assert refuse + insteadOf neutralization remain in-script; bare-remote
+          # step covers end-to-end tag push without ambient rewrite.
+          if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
+            echo "::error::$TAGSCR --dry-run --confirm must not succeed with fake GH_TOKEN" >&2
+            echo "$out" >&2
+            exit 1
+          fi
+          echo "$out" | grep -Eqi 'MERGED|HTTP|Bad credentials|Resource not accessible|Could not|denied|401|403|404'
+          grep -qF 'https://github.com/*' "$TAGSCR"
+          echo "ok: tag --dry-run refuses with fake token; ambient insteadOf neutralized in script"
       - name: maintainer_cut_demo_0.2.0.sh push to local bare remote
-        # Proves the AC5 one-shot can apply/tag/push without demo-repo write.
+        # Proves the historical patch cut against a local bare remote (not the
+        # current AC5 candidate — see maintainer_tag_demo_0.2.0.sh above).
         # Official release still needs a maintainer push to obsidian-vane-search.
         if: matrix.os == 'ubuntu-latest'
         run: |
