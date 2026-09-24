@@ -3,6 +3,8 @@
 # Cloud agents often lack issues:write; Actions GITHUB_TOKEN can comment.
 # Never shuts #242 / #198 / #226.
 # When --apply and residuals remain, reopens #242 and #198 if shut early.
+# Manual mode uses gh's authenticated viewer; Actions uses github-actions[bot].
+# Each emitter maintains only its own marked comment. Run manual applies serially.
 #
 # Usage:
 #   bash docs/launch/nudge_242_closeout.sh           # print comment body
@@ -25,42 +27,73 @@ for arg in "$@"; do
   esac
 done
 
-pending=unknown
-if [[ -f "$ROOT/bench/COMPARISON.md" ]]; then
-  pending="$(grep -c '\*Pending\.\*' "$ROOT/bench/COMPARISON.md" || true)"
-fi
+# A missing or unreadable comparison is unknown, never zero or a positive count.
+pending="$(python3 - "$ROOT/bench/COMPARISON.md" <<'PYPENDING'
+from pathlib import Path
+import sys
+try:
+    print(sum("*Pending.*" in line for line in Path(sys.argv[1]).read_text().splitlines()))
+except (OSError, UnicodeError):
+    print("unknown")
+PYPENDING
+)"
 tip="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
+# The demo is public, but this repository's Actions token may not have access.
+# Probe anonymously: authenticated 404s can mean permission failure. Disable
+# curlrc so ambient credentials cannot turn this into an authenticated request.
+public_api() {
+  local response
+  public_status=unknown
+  public_body=''
+  if response="$(curl --disable --silent --show-error --location \
+      --connect-timeout 5 --max-time 20 --header 'Accept: application/vnd.github+json' \
+      --write-out $'\n%{http_code}' "https://api.github.com/$1" 2>/dev/null)"; then
+    public_status="${response##*$'\n'}"
+    public_body="${response%$'\n'*}"
+  fi
+}
+
+probe_resource() {
+  public_api "$1"
+  if [[ "$public_status" == "200" ]]; then
+    echo present
+  elif [[ "$public_status" == "404" && "$demo_repo_access" == "present" ]]; then
+    echo missing
+  else
+    echo unknown
+  fi
+}
 
 demo_state="unknown"
 demo_mergeable=""
-demo_vault=""
+demo_vault="unknown"
 official_020="unknown"
-if command -v gh >/dev/null 2>&1; then
-  if pr_json="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state,mergeable,headRefOid 2>/dev/null)"; then
-    demo_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
-    demo_mergeable="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeable") or "")')"
-    demo_head="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("headRefOid") or "")')"
+demo_repo_access="unknown"
+if command -v curl >/dev/null 2>&1; then
+  public_api repos/vanedb/obsidian-vane-search
+  if [[ "$public_status" == "200" ]]; then demo_repo_access="present"; fi
+  public_api repos/vanedb/obsidian-vane-search/pulls/20
+  if [[ "$public_status" == "200" ]]; then
+    pr_info="$(printf '%s' "$public_body" | python3 -c '
+import json, re, sys
+try:
+    pr = json.load(sys.stdin)
+    assert pr["state"] in ("open", "closed")
+    assert re.fullmatch(r"[0-9a-f]{40}", pr["head"]["sha"])
+    state = "MERGED" if pr.get("merged_at") else pr["state"].upper()
+    mergeable = {True: "MERGEABLE", False: "CONFLICTING", None: "UNKNOWN"}[pr.get("mergeable")]
+    print("|".join((state, mergeable, pr["head"]["sha"])))
+except (ValueError, TypeError, KeyError, AssertionError):
+    print("unknown||")
+')"
+    IFS='|' read -r demo_state demo_mergeable demo_head <<< "$pr_info"
     if [[ -n "$demo_head" ]]; then
-      if gh api "repos/vanedb/obsidian-vane-search/contents/docs/releases/0.2.0-desktop-acceptance.md?ref=${demo_head}" \
-          >/dev/null 2>&1; then
-        demo_vault="recorded"
-      else
-        demo_vault="missing"
-      fi
+      demo_vault="$(probe_resource "repos/vanedb/obsidian-vane-search/contents/docs/releases/0.2.0-desktop-acceptance.md?ref=${demo_head}")"
+      if [[ "$demo_vault" == "present" ]]; then demo_vault="recorded"; fi
     fi
   fi
-  if release_json="$(gh api repos/vanedb/obsidian-vane-search/releases/tags/0.2.0 2>/dev/null)"; then
-    official_020="present"
-  elif [[ "$(printf '%s' "$release_json" | python3 -c '
-import json, sys
-try:
-    value = json.load(sys.stdin)
-    print(value.get("status", "") if isinstance(value, dict) else "")
-except ValueError:
-    pass
-')" == "404" ]]; then
-    official_020="missing"
-  fi
+  official_020="$(probe_resource repos/vanedb/obsidian-vane-search/releases/tags/0.2.0)"
 fi
 
 token_line="DEMO_REPO_TOKEN: unset in this shell"
@@ -91,8 +124,12 @@ elif [[ "$demo_vault" == "missing" ]]; then
 fi
 
 residuals=0
-if [[ "$pending" != "0" || "$official_020" != "present" ]]; then
+if [[ ( "$pending" != "unknown" && "$pending" -gt 0 ) || "$official_020" == "missing" ]]; then
   residuals=1
+fi
+probes_known=1
+if [[ "$pending" == "unknown" || "$official_020" == "unknown" || "$demo_state" == "unknown" || "$demo_vault" == "unknown" ]]; then
+  probes_known=0
 fi
 
 # Emit via a function so the heredoc is not nested inside body="$(…)" —
@@ -144,15 +181,12 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 if [[ "$residuals" -eq 0 ]]; then
+  if [[ "$probes_known" -eq 0 ]]; then
+    echo "refused: acceptance probe unknown; cannot establish residuals" >&2
+    exit 1
+  fi
   echo "==> residuals cleared (Pending=0 and official 0.2.0 present); skip reopen/nudge"
   exit 0
-fi
-
-# An API outage is not evidence of a missing release. Only positively known
-# performance residuals can justify reopening while the release probe is unknown.
-if [[ "$official_020" == "unknown" && ( "$pending" == "0" || "$pending" == "unknown" ) ]]; then
-  echo "refused: release status unknown; cannot establish residuals" >&2
-  exit 1
 fi
 
 # Reopen residual trackers independently of comment deduplication.
@@ -170,12 +204,34 @@ for issue in 242 198; do
   esac
 done
 
-# Even when known Pending slots justify reopening, do not replace a known
-# release status with transient API failure in the persistent status comment.
-if [[ "$official_020" == "unknown" ]]; then
-  echo "refused: release status unknown; skip closeout comment" >&2
+# Positive residuals justify reopening, but transient unknowns must not replace
+# a known acceptance state or create a new status notification.
+if [[ "$probes_known" -eq 0 ]]; then
+  echo "refused: acceptance probe unknown; skip closeout comment" >&2
   exit 1
 fi
+
+# Resolve the token's emitter, not the triggering workflow actor. GraphQL viewer
+# is checked with the Actions token in CI; manual gh uses its current credential.
+# Never infer ownership from the marker, GITHUB_ACTOR or a caller-supplied name.
+if ! viewer_json="$(gh api graphql -f 'query=query { viewer { id login } }')"; then
+  echo "refused: cannot resolve authenticated comment author" >&2
+  exit 1
+fi
+comment_author_id="$(printf '%s' "$viewer_json" | python3 -c '
+import json, re, sys
+value = json.load(sys.stdin)
+if value.get("errors"):
+    raise ValueError("authenticated viewer query failed")
+viewer = value["data"]["viewer"]
+login = viewer["login"]
+node_id = viewer["id"]
+if not isinstance(node_id, str) or not node_id.strip():
+    raise ValueError("authenticated comment author ID unresolved")
+if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*(?:\[bot\])?", login):
+    raise ValueError("authenticated comment author unresolved")
+print(node_id)
+')"
 
 # Read every page before posting or editing. Unreadable/incomplete history is
 # not evidence that no status comment exists: never blindly post on read failure.
@@ -185,9 +241,10 @@ if ! gh api --paginate --slurp 'repos/vanedb/vanedb/issues/242/comments?per_page
   echo "refused: cannot read existing closeout comments" >&2
   exit 1
 fi
-python3 - "$tmpdir" "$marker" "$fingerprint" <<'PYCOMMENTS'
+python3 - "$tmpdir" "$marker" "$fingerprint" "$comment_author_id" <<'PYCOMMENTS'
 import json, pathlib, sys
 root, marker, fingerprint = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+author_id = sys.argv[4]
 pages = json.loads((root / "comments.json").read_text())
 if not isinstance(pages, list) or not pages or any(not isinstance(p, list) for p in pages):
     raise ValueError("invalid paginated comment response")
@@ -195,7 +252,9 @@ comments = [c for page in pages for c in page]
 if any(not isinstance(c, dict) or not isinstance(c.get("body"), str)
        or type(c.get("id")) is not int or c["id"] <= 0 for c in comments):
     raise ValueError("invalid comment response")
-marked = [c for c in comments if c["body"].startswith(marker + "\n")]
+marked = [c for c in comments if c["body"].startswith(marker + "\n")
+          and isinstance(c.get("user"), dict)
+          and c["user"].get("node_id") == author_id]
 if len(marked) > 1:
     raise ValueError("multiple marked status comments; reconcile before retrying")
 if marked:

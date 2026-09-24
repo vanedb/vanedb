@@ -21,11 +21,7 @@ with (root / 'calls.jsonl').open('a') as f:
     f.write(json.dumps(args) + '\n')
 comments_path = root / 'comments.json'
 comments = json.loads(comments_path.read_text())
-if args[:2] == ['pr', 'view']:
-    if cfg.get('pr_error'): sys.exit(1)
-    print(json.dumps({'state': cfg.get('demo_state', 'OPEN'),
-                     'mergeable': cfg.get('mergeable', 'UNKNOWN'), 'headRefOid': 'a' * 40}))
-elif args[:2] == ['issue', 'view']:
+if args[:2] == ['issue', 'view']:
     if cfg.get('issue_error'): sys.exit(1)
     print(cfg.get('issues', {}).get(args[2], 'OPEN'))
 elif args[:2] == ['issue', 'reopen']:
@@ -33,18 +29,16 @@ elif args[:2] == ['issue', 'reopen']:
     (root / 'config.json').write_text(json.dumps(cfg))
 elif args[:2] == ['issue', 'comment']:
     body = Path(args[args.index('--body-file') + 1]).read_text()
-    comments.append({'id': max([c['id'] for c in comments] + [0]) + 1, 'body': body})
+    comments.append({'id': max([c['id'] for c in comments] + [0]) + 1, 'body': body,
+                     'user': {'login': cfg.get('viewer', 'github-actions[bot]'),
+                              'node_id': cfg.get('viewer_id', 'BOT_ID')}})
     comments_path.write_text(json.dumps(comments))
 elif args[:1] == ['api']:
-    if any('/releases/tags/' in a for a in args):
-        if cfg.get('release_error'):
-            print('{"status":"503"}')
-            sys.exit(1)
-        if cfg.get('release'):
-            print('{"tag_name":"0.2.0"}')
-        else:
-            print('{"status":"404"}')
-            sys.exit(1)
+    if args[1] == 'graphql':
+        if cfg.get('viewer_error'): sys.exit(1)
+        print(cfg.get('viewer_response', json.dumps({'data': {'viewer': {
+            'login': cfg.get('viewer', 'github-actions[bot]'),
+            'id': cfg.get('viewer_id', 'BOT_ID')}}})))
     elif '--method' in args:
         assert args[args.index('--method') + 1] == 'PATCH', args
         if cfg.get('patch_error'): sys.exit(1)
@@ -65,8 +59,6 @@ elif args[:1] == ['api']:
             assert '--paginate' in args and '--slurp' in args, args
             # Model gh's separate page arrays, including a marker beyond page 1.
             print(json.dumps([comments[i:i+100] for i in range(0, len(comments), 100)] or [[]]))
-    elif any('/contents/' in a for a in args):
-        sys.exit(0 if cfg.get('vault', True) else 1)
     elif '/installation/repositories' in args:
         if '--jq' in args:
             print('vanedb/obsidian-vane-search' if cfg.get('app') else 'vanedb/vanedb')
@@ -76,6 +68,41 @@ elif args[:1] == ['api']:
         sys.exit('Unexpected gh api: ' + repr(args))
 else:
     sys.exit('Unexpected gh: ' + repr(args))
+'''
+
+
+CURL = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+root = Path(os.environ['NUDGE_TEST_DIR'])
+args = sys.argv[1:]
+cfg = json.loads((root / 'config.json').read_text())
+with (root / 'curl-calls.jsonl').open('a') as f:
+    f.write(json.dumps(args) + '\n')
+assert args[0] == '--disable', args
+assert '--max-time' in args and '--connect-timeout' in args, args
+assert args[args.index('--header') + 1] == 'Accept: application/vnd.github+json', args
+assert not any('Authorization' in a for a in args), args
+url = args[-1]
+status, body = 200, '{}'
+if url.endswith('/obsidian-vane-search'):
+    status = 503 if cfg.get('repo_error') else 200
+elif url.endswith('/pulls/20'):
+    status = 503 if cfg.get('pr_error') else 200
+    state = cfg.get('demo_state', 'OPEN')
+    body = cfg.get('pr_response', json.dumps({
+        'state': 'open' if state == 'OPEN' else 'closed',
+        'merged_at': '2026-09-24T00:00:00Z' if state == 'MERGED' else None,
+        'head': {'sha': 'a' * 40},
+        'mergeable': True if cfg.get('mergeable') == 'MERGEABLE' else None}))
+elif '/contents/' in url:
+    status = 503 if cfg.get('vault_error') else 200 if cfg.get('vault', True) else 404
+elif '/releases/tags/' in url:
+    status = 503 if cfg.get('release_error') else 200 if cfg.get('release') else 404
+else:
+    sys.exit('Unexpected curl: ' + repr(args))
+if cfg.get('transport_error'): sys.exit(28)
+print(body + '\n' + str(status))
 '''
 
 
@@ -96,6 +123,8 @@ class NudgeTests(unittest.TestCase):
         self.bin.mkdir()
         (self.bin / 'gh').write_text(GH)
         (self.bin / 'gh').chmod(0o755)
+        (self.bin / 'curl').write_text(CURL)
+        (self.bin / 'curl').chmod(0o755)
         (self.bin / 'git').write_text('#!/bin/sh\nprintf "%s\\n" "${NUDGE_TEST_TIP:-aaaaaaa}"\n')
         (self.bin / 'git').chmod(0o755)
 
@@ -221,9 +250,102 @@ class NudgeTests(unittest.TestCase):
         (self.root / 'bench/COMPARISON.md').unlink()
         self.config['release'] = True
         self.config['issues'] = {'242': 'CLOSED', '198': 'CLOSED'}
+        self.run_nudge(success=False)
+        self.assertEqual(self.writes(), [])
+
+    def test_foreign_pasted_dry_run_cannot_suppress_first_post(self):
+        body = self.run_nudge(apply=False).stdout
+        foreign = {'id': 1, 'body': body, 'user': {'login': 'someone', 'node_id': 'FOREIGN_ID'}}
+        (self.root / 'comments.json').write_text(json.dumps([foreign]))
         self.run_nudge()
-        self.assertEqual(len(self.writes()), 3)
-        self.assertIn('unknown×', self.comments()[0]['body'])
+        self.assertEqual(len(self.comments()), 2)
+        self.assertEqual(self.comments()[0], foreign)
+        self.assertEqual(self.comments()[1]['user']['node_id'], 'BOT_ID')
+
+    def test_foreign_marker_cannot_be_overwritten_even_with_spoofed_login(self):
+        body = self.run_nudge(apply=False).stdout
+        foreign = {'id': 1, 'body': body, 'user': {'login': 'github-actions[bot]', 'node_id': 'FOREIGN_ID'}}
+        (self.root / 'comments.json').write_text(json.dumps([foreign]))
+        self.config['demo_state'] = 'MERGED'
+        self.run_nudge()
+        self.assertEqual(self.comments()[0], foreign)
+        self.assertEqual(len(self.comments()), 2)
+        self.assertFalse(any('--method' in c for c in self.calls()))
+
+    def test_manual_emitter_only_updates_its_own_comment(self):
+        self.run_nudge()  # Existing scheduled bot comment.
+        bot_comment = self.comments()[0]
+        self.config.update(viewer='maintainer', viewer_id='USER_ID')
+        self.run_nudge()
+        self.config.update(demo_state='MERGED', viewer='renamed-maintainer')
+        self.run_nudge()
+        self.assertEqual(len(self.comments()), 2)
+        self.assertEqual(self.comments()[0], bot_comment)
+        self.assertIn('MERGED', self.comments()[1]['body'])
+        self.assertEqual(sum('--method' in c for c in self.calls()), 1)
+
+    def test_unresolved_emitter_never_posts_or_edits(self):
+        for cfg in [{'viewer_error': True}, {'viewer_response': '{}'},
+                    {'viewer_response': '{"data":{"viewer":null}}'},
+                    {'viewer_response': '{"errors":[{"message":"denied"}]}'},
+                    {'viewer_id': ''}]:
+            with self.subTest(cfg=cfg):
+                self.config = cfg
+                self.run_nudge(success=False)
+                self.assertEqual(self.writes(), [])
+
+    def test_unknown_pr_or_vault_preserves_comment_and_known_pending_reopening(self):
+        self.run_nudge()
+        previous = self.comments()
+        for failure in [{'pr_error': True}, {'pr_response': 'garbled'},
+                        {'pr_response': '{}'}, {'vault_error': True}]:
+            with self.subTest(failure=failure):
+                self.config = {**failure, 'issues': {'242': 'CLOSED', '198': 'CLOSED'}}
+                self.run_nudge(success=False)
+                self.assertEqual(self.config['issues'], {'242': 'OPEN', '198': 'OPEN'})
+                self.assertEqual(self.comments(), previous)
+        self.assertEqual(sum(c[:2] == ['issue', 'comment'] for c in self.calls()), 1)
+        self.assertFalse(any('--method' in c for c in self.calls()))
+
+    def test_unknown_pr_or_vault_does_not_reopen_on_unknown_alone(self):
+        self.comparison('complete\n')
+        for failure in [{'pr_error': True}, {'vault_error': True}]:
+            with self.subTest(failure=failure):
+                self.config = {**failure, 'release': True, 'issues': {'242': 'CLOSED', '198': 'CLOSED'}}
+                self.run_nudge(success=False)
+                self.assertEqual(self.writes(), [])
+
+    def test_unreadable_comparison_with_missing_release_reopens_without_comment(self):
+        # A directory where a file is expected reliably fails reading, even as root.
+        comparison = self.root / 'bench/COMPARISON.md'
+        comparison.unlink()
+        comparison.mkdir()
+        self.config['issues'] = {'242': 'CLOSED', '198': 'CLOSED'}
+        self.run_nudge(success=False)
+        self.assertEqual(self.config['issues'], {'242': 'OPEN', '198': 'OPEN'})
+        self.assertEqual(self.comments(), [])
+        self.assertEqual(len(self.writes()), 2)
+
+    def test_engine_token_visibility_does_not_override_public_release(self):
+        # The gh mock deliberately has no demo-resource access. Public curl reads
+        # still establish the completed gates, with no issue mutation.
+        self.comparison('complete\n')
+        self.config.update(release=True, issues={'242': 'CLOSED', '198': 'CLOSED'})
+        self.run_nudge()
+        self.assertEqual(self.writes(), [])
+        self.assertFalse(any('obsidian-vane-search/' in ' '.join(c) for c in self.calls()))
+
+    def test_public_404_without_repository_access_is_unknown(self):
+        self.comparison('complete\n')
+        self.config.update(repo_error=True, issues={'242': 'CLOSED', '198': 'CLOSED'})
+        self.run_nudge(success=False)
+        self.assertEqual(self.writes(), [])
+
+    def test_public_transport_failure_is_unknown_not_absence(self):
+        self.comparison('complete\n')
+        self.config.update(transport_error=True, issues={'242': 'CLOSED', '198': 'CLOSED'})
+        self.run_nudge(success=False)
+        self.assertEqual(self.writes(), [])
 
     def test_dry_run_prints_body_without_mutation_or_comment_history_read(self):
         self.config['issues'] = {'242': 'CLOSED', '198': 'CLOSED'}
