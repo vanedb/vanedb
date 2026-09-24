@@ -29,10 +29,13 @@ def replace_how(body, replacement):
             # Do not guess its boundary (or treat it as part of How).
             if re.match(r"^ {0,3}(?:=+|-+)\s*$", text):
                 raise ValueError("ambiguous Setext heading/rule; use explicit ## headings")
-            heading = re.match(r"^ {0,3}(#{1,2})\s+(.+?)\s*#*\s*$", text)
+            heading = re.match(r"^ {0,3}(#{1,2})(?:[ \t]+(.*)|[ \t]*)$", text)
             if heading:
                 boundaries.append(offset)
-                if heading[1] == "##" and heading[2] == "How":
+                # ATX closing hashes need preceding whitespace. `How#` and
+                # `How###` are different headings, never the managed section.
+                title = re.sub(r"[ \t]+#+[ \t]*$", "", heading[2] or "").strip()
+                if heading[1] == "##" and title == "How":
                     headings.append((offset + len(line), line))
             elif text == FOOTER:
                 boundaries.append(offset)

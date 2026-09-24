@@ -107,6 +107,25 @@ else: raise SystemExit("unexpected gh call")
     def test_missing_heading(self):
         self.assert_refused(body=BODY.replace("## How", "## Instructions"))
 
+    def test_how_with_literal_trailing_hash_is_not_managed(self):
+        self.assert_refused(body=BODY.replace("## How", "## How#"))
+
+    def test_how_with_literal_trailing_hashes_is_not_managed(self):
+        self.assert_refused(body=BODY.replace("## How", "## How###"))
+
+    def test_how_with_spaced_closing_hashes_is_managed(self):
+        result, _, written = self.run_sync(body=BODY.replace("## How", "## How ###"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(written.startswith(PREFIX + "## How ###\n"))
+        self.assertTrue(written.endswith(SUFFIX))
+        self.assertIn("--tag --confirm-vault-walkthrough", written)
+
+    def test_empty_atx_heading_is_an_end_boundary(self):
+        suffix = "##\n\nEvidence below an empty heading\n"
+        result, _, written = self.run_sync(body=PREFIX + "## How\nold\n" + suffix)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(written.endswith(suffix))
+
     def test_duplicate_heading(self):
         self.assert_refused(body=BODY + "## How\nother\n## End\n")
 
