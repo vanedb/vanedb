@@ -111,12 +111,14 @@ if command -v gh >/dev/null 2>&1; then
   fi
 fi
 
-ac5_line="official \`obsidian-vane-search\` **0.2.0** missing. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
+ac5_line="official \`obsidian-vane-search\` **0.2.0** missing."
 if [[ "$official_020" == "unknown" ]]; then
   ac5_line="official \`obsidian-vane-search\` **0.2.0** status unknown (release API unreadable); retry the probe."
 elif [[ "$official_020" == "present" ]]; then
-  ac5_line="official \`obsidian-vane-search\` **0.2.0** release is live. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
+  ac5_line="official \`obsidian-vane-search\` **0.2.0** release is live."
 fi
+# Keep the candidate link visible even when the independent release probe fails.
+ac5_line="${ac5_line} Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
 if [[ "$demo_vault" == "recorded" ]]; then
   ac5_line="${ac5_line} Vault acceptance **recorded** on PR head."
 elif [[ "$demo_vault" == "missing" ]]; then

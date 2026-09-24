@@ -347,6 +347,20 @@ class NudgeTests(unittest.TestCase):
         self.run_nudge(success=False)
         self.assertEqual(self.writes(), [])
 
+    def test_unknown_release_dry_run_preserves_candidate_context(self):
+        for failure, state in [({'release_error': True, 'demo_state': 'MERGED'}, 'MERGED'),
+                               ({'transport_error': True}, 'unknown')]:
+            with self.subTest(failure=failure):
+                self.config = failure
+                result = self.run_nudge(apply=False)
+                self.assertIn('status unknown (release API unreadable)', result.stdout)
+                self.assertIn('https://github.com/vanedb/obsidian-vane-search/pull/20', result.stdout)
+                self.assertIn(f'is **{state}**', result.stdout)
+                self.assertIn('--tag --confirm-vault-walkthrough', result.stdout)
+                self.assertIn('--merge-if-open', result.stdout)
+                self.assertIn('reopens them while residuals remain', result.stdout)
+                self.assertEqual(self.writes(), [])
+
     def test_dry_run_prints_body_without_mutation_or_comment_history_read(self):
         self.config['issues'] = {'242': 'CLOSED', '198': 'CLOSED'}
         result = self.run_nudge(apply=False)
