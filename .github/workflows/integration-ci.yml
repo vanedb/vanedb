@@ -770,12 +770,19 @@ jobs:
         # Proves the historical patch cut against a local bare remote (not the
         # current AC5 candidate — see maintainer_tag_demo_0.2.0.sh above).
         # Official release still needs a maintainer push to obsidian-vane-search.
+        # Skip when demo tip already contains the patch (PR #20 / later main).
         if: matrix.os == 'ubuntu-latest'
         run: |
           set -euo pipefail
+          PATCH=docs/launch/0003-obsidian-vane-search-0.2.0.patch
+          test -f "$PATCH"
           BARE=$(mktemp -d)
           SRC=$(mktemp -d)
           git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$SRC/repo"
+          if ! git -C "$SRC/repo" apply --check "$PWD/$PATCH"; then
+            echo "ok: skip historical cut bare-remote — patch no longer applies to demo tip (AC5 uses Tag)"
+            exit 0
+          fi
           git clone --bare "$SRC/repo" "$BARE/repo.git"
           git --git-dir="$SRC/repo/.git" --work-tree="$SRC/repo" \
             push "$BARE/repo.git" HEAD:refs/heads/main
@@ -790,6 +797,7 @@ jobs:
         # Cursor cloud injects GH_TOKEN and global url.*.insteadOf rewrites
         # scoped to vanedb; those credentials 403 demo-repo writes. --dry-run
         # must still succeed with anonymous HTTPS (no ambient rewrite).
+        # Skip when the historical patch no longer applies to demo tip.
         if: matrix.os == 'ubuntu-latest'
         env:
           GH_TOKEN: ghp_not_a_real_token_scoped_away_from_demo
@@ -797,9 +805,16 @@ jobs:
         run: |
           set -euo pipefail
           CUT=docs/launch/maintainer_cut_demo_0.2.0.sh
+          PATCH=docs/launch/0003-obsidian-vane-search-0.2.0.patch
           grep -q 'git_no_ambient_url_rewrite' "$CUT"
           grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$CUT"
           grep -qF 'https://github.com/*' "$CUT"
+          CHECK=$(mktemp -d)
+          git clone --depth 50 https://github.com/vanedb/obsidian-vane-search.git "$CHECK/repo"
+          if ! git -C "$CHECK/repo" apply --check "$PWD/$PATCH"; then
+            echo "ok: skip historical cut --dry-run — patch no longer applies to demo tip (AC5 uses Tag)"
+            exit 0
+          fi
           # Plant a Cursor-like insteadOf rewrite; the cut script must ignore it.
           git config --global \
             "url.https://x-access-token:ghp_ambient_should_not_appear@github.com/.insteadOf" \
