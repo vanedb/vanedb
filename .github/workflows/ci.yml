@@ -61,6 +61,9 @@ jobs:
               - '.github/requirements-release.txt'
               - '.github/workflows/**'
             integration:
+              - 'docs/launch/sync_242_how.sh'
+              - 'scripts/sync_242_how.py'
+              - 'scripts/test_sync_242_how.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'vanedb/**'
