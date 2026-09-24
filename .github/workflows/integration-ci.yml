@@ -577,6 +577,8 @@ jobs:
           grep -q 'obsidian-vane-search/pull/20' "$CLOSE"
           grep -q -- '--cut refused' "$CLOSE"
           grep -q 'maintainer_tag_demo_0.2.0.sh' "$CLOSE"
+          grep -q '0.2.0-desktop-acceptance.md' "$CLOSE"
+          grep -q 'demo PR #$DEMO_PR vault:' "$CLOSE"
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"

@@ -82,6 +82,41 @@ app_demo_in_scope() {
     2>/dev/null | grep -Fxq 'vanedb/obsidian-vane-search'
 }
 
+# Live demo PR #20 readiness (soft-fail when gh cannot read the demo repo).
+DEMO_PR=20
+DEMO_REPO="vanedb/obsidian-vane-search"
+demo_pr_state=""
+demo_pr_mergeable=""
+demo_pr_merge_status=""
+demo_pr_head=""
+demo_pr_vault=""
+if command -v gh >/dev/null 2>&1; then
+  if pr_json="$(gh pr view "$DEMO_PR" -R "$DEMO_REPO" \
+      --json state,mergeable,mergeStateStatus,headRefOid 2>/dev/null)"; then
+    eval "$(printf '%s' "$pr_json" | python3 -c '
+import json, shlex, sys
+p = json.load(sys.stdin)
+for k, v in (
+    ("demo_pr_state", p.get("state") or ""),
+    ("demo_pr_mergeable", p.get("mergeable") or ""),
+    ("demo_pr_merge_status", p.get("mergeStateStatus") or ""),
+    ("demo_pr_head", p.get("headRefOid") or ""),
+):
+    print(f"{k}={shlex.quote(str(v))}")
+')"
+    if [[ -n "$demo_pr_head" ]]; then
+      if gh api "repos/${DEMO_REPO}/contents/docs/releases/0.2.0-desktop-acceptance.md?ref=${demo_pr_head}" \
+          >/dev/null 2>&1; then
+        demo_pr_vault="recorded"
+      else
+        demo_pr_vault="missing"
+      fi
+    fi
+  else
+    demo_pr_state="unreadable"
+  fi
+fi
+
 echo "==> #242 closeout status (repo=$VANEDB_ROOT)"
 echo "    COMPARISON Pending cells: $pending (need 0)"
 if [[ -n "$demo_tag" ]]; then
@@ -89,6 +124,21 @@ if [[ -n "$demo_tag" ]]; then
   echo "    URL: https://github.com/vanedb/obsidian-vane-search/releases/tag/0.2.0"
 else
   echo "    Official demo 0.2.0: MISSING (staging on vanedb does not count)"
+fi
+if [[ -n "$demo_pr_state" ]]; then
+  if [[ "$demo_pr_state" == "MERGED" ]]; then
+    echo "    demo PR #$DEMO_PR: MERGED (ready for --tag after vault confirm + write creds)"
+  elif [[ "$demo_pr_state" == "OPEN" ]]; then
+    echo "    demo PR #$DEMO_PR: OPEN mergeable=${demo_pr_mergeable:-?} status=${demo_pr_merge_status:-?}"
+    if [[ "$demo_pr_vault" == "recorded" ]]; then
+      echo "    demo PR #$DEMO_PR vault: recorded (0.2.0-desktop-acceptance.md on head ${demo_pr_head:0:12})"
+      echo "    demo PR #$DEMO_PR next: maintainer merge, then --tag --confirm-vault-walkthrough"
+    elif [[ "$demo_pr_vault" == "missing" ]]; then
+      echo "    demo PR #$DEMO_PR vault: MISSING (need real Obsidian/Ollama acceptance on head)"
+    fi
+  else
+    echo "    demo PR #$DEMO_PR: $demo_pr_state"
+  fi
 fi
 if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
   echo "    DEMO_REPO_TOKEN: set"
@@ -187,7 +237,13 @@ if [[ "$pending_after" -ne 0 ]]; then
 fi
 if [[ -z "$demo_tag" ]]; then
   echo "    AC5: demo PR https://github.com/vanedb/obsidian-vane-search/pull/20"
-  echo "         → vault walkthrough → merge → $0 --tag --confirm-vault-walkthrough"
+  if [[ "$demo_pr_state" == "MERGED" ]]; then
+    echo "         → PR merged; run $0 --tag --confirm-vault-walkthrough"
+  elif [[ "$demo_pr_state" == "OPEN" && "$demo_pr_vault" == "recorded" ]]; then
+    echo "         → vault recorded; maintainer merge → $0 --tag --confirm-vault-walkthrough"
+  else
+    echo "         → vault walkthrough → merge → $0 --tag --confirm-vault-walkthrough"
+  fi
   echo "         (not historical --cut; helper: docs/launch/maintainer_tag_demo_0.2.0.sh)"
   echo "         or Actions → Tag demo 0.2.0 (confirm vault + secret DEMO_REPO_TOKEN)"
   echo "         Tag workflow: https://github.com/vanedb/vanedb/actions/workflows/tag-demo-0.2.0.yml"
