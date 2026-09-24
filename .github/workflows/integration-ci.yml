@@ -599,6 +599,20 @@ jobs:
             echo "::error::$SYNC printed a --cut recommendation" >&2
             exit 1
           fi
+          NUDGE=docs/launch/nudge_242_closeout.sh
+          NUDGEWF=.github/workflows/nudge-242-closeout.yml
+          test -f "$NUDGE"
+          test -f "$NUDGEWF"
+          grep -q 'workflow_dispatch' "$NUDGEWF"
+          grep -q 'issues: write' "$NUDGEWF"
+          grep -q 'nudge_242_closeout.sh --apply' "$NUDGEWF"
+          nudge_out="$(bash "$NUDGE")"
+          echo "$nudge_out" | grep -q -- '--tag --confirm-vault-walkthrough'
+          echo "$nudge_out" | grep -q 'obsidian-vane-search/pull/20'
+          if echo "$nudge_out" | grep -Eiq '(close|closes|fix|fixes)[[:space:]]+#(198|226|242)\b'; then
+            echo "::error::$NUDGE must not use merge-closing keywords next to residual issues" >&2
+            exit 1
+          fi
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
@@ -618,7 +632,7 @@ jobs:
             echo "::error::$DEMO must require an annotated 0.2.0 tag" >&2
             exit 1
           fi
-          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE" "$SYNC" "$SYNCWF"; then
+          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE" "$SYNC" "$SYNCWF" "$NUDGE" "$NUDGEWF"; then
             echo "::error::merge closing keywords next to residual issue numbers" >&2
             exit 1
           fi
