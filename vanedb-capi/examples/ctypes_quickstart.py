@@ -3,18 +3,20 @@
 
 Run against a built library:
 
-    cargo build -p vanedb-capi --release
-    python3 vanedb-capi/examples/ctypes_quickstart.py target/release/libvanedb_capi.dylib
+    cargo build -p vanedb-capi --profile capi --locked
+    python3 vanedb-capi/examples/ctypes_quickstart.py target/capi/libvanedb_capi.dylib
 
 **Declare `restype` and `argtypes` for every function you call.** ctypes
-defaults an undeclared return to a C `int`, which truncates a 64-bit pointer to
-32 bits. The next dereference reads a garbage address and the process dies with
-SIGSEGV — no Python traceback, because the fault happens inside libffi. A crash
-whose stack is `PyCFuncPtr_call -> _ctypes_callproc -> ffi_call` is almost
-always this and not a bug in the library.
+defaults an undeclared return to a C `int`, which truncates a 64-bit value to
+32 bits. Handles are 64-bit ids, not pointers: a truncated handle is refused
+by the library with `VANEDB_RS_INVALID_HANDLE` instead of being dereferenced,
+so the failure shows up as an error code rather than a SIGSEGV inside libffi
+-- but every call made with it fails, so declare the types. The same applies
+to arguments: an undeclared 64-bit argument is passed as an int and arrives
+truncated.
 
-The same applies to arguments: an undeclared pointer argument is passed as an
-int, so a 64-bit handle arrives at the callee truncated.
+`vanedb_rs_last_error_message` still returns a pointer, and a truncated
+pointer still crashes, so its `restype` matters most of all.
 """
 
 import ctypes
@@ -25,19 +27,30 @@ from pathlib import Path
 # named so the mapping is visible.
 L2, COSINE, DOT = 0, 1, 2
 # The VANEDB_RS_* codes this example asserts on. The full set is in the header.
-OK, NOT_FOUND, DUPLICATE_ID = 0, 5, 6
+OK, NOT_FOUND, DUPLICATE_ID, INVALID_HANDLE = 0, 5, 6, 16
+# VANEDB_RS_ABI_VERSION from the header this example was written against. A
+# library reporting another value is not the one these bindings describe.
+ABI_VERSION = 1
+
+# Every handle -- vanedb_rs_store, vanedb_rs_index, vanedb_rs_disk -- is a
+# uint64_t. Not c_void_p: that would truncate on 32-bit Python and, on any
+# Python, converts 0 to None.
+HANDLE = ctypes.c_uint64
+NULL_HANDLE = 0
 
 FILTER_FN = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_uint64, ctypes.c_void_p)
 
 
 def bind(lib: ctypes.CDLL) -> None:
-    """Every signature this example uses. Nothing is called before it is bound."""
+    """Bind the remaining signatures after the library passes the ABI check."""
     u64 = ctypes.c_uint64
     usize = ctypes.c_size_t
     f32p = ctypes.POINTER(ctypes.c_float)
 
     lib.vanedb_rs_version.restype = ctypes.c_char_p
     lib.vanedb_rs_version.argtypes = []
+    lib.vanedb_rs_handle_count.restype = usize
+    lib.vanedb_rs_handle_count.argtypes = []
 
     lib.vanedb_rs_last_error.restype = ctypes.c_uint32
     lib.vanedb_rs_last_error.argtypes = []
@@ -50,24 +63,24 @@ def bind(lib: ctypes.CDLL) -> None:
     lib.vanedb_rs_last_error_message.restype = ctypes.c_void_p
     lib.vanedb_rs_last_error_message.argtypes = []
 
-    lib.vanedb_rs_store_new.restype = ctypes.c_void_p
+    lib.vanedb_rs_store_new.restype = HANDLE
     lib.vanedb_rs_store_new.argtypes = [usize, ctypes.c_uint32]
     lib.vanedb_rs_store_free.restype = None
-    lib.vanedb_rs_store_free.argtypes = [ctypes.c_void_p]
+    lib.vanedb_rs_store_free.argtypes = [HANDLE]
     lib.vanedb_rs_store_add.restype = ctypes.c_int32
-    lib.vanedb_rs_store_add.argtypes = [ctypes.c_void_p, u64, f32p]
+    lib.vanedb_rs_store_add.argtypes = [HANDLE, u64, f32p]
     lib.vanedb_rs_store_len.restype = usize
-    lib.vanedb_rs_store_len.argtypes = [ctypes.c_void_p]
+    lib.vanedb_rs_store_len.argtypes = [HANDLE]
     lib.vanedb_rs_store_get.restype = ctypes.c_int32
-    lib.vanedb_rs_store_get.argtypes = [ctypes.c_void_p, u64, f32p]
+    lib.vanedb_rs_store_get.argtypes = [HANDLE, u64, f32p]
     lib.vanedb_rs_store_search.restype = usize
     lib.vanedb_rs_store_search.argtypes = [
-        ctypes.c_void_p, f32p, usize, ctypes.POINTER(u64), f32p
+        HANDLE, f32p, usize, ctypes.POINTER(u64), f32p
     ]
     u64p = ctypes.POINTER(u64)
     lib.vanedb_rs_store_search_filtered.restype = usize
     lib.vanedb_rs_store_search_filtered.argtypes = [
-        ctypes.c_void_p,
+        HANDLE,
         f32p,
         usize,
         FILTER_FN,
@@ -80,29 +93,29 @@ def bind(lib: ctypes.CDLL) -> None:
         f32p,
     ]
 
-    lib.vanedb_rs_index_new.restype = ctypes.c_void_p
+    lib.vanedb_rs_index_new.restype = HANDLE
     lib.vanedb_rs_index_new.argtypes = [
         usize, ctypes.c_uint32, usize, usize, usize, u64
     ]
     lib.vanedb_rs_index_free.restype = None
-    lib.vanedb_rs_index_free.argtypes = [ctypes.c_void_p]
+    lib.vanedb_rs_index_free.argtypes = [HANDLE]
     lib.vanedb_rs_index_add.restype = ctypes.c_int32
-    lib.vanedb_rs_index_add.argtypes = [ctypes.c_void_p, u64, f32p]
+    lib.vanedb_rs_index_add.argtypes = [HANDLE, u64, f32p]
     lib.vanedb_rs_index_save_to_buffer.restype = ctypes.c_int32
     lib.vanedb_rs_index_save_to_buffer.argtypes = [
-        ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), usize,
+        HANDLE, ctypes.POINTER(ctypes.c_uint8), usize,
         ctypes.POINTER(usize),
     ]
-    lib.vanedb_rs_index_load_from_buffer.restype = ctypes.c_void_p
+    lib.vanedb_rs_index_load_from_buffer.restype = HANDLE
     lib.vanedb_rs_index_load_from_buffer.argtypes = [
         ctypes.POINTER(ctypes.c_uint8), usize,
     ]
     lib.vanedb_rs_index_search.restype = usize
     lib.vanedb_rs_index_search.argtypes = [
-        ctypes.c_void_p, f32p, usize, usize, ctypes.POINTER(u64), f32p
+        HANDLE, f32p, usize, usize, ctypes.POINTER(u64), f32p
     ]
     lib.vanedb_rs_index_len.restype = usize
-    lib.vanedb_rs_index_len.argtypes = [ctypes.c_void_p]
+    lib.vanedb_rs_index_len.argtypes = [HANDLE]
 
 
 def message(lib: ctypes.CDLL) -> str:
@@ -117,17 +130,24 @@ def main() -> int:
     library = Path(sys.argv[1])
     if not library.exists():
         print(f"no library at {library}; build it with "
-              f"`cargo build -p vanedb-capi --release`")
+              f"`cargo build -p vanedb-capi --profile capi --locked`")
         return 2
 
     lib = ctypes.CDLL(str(library))
+    lib.vanedb_rs_abi_version.restype = ctypes.c_uint32
+    lib.vanedb_rs_abi_version.argtypes = []
+    library_abi = lib.vanedb_rs_abi_version()
+    if library_abi != ABI_VERSION:
+        print(f"library speaks ABI {library_abi}, "
+              f"these bindings speak {ABI_VERSION}")
+        return 1
     bind(lib)
     print("vanedb", lib.vanedb_rs_version().decode())
 
     dim = 3
     floats = ctypes.c_float * dim
     store = lib.vanedb_rs_store_new(dim, L2)
-    if not store:
+    if store == NULL_HANDLE:
         print(f"construction failed: code {lib.vanedb_rs_last_error()} "
               f"{message(lib)!r}")
         return 1
@@ -149,6 +169,13 @@ def main() -> int:
         if lib.vanedb_rs_store_get(store, 99, out) != OK:
             assert lib.vanedb_rs_last_error() == NOT_FOUND
             print(f"absent id: code {NOT_FOUND} {message(lib)!r}")
+
+        # What a caller who forgot `restype` would have passed: the handle
+        # truncated to 32 bits. It is refused, not dereferenced.
+        truncated = store & 0xFFFF_FFFF
+        assert lib.vanedb_rs_store_len(truncated) == 0
+        assert lib.vanedb_rs_last_error() == INVALID_HANDLE
+        print(f"truncated handle refused: code {INVALID_HANDLE} {message(lib)!r}")
 
         k = 2
         ids = (ctypes.c_uint64 * k)()
@@ -180,7 +207,7 @@ def main() -> int:
 
     # The same VNDB file as path save/load, without a filesystem.
     index = lib.vanedb_rs_index_new(dim, L2, 16, 4, 16, 42)
-    if not index:
+    if index == NULL_HANDLE:
         print(f"index construction failed: code {lib.vanedb_rs_last_error()} "
               f"{message(lib)!r}")
         return 1
@@ -199,7 +226,7 @@ def main() -> int:
         lib.vanedb_rs_index_free(index)
 
     loaded = lib.vanedb_rs_index_load_from_buffer(buf, wrote.value)
-    if not loaded:
+    if loaded == NULL_HANDLE:
         print(f"buffer load failed: code {lib.vanedb_rs_last_error()} "
               f"{message(lib)!r}")
         return 1
@@ -215,6 +242,8 @@ def main() -> int:
     finally:
         lib.vanedb_rs_index_free(loaded)
 
+    # Every handle above was freed; a consumer's test suite can assert this.
+    assert lib.vanedb_rs_handle_count() == 0
     print("OK")
     return 0
 
