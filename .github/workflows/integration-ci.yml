@@ -552,6 +552,8 @@ jobs:
             exit 1
           fi
           echo "ok: tag-demo workflow is dispatch-only with vault confirm + merge-if-open"
+      - name: Closeout nudge regression tests (mocked GitHub)
+        run: python3 scripts/test_nudge_closeout.py
       - name: Demo merge gate regression tests
         run: python3 scripts/test_demo_tag_gate.py
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
