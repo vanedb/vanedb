@@ -118,6 +118,20 @@ fn reject_all_predicate_widens_past_one_pass_at_default_cap() {
     assert!(index.search_with(&query, K, &one_pass).unwrap().is_empty());
     let single = calls.swap(0, Ordering::Relaxed);
 
+    // An explicit, non-power-of-two cap must also retry even when the
+    // first pass already scored more nodes than that beam ceiling.
+    let explicit_cap = SearchParams::new()
+        .filter(Filter::Predicate(&reject))
+        .ef_search(ef)
+        .max_ef_search(75);
+    assert!(index
+        .search_with(&query, K, &explicit_cap)
+        .unwrap()
+        .is_empty());
+    let explicit = calls.swap(0, Ordering::Relaxed);
+    assert!(single > 75);
+    assert!(explicit > single, "explicit cap must permit a second pass");
+
     let default_cap = SearchParams::new()
         .filter(Filter::Predicate(&reject))
         .ef_search(ef);
