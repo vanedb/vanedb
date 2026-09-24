@@ -13,12 +13,12 @@ interpreter's site-packages.
 """
 
 import importlib
-import os
 import sys
 import sysconfig
 from importlib import metadata
+from pathlib import Path
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = Path(__file__).resolve().parents[1]
 
 
 def main() -> int:
@@ -30,7 +30,7 @@ def main() -> int:
     # Nothing in the checkout may satisfy the import, including the implicit
     # "" entry for the working directory.
     sys.path[:] = [
-        p for p in sys.path if p and not os.path.realpath(p).startswith(REPO)
+        p for p in sys.path if p and not Path(p).resolve().is_relative_to(REPO)
     ]
 
     try:
@@ -49,13 +49,13 @@ def main() -> int:
         return 1
 
     roots = {
-        os.path.realpath(sysconfig.get_paths()[key]) for key in ("purelib", "platlib")
+        Path(sysconfig.get_paths()[key]).resolve() for key in ("purelib", "platlib")
     }
-    resolved = os.path.realpath(location)
-    if not any(resolved.startswith(root) for root in roots):
+    resolved = Path(location).resolve()
+    if not any(resolved.is_relative_to(root) for root in roots):
         print(
             f"{name} resolved to {resolved}, outside site-packages "
-            f"({', '.join(sorted(roots))})",
+            f"({', '.join(sorted(map(str, roots)))})",
             file=sys.stderr,
         )
         return 1
