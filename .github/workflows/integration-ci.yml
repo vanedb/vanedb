@@ -728,6 +728,9 @@ jobs:
           # demo main branch, which may have diverged from the release PR and
           # reject the fixture push as non-fast-forward (or carry an old tag).
           git init --bare --initial-branch=main "$BARE/repo.git"
+          # The source above is depth-limited; allow its shallow boundary in
+          # this disposable local fixture without changing any real remote.
+          git -C "$BARE/repo.git" config receive.shallowUpdate true
           git -C "$SRC/repo" push "$BARE/repo.git" HEAD:refs/heads/main
           DEMO_URL="file://$BARE/repo.git" \
             bash docs/launch/maintainer_tag_demo_0.2.0.sh \
