@@ -113,6 +113,9 @@ jobs:
         shell: bash
         run: python3 scripts/test_release_scripts.py
 
+      - name: Installed wheel guard tests
+        run: python3 scripts/test_check_wheel_install.py
+
       # `bump_version.py` writes the version into every site for a publish no
       # registry lets you take back, and its own tests claimed to run here
       # while nothing ran them. A silent corruption it once caused -- four
