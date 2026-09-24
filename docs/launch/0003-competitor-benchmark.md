@@ -45,9 +45,9 @@ after** dedicated-machine runs fill `bench/COMPARISON.md` (currently pending).
 CI / cloud timings are discarded by policy and must never appear in the post.
 
 **Demo:** Obsidian vault search powered by the WASM build —
-https://github.com/vanedb/obsidian-vane-search — *(official 0.2.0 walkthrough
-still tracked under [#242](https://github.com/vanedb/vanedb/issues/242); use
-the reviewed demo PR and checklist below).* Index a vault and run one
+https://github.com/vanedb/obsidian-vane-search — *(the real walkthrough is
+recorded; official 0.2.0 publication remains tracked under [#242](https://github.com/vanedb/vanedb/issues/242); use
+the reviewed merged demo and checklist below).* Index a vault and run one
 semantic search locally (Ollama + nomic-embed-text, or any OpenAI-compatible
 embeddings endpoint) once that release is live.
 
@@ -61,11 +61,14 @@ quantization, mobile SDKs, wasm persistence) would unblock a real project.
 
 Use the reviewed-PR sequence in
 [`0003-demo-update-checklist.md`](0003-demo-update-checklist.md). The current
-candidate is [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20).
-Complete independent review, CI and the real Obsidian/Ollama walkthrough,
-then verify the final bundle and publish the approved merged candidate via
+candidate from [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20)
+merged as `5f98bfec` after all ten independent reviews and four PR CI checks.
+The updated real Obsidian/Ollama walkthrough passed, and the merged build
+matches its recorded accepted bundle. Merged-main CI and the tag-helper dry
+run passed; official publication approval remains pending. Publish the
+approved merged candidate via
 `maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`. The recorded
-walkthrough covers its identified bundle, not subsequent provider-transition
-fixes. Record its official release URL
-and walkthrough evidence on [#242](https://github.com/vanedb/vanedb/issues/242).
-The historical staging release does not meet this requirement.
+walkthrough covers its identified bundle; later bundle changes require renewed
+validation. Record the official release URL and walkthrough evidence on
+[#242](https://github.com/vanedb/vanedb/issues/242). The historical staging
+release does not meet this requirement.

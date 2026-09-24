@@ -28,7 +28,7 @@ from the GitHub UI (not via merge keywords).
 
 | Criterion | Status | Where to verify |
 |---|---|---|
-| Tip Required CI Gate green | **done** | `origin/main` (post-#212 lineage); Gate must stay green after COMPARISON pastes |
+| Tip Required CI Gate green | **recheck current main** | Historical post-#212 gate passed; current merged-main gate must pass after every merge and COMPARISON update |
 | Hostable `embeddings.vnef` + `SHA256SUMS` | **done** | [compare-fixture-v1](https://github.com/vanedb/vanedb/releases/tag/compare-fixture-v1) |
 | Six dedicated-HW COMPARISON tables | **open** | `bench/COMPARISON.md` still has six `*Pending.*` — Apple / Linux AVX2 / Android × cosine+L2; never cloud/CI |
 | Official Obsidian demo `0.2.0` | **open** | Missing tag; [staging](https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging) ≠ AC5 |
@@ -61,6 +61,12 @@ dedicated HW `--markdown` runs.
 Linux AVX2 / Android). Cloud agents have **0** Cursor self-hosted workers and
 must not paste timings from shared runners (`AGENTS.md`). Operator-owned
 **GitHub Actions self-hosted** runners are allowed (see below).
+
+September 24 Mac cosine/L2 runs and interleaved write/search diagnostics
+completed on an unreserved host. They do not fill these dedicated-hardware
+slots. Quiet Mac confirmation, Linux AVX2 and Android ARM64 evidence
+remain required; a labelled ARM64 Android emulator is allowed by RFC 0003.
+The ARM64 Linux VM does not substitute for Linux AVX2.
 
 ### Apple Silicon / Linux AVX2 (host binary)
 
@@ -117,15 +123,19 @@ automatically after both metrics record.
 
 ## 3. Demo (AC5) — **open (official 0.2.0 missing)**
 
-The current candidate is [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20).
-Follow [the updated demo checklist](0003-demo-update-checklist.md): independent
-reviews and CI, real Obsidian/Ollama vault acceptance, then the approved
-reviewed merged commit's annotated release tag. Automated tests and the
-historical staging artifacts do not prove the real walkthrough or official
-release. The current candidate's desktop acceptance and synthetic-vault screenshot
-are recorded in demo PR #20. Revalidate its final merged bundle identity and
-any subsequent fixes before confirming the walkthrough. After review, CI,
-merge and publication approval, the annotated-tag helper is
+[Demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20) merged
+as `5f98bfec` after the provider, centroid, endpoint and tooling fixes, 140
+passing tests, all ten independent reviews and all four PR CI checks.
+The [updated acceptance and synthetic-vault screenshot](https://github.com/vanedb/obsidian-vane-search/blob/5f98bfec5fc16dcef171bcde7dee4f669bbe55f9/docs/releases/0.2.0-desktop-acceptance.md)
+record the real Obsidian/Ollama walkthrough, including failed rebuild recovery
+and full restart. The rebuilt merged bundle matches its accepted checksum. Merged-main CI and
+CodeQL passed, and the reviewed tag-helper dry run passed in an independent
+clean clone with 140 tests and the same bundle checksum. Follow
+[the updated demo checklist](0003-demo-update-checklist.md): retain that
+reviewed commit and bundle identity, then create its annotated release tag
+when publication is approved. The official tag and release remain
+missing; automated tests and historical staging artifacts do not prove them.
+After those gates and publication approval, the annotated-tag helper is
 `bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
 (or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN`). Record both evidence
 links on [#242](https://github.com/vanedb/vanedb/issues/242). Historical `--cut`
