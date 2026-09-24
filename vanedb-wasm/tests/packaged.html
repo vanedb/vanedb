@@ -5,6 +5,7 @@
 <pre id="result">Running</pre>
 <script type="module">
 import init, { FlatIndex, ApproxIndex } from './package/vanedb_wasm.js';
+import * as bindings from './package/vanedb_wasm.js';
 
 const result = document.querySelector('#result');
 function check(condition, message) {
@@ -21,10 +22,75 @@ function rejectsNumber(operation) {
 const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
 const REQUIRE_PERSISTENCE = true;
 async function main() {
-    await init();
+    const wasm = await init();
+    // Observe actual growth: a fixed number of allocations alone could pass
+    // without ever detaching a view into linear memory (#248).
+    {
+        const snapshotIndex = new ApproxIndex(2, 'l2', 8, 4, 16, 7);
+        const allocations = new FlatIndex(65536, 'l2');
+        try {
+            snapshotIndex.add(101n, new Float32Array([1, 0]));
+            const saved = snapshotIndex.toBytes();
+            const expected = new Uint8Array(saved);
+            let previousSize = wasm.memory.buffer.byteLength;
+            let growths = 0;
+            const vector = new Float32Array(65536);
+            for (let i = 0; i < 256 && growths < 3; i += 1) {
+                allocations.add(BigInt(i), vector);
+                const size = wasm.memory.buffer.byteLength;
+                if (size > previousSize) {
+                    growths += 1;
+                    previousSize = size;
+                    check(saved.length === expected.length, 'memory growth detached toBytes output');
+                    check(saved.every((byte, j) => byte === expected[j]), 'memory growth changed toBytes output');
+                }
+            }
+            check(growths >= 3, 'test did not force three WASM memory growths');
+            const loaded = ApproxIndex.fromBytes(saved);
+            try { check(loaded.size() === 1 && loaded.contains(101n), 'snapshot after growth is invalid'); }
+            finally { loaded.free(); }
+        } finally { allocations.free(); snapshotIndex.free(); }
+    }
     if (REQUIRE_PERSISTENCE) {
         check(typeof ApproxIndex.load === 'function', 'merged package must expose ApproxIndex.load');
         check(typeof ApproxIndex.prototype.save === 'function', 'merged package must expose save');
+        // Abort a real readwrite transaction after its put request succeeds.
+        // Request success is not transaction commit; the public adapter must
+        // reject and retain the previous snapshot, including after reopening.
+        const dbName = 'vanedb-abort-regression';
+        const storage = bindings.indexedDbStorage(dbName);
+        const original = new ApproxIndex(2, 'l2', 8, 4, 16, 7);
+        try {
+            original.add(101n, new Float32Array([1, 0]));
+            const before = original.toBytes();
+            await storage.put('rollback', before);
+            original.add(202n, new Float32Array([0, 1]));
+            const replacement = original.toBytes();
+            const realPut = IDBObjectStore.prototype.put;
+            let aborted = false;
+            IDBObjectStore.prototype.put = function (...args) {
+                const request = realPut.apply(this, args);
+                if (this.transaction.db.name === dbName && args[1] === 'rollback') {
+                    request.addEventListener('success', () => {
+                        this.transaction.abort();
+                        aborted = true;
+                    });
+                }
+                return request;
+            };
+            let rejected = false;
+            try { await storage.put('rollback', replacement); }
+            catch { rejected = true; }
+            finally { IDBObjectStore.prototype.put = realPut; }
+            check(aborted && rejected, 'aborted IndexedDB put must reject');
+            const after = await bindings.indexedDbStorage(dbName).get('rollback');
+            check(after && after.length === before.length && after.every((byte, i) => byte === before[i]),
+                'aborted IndexedDB put replaced the previous snapshot');
+            const loaded = ApproxIndex.fromBytes(after);
+            try { check(loaded.size() === 1 && !loaded.contains(202n), 'rollback snapshot is invalid'); }
+            finally { loaded.free(); }
+            await storage.delete('rollback');
+        } finally { original.free(); }
     }
     if (typeof ApproxIndex.load === 'function') {
         const params = new URLSearchParams(location.search);
