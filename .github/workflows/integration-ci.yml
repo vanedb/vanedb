@@ -581,6 +581,24 @@ jobs:
           grep -q 'maintainer merge, then --tag --confirm-vault-walkthrough' "$CLOSE"
           grep -q 'vault recorded; maintainer merge' "$CLOSE"
           grep -q '#242 How (paste into' "$CLOSE"
+          SYNC=docs/launch/sync_242_how.sh
+          SYNCWF=.github/workflows/sync-242-how.yml
+          test -f "$SYNC"
+          test -f "$SYNCWF"
+          grep -q 'workflow_dispatch' "$SYNCWF"
+          grep -q 'issues: write' "$SYNCWF"
+          grep -q 'sync_242_how.sh --apply' "$SYNCWF"
+          grep -q -- '--tag --confirm-vault-walkthrough' "$SYNC"
+          if grep -E '^bash docs/launch/maintainer_closeout_226.sh --cut' "$SYNC"; then
+            echo "::error::$SYNC must not recommend historical --cut" >&2
+            exit 1
+          fi
+          body_out="$(bash "$SYNC")"
+          echo "$body_out" | grep -q -- '--tag --confirm-vault-walkthrough'
+          if echo "$body_out" | grep -E '^bash docs/launch/maintainer_closeout_226.sh --cut'; then
+            echo "::error::$SYNC printed a --cut recommendation" >&2
+            exit 1
+          fi
           grep -q 'Cursor GitHub App' "$CUT"
           grep -q '/installation/repositories' "$CUT"
           grep -q -- '--paginate' "$CUT"
@@ -600,7 +618,7 @@ jobs:
             echo "::error::$DEMO must require an annotated 0.2.0 tag" >&2
             exit 1
           fi
-          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE"; then
+          if grep -Eiq '(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[[:space:]]+#(198|226|242)\b' "$WF" "$CUT" "$CLOSE" "$SYNC" "$SYNCWF"; then
             echo "::error::merge closing keywords next to residual issue numbers" >&2
             exit 1
           fi
