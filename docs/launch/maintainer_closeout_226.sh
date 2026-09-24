@@ -249,6 +249,13 @@ if [[ -z "$demo_tag" ]]; then
   echo "         Tag workflow: https://github.com/vanedb/vanedb/actions/workflows/tag-demo-0.2.0.yml"
   echo "         Checklist: docs/launch/0003-demo-update-checklist.md"
   echo "         Tag push: DEMO_REPO_TOKEN or Cursor App on vanedb/obsidian-vane-search"
+  echo "    #242 How (paste into https://github.com/vanedb/vanedb/issues/242 if still --cut):"
+  echo "         bash docs/launch/maintainer_closeout_226.sh"
+  echo "         bash docs/launch/maintainer_closeout_226.sh --fill   # Apple/Linux dedicated HW"
+  echo "         # Android: bench/compare/ANDROID.md"
+  echo "         # After demo PR #20 merge + vault confirm:"
+  echo "         bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough"
+  echo "         # or Actions → Tag demo 0.2.0 (not historical Cut demo 0.2.0)"
 fi
 
 exit "$exit_code"
