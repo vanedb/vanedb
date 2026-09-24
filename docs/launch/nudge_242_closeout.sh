@@ -32,10 +32,20 @@ tip="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 demo_state="unknown"
 demo_mergeable=""
+demo_vault=""
 if command -v gh >/dev/null 2>&1; then
-  if pr_json="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state,mergeable 2>/dev/null)"; then
+  if pr_json="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state,mergeable,headRefOid 2>/dev/null)"; then
     demo_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
     demo_mergeable="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeable") or "")')"
+    demo_head="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("headRefOid") or "")')"
+    if [[ -n "$demo_head" ]]; then
+      if gh api "repos/vanedb/obsidian-vane-search/contents/docs/releases/0.2.0-desktop-acceptance.md?ref=${demo_head}" \
+          >/dev/null 2>&1; then
+        demo_vault="recorded"
+      else
+        demo_vault="missing"
+      fi
+    fi
   fi
 fi
 
@@ -54,20 +64,26 @@ if command -v gh >/dev/null 2>&1; then
   fi
 fi
 
+ac5_line="official \`obsidian-vane-search\` **0.2.0** missing. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}."
+if [[ "$demo_vault" == "recorded" ]]; then
+  ac5_line="${ac5_line} Vault acceptance **recorded** on PR head."
+elif [[ "$demo_vault" == "missing" ]]; then
+  ac5_line="${ac5_line} Vault acceptance **missing** on PR head."
+fi
+
 body="$(cat <<EOF
 ### Closeout nudge (engine tip \`${tip}\`)
 
 Residual acceptance still open:
 
 - **AC3:** \`bench/COMPARISON.md\` has **${pending}×** \`*Pending.*\` (need 0). Fill on dedicated HW only (\`bash docs/launch/maintainer_closeout_226.sh --fill\` or Actions → **Fill COMPARISON (self-hosted)**; Android: \`bench/compare/ANDROID.md\`).
-- **AC5:** official \`obsidian-vane-search\` **0.2.0** missing. Demo PR https://github.com/vanedb/obsidian-vane-search/pull/20 is **${demo_state}**${demo_mergeable:+ (mergeable=${demo_mergeable})}.
+- **AC5:** ${ac5_line}
 
 Maintainer unlocks needed:
 
-1. Merge demo PR #20 with a **merge commit** (not squash).
-2. \`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough\` (or Actions → **Tag demo 0.2.0**).
-3. Set repo secret \`DEMO_REPO_TOKEN\` (contents:write on the demo repo) **or** add \`vanedb/obsidian-vane-search\` to the Cursor GitHub App install.
-4. Dedicated HW / self-hosted runners for the six COMPARISON slots.
+1. Set repo secret \`DEMO_REPO_TOKEN\` (contents:write **and** pull_requests:write on the demo repo) **or** add \`vanedb/obsidian-vane-search\` to the Cursor GitHub App install.
+2. Actions → **Tag demo 0.2.0** with \`confirm_vault_walkthrough=true\` (passes \`--merge-if-open\`: merge commit on #20 if still OPEN, then annotated tag) — or \`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough\`.
+3. Dedicated HW / self-hosted runners for the six COMPARISON slots.
 
 Status probe: ${token_line}; ${app_line}.
 

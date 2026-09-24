@@ -1,6 +1,8 @@
 # Annotated 0.2.0 tag for the current AC5 candidate (demo PR #20).
-# Requires: DEMO_REPO_TOKEN (contents:write on vanedb/obsidian-vane-search),
-# demo PR #20 MERGED, and an explicit vault-walkthrough confirmation input.
+# Requires: DEMO_REPO_TOKEN (contents:write + pull_requests:write on
+# vanedb/obsidian-vane-search) and an explicit vault-walkthrough confirmation.
+# Passes --merge-if-open so one dispatch can merge #20 (merge commit) then tag
+# when the PR is still OPEN with vault acceptance recorded.
 # Historical patch cut is cut-demo-0.2.0.yml — do not use it for this candidate.
 # Does not run on push/PR.
 name: Tag demo 0.2.0
@@ -9,12 +11,12 @@ on:
   workflow_dispatch:
     inputs:
       confirm_vault_walkthrough:
-        description: "I completed the real Obsidian/Ollama vault checklist on the reviewed merged commit"
+        description: "I completed the real Obsidian/Ollama vault checklist (acceptance on PR #20 head or merged commit)"
         type: boolean
         required: true
         default: false
       commit:
-        description: "Optional merge-commit SHA (default: demo PR #20 merge commit)"
+        description: "Optional merge-commit SHA (default: demo PR #20 merge commit after merge-if-open)"
         type: string
         required: false
         default: ""
@@ -43,17 +45,18 @@ jobs:
           DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
         run: |
           if [ -z "${DEMO_REPO_TOKEN}" ]; then
-            echo "::error::Add repository secret DEMO_REPO_TOKEN (contents:write on vanedb/obsidian-vane-search), then re-run."
+            echo "::error::Add repository secret DEMO_REPO_TOKEN (contents:write + pull_requests:write on vanedb/obsidian-vane-search), then re-run."
             exit 1
           fi
 
-      - name: Tag official 0.2.0 on reviewed merged commit
+      - name: Merge demo PR #20 if open, then tag official 0.2.0
         env:
+          # Demo-repo token for both gh (merge/view) and git push — not GITHUB_TOKEN.
           DEMO_REPO_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEMO_REPO_TOKEN }}
         run: |
           set -euo pipefail
-          args=(--confirm-vault-walkthrough)
+          args=(--confirm-vault-walkthrough --merge-if-open)
           if [ -n "${{ inputs.commit }}" ]; then
             args+=(--commit="${{ inputs.commit }}")
           fi
