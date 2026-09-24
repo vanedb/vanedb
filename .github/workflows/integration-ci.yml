@@ -546,11 +546,12 @@ jobs:
           grep -q 'tag-demo-0.2.0' "$WF"
           grep -q 'maintainer_tag_demo_0.2.0.sh' "$WF"
           grep -q -- '--confirm-vault-walkthrough' "$WF"
+          grep -q -- '--merge-if-open' "$WF"
           if grep -qE '^\s*(push|pull_request):' "$WF"; then
             echo "::error::$WF must not run on tip push/PR" >&2
             exit 1
           fi
-          echo "ok: tag-demo workflow is dispatch-only with vault confirm"
+          echo "ok: tag-demo workflow is dispatch-only with vault confirm + merge-if-open"
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
         # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical
@@ -578,8 +579,9 @@ jobs:
           grep -q -- '--cut refused' "$CLOSE"
           grep -q 'maintainer_tag_demo_0.2.0.sh' "$CLOSE"
           grep -q '0.2.0-desktop-acceptance.md' "$CLOSE"
-          grep -q 'maintainer merge, then --tag --confirm-vault-walkthrough' "$CLOSE"
-          grep -q 'vault recorded; maintainer merge' "$CLOSE"
+          grep -q 'maintainer merge, then --tag --confirm-vault-walkthrough' "$CLOSE" \
+            || grep -q -- '--merge-if-open' "$CLOSE"
+          grep -q 'vault recorded' "$CLOSE"
           grep -q '#242 How (paste into' "$CLOSE"
           SYNC=docs/launch/sync_242_how.sh
           SYNCWF=.github/workflows/sync-242-how.yml
@@ -609,6 +611,7 @@ jobs:
           nudge_out="$(bash "$NUDGE")"
           echo "$nudge_out" | grep -q -- '--tag --confirm-vault-walkthrough'
           echo "$nudge_out" | grep -q 'obsidian-vane-search/pull/20'
+          echo "$nudge_out" | grep -q -- '--merge-if-open'
           if echo "$nudge_out" | grep -Eiq '(close|closes|fix|fixes)[[:space:]]+#(198|226|242)\b'; then
             echo "::error::$NUDGE must not use merge-closing keywords next to residual issues" >&2
             exit 1
@@ -661,6 +664,8 @@ jobs:
           grep -q 'GIT_CONFIG_GLOBAL=/dev/null' "$TAGSCR"
           grep -qF 'https://github.com/*' "$TAGSCR"
           grep -q 'confirm-vault-walkthrough' "$TAGSCR"
+          grep -q -- '--merge-if-open' "$TAGSCR"
+          grep -q 'gh_demo' "$TAGSCR"
           grep -q 'obsidian-vane-search/pull/20' "$TAGSCR"
           grep -q 'issues/242' "$TAGSCR"
           if grep -q 'issues/226' "$TAGSCR"; then
@@ -680,12 +685,22 @@ jobs:
           grep -q 'must be MERGED before tagging' "$TAGSCR"
           if demo20_state="$(gh pr view 20 -R vanedb/obsidian-vane-search --json state -q .state 2>/dev/null)"; then
             if [[ "$demo20_state" != "MERGED" ]]; then
+              # Without --merge-if-open, OPEN must still refuse.
               if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough 2>&1); then
-                echo "::error::$TAGSCR must refuse while demo PR #20 is $demo20_state" >&2
+                echo "::error::$TAGSCR must refuse while demo PR #20 is $demo20_state (no --merge-if-open)" >&2
                 echo "$out" >&2
                 exit 1
               else
                 echo "$out" | grep -qi 'MERGED'
+              fi
+              # With --merge-if-open --dry-run, OPEN + vault may proceed locally.
+              if out=$(bash "$TAGSCR" --dry-run --confirm-vault-walkthrough --merge-if-open 2>&1); then
+                echo "$out" | grep -qi 'would merge'
+                echo "ok: --merge-if-open --dry-run accepts OPEN PR #20"
+              else
+                # Missing vault or unreadable head still refuses — acceptable.
+                echo "$out" | grep -Eqi 'vault|MERGEABLE|MERGED|refused|HTTP|403|404|Could not'
+                echo "ok: --merge-if-open --dry-run refused with diagnostic (vault/creds/API)"
               fi
             fi
           else

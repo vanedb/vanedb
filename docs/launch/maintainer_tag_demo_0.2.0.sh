@@ -8,6 +8,11 @@
 #   3. Merge https://github.com/vanedb/obsidian-vane-search/pull/20
 #   4. This script: annotated 0.2.0 tag on the reviewed merged commit + push
 #
+# Step 3 can be folded into this script with --merge-if-open (merge commit,
+# not squash) when DEMO_REPO_TOKEN / App write can merge the PR. Actions →
+# Tag demo 0.2.0 always passes --merge-if-open so one dispatch finishes AC5
+# after vault confirmation + secret.
+#
 # Requires: write access to vanedb/obsidian-vane-search (DEMO_REPO_TOKEN or
 # Cursor GitHub App contents:write on that repo after #215
 # repositoryDependencies), network, and an explicit vault confirmation.
@@ -15,21 +20,23 @@
 #
 # Usage:
 #   bash docs/launch/maintainer_tag_demo_0.2.0.sh \
-#     --confirm-vault-walkthrough [--dry-run] [--commit <sha>]
+#     --confirm-vault-walkthrough [--merge-if-open] [--dry-run] [--commit <sha>]
 #   DEMO_REPO_TOKEN=… bash docs/launch/maintainer_tag_demo_0.2.0.sh \
-#     --confirm-vault-walkthrough
+#     --confirm-vault-walkthrough --merge-if-open
 set -euo pipefail
 
 TAG="0.2.0"
 DEMO_PR=20
 DEMO_REPO="vanedb/obsidian-vane-search"
 CONFIRM_VAULT=0
+MERGE_IF_OPEN=0
 DRY_RUN=0
 COMMIT=""
 
 for arg in "$@"; do
   case "$arg" in
     --confirm-vault-walkthrough) CONFIRM_VAULT=1 ;;
+    --merge-if-open) MERGE_IF_OPEN=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --commit)
       echo "error: --commit requires a SHA argument (use --commit=<sha>)" >&2
@@ -39,7 +46,7 @@ for arg in "$@"; do
       COMMIT="${arg#--commit=}"
       ;;
     -h|--help)
-      sed -n '1,22p' "$0"
+      sed -n '1,28p' "$0"
       exit 0
       ;;
     *)
@@ -56,6 +63,50 @@ if [[ "$CONFIRM_VAULT" -ne 1 ]]; then
   exit 2
 fi
 
+# Prefer explicit DEMO_REPO_TOKEN. Else, when DEMO_URL is unset and the Cursor
+# App installation includes the demo repo, use `gh auth token` so clone+push
+# (and --merge-if-open) authenticate. Do not fall back to ambient GH_TOKEN when
+# the demo repo is missing from /installation/repositories — that vanedb-only
+# credential 403s even a public HTTPS clone.
+# Paginate: default page size can miss the demo repo when many are installed.
+app_demo_in_scope() {
+  command -v gh >/dev/null 2>&1 || return 1
+  gh api --paginate /installation/repositories --jq '.repositories[].full_name' \
+    2>/dev/null | grep -Fxq 'vanedb/obsidian-vane-search'
+}
+
+if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && app_demo_in_scope; then
+  tok="$(gh auth token 2>/dev/null || true)"
+  if [[ -n "$tok" ]]; then
+    DEMO_REPO_TOKEN="$tok"
+    echo "==> DEMO_REPO_TOKEN: using Cursor App installation token (demo repo in App scope)"
+  fi
+fi
+
+# Prefer DEMO_REPO_TOKEN for demo-repo gh calls (Actions GITHUB_TOKEN is
+# vanedb-scoped and cannot merge/tag the demo repo).
+gh_demo() {
+  if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
+    GH_TOKEN="$DEMO_REPO_TOKEN" gh "$@"
+  else
+    gh "$@"
+  fi
+}
+
+# Honor a pre-set DEMO_URL (CI bare-remote tests use file://…). When TOKEN is
+# set, embed it into plain https://github.com/… URLs so push cannot fall back
+# to ambient Cursor url.*.insteadOf credentials. Leave file:// and already-
+# credentialed URLs alone.
+if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
+  if [[ -z "${DEMO_URL:-}" ]]; then
+    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/vanedb/obsidian-vane-search.git"
+  elif [[ "$DEMO_URL" == https://github.com/* ]]; then
+    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/${DEMO_URL#https://github.com/}"
+  fi
+elif [[ -z "${DEMO_URL:-}" ]]; then
+  DEMO_URL="https://github.com/vanedb/obsidian-vane-search.git"
+fi
+
 # Local bare-remote CI only: file:// DEMO_URL with an explicit --commit skips
 # the live GitHub PR merge check (no network write; proves tag+push plumbing).
 SKIP_PR_GATE=0
@@ -70,12 +121,62 @@ if [[ "$SKIP_PR_GATE" -eq 0 ]]; then
     exit 1
   fi
 
-  pr_json="$(gh pr view "$DEMO_PR" -R "$DEMO_REPO" --json state,mergedAt,mergeCommit,headRefOid,url)"
+  pr_json="$(gh_demo pr view "$DEMO_PR" -R "$DEMO_REPO" \
+    --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,url)"
   pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
+
+  if [[ "$pr_state" == "OPEN" && "$MERGE_IF_OPEN" -eq 1 ]]; then
+    mergeable="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeable") or "")')"
+    merge_status="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("mergeStateStatus") or "")')"
+    head_oid="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("headRefOid") or "")')"
+    if [[ "$mergeable" != "MERGEABLE" ]]; then
+      echo "refused: demo PR #$DEMO_PR is OPEN but mergeable=$mergeable (need MERGEABLE)" >&2
+      exit 2
+    fi
+    # CLEAN is the happy path. Block DRAFT / DIRTY / BLOCKED / BEHIND.
+    if [[ "$merge_status" == "DIRTY" || "$merge_status" == "DRAFT" \
+        || "$merge_status" == "BLOCKED" || "$merge_status" == "BEHIND" ]]; then
+      echo "refused: demo PR #$DEMO_PR mergeStateStatus=$merge_status (need CLEAN)" >&2
+      exit 2
+    fi
+    if [[ -n "$head_oid" ]]; then
+      if ! gh_demo api "repos/${DEMO_REPO}/contents/docs/releases/0.2.0-desktop-acceptance.md?ref=${head_oid}" \
+          >/dev/null 2>&1; then
+        echo "refused: vault acceptance missing on PR #$DEMO_PR head ${head_oid:0:12}" >&2
+        echo "  Need docs/releases/0.2.0-desktop-acceptance.md before --merge-if-open" >&2
+        exit 2
+      fi
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      echo "==> --dry-run: would merge PR #$DEMO_PR with merge commit, then tag"
+      if [[ -z "$COMMIT" && -n "$head_oid" ]]; then
+        COMMIT="$head_oid"
+        echo "    (dry-run uses head ${COMMIT:0:12} as stand-in; real run tags merge commit)"
+      fi
+    else
+      if [[ -z "${DEMO_REPO_TOKEN:-}" ]]; then
+        echo "refused: --merge-if-open needs DEMO_REPO_TOKEN or Cursor App on $DEMO_REPO" >&2
+        exit 2
+      fi
+      echo "==> merging demo PR #$DEMO_PR (merge commit, not squash)"
+      gh_demo pr merge "$DEMO_PR" -R "$DEMO_REPO" --merge
+      pr_json="$(gh_demo pr view "$DEMO_PR" -R "$DEMO_REPO" \
+        --json state,mergedAt,mergeCommit,headRefOid,mergeable,mergeStateStatus,url)"
+      pr_state="$(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
+    fi
+  fi
+
   if [[ "$pr_state" != "MERGED" ]]; then
-    echo "refused: demo PR #$DEMO_PR is $pr_state (must be MERGED before tagging)" >&2
-    echo "  $(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')" >&2
-    exit 2
+    if [[ "$DRY_RUN" -eq 1 && "$MERGE_IF_OPEN" -eq 1 && "$pr_state" == "OPEN" && -n "$COMMIT" ]]; then
+      echo "==> --dry-run: skipping MERGED gate (would merge first)"
+    else
+      echo "refused: demo PR #$DEMO_PR is $pr_state (must be MERGED before tagging)" >&2
+      echo "  $(printf '%s' "$pr_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')" >&2
+      if [[ "$pr_state" == "OPEN" && "$MERGE_IF_OPEN" -eq 0 ]]; then
+        echo "  Pass --merge-if-open (with DEMO_REPO_TOKEN) to merge then tag in one step." >&2
+      fi
+      exit 2
+    fi
   fi
 
   if [[ -z "$COMMIT" ]]; then
@@ -98,40 +199,6 @@ fi
 if [[ ! "$COMMIT" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
   echo "invalid --commit SHA: $COMMIT" >&2
   exit 2
-fi
-
-# Prefer explicit DEMO_REPO_TOKEN. Else, when DEMO_URL is unset and the Cursor
-# App installation includes the demo repo, use `gh auth token` so clone+push
-# authenticate. Do not fall back to ambient GH_TOKEN when the demo repo is
-# missing from /installation/repositories — that vanedb-only credential 403s
-# even a public HTTPS clone.
-# Paginate: default page size can miss the demo repo when many are installed.
-app_demo_in_scope() {
-  command -v gh >/dev/null 2>&1 || return 1
-  gh api --paginate /installation/repositories --jq '.repositories[].full_name' \
-    2>/dev/null | grep -Fxq 'vanedb/obsidian-vane-search'
-}
-
-if [[ -z "${DEMO_REPO_TOKEN:-}" && -z "${DEMO_URL:-}" ]] && app_demo_in_scope; then
-  tok="$(gh auth token 2>/dev/null || true)"
-  if [[ -n "$tok" ]]; then
-    DEMO_REPO_TOKEN="$tok"
-    echo "==> DEMO_REPO_TOKEN: using Cursor App installation token (demo repo in App scope)"
-  fi
-fi
-
-# Honor a pre-set DEMO_URL (CI bare-remote tests use file://…). When TOKEN is
-# set, embed it into plain https://github.com/… URLs so push cannot fall back
-# to ambient Cursor url.*.insteadOf credentials. Leave file:// and already-
-# credentialed URLs alone.
-if [[ -n "${DEMO_REPO_TOKEN:-}" ]]; then
-  if [[ -z "${DEMO_URL:-}" ]]; then
-    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/vanedb/obsidian-vane-search.git"
-  elif [[ "$DEMO_URL" == https://github.com/* ]]; then
-    DEMO_URL="https://x-access-token:${DEMO_REPO_TOKEN}@github.com/${DEMO_URL#https://github.com/}"
-  fi
-elif [[ -z "${DEMO_URL:-}" ]]; then
-  DEMO_URL="https://github.com/vanedb/obsidian-vane-search.git"
 fi
 
 redact_url() {
