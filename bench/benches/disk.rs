@@ -113,7 +113,7 @@ fn bench_mmap(c: &mut Criterion) {
                     let start = Instant::now();
                     let m = ffi::vanedb_rs_disk_open(rs_path.as_ptr());
                     elapsed += start.elapsed();
-                    assert!(!m.is_null(), "rs disk_open failed");
+                    assert_ne!(m, 0, "rs disk_open failed");
                     ffi::vanedb_rs_disk_free(black_box(m));
                 }
                 elapsed
@@ -124,7 +124,7 @@ fn bench_mmap(c: &mut Criterion) {
         // --- search --------------------------------------------------------
         let mc = ffi::vanedb_cpp_disk_open(cpp_path.as_ptr());
         let mr = ffi::vanedb_rs_disk_open(rs_path.as_ptr());
-        assert!(!mc.is_null() && !mr.is_null(), "disk_open failed");
+        assert!(!mc.is_null() && mr != 0, "disk_open failed");
         let mut ids = [0u64; 10];
         let mut ds = [0f32; 10];
         // Warmup outside the timed loops doubles as a liveness check.
