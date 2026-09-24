@@ -71,7 +71,10 @@ elif [[ "$demo_vault" == "missing" ]]; then
   ac5_line="${ac5_line} Vault acceptance **missing** on PR head."
 fi
 
-body="$(cat <<EOF
+# Emit via a function so the heredoc is not nested inside body="$(…)" —
+# macOS /bin/bash mis-parses \`…\` + ")" inside that form (bad substitution).
+nudge_body() {
+  cat <<EOF
 ### Closeout nudge (engine tip \`${tip}\`)
 
 Residual acceptance still open:
@@ -91,7 +94,9 @@ How on this issue should already show \`--tag --confirm-vault-walkthrough\` (not
 
 Leave this issue open until Pending=0 **and** the official 0.2.0 release URL is recorded.
 EOF
-)"
+}
+
+body="$(nudge_body)"
 
 if [[ "$APPLY" -eq 0 ]]; then
   printf '%s\n' "$body"
