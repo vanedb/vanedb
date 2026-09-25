@@ -24,14 +24,29 @@ if [[ "$mode" != --run-only ]]; then
   esac
   library_dir="${CARGO_TARGET_DIR:-target}/$rust_target/release"
   mkdir -p "$runtime_dir"
+  # max-page-size alone: 16 KiB LOAD alignment for the 16 KiB-page check.
+  # No common-page-size=16384 here: lld rounds PT_GNU_RELRO up to it, but the
+  # kernel maps an executable's RW segment only to its 4 KiB-rounded end, so
+  # on a 4 KiB device the RELRO mprotect crossed unmapped pages (ENOMEM).
   "${ANDROID_NDK_HOME:?}/toolchains/llvm/prebuilt/$ndk_host/bin/${rust_target}21-clang" \
     -std=c11 -Wall -Wextra -Werror -I vanedb-capi/include \
-    -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384 \
+    -Wl,-z,max-page-size=16384 \
     vanedb-capi/tests/acceptance.c -L "$library_dir" \
     -lvanedb_capi -o "$runtime_dir/acceptance"
   cp "$library_dir/libvanedb_capi.so" "$runtime_dir/"
 fi
 python3 scripts/check_android_elf.py "$runtime_dir/acceptance" "$runtime_dir/libvanedb_capi.so"
+# The segment layout, in the log for the next page-size or RELRO failure.
+readelf_bin="${ANDROID_NDK_HOME:-}/toolchains/llvm/prebuilt/${ndk_host:-linux-x86_64}/bin/llvm-readelf"
+if ! command -v "$readelf_bin" >/dev/null 2>&1; then
+  readelf_bin=$(command -v llvm-readelf || command -v readelf || true)
+fi
+if [[ -n "$readelf_bin" ]]; then
+  for binary in "$runtime_dir/acceptance" "$runtime_dir/libvanedb_capi.so"; do
+    echo "== $readelf_bin -lW $binary"
+    "$readelf_bin" -lW "$binary"
+  done
+fi
 [[ "$mode" != --build-only ]] || exit 0
 
 device_abi=$(adb shell getprop ro.product.cpu.abi | tr -d '\r')
