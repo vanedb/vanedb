@@ -94,6 +94,41 @@ fn writing_the_same_content_reproduces_the_fixture_byte_for_byte() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Exercise the real buffered/atomic save path with payloads below, at, and
+/// above its 64 KiB buffer, using a scalar reference rather than the reader.
+#[test]
+fn saved_bytes_match_scalar_reference_at_payload_buffer_boundaries() {
+    let dir = std::env::temp_dir().join(format!("vndb-bulk-bytes-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for count in [0u64, 1, 8191, 8192, 8193] {
+        let mut builder = DiskIndexBuilder::new(2, Metric::L2).unwrap();
+        let ids: Vec<_> = (0..count).map(|i| u64::MAX - i).collect();
+        let values = [-0.0, f32::from_bits(1), -f32::from_bits(1), f32::MAX];
+        let rows: Vec<_> = (0..count as usize)
+            .map(|i| [values[i % 4], values[(i + 1) % 4]])
+            .collect();
+        for (&id, row) in ids.iter().zip(&rows) {
+            builder.add(id, row).unwrap();
+        }
+        let path = dir.join(format!("{count}.vndb"));
+        builder.save(&path).unwrap();
+
+        let mut expected = Vec::from(*b"VNDB");
+        expected.extend_from_slice(&1u32.to_le_bytes());
+        expected.extend_from_slice(&2u64.to_le_bytes());
+        expected.extend_from_slice(&count.to_le_bytes());
+        expected.extend_from_slice(&[0; 8]); // L2 metric and reserved word
+        for id in ids {
+            expected.extend_from_slice(&id.to_le_bytes());
+        }
+        for value in rows.iter().flatten() {
+            expected.extend_from_slice(&value.to_le_bytes());
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), expected, "count={count}");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 /// The header is fixed-width little-endian by specification, so assert the
 /// literal bytes rather than round-tripping through the reader.
 #[test]

@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "docs/launch/sync_242_how.sh"
+      - "scripts/sync_242_how.py"
       - ".github/workflows/sync-242-how.yml"
 
 concurrency:
@@ -25,17 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Apply paste-ready #242 How (--tag path)
+      - name: Update only the bounded #242 How section (--tag path)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           bash docs/launch/sync_242_how.sh --apply
-          # Confirm the live issue no longer recommends historical --cut.
-          body="$(gh issue view 242 --repo vanedb/vanedb --json body -q .body)"
-          if printf '%s\n' "$body" | grep -E '^bash docs/launch/maintainer_closeout_226.sh --cut'; then
-            echo "::error::#242 How still recommends --cut after sync" >&2
-            exit 1
-          fi
-          printf '%s\n' "$body" | grep -q -- '--tag --confirm-vault-walkthrough'
-          echo "ok: #242 How uses --tag path"

@@ -552,8 +552,30 @@ jobs:
             exit 1
           fi
           echo "ok: tag-demo workflow is dispatch-only with vault confirm + merge-if-open"
+      - name: Closeout comment emitter identity (read-only Actions token)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api graphql -f 'query=query { viewer { id login } }' > /tmp/closeout-viewer.json
+          gh api 'users/github-actions%5Bbot%5D' > /tmp/closeout-viewer-rest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          response = json.loads(Path('/tmp/closeout-viewer.json').read_text())
+          assert not response.get('errors'), response
+          viewer = response['data']['viewer']
+          assert viewer['login'] == 'github-actions[bot]', viewer
+          assert isinstance(viewer['id'], str) and viewer['id'].strip(), viewer
+          rest_user = json.loads(Path('/tmp/closeout-viewer-rest.json').read_text())
+          assert rest_user['node_id'] == viewer['id'], (viewer, rest_user)
+          print('Verified Actions comment emitter:', viewer['login'], viewer['id'])
+          PY
+      - name: Closeout nudge regression tests (mocked GitHub)
+        run: python3 scripts/test_nudge_closeout.py
       - name: Demo merge gate regression tests
         run: python3 scripts/test_demo_tag_gate.py
+      - name: Issue How preservation regression tests (no network)
+        run: python3 scripts/test_sync_242_how.py
       - name: residual #242 tracking (no stale #226 evidence URLs / merge keywords)
         # #238's "does not close #N" phrase auto-completed #226; residual is #242.
         # AC5 candidate is demo PR #20 + vault + annotated tag (#271); historical

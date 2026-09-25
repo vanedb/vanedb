@@ -22,11 +22,55 @@ const MAGIC: u32 = u32::from_le_bytes(*b"VNDB");
 const VERSION: u32 = 1;
 const HEADER_SIZE: usize = 32;
 
-/// Write buffer for [`DiskIndexBuilder::save`]. Ids and vectors are
-/// encoded element-wise to keep the on-disk layout explicitly little-endian;
-/// unbuffered that cost one `write` syscall per element, so a 10k x 128 store
-/// issued 1.29M of them.
+/// Buffer small header writes; large payload writes can bypass this buffer.
 const WRITE_BUFFER_BYTES: usize = 64 * 1024;
+
+/// Write VNDB's two contiguous payload arrays without a second corpus-sized
+/// allocation. The borrowed native representation is the wire representation
+/// only on little-endian targets.
+fn write_payload(writer: &mut impl Write, ids: &[u64], vectors: &[f32]) -> std::io::Result<()> {
+    #[cfg(target_endian = "little")]
+    {
+        // SAFETY: u64 and f32 are concrete, padding-free types whose bytes are
+        // initialized by the valid input slices. Their native representations
+        // are little-endian here. Casting to u8 only lowers alignment; as_ptr
+        // remains non-null/aligned even for empty slices. size_of_val is the
+        // existing slice's byte size, so no multiplication overflow or access
+        // beyond its single allocation is introduced. These read-only views
+        // are consumed while the input borrows remain alive and cannot mutate
+        // the source. No byte view escapes this function.
+        let id_bytes = unsafe {
+            std::slice::from_raw_parts(ids.as_ptr().cast::<u8>(), std::mem::size_of_val(ids))
+        };
+        let vector_bytes = unsafe {
+            std::slice::from_raw_parts(
+                vectors.as_ptr().cast::<u8>(),
+                std::mem::size_of_val(vectors),
+            )
+        };
+        writer.write_all(id_bytes)?;
+        writer.write_all(vector_bytes)
+    }
+    #[cfg(target_endian = "big")]
+    write_payload_scalar(writer, ids, vectors)
+}
+
+// Keep the explicit conversion path exercised by tests on little-endian hosts
+// as well; native big-endian runtime coverage is a separate platform check.
+#[cfg(any(target_endian = "big", test))]
+fn write_payload_scalar(
+    writer: &mut impl Write,
+    ids: &[u64],
+    vectors: &[f32],
+) -> std::io::Result<()> {
+    for &id in ids {
+        writer.write_all(&id.to_le_bytes())?;
+    }
+    for &value in vectors {
+        writer.write_all(&value.to_le_bytes())?;
+    }
+    Ok(())
+}
 
 fn metric_to_u32(m: Metric) -> u32 {
     match m {
@@ -185,17 +229,8 @@ impl DiskIndexBuilder {
         f.write_all(&0u32.to_le_bytes())
             .map_err(|e| VaneError::from_io("write", e))?; // reserved
 
-        // IDs
-        for &id in &self.ids {
-            f.write_all(&id.to_le_bytes())
-                .map_err(|e| VaneError::from_io("write", e))?;
-        }
-
-        // Vectors
-        for &v in &self.vectors {
-            f.write_all(&v.to_le_bytes())
-                .map_err(|e| VaneError::from_io("write", e))?;
-        }
+        write_payload(&mut f, &self.ids, &self.vectors)
+            .map_err(|e| VaneError::from_io("write", e))?;
 
         // into_inner flushes the buffer; the fsync below must see every byte.
         // into_inner yields an IntoInnerError wrapping the writer; take the
@@ -546,6 +581,118 @@ impl DiskIndex {
 mod tests {
     use super::*;
     use crate::Filter;
+
+    struct TestWriter<F>(F);
+
+    impl<F: FnMut(&[u8]) -> std::io::Result<usize>> Write for TestWriter<F> {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            (self.0)(bytes)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn payload_reference(ids: &[u64], vectors: &[f32]) -> Vec<u8> {
+        ids.iter()
+            .flat_map(|id| id.to_le_bytes())
+            .chain(vectors.iter().flat_map(|value| value.to_le_bytes()))
+            .collect()
+    }
+
+    #[test]
+    fn payload_matches_scalar_bytes_across_buffer_boundaries() {
+        // Straddle 64 KiB for both 8-byte IDs and 4-byte components.
+        for len in [0, 1, 8191, 8192, 8193, 16383, 16384, 16385] {
+            let ids: Vec<_> = (0..len).map(|i| u64::MAX - i as u64).collect();
+            let values = [0.0, -0.0, f32::from_bits(1), -f32::from_bits(1), f32::MAX];
+            let vectors: Vec<_> = (0..len).map(|i| values[i % values.len()]).collect();
+            let expected = payload_reference(&ids, &vectors);
+            let mut bulk = Vec::new();
+            write_payload(&mut bulk, &ids, &vectors).unwrap();
+            assert_eq!(bulk, expected, "native payload, len={len}");
+            let mut converted = Vec::new();
+            write_payload_scalar(&mut converted, &ids, &vectors).unwrap();
+            assert_eq!(converted, expected, "endian conversion, len={len}");
+        }
+    }
+
+    #[test]
+    fn payload_literal_wire_bytes_and_partial_interrupted_writes() {
+        let ids = [0x8877_6655_4433_2211];
+        let vectors = [-0.0, f32::from_bits(1), -1.5];
+        let expected = [
+            0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, // ID
+            0, 0, 0, 0x80, // negative zero
+            1, 0, 0, 0, // smallest positive subnormal
+            0, 0, 0xc0, 0xbf, // -1.5
+        ];
+        // Exercise both native bulk and conversion paths with short writes and
+        // Interrupted returned once at the start of each payload array.
+        for scalar in [false, true] {
+            let mut output = Vec::new();
+            let mut interrupted = [false; 2];
+            let mut writer = TestWriter(|bytes: &[u8]| {
+                let array = usize::from(output.len() >= 8);
+                if !interrupted[array] {
+                    interrupted[array] = true;
+                    return Err(std::io::ErrorKind::Interrupted.into());
+                }
+                let len = bytes.len().min(3);
+                output.extend_from_slice(&bytes[..len]);
+                Ok(len)
+            });
+            if scalar {
+                write_payload_scalar(&mut writer, &ids, &vectors).unwrap();
+            } else {
+                write_payload(&mut writer, &ids, &vectors).unwrap();
+            }
+            assert_eq!(output, expected);
+            assert_eq!(interrupted, [true, true]);
+        }
+    }
+
+    #[test]
+    fn payload_propagates_errors_and_write_zero_in_either_array() {
+        let ids = [0x8877_6655_4433_2211, u64::MAX];
+        let vectors = [-0.0, f32::from_bits(1), -1.5];
+        let expected = payload_reference(&ids, &vectors);
+        for scalar in [false, true] {
+            for stop in [0, 7, 16, 21] {
+                for zero in [false, true] {
+                    let mut output = Vec::new();
+                    let mut writer = TestWriter(|bytes: &[u8]| {
+                        if output.len() == stop {
+                            return if zero {
+                                Ok(0)
+                            } else {
+                                Err(std::io::ErrorKind::PermissionDenied.into())
+                            };
+                        }
+                        let len = bytes.len().min(3).min(stop - output.len());
+                        output.extend_from_slice(&bytes[..len]);
+                        Ok(len)
+                    });
+                    let error = if scalar {
+                        write_payload_scalar(&mut writer, &ids, &vectors)
+                    } else {
+                        write_payload(&mut writer, &ids, &vectors)
+                    }
+                    .unwrap_err();
+                    assert_eq!(
+                        error.kind(),
+                        if zero {
+                            std::io::ErrorKind::WriteZero
+                        } else {
+                            std::io::ErrorKind::PermissionDenied
+                        }
+                    );
+                    assert_eq!(output, expected[..stop]);
+                }
+            }
+        }
+    }
 
     #[test]
     fn builder_add_and_size() {
