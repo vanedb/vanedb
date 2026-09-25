@@ -2,3 +2,18 @@
 members = ["vanedb", "vanedb-py", "vanedb-wasm", "vanedb-capi"]
 exclude = ["bench"]
 resolver = "2"
+
+# The profile the C ABI ships with (RFC 0002 stage 1). A named profile rather
+# than `[profile.release]`: `lto` and `panic` cannot be overridden per package,
+# and setting them on `release` would change every other crate's build.
+# `panic = "unwind"` is stated even though it is the default because the
+# `catch_unwind` boundary in vanedb-capi depends on it -- `abort` would make
+# that boundary inert and take the host process down on the first engine bug.
+# Build with `cargo build -p vanedb-capi --profile capi --locked`; the output
+# lands in `target/capi/`.
+[profile.capi]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "unwind"

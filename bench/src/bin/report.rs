@@ -158,7 +158,7 @@ fn main() -> ExitCode {
         // follow METRIC so the whole report describes one metric.
         let sc = ffi::vanedb_cpp_store_new(dim, METRIC);
         let sr = ffi::vanedb_rs_store_new(dim, METRIC);
-        assert!(!sc.is_null() && !sr.is_null(), "store_new failed");
+        assert!(!sc.is_null() && sr != 0, "store_new failed");
         for i in 0..n {
             assert_eq!(
                 ffi::vanedb_cpp_store_add(sc, w.ids[i], w.vectors[i * dim..].as_ptr()),
@@ -218,7 +218,7 @@ fn main() -> ExitCode {
         // figure only means anything if both rank by the same distance.
         let hc = ffi::vanedb_cpp_index_new(dim, METRIC, n, 16, 200, 7);
         let hr = ffi::vanedb_rs_index_new(dim, METRIC, n, 16, 200, 7);
-        assert!(!hc.is_null() && !hr.is_null(), "hnsw_new failed");
+        assert!(!hc.is_null() && hr != 0, "hnsw_new failed");
         for i in 0..n {
             assert_eq!(
                 ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * dim..].as_ptr()),

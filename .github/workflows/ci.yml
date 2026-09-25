@@ -61,6 +61,9 @@ jobs:
               - '.github/requirements-release.txt'
               - '.github/workflows/**'
             integration:
+              # Validate closeout automation before its next live main-push run.
+              - 'docs/launch/nudge_242_closeout.sh'
+              - 'scripts/test_nudge_closeout.py'
               - 'docs/launch/sync_242_how.sh'
               - 'scripts/sync_242_how.py'
               - 'scripts/test_sync_242_how.py'
@@ -123,6 +126,25 @@ jobs:
       - name: Version bump script tests
         shell: bash
         run: python3 scripts/test_bump_version.py
+
+      # `package_capi.py` runs only on the native packaging legs, after a full
+      # release build, so a wrong linker flag surfaces as a failed macOS or
+      # Windows job twenty minutes in. Its assembled commands are pinned here.
+      - name: C ABI packaging script tests
+        shell: bash
+        run: python3 scripts/test_package_capi.py
+
+      # The ABI gate's prototype layer is what sees a changed signature (the
+      # shipped library has no DWARF for abidiff to read); a changed or
+      # removed prototype must fail it, and the committed signature list
+      # must match the header.
+      - name: C ABI gate tests
+        shell: bash
+        run: python3 scripts/test_capi_abidiff.py
+
+      - name: Signed C ABI release inventory and publication guard tests
+        shell: bash
+        run: python3 scripts/test_capi_release.py
 
       # Every RFC needs a valid status line and a row in both indexes, or the
       # roadmap stops being an index of anything.

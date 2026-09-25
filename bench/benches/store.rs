@@ -43,8 +43,8 @@ fn bench_store_add(c: &mut Criterion) {
         bn.iter_custom(|iterations| {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
-                let s = unsafe { ffi::vanedb_rs_store_new(DIM, 0) };
-                assert!(!s.is_null(), "rs store_new failed");
+                let s = ffi::vanedb_rs_store_new(DIM, 0);
+                assert_ne!(s, 0, "rs store_new failed");
                 let start = Instant::now();
                 for i in 0..N {
                     assert_eq!(
@@ -55,7 +55,7 @@ fn bench_store_add(c: &mut Criterion) {
                     );
                 }
                 elapsed += start.elapsed();
-                unsafe { ffi::vanedb_rs_store_free(black_box(s)) };
+                ffi::vanedb_rs_store_free(black_box(s));
             }
             elapsed
         });
@@ -78,7 +78,7 @@ fn bench_store_search(c: &mut Criterion) {
             // winner; every path must use the same policy.
             let sc = ffi::vanedb_cpp_store_new(DIM, 0);
             let sr = ffi::vanedb_rs_store_new(DIM, 0);
-            assert!(!sc.is_null() && !sr.is_null(), "store_new failed");
+            assert!(!sc.is_null() && sr != 0, "store_new failed");
             for i in 0..n {
                 let v = w.vectors[i * DIM..].as_ptr();
                 assert_eq!(ffi::vanedb_cpp_store_add(sc, w.ids[i], v), 0);

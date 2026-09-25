@@ -112,3 +112,41 @@ fn the_error_message_is_read_as_a_raw_pointer() {
         "expected c_void_p so the lifetime stays visible, got: {line}"
     );
 }
+
+/// Handles are `uint64_t` ids (RFC 0002 stage 1). Bound as `c_void_p` they
+/// would come back as `None` for 0 and be truncated on a 32-bit Python; bound
+/// as a C `int` they would be truncated everywhere. Every handle-typed
+/// binding must use the one `HANDLE = ctypes.c_uint64` alias.
+#[test]
+fn handles_are_bound_as_unsigned_64_bit_integers() {
+    let source = example();
+    let stripped = strip_comments(&source);
+    assert!(
+        stripped.contains("HANDLE = ctypes.c_uint64"),
+        "the example must define HANDLE as c_uint64"
+    );
+    for constructor in [
+        "vanedb_rs_store_new",
+        "vanedb_rs_index_new",
+        "vanedb_rs_index_load_from_buffer",
+    ] {
+        let line = stripped
+            .lines()
+            .find(|l| l.contains(&format!("lib.{constructor}.restype =")))
+            .unwrap_or_else(|| panic!("{constructor} must be bound"));
+        assert!(
+            line.trim_end().ends_with("= HANDLE"),
+            "{constructor} must return HANDLE, got: {line}"
+        );
+    }
+    // The only c_void_p left are the message pointer and the callback's
+    // user_data; a handle bound that way is the defect this test exists for.
+    let void_pointers = stripped
+        .lines()
+        .filter(|l| l.contains("restype = ctypes.c_void_p"))
+        .count();
+    assert_eq!(
+        void_pointers, 1,
+        "only vanedb_rs_last_error_message returns a raw pointer"
+    );
+}

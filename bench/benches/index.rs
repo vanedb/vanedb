@@ -52,8 +52,8 @@ fn bench_hnsw(c: &mut Criterion) {
             let mut elapsed = Duration::ZERO;
             for _ in 0..iterations {
                 let start = Instant::now();
-                let h = unsafe { ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED) };
-                assert!(!h.is_null());
+                let h = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
+                assert_ne!(h, 0);
                 for i in 0..N {
                     assert_eq!(
                         unsafe {
@@ -63,7 +63,7 @@ fn bench_hnsw(c: &mut Criterion) {
                     );
                 }
                 elapsed += start.elapsed();
-                unsafe { ffi::vanedb_rs_index_free(black_box(h)) };
+                ffi::vanedb_rs_index_free(black_box(h));
             }
             elapsed
         });
@@ -77,7 +77,7 @@ fn bench_hnsw(c: &mut Criterion) {
     unsafe {
         let hc = ffi::vanedb_cpp_index_new(DIM, 0, N, M, EFC, SEED);
         let hr = ffi::vanedb_rs_index_new(DIM, 0, N, M, EFC, SEED);
-        assert!(!hc.is_null() && !hr.is_null(), "hnsw_new failed");
+        assert!(!hc.is_null() && hr != 0, "hnsw_new failed");
         for i in 0..N {
             assert_eq!(
                 ffi::vanedb_cpp_index_add(hc, w.ids[i], w.vectors[i * DIM..].as_ptr()),
