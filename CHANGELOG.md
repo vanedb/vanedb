@@ -11,6 +11,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Added
 
+- Signed C ABI releases: the crate tag builds and verifies all five native
+  archives and target-specific CycloneDX SBOMs, signs their exact bytes with
+  keyless Sigstore, and attaches the complete set with checksums and verification
+  instructions. Branch rehearsals exercise the pipeline without publication.
+
 - Filtered search (RFC 0004 / #199): Predicate, Allow, and Deny filters across `FlatIndex`, `ApproxIndex`, and `DiskIndex`.
 - `SearchParams::filter` and `SearchParams::max_ef_search` with automatic beam widening for HNSW approximate search.
 - Filter options across all bindings:

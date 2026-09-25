@@ -94,9 +94,19 @@ jobs:
           path: target/crate-artifacts/*
           if-no-files-found: error
 
+  capi:
+    name: C ABI release assets
+    needs: [validate-version, verify]
+    # The called workflow reduces these per job: native builds are read-only,
+    # signing alone gets OIDC, tag upload alone gets contents:write.
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/publish-capi.yml
+
   publish:
     name: Publish to crates.io
-    needs: verify
+    needs: [verify, capi]
     # Same form as publish-rust.yml. A workflow_dispatch can never satisfy it,
     # whatever ref it names.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/vanedb-crate-v')

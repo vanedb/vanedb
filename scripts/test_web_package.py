@@ -63,7 +63,7 @@ def main():
             except subprocess.CalledProcessError:
                 subprocess.run(
                     cli + ["run-code", "async (page) => { "
-                           "console.log('acceptance #result:', await page.locator('#result').textContent()); }"],
+                           "return await page.locator('#result').textContent(); }"],
                     cwd=temporary, check=False, timeout=30,
                 )
                 raise
