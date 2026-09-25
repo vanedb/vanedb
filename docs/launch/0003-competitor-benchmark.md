@@ -23,10 +23,10 @@ We built VaneDB as an embeddable nearest-neighbour library for on-device / edge
 AI (Rust, Python, C, WASM). Until now the only published comparison was against
 our own frozen C++ reference engine — useless to anyone choosing a stack.
 
-We are adding a second benchmark arm that will run VaneDB against the libraries
-people actually shortlist, on a fixed real-embedding fixture (nomic-embed-text,
-768-d, 100k documents, 1k queries), with interleaved rounds on dedicated
-hardware:
+Our separate comparison harness runs VaneDB against the libraries people
+shortlist, on a fixed real-embedding fixture (nomic-embed-text, 768-d,
+100k documents, 1k queries). Published results require interleaved rounds on
+dedicated hardware:
 
 - USearch
 - hnswlib
@@ -34,9 +34,9 @@ hardware:
 - hnsw_rs
 - sqlite-vec (brute-force baseline)
 
-Measured: build time, peak RSS, index file size, latency@k=10 across an ef
-sweep, recall@10 vs f64 exact search, and delete-then-search where the engine
-supports delete.
+The harness records build time, process RSS observations, index file size,
+latency@k=10 across an ef sweep, recall@10 vs f64 exact search, and
+delete-then-search where the engine supports delete.
 
 **Methodology and caveats first:** https://github.com/vanedb/vanedb/blob/main/bench/COMPARISON.md
 
@@ -52,8 +52,8 @@ semantic search locally (Ollama + nomic-embed-text, or any OpenAI-compatible
 embeddings endpoint) once that release is live.
 
 What we are looking for once the tables are filled: whether those dedicated-HW
-results match what you see on your hardware, and which gap (filtering,
-quantization, mobile SDKs, wasm persistence) would unblock a real project.
+results match what you see on your hardware, and which remaining limitation
+would prevent you from using VaneDB in a real project.
 
 ---
 

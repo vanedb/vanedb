@@ -23,12 +23,7 @@ Publication approval remains pending.
 ## Required sequence
 
 1. Preserve the completed independent review, PR CI and merged-main CI evidence for `5f98bfec`, including the real test job. A later commit requires renewed checks.
-2. Follow the candidate README in a separate test vault using real Obsidian and an embedding model. Record versions, source commit, build checksum, note/query, observed results, note opening, restart, update and deletion checks in the demo release checklist. Do not modify a personal vault for release testing.
-   - Desktop acceptance and a synthetic-vault screenshot are recorded at
-     merged demo commit `5f98bfec` in
-     `docs/releases/0.2.0-desktop-acceptance.md`. This accepts the recorded
-     bundle only; later bundle changes require
-     renewed validation before release.
+2. Preserve the completed real Obsidian/Ollama walkthrough and synthetic-vault screenshot in [the merged demo acceptance record](https://github.com/vanedb/obsidian-vane-search/blob/5f98bfec5fc16dcef171bcde7dee4f669bbe55f9/docs/releases/0.2.0-desktop-acceptance.md). The unchanged accepted bundle needs no new walkthrough or screenshot. If its bundle changes, repeat the documented checks in a separate test vault and record the new source, checksum, environment and observations before release; do not modify a personal vault.
 3. PR #20 is merged and its rebuilt bundle matches the acceptance record. Merged-main CI and the tag-helper dry run passed. Create an annotated `0.2.0` tag on the reviewed merged commit and push that tag explicitly only when publication is approved. Use `bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
    or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN` after those gates.
    The demo README contains the exact commands; pushing the tag publishes the release.
