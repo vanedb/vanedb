@@ -10,12 +10,12 @@ namespace vanedb {
 /// Major version number
 constexpr int VERSION_MAJOR = 0;
 /// Minor version number
-constexpr int VERSION_MINOR = 1;
+constexpr int VERSION_MINOR = 2;
 /// Patch version number
-constexpr int VERSION_PATCH = 1;
+constexpr int VERSION_PATCH = 0;
 
 /// Full version string
-constexpr const char* VERSION_STRING = "0.1.1";
+constexpr const char* VERSION_STRING = "0.2.0";
 
 /**
  * @brief Returns the version as a single integer for comparison.

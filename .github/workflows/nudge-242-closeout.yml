@@ -1,10 +1,15 @@
 # Post a maintainer nudge on residual #242 listing AC3/AC5 unlocks.
 # Cloud agents often lack issues:write; Actions GITHUB_TOKEN can comment.
-# Does not shut #242 / #198 / #226.
+# Does not shut #242 / #198 / #226. Reopens #242 and #198 when shut early
+# while Pending>0 or official demo 0.2.0 is still missing.
+# Scheduled so premature closes do not stick until a human push.
 name: Nudge #242 closeout
 
 on:
   workflow_dispatch:
+  schedule:
+    # Keep residual trackers open while AC3/AC5 evidence is still missing.
+    - cron: "17 */6 * * *"
   push:
     branches: [main]
     paths:
@@ -25,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Comment unlock checklist on #242
+      - name: Reopen #242/#198 if needed; comment unlock checklist
         env:
           GH_TOKEN: ${{ github.token }}
           # Optional: used only for status probe text in the comment.
@@ -33,4 +38,4 @@ jobs:
         run: |
           set -euo pipefail
           bash docs/launch/nudge_242_closeout.sh --apply
-          echo "ok: posted #242 closeout nudge"
+          echo "ok: residual #242/#198 reopen-if-needed + closeout nudge"

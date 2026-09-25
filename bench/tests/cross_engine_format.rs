@@ -64,7 +64,7 @@ fn cpp_reads_rust_with_metric(metric: u32, name: &str) {
             "rust build failed"
         );
         let rs = ffi::vanedb_rs_disk_open(path.as_ptr());
-        assert!(!rs.is_null(), "rust cannot open its own file");
+        assert_ne!(rs, 0, "rust cannot open its own file");
         let n_rs =
             ffi::vanedb_rs_disk_search(rs, q.as_ptr(), K, rs_ids.as_mut_ptr(), rs_d.as_mut_ptr());
         ffi::vanedb_rs_disk_free(rs);
@@ -135,8 +135,8 @@ fn rust_reads_cpp_with_metric(metric: u32, name: &str) {
         ffi::vanedb_cpp_disk_free(cpp);
 
         let rs = ffi::vanedb_rs_disk_open(path.as_ptr());
-        assert!(
-            !rs.is_null(),
+        assert_ne!(
+            rs, 0,
             "Rust rejected a file written by C++ — the formats have diverged"
         );
         let n_rs =

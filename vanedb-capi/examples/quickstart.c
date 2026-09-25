@@ -6,8 +6,11 @@ int main(void) {
     const uint64_t ids[] = {101, 202};
     uint64_t nearest = 0;
     float distance = 0.0f;
-    vanedb_rs_store *store = vanedb_rs_store_new(3, VANEDB_RS_COSINE);
-    if (!store) return 1;
+    /* Refuse a library built for another ABI before calling anything else. */
+    if (vanedb_rs_abi_version() != VANEDB_RS_ABI_VERSION) return 2;
+    /* A handle is a 64-bit id, not a pointer; 0 means the constructor failed. */
+    vanedb_rs_store store = vanedb_rs_store_new(3, VANEDB_RS_COSINE);
+    if (store == VANEDB_RS_NULL_HANDLE) return 1;
     int status = 1;
     if (vanedb_rs_store_add_batch(store, ids, vectors, 2) == 0 &&
         vanedb_rs_store_search(store, vectors, 1, &nearest, &distance) == 1 &&

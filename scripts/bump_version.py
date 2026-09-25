@@ -136,6 +136,7 @@ if __name__ == "__main__":
         for command in (
             ["cargo", "update", "-w", "--offline"],
             ["cargo", "update", "--manifest-path", "bench/Cargo.toml", "-w", "--offline"],
+            ["cargo", "update", "--manifest-path", "bench/compare/Cargo.toml", "-w", "--offline"],
             ["cargo", "build", "-p", "vanedb-capi"],
             ["cargo", "test", "--manifest-path", "bench/Cargo.toml", "--test", "release_identity"],
         ):

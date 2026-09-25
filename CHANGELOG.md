@@ -9,7 +9,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+Target: **0.2.0**. This is an unreleased candidate; the version bump does not
+establish release readiness or publication. The [draft release notes](docs/release/0.2.0-notes.md)
+record the remaining integration and evidence dependencies.
+
 ### Added
+
+- Signed C ABI releases: the crate tag builds and verifies all five native
+  archives and target-specific CycloneDX SBOMs, signs their exact bytes with
+  keyless Sigstore, and attaches the complete set with checksums and verification
+  instructions. Branch rehearsals exercise the pipeline without publication.
 
 - Filtered search (RFC 0004 / #199): Predicate, Allow, and Deny filters across `FlatIndex`, `ApproxIndex`, and `DiskIndex`.
 - `SearchParams::filter` and `SearchParams::max_ef_search` with automatic beam widening for HNSW approximate search.
@@ -30,6 +39,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   Node default. `load` of an unknown name resolves to `null`.
 - Python `ApproxIndex.to_bytes` / `from_bytes` and C ABI
   `vanedb_rs_index_save_to_buffer` / `vanedb_rs_index_load_from_buffer`.
+- C ABI distribution, RFC 0002 stage 1 (#193): `VANEDB_RS_ABI_VERSION` and
+  `vanedb_rs_abi_version()`; `vanedb_rs_handle_count()` for leak tests; an
+  exported-symbol allowlist generated from the header (`vanedb-capi/exports/`,
+  `scripts/capi_exports.py`) so the shared library exports exactly the
+  `vanedb_rs_*` set and the Linux and macOS static libraries expose nothing
+  else as global; `find_package(vanedb)` files with `vanedb::shared` and
+  `vanedb::static` imported targets and a `pkg-config` file in every archive,
+  each exercised by a consumer project from the extracted layout in CI; a
+  `capi` Cargo profile (fat LTO, one codegen unit, `panic = "unwind"`) for the
+  shipped libraries, with the shared library stripped at packaging; an
+  `abidiff` CI job against the previous release's shared object; and CI
+  compiling the header as C99, C11 and C++17 under `-Wall -Wextra -pedantic
+  -Werror` and MSVC `/W4 /WX`.
 
 ### Changed — breaking
 
@@ -76,7 +98,33 @@ has a bug. No file-format change. The conformance table is
   `VANEDB_RS_NOT_FOUND` status, and `vanedb_rs_index_ef_search` /
   `_set_ef_search` already exist; the regenerated header is identical.
 
+C ABI handles are integers ([RFC 0002](docs/rfcs/0002-c-abi-distribution.md)
+stage 1, #193):
+
+- **C ABI (`vanedb-capi`), ABI version 1**: handles are `uint64_t` ids in
+  a process-wide table, no longer pointers. `vanedb_rs_store`, `vanedb_rs_index` and `vanedb_rs_disk` are now typedefs
+  of `uint64_t`; constructors return `VANEDB_RS_NULL_HANDLE` (0) on failure
+  instead of `NULL`. An id that was never issued, was freed, was truncated to
+  32 bits, or belongs to another handle type fails with the new status
+  `VANEDB_RS_INVALID_HANDLE` (16) and nothing is dereferenced; a freed id is
+  never reissued, so double free and use after free are reported errors.
+  Passing 0 remains `VANEDB_RS_NULL_ARGUMENT` and freeing 0 remains a no-op.
+  Function names are unchanged; every handle-typed parameter and return is
+  now `uint64_t`, which is a hard compile error for existing C code (the
+  typedef is an integer, so `vanedb_rs_store *s` no longer compiles).
+  Migration: drop the `*` from every `vanedb_rs_store *`, `vanedb_rs_index *`
+  and `vanedb_rs_disk *`; compare with `VANEDB_RS_NULL_HANDLE` instead of
+  `NULL`; log handles with `PRIu64` instead of `%p`; a generic `void *` slot
+  that held a handle becomes `uint64_t`; `ctypes` bindings set `restype` and
+  `argtypes` to `c_uint64`, not `c_void_p`. The header now states the
+  compatibility rule: signatures never change, new behaviour is a new
+  `_ex`/`_v2` function, no struct crosses the boundary.
+
 ### Changed
+
+- The C ABI is built and packaged under the `capi` profile
+  (`cargo build -p vanedb-capi --profile capi`, output in `target/capi/`);
+  `--release` still works for a local build.
 
 - Internal id maps use an in-crate multiplicative hasher instead of SipHash
   (RFC 0010, #109); `DiskIndexBuilder::add` and the batch adds check
