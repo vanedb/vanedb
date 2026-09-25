@@ -1793,3 +1793,57 @@ fn the_vocabulary_of_rfc_0011() {
     }
     let _ = std::fs::remove_file(path.to_str().unwrap());
 }
+
+#[test]
+fn filtered_search_uses_default_beam_widening() {
+    // The C ABI exposes the default 4x cap. Seeing an ID twice proves that
+    // a later pass ran; a single pass evaluates each live node only once.
+    unsafe extern "C-unwind" fn reject(id: u64, data: *mut std::ffi::c_void) -> bool {
+        let seen = unsafe { &mut *data.cast::<Vec<u64>>() };
+        seen.push(id);
+        false
+    }
+    const N: usize = 2000;
+    const DIM: usize = 16;
+    let mut state = 42u64;
+    let vectors: Vec<f32> = (0..N * DIM)
+        .map(|_| {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 40) as f32 / (1u32 << 24) as f32
+        })
+        .collect();
+    unsafe {
+        let index = vanedb_capi::vanedb_rs_index_new(DIM, 0, N, 16, 200, 42);
+        assert_ne!(index, Default::default());
+        let ids: Vec<u64> = (0..N as u64).collect();
+        assert_eq!(
+            vanedb_capi::vanedb_rs_index_add_batch(index, ids.as_ptr(), vectors.as_ptr(), N),
+            0
+        );
+        let mut seen = Vec::<u64>::new();
+        let mut out_ids = [0u64; 10];
+        let mut out_dists = [0.0f32; 10];
+        let count = vanedb_capi::vanedb_rs_index_search_filtered(
+            index,
+            vectors.as_ptr(),
+            10,
+            10,
+            Some(reject),
+            (&mut seen as *mut Vec<u64>).cast(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+            out_ids.as_mut_ptr(),
+            out_dists.as_mut_ptr(),
+        );
+        vanedb_capi::vanedb_rs_index_free(index);
+        assert_eq!(count, 0);
+        let mut unique = std::collections::HashSet::new();
+        let first_retry = seen.iter().position(|id| !unique.insert(*id));
+        assert!(
+            first_retry.is_some_and(|position| position > 40),
+            "the first pass must exceed the beam ceiling and still retry"
+        );
+    }
+}

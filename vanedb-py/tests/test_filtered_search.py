@@ -169,3 +169,35 @@ def test_reentry_guard_is_per_index_and_per_thread():
 
     assert index.search([0.], 1, filter=predicate) == [(1, 0.)]
     assert outcomes == [1]
+
+
+def test_selective_search_widens_after_visits_exceed_beam_cap():
+    # Issue #251: the first width-10 pass visits >200 nodes, but must still
+    # widen to its beam cap when fewer than k matches have been accepted.
+    import numpy as np
+
+    rng = np.random.default_rng(20260920)
+    vectors = rng.normal(size=(2000, 16)).astype("float32")
+    index = vanedb.ApproxIndex(16, vanedb.Metric.L2, capacity=2000, seed=42)
+    index.add_batch(list(range(2000)), vectors)
+    query = rng.normal(size=16).astype("float32")
+    allowed = list(range(0, 2000, 100))
+    calls = []
+
+    def predicate(id):
+        calls.append(id)
+        return id in allowed
+
+    narrow = index.search(query, 10, ef_search=10, max_ef_search=10, filter=predicate)
+    assert len(narrow) < 10
+    assert len(calls) > 200
+    assert index.search(query, 10, ef_search=10, max_ef_search=10,
+                        allow_ids=allowed) == narrow
+    for options in ({}, {"max_ef_search": 40}, {"max_ef_search": 100},
+                    {"max_ef_search": 200}):
+        calls.clear()
+        hits = index.search(query, 10, ef_search=10, filter=predicate, **options)
+        assert len(hits) == 10
+        assert all(id in allowed for id, _ in hits)
+        assert len(calls) > len(set(calls)), "retries revisit nodes"
+        assert index.search(query, 10, ef_search=10, allow_ids=allowed, **options) == hits
