@@ -30,6 +30,38 @@ oldest OS. Consumer acceptance runs on the recorded CI host. In particular, the
 Windows PE subsystem version does not establish the application's minimum OS.
 Build from source and verify on your deployment if it differs from those hosts.
 
+## Signed release verification (0.2.0 onward)
+
+The [`vanedb-crate-v<version>` release](https://github.com/vanedb/vanedb/releases)
+carries all five desktop archives, a target-specific CycloneDX SBOM beside
+each archive, `CAPI-RELEASE.json` (source commit and artifact inventory),
+`CAPI-VERIFYING.md`, and `SHA256SUMS`. Every payload has a matching
+`.sigstore.json` keyless signature bundle. The bundle binds the exact bytes
+to this repository's release workflow through GitHub OIDC and Sigstore's
+transparency log. These signatures start with 0.2.0; 0.1.1 assets are unsigned.
+
+Download the files into an empty directory. With
+[cosign v3.1.3](https://github.com/sigstore/cosign/releases/tag/v3.1.3),
+verify the checksum file's exact release identity **before** trusting its hashes
+(substitute the desired version):
+
+```sh
+version=0.2.0
+cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity "https://github.com/vanedb/vanedb/.github/workflows/publish-capi.yml@refs/tags/vanedb-crate-v$version" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum --check SHA256SUMS  # macOS: shasum -a 256 --check SHA256SUMS
+```
+
+The release notes and `CAPI-VERIFYING.md` contain the complete verification
+command with the approved source commit and its matching OIDC certificate SHA
+claim. The full verifier enforces both. To verify one archive independently,
+replace `SHA256SUMS` and its bundle with that archive and its bundle, retaining
+the exact certificate identity and issuer. Do not accept a branch identity for
+a tagged release. The SBOM inventories Cargo dependencies (including build
+dependencies) for the recorded target and default C ABI features; system
+library requirements remain in the archive's `compatibility.json`.
+
 ## What the archive contains
 
 ```

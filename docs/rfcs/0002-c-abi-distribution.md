@@ -267,6 +267,11 @@ Stage 4 (#196):
 
 Stage 5 (#197):
 
+Implementation: `publish-capi.yml` and `scripts/capi_release.py` build, test,
+sign and verify the complete native release set. The boxes below remain open
+until the final candidate's branch rehearsal and protected tag publication
+provide the recorded evidence; local script tests alone are not that evidence.
+
 - [ ] Release workflow attaches every artifact, checksums and SBOM to the
       GitHub Release and signs them; verification command in the notes.
 - [ ] `vanedb-capi/README.md` and `docs/release/RELEASING.md` updated.
