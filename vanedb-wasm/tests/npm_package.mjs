@@ -121,8 +121,8 @@ function checkFilteredSearch(bindings) {
 checkFilteredSearch(esm);
 checkFilteredSearch(cjs);
 
-const { readFileSync, mkdtempSync, writeFileSync } = await import('node:fs');
-const { spawnSync } = await import('node:child_process');
+const { readFileSync, mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+const { spawnSync, fork } = await import('node:child_process');
 const os = await import('node:os');
 const path = await import('node:path');
 
@@ -159,6 +159,64 @@ try {
     'a non-buffer must not be reported as a corrupt file',
   );
 } finally { fromFixture.free(); }
+
+// Kill an actual writer after a partial temp write, immediately before rename,
+// and immediately after rename. A destination must always be a complete VNDB
+// snapshot; checksums alone are insufficient unless both inputs are valid.
+{
+  const { createHash } = await import('node:crypto');
+  const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+  const updated = esm.ApproxIndex.fromBytes(golden);
+  let replacement;
+  try {
+    updated.add(999n, Float32Array.of(3, 4));
+    replacement = updated.toBytes();
+  } finally { updated.free(); }
+  assert.notEqual(sha256(golden), sha256(replacement));
+  for (const checkpoint of ['partial-write', 'before-rename', 'after-rename']) {
+    const directory = mkdtempSync(path.join(os.tmpdir(), 'vanedb-atomic-'));
+    let writer;
+    try {
+      writeFileSync(path.join(directory, 'atomic.vndb'), golden);
+      const input = path.join(directory, 'replacement.vndb');
+      writeFileSync(input, replacement);
+      writer = fork(path.join(process.cwd(), 'atomic_write_child.cjs'), [directory, input, checkpoint],
+        { stdio: ['ignore', 'ignore', 'pipe', 'ipc'] });
+      let stderr = '';
+      writer.stderr.on('data', chunk => { stderr += chunk; });
+      await new Promise((resolve, reject) => {
+        let reached = false;
+        const timeout = setTimeout(() => {
+          writer.kill('SIGKILL');
+          reject(new Error(`${checkpoint}: writer timed out: ${stderr}`));
+        }, 15000);
+        writer.once('error', error => { clearTimeout(timeout); reject(error); });
+        writer.once('message', message => {
+          reached = message.checkpoint === checkpoint;
+          writer.kill('SIGKILL');
+        });
+        writer.once('exit', (code, signal) => {
+          clearTimeout(timeout);
+          if (!reached || signal !== 'SIGKILL') {
+            reject(new Error(`${checkpoint}: writer missed interruption (${code}, ${signal}): ${stderr}`));
+          } else { resolve(); }
+        });
+      });
+      const actual = readFileSync(path.join(directory, 'atomic.vndb'));
+      const expected = checkpoint === 'after-rename' ? replacement : golden;
+      assert.equal(sha256(actual), sha256(expected), `${checkpoint}: destination was not the complete expected snapshot`);
+      const loaded = esm.ApproxIndex.fromBytes(actual);
+      try {
+        assert.equal(loaded.size(), checkpoint === 'after-rename' ? 4 : 3);
+        assert.equal(loaded.contains(999n), checkpoint === 'after-rename');
+      } finally { loaded.free(); }
+    } finally {
+      if (writer && writer.exitCode === null && writer.signalCode === null) writer.kill('SIGKILL');
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+  console.log('fileStorage SIGKILL checkpoints: partial-write, before-rename, after-rename passed');
+}
 
 const persistDir = mkdtempSync(path.join(os.tmpdir(), 'vanedb-persist-'));
 const storage = esm.fileStorage(persistDir);
