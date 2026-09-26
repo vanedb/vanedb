@@ -1,0 +1,7 @@
+[
+  "/Users/anton/code/codex/020-capacity-fixture-probe/target/release/capacity-fixture-probe",
+  "disk",
+  "10000",
+  "/Users/anton/code/codex/vanedb-pr-214/bench/compare/fixtures/embeddings.vnef",
+  "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/disk-10000.vndb"
+]

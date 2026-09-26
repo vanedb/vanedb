@@ -1,0 +1,8 @@
+test_corruptions (test_verify_files.ParserChecks.test_corruptions) ... ok
+test_every_truncation (test_verify_files.ParserChecks.test_every_truncation) ... ok
+test_golden (test_verify_files.ParserChecks.test_golden) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.002s
+
+OK

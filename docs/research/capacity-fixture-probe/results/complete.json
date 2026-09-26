@@ -1,0 +1,14 @@
+{
+  "source_still_clean": true,
+  "source_sha": "35758c6ccac0b9e657be8d80e84d1744378df120",
+  "counts": [
+    8192,
+    10000,
+    100000
+  ],
+  "kinds": [
+    "flat",
+    "disk",
+    "approx"
+  ]
+}

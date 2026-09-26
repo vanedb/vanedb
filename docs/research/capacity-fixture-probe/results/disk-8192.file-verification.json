@@ -1,0 +1,11 @@
+{
+  "format": "VNDB_v1",
+  "dim": 768,
+  "count": 8192,
+  "metric": 1,
+  "vector_bits_match": true,
+  "file": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/disk-8192.vndb",
+  "file_bytes": 25231392,
+  "sha256": "f5c405fad5222bcb01d18af12767b49bf4411e0835c1e5e824f19bd9c43871e2",
+  "checks": "bounds/header/EOF and fixture ID/vector bytes verified"
+}

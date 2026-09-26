@@ -1,0 +1,18 @@
+Running flat n=8192 in fresh process
+PASS flat n=8192: built delta=25509896; after-drop residual=0
+Running disk n=8192 in fresh process
+PASS disk n=8192: built delta=278536; after-drop residual=0
+Running approx n=8192 in fresh process
+PASS approx n=8192: built delta=28121480; after-drop residual=16384
+Running flat n=10000 in fresh process
+PASS flat n=10000: built delta=31078536; after-drop residual=0
+Running disk n=10000 in fresh process
+PASS disk n=10000: built delta=278536; after-drop residual=0
+Running approx n=10000 in fresh process
+PASS approx n=10000: built delta=35014312; after-drop residual=32768
+Running flat n=100000 in fresh process
+PASS flat n=100000: built delta=310228232; after-drop residual=0
+Running disk n=100000 in fresh process
+PASS disk n=100000: built delta=2228232; after-drop residual=0
+Running approx n=100000 in fresh process
+PASS approx n=100000: built delta=342442992; after-drop residual=262144
