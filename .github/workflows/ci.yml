@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # A newer push to the same PR makes the in-flight run's verdict obsolete, and
 # this workflow fans out to ~53 jobs, so leaving it running costs ~80 job-
@@ -27,12 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      rust: ${{ steps.filter.outputs.rust }}
-      cpp: ${{ steps.filter.outputs.cpp }}
-      integration: ${{ steps.filter.outputs.integration }}
+      # A release-source rehearsal must run every component, even for docs-only S.
+      rust: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.rust }}
+      cpp: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.cpp }}
+      integration: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.integration }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: filter
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
@@ -107,6 +110,9 @@ jobs:
         run: |
           python -m pip install --constraint .github/requirements-release.txt PyYAML
           python .github/scripts/check_wheel_matrix.py
+
+      - name: CI dispatch and required-gate regression tests
+        run: python3 scripts/test_ci_dispatch.py
 
       # `check_release_readmes.py` otherwise runs for the first time in its life
       # during an irreversible publish. These cases are the rewordings a review
