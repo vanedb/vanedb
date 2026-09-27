@@ -15,7 +15,7 @@ constexpr int VERSION_MINOR = 2;
 constexpr int VERSION_PATCH = 0;
 
 /// Full version string
-constexpr const char* VERSION_STRING = "0.2.0";
+constexpr const char* VERSION_STRING = "0.2.0-rc.1";
 
 /**
  * @brief Returns the version as a single integer for comparison.

@@ -12,7 +12,8 @@ mapping alongside it; per-query allow lists, deny lists, or predicates restrict
 search results using that external metadata. Supply your own embeddings —
 VaneDB does not generate them.
 
-Add it with `cargo add vanedb`. This complete program inserts two vectors and
+This is the 0.2.0 release candidate for integration testing.
+Add it with `cargo add vanedb@0.2.0-rc.1`. This complete program inserts two vectors and
 finds the nearest one:
 
 ```rust
