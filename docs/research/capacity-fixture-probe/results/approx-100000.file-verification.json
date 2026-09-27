@@ -1,0 +1,80 @@
+{
+  "format": "VNDB_v2",
+  "metric": 1,
+  "dim": 768,
+  "count": 100000,
+  "capacity": 100000,
+  "m": 16,
+  "ef_construction": 200,
+  "ef_search": 50,
+  "seed": 7,
+  "entry": 12554,
+  "max_level": 4,
+  "continuation_encoding": 1,
+  "continuation_bytes": 0,
+  "live_count": 100000,
+  "nodes_by_level": [
+    93895,
+    5717,
+    366,
+    20,
+    2
+  ],
+  "layer_node_counts": [
+    100000,
+    6105,
+    388,
+    22,
+    2
+  ],
+  "layer_degree_sums": [
+    2638885,
+    97680,
+    6208,
+    352,
+    2
+  ],
+  "layer_degree_histograms": [
+    {
+      "28": 3491,
+      "32": 35844,
+      "29": 3312,
+      "31": 2795,
+      "26": 4102,
+      "25": 4419,
+      "20": 5036,
+      "24": 4557,
+      "23": 5010,
+      "22": 5016,
+      "18": 4345,
+      "30": 3047,
+      "27": 3714,
+      "19": 4938,
+      "21": 5113,
+      "16": 1891,
+      "17": 3370
+    },
+    {
+      "16": 6105
+    },
+    {
+      "16": 388
+    },
+    {
+      "16": 22
+    },
+    {
+      "1": 2
+    }
+  ],
+  "total_layers": 106517,
+  "total_links": 2743127,
+  "mean_degree0": 26.38885,
+  "mean_links_per_node": 27.43127,
+  "exact_fit_neighbor_bytes_64bit": 26901424,
+  "exact_fit_scope": "n node Vec headers + one Vec header per layer + 8 bytes per edge; excludes outer stack header; assumes exact-fit capacities, NOT observed heap capacity",
+  "file": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-100000.vndb",
+  "file_bytes": 331597248,
+  "sha256": "e0af799fcf87d13459987fb7bcc165f8957b134c030cddc72937bd83d799db52",
+  "checks": "bounds/header/EOF and fixture ID/vector bytes verified"
+}
