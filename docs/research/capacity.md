@@ -430,14 +430,20 @@ Three observations.
 1. **The measurements in issue question 3 are not done.** Resident memory,
    p50/p99 warm and cold, and recall@10 for resident f32, mapped f32 and
    binary-plus-rescoring at 100k, 1M and 10M on one Android device and one
-   NVMe laptop need the RFC 0003 fixture (`embeddings.vnef`) and dedicated
-   hardware; neither exists in a cloud sandbox. They belong to RFC 0008's
-   spike and to RFC 0005's recall table, and this page should be amended with
-   the table when they land.
+   NVMe laptop require dedicated hardware. The RFC 0003 fixture
+   (`embeddings.vnef`) is now hosted and was used for question 2 below; the
+   device/mode measurements remain outstanding. They belong to RFC 0008's
+   spike and RFC 0005's recall table, and this page should be amended with
+   that table when they land.
 2. **Real-embedding link density.** The graph's link memory (section 4.4) was
    measured on pseudo-random vectors; embedding corpora at the same M usually
-   fill layer 0 closer to the 2M cap. Re-run the allocator check on the
-   fixture once it is hosted.
+   fill layer 0 closer to the 2M cap. The [real-fixture allocator study](capacity-fixture-probe/REPORT.md)
+   now records 8,192, 10,000 and 100,000 vectors at 768 dimensions on candidate
+   `35758c6`. With cosine, M=16 and seed=7, source-derived neighbor storage is
+   about 311.5 B/node and mean layer-0 degree is 26.39 at 100k. This supplies
+   the requested fixture sanity check; it does not replace the physical-device,
+   mode, latency or recall measurements in question 1. The earlier random/L2
+   run and this cosine/ARM64 run are not a controlled comparison.
 3. **The id map costs 19 to 39 bytes per vector in every index, including
    `DiskIndex`** (now stated in `LIMITS.md`). At 10M vectors that is
    190 to 390 MB of resident memory on an index whose vectors are otherwise

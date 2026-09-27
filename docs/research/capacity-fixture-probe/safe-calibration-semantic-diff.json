@@ -1,0 +1,330 @@
+{
+  "measurement_and_allocator_source_unchanged": true,
+  "cases": [
+    {
+      "case": "flat-8192",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "after_save_live_bytes": {
+          "old": 50742233,
+          "new": 50742250
+        },
+        "baseline_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "built_live_bytes": {
+          "old": 50742233,
+          "new": 50742250
+        },
+        "empty_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "pid": {
+          "old": 82181,
+          "new": 86058
+        }
+      }
+    },
+    {
+      "case": "disk-8192",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "after_save_live_bytes": {
+          "old": 25510873,
+          "new": 25510890
+        },
+        "baseline_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "built_live_bytes": {
+          "old": 25510873,
+          "new": 25510890
+        },
+        "empty_live_bytes": {
+          "old": 25232337,
+          "new": 25232354
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/disk-8192.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/disk-8192.vndb"
+        },
+        "pid": {
+          "old": 82182,
+          "new": 86061
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "f5c405fad5222bcb01d18af12767b49bf4411e0835c1e5e824f19bd9c43871e2"
+    },
+    {
+      "case": "approx-8192",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 25248725,
+          "new": 25248742
+        },
+        "after_save_live_bytes": {
+          "old": 53353821,
+          "new": 53353838
+        },
+        "baseline_live_bytes": {
+          "old": 25232341,
+          "new": 25232358
+        },
+        "built_live_bytes": {
+          "old": 53353821,
+          "new": 53353838
+        },
+        "empty_live_bytes": {
+          "old": 25536213,
+          "new": 25536230
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/approx-8192.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-8192.vndb"
+        },
+        "pid": {
+          "old": 82183,
+          "new": 86062
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "313e5c28226729d9e825fe4f3c54f8a02348104e04c0223dc161749be6332c6f"
+    },
+    {
+      "case": "flat-10000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "after_save_live_bytes": {
+          "old": 61879515,
+          "new": 61879532
+        },
+        "baseline_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "built_live_bytes": {
+          "old": 61879515,
+          "new": 61879532
+        },
+        "empty_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "pid": {
+          "old": 82197,
+          "new": 86063
+        }
+      }
+    },
+    {
+      "case": "disk-10000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "after_save_live_bytes": {
+          "old": 31079515,
+          "new": 31079532
+        },
+        "baseline_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "built_live_bytes": {
+          "old": 31079515,
+          "new": 31079532
+        },
+        "empty_live_bytes": {
+          "old": 30800979,
+          "new": 30800996
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/disk-10000.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/disk-10000.vndb"
+        },
+        "pid": {
+          "old": 82198,
+          "new": 86064
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "3ede6854ceae452f89de777336def71e55d92a791cc33704d6c772e7dd130419"
+    },
+    {
+      "case": "approx-10000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 30833751,
+          "new": 30833768
+        },
+        "after_save_live_bytes": {
+          "old": 65815295,
+          "new": 65815312
+        },
+        "baseline_live_bytes": {
+          "old": 30800983,
+          "new": 30801000
+        },
+        "built_live_bytes": {
+          "old": 65815295,
+          "new": 65815312
+        },
+        "empty_live_bytes": {
+          "old": 31171943,
+          "new": 31171960
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/approx-10000.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-10000.vndb"
+        },
+        "pid": {
+          "old": 82199,
+          "new": 86065
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "12f3b2ad3036ca8573e1cecdcb4b6dfd6b4713812461a63e9aab0f4fac81d76f"
+    },
+    {
+      "case": "flat-100000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "after_save_live_bytes": {
+          "old": 618229213,
+          "new": 618229230
+        },
+        "baseline_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "built_live_bytes": {
+          "old": 618229213,
+          "new": 618229230
+        },
+        "empty_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "pid": {
+          "old": 82200,
+          "new": 86068
+        }
+      }
+    },
+    {
+      "case": "disk-100000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "after_save_live_bytes": {
+          "old": 310229213,
+          "new": 310229230
+        },
+        "baseline_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "built_live_bytes": {
+          "old": 310229213,
+          "new": 310229230
+        },
+        "empty_live_bytes": {
+          "old": 308000981,
+          "new": 308000998
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/disk-100000.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/disk-100000.vndb"
+        },
+        "pid": {
+          "old": 82201,
+          "new": 86069
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "704dcace49bf7a0ae7f805efb773e20f4f94ab82e6ac777597b4d7629103edcd"
+    },
+    {
+      "case": "approx-100000",
+      "all_semantic_fields_equal": true,
+      "absolute_counter_shift_bytes": 17,
+      "explanation": "PID and output path differ; longer retained output-path argument shifts all absolute counters equally; every heap delta/calibration value is identical",
+      "changed_fields": {
+        "after_drop_live_bytes": {
+          "old": 308263129,
+          "new": 308263146
+        },
+        "after_save_live_bytes": {
+          "old": 650443977,
+          "new": 650443994
+        },
+        "baseline_live_bytes": {
+          "old": 308000985,
+          "new": 308001002
+        },
+        "built_live_bytes": {
+          "old": 650443977,
+          "new": 650443994
+        },
+        "empty_live_bytes": {
+          "old": 311710369,
+          "new": 311710386
+        },
+        "file": {
+          "old": "/Users/anton/code/codex/020-capacity-fixture-probe/results/approx-100000.vndb",
+          "new": "/Users/anton/code/codex/020-capacity-fixture-probe/results-safe-calibration/approx-100000.vndb"
+        },
+        "pid": {
+          "old": 82203,
+          "new": 86070
+        }
+      },
+      "file_geometry_and_checksums_equal": true,
+      "file_sha256": "e0af799fcf87d13459987fb7bcc165f8957b134c030cddc72937bd83d799db52"
+    }
+  ],
+  "result": "PASS: nine semantic rows and six persisted files identical"
+}
