@@ -9,6 +9,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+## [0.2.0-rc.1] - 2026-09-27
+
+Release candidate for integration testing. Final 0.2.0 performance acceptance
+and release sign-off remain open. See the [RC testing notes](docs/release/0.2.0-rc.1-notes.md)
+for installation, migration and known limitations.
+
 ### Added
 
 - Signed C ABI releases: the crate tag builds and verifies all five native
