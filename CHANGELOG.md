@@ -9,9 +9,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
-Target: **0.2.0**. This is an unreleased candidate; the version bump does not
-establish release readiness or publication. The [draft release notes](docs/release/0.2.0-notes.md)
-record the remaining integration and evidence dependencies.
+## [0.2.0-rc.1] - 2026-09-27
+
+Release candidate for integration testing. Final 0.2.0 performance acceptance
+and release sign-off remain open. See the [RC testing notes](docs/release/0.2.0-rc.1-notes.md)
+for installation, migration and known limitations.
 
 ### Added
 
