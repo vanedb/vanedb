@@ -192,9 +192,9 @@ one. A width below `k` is raised to `k`, so `0` is the narrowest legal override
 rather than a request to use the index's setting — omit the argument for that.
 Measure recall and latency on your own data when choosing one.
 
-Neither exists on `FlatIndex`, which is exact and has no beam. JavaScript
-ignores surplus arguments, so `flatIndex.search(query, k, 64)` runs without
-complaint and the width does nothing.
+Neither exists on `FlatIndex`, which is exact and has no beam. Its third
+argument is the filter options object, so `flatIndex.search(query, k, 64)`
+throws rather than accepting a width it would ignore.
 
 ## Values
 
