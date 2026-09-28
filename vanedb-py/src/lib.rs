@@ -9,7 +9,6 @@ use pyo3::exceptions::{
 };
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
-use pyo3::types::PyInt;
 use pyo3::Borrowed;
 
 use ::vanedb::approx::{ApproxIndex, Filter, SearchParams};
@@ -239,6 +238,45 @@ fn reject_reentry<T>(index: &T) -> PyResult<()> {
     Ok(())
 }
 
+static INSPECT_MODULE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+
+/// Refuse a predicate that cannot return a verdict. Calling a coroutine,
+/// generator, or async generator function builds an unevaluated object instead
+/// of running the body, and every such object is truthy -- so accepting one
+/// would admit every candidate the filter was written to exclude. Checked once
+/// per search, never per candidate.
+///
+/// The callable itself is inspected, and so is its `__call__`, which is where
+/// a class with an `async def __call__` carries the marker. A plain function
+/// that returns an awaitable it never made itself is not detectable here and
+/// stays the caller's responsibility.
+fn reject_non_synchronous(filter_obj: &Bound<'_, PyAny>) -> PyResult<()> {
+    let py = filter_obj.py();
+    let inspect = INSPECT_MODULE
+        .get_or_try_init(py, || py.import("inspect").map(|m| m.into_any().unbind()))?
+        .bind(py);
+    let dunder_call = filter_obj.getattr("__call__").ok();
+    for subject in [Some(filter_obj.clone()), dunder_call]
+        .into_iter()
+        .flatten()
+    {
+        for probe in [
+            "iscoroutinefunction",
+            "isgeneratorfunction",
+            "isasyncgenfunction",
+        ] {
+            if inspect.call_method1(probe, (&subject,))?.is_truthy()? {
+                return Err(PyTypeError::new_err(
+                    "filter must be a synchronous function: calling a coroutine \
+                     or generator function returns an unevaluated object, which \
+                     would admit every candidate",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Extracted filter representation from Python keyword arguments.
 enum PyFilterHolder<'a> {
     None,
@@ -284,6 +322,7 @@ fn extract_py_filter<'a>(
         if !filter_obj.is_callable() {
             return Err(PyTypeError::new_err("filter must be a callable"));
         }
+        reject_non_synchronous(filter_obj)?;
         let callable = filter_obj.clone().unbind();
         let error = Arc::new(parking_lot::Mutex::new(None));
         let callback_error = Arc::clone(&error);

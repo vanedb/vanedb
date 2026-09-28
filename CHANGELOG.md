@@ -9,6 +9,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- Python: a `filter=` predicate defined with `async def`, as a generator, or as
+  a class with an `async def __call__` is now refused with `TypeError`. Calling
+  one returns an unevaluated coroutine or generator rather than a verdict, and
+  every such object is truthy, so the search had been admitting every candidate
+  the filter was written to exclude. Checked once per search, not per candidate.
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance
