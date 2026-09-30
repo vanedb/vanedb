@@ -11,30 +11,26 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Added
 
-- WebAssembly: every engine failure is thrown as an `Error` carrying a `code`
-  that mirrors the C ABI's status name (`ERR_DIMENSION_MISMATCH`,
-  `ERR_NOT_FOUND`, `ERR_DUPLICATE_ID`, `ERR_CORRUPT`, ...), the spelling the
-  re-entrancy error already used. The declarations export the union as
-  `VaneErrorCode`. Messages are unchanged; an argument the binding rejects
-  before it reaches the engine still throws without a code (#262, wasm
-  column).
+- C `vanedb_rs_index_search_filtered_ex` exposes the per-query widening cap
+  while preserving the existing entry point and ABI (#305).
+- Python engine exceptions inherit `vanedb.VaneError` and their previous
+  built-in exception class, preserving existing catch behavior (#262).
+- WebAssembly engine failures carry an `ERR_` code alongside their message;
+  binding-level argument errors retain their existing behavior (#262).
 
 ### Fixed
 
 - Python predicates reject deferred callables and deferred return values,
   including synchronous wrappers returning awaitables or generators.
 - DOT kernels recover finite cancellation results after intermediate overflow
-  using a rare f64 recomputation; final out-of-range scores remain negative infinity.
+  using a rare f64 recomputation; final out-of-range scores remain negative
+  infinity (#300).
 - WebAssembly validates numeric input types before coercion and accepts
-  safe-integer Number IDs alongside unsigned 64-bit BigInt IDs.
+  safe-integer Number IDs alongside unsigned 64-bit BigInt IDs (#301, #306).
 - Full-width graph searches scan stored vectors with bounded top-k selection,
-  recovering disconnected nodes without rewriting persisted topology.
-
-- Python engine exceptions inherit `vanedb.VaneError` and their previous
-  built-in exception class, preserving existing catch behavior (#262).
-
-- C `vanedb_rs_index_search_filtered_ex` exposes the per-query widening cap
-  while preserving the existing entry point and ABI.
+  recovering disconnected nodes without rewriting persisted topology (#299).
+- Release publication reuses existing drafts and addresses releases and assets
+  by their IDs to avoid ambiguous tag resolution (#302).
 
 ## [0.2.0-rc.1] - 2026-09-27
 
