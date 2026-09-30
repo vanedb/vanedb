@@ -969,3 +969,83 @@ fn filtered_search_retries_up_to_default_and_explicit_beam_caps() {
         "default cap is four times the initial beam"
     );
 }
+
+/// Every engine failure throws an `Error` whose `code` mirrors the C ABI's
+/// status name (#262), so a caller can branch without matching the message.
+#[wasm_bindgen_test]
+fn engine_failures_carry_a_code() {
+    fn code(error: JsValue) -> String {
+        js_sys::Reflect::get(&error, &JsValue::from_str("code"))
+            .unwrap()
+            .as_string()
+            .expect("an engine failure carries a string code")
+    }
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
+    store.add(&JsValue::from(1u64), &v(&[1.0, 2.0])).unwrap();
+    assert_eq!(
+        code(store.add(&JsValue::from(2u64), &v(&[1.0])).err().unwrap()),
+        "ERR_DIMENSION_MISMATCH"
+    );
+    assert_eq!(
+        code(
+            store
+                .add(&JsValue::from(1u64), &v(&[1.0, 2.0]))
+                .err()
+                .unwrap()
+        ),
+        "ERR_DUPLICATE_ID"
+    );
+    assert_eq!(
+        code(store.remove(&JsValue::from(9u64)).err().unwrap()),
+        "ERR_NOT_FOUND"
+    );
+    assert_eq!(
+        code(
+            store
+                .search(&v(&[1.0, 2.0]), &JsValue::from(0.0), None)
+                .err()
+                .unwrap()
+        ),
+        "ERR_INVALID_K"
+    );
+    assert_eq!(
+        code(
+            store
+                .add(&JsValue::from(3u64), &v(&[f32::NAN, 0.0]))
+                .err()
+                .unwrap()
+        ),
+        "ERR_NON_FINITE_VALUE"
+    );
+    assert_eq!(
+        code(
+            WasmStore::new(&JsValue::from(0.0), &JsValue::from_str("l2"))
+                .err()
+                .unwrap()
+        ),
+        "ERR_ZERO_DIMENSION"
+    );
+    assert_eq!(
+        code(WasmIndex::from_bytes(b"not a graph").err().unwrap()),
+        "ERR_CORRUPT"
+    );
+    let message = js_sys::Reflect::get(
+        &store.remove(&JsValue::from(9u64)).err().unwrap(),
+        &JsValue::from_str("message"),
+    )
+    .unwrap();
+    assert_eq!(
+        message.as_string().as_deref(),
+        Some("vector not found: 9"),
+        "the message is still the engine's own text"
+    );
+    // An argument the binding rejects before the engine sees it carries no
+    // code: that boundary is a separate decision on #262.
+    let boundary = store
+        .add(&JsValue::from(-1.0), &v(&[1.0, 2.0]))
+        .err()
+        .unwrap();
+    assert!(js_sys::Reflect::get(&boundary, &JsValue::from_str("code"))
+        .unwrap()
+        .is_undefined());
+}
