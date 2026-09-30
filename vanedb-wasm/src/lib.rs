@@ -56,6 +56,9 @@ fn to_jserr(e: vanedb::VaneError) -> JsError {
 
 // Accept the JavaScript bigint before the Wasm i64 boundary can wrap it.
 fn one_id(id: BigInt) -> Result<u64, JsError> {
+    if !AsRef::<JsValue>::as_ref(&id).is_bigint() {
+        return Err(JsError::new("id must be a BigInt; use e.g. 5n"));
+    }
     u64::try_from(id).map_err(|_| JsError::new("id must be between 0 and 2**64 - 1"))
 }
 
@@ -245,7 +248,7 @@ fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsVal
 
 fn optional_count(options: &JsValue, name: &str) -> Result<Option<usize>, JsValue> {
     let value = Reflect::get(options, &JsValue::from_str(name))?;
-    if value.is_undefined() || value.is_null() {
+    if value.is_undefined() {
         return Ok(None);
     }
     let number = value
@@ -285,6 +288,41 @@ fn count(value: f64, name: &str) -> Result<usize, JsError> {
         )));
     }
     Ok(value as usize)
+}
+
+fn js_count(value: &JsValue, name: &str) -> Result<usize, JsError> {
+    let number = value.as_f64().ok_or_else(|| {
+        JsError::new(&format!(
+            "{name} must be an integer between 0 and 4294967295 (a Number)"
+        ))
+    })?;
+    count(number, name)
+}
+
+// Inspect array elements before any Float32Array/wasm conversion can coerce
+// null, booleans or strings into valid-looking coordinates.
+fn vector_values(value: &JsValue) -> Result<Vec<f32>, JsValue> {
+    if value.is_instance_of::<js_sys::Float32Array>() {
+        return Ok(value.unchecked_ref::<js_sys::Float32Array>().to_vec());
+    }
+    if !js_sys::Array::is_array(value) {
+        return Err(
+            JsError::new("vector must be a Float32Array or an array of finite Numbers").into(),
+        );
+    }
+    let array = value.unchecked_ref::<js_sys::Array>();
+    let mut values = Vec::with_capacity(array.length() as usize);
+    for value in array.iter() {
+        let number = value
+            .as_f64()
+            .ok_or_else(|| JsError::new("vector must contain only finite Numbers"))?;
+        let coordinate = number as f32;
+        if !coordinate.is_finite() {
+            return Err(JsError::new("vector must contain only finite values").into());
+        }
+        values.push(coordinate);
+    }
+    Ok(values)
 }
 
 /// The spelling `parse_metric` accepts, so a reported metric can be fed
@@ -341,25 +379,39 @@ pub struct WasmStore {
 impl WasmStore {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        dim: f64,
+        #[wasm_bindgen(unchecked_param_type = "number")] dim: JsValue,
         #[wasm_bindgen(unchecked_param_type = "string")] metric: &JsValue,
     ) -> Result<WasmStore, JsError> {
         let m = metric_from_value(metric)?;
-        let inner = FlatIndex::new(count(dim, "dimension")?, m).map_err(to_jserr)?;
+        let inner = FlatIndex::new(js_count(&dim, "dimension")?, m).map_err(to_jserr)?;
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+    pub fn add(
+        &self,
+        id: BigInt,
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
+    ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.add(one_id(id)?, vector).map_err(to_jserr)?)
+        Ok(self
+            .inner
+            .add(one_id(id)?, &vector_values(vector)?)
+            .map_err(to_jserr)?)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
     /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
     /// on error the store is unchanged.
-    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsValue> {
+    pub fn add_batch(
+        &self,
+        ids: &[u64],
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vectors: &JsValue,
+    ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.add_batch(ids, vectors).map_err(to_jserr)?)
+        Ok(self
+            .inner
+            .add_batch(ids, &vector_values(vectors)?)
+            .map_err(to_jserr)?)
     }
 
     /// Search for k nearest neighbors, with optional filter options.
@@ -371,12 +423,13 @@ impl WasmStore {
     /// same index while search holds its read lock. Exceptions propagate.
     pub fn search(
         &self,
-        query: &[f32],
-        k: f64,
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] query: &JsValue,
+        #[wasm_bindgen(unchecked_param_type = "number")] k: JsValue,
         #[wasm_bindgen(unchecked_optional_param_type = "SearchFilterOptions | null")]
         options: Option<JsValue>,
     ) -> Result<WasmSearchResults, JsValue> {
-        let k = count(k, "k")?;
+        let k = js_count(&k, "k")?;
+        let query = vector_values(query)?;
         let parsed = match options {
             Some(ref opt) => parse_filter_options(opt)?,
             None => None,
@@ -398,7 +451,7 @@ impl WasmStore {
         let _scope = callback_error
             .is_some()
             .then(|| PredicateScope::enter(self));
-        let results = self.inner.search_with(query, k, &params);
+        let results = self.inner.search_with(&query, k, &params);
         if let Some(error) = callback_error
             .as_ref()
             .and_then(|e| e.lock().unwrap().take())
@@ -481,9 +534,16 @@ impl WasmIndex {
     /// running against the same memory sees a window where it is missing;
     /// this has neither. A replaced slot is tombstoned like any other
     /// removal, so `tombstones` counts it and `compact` reclaims it.
-    pub fn upsert(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+    pub fn upsert(
+        &self,
+        id: BigInt,
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
+    ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.upsert(one_id(id)?, vector).map_err(to_jserr)?)
+        Ok(self
+            .inner
+            .upsert(one_id(id)?, &vector_values(vector)?)
+            .map_err(to_jserr)?)
     }
 
     /// How many removed slots the graph still carries.
@@ -510,42 +570,57 @@ impl WasmIndex {
     /// built from the same vectors with the same seed have the same topology.
     #[wasm_bindgen(constructor)]
     pub fn new(
-        dim: f64,
+        #[wasm_bindgen(unchecked_param_type = "number")] dim: JsValue,
         #[wasm_bindgen(unchecked_param_type = "string")] metric: &JsValue,
-        capacity: f64,
-        m: f64,
-        ef_construction: f64,
-        seed: Option<f64>,
+        #[wasm_bindgen(unchecked_param_type = "number")] capacity: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "number")] m: JsValue,
+        #[wasm_bindgen(unchecked_param_type = "number")] ef_construction: JsValue,
+        #[wasm_bindgen(unchecked_optional_param_type = "number")] seed: JsValue,
     ) -> Result<WasmIndex, JsError> {
         let met = metric_from_value(metric)?;
         // Ids beyond 2^53 are not exactly representable as f64, so a seed
         // arrives through the same numeric gate as every other count rather
         // than being cast silently.
-        let seed = match seed {
-            Some(value) => count(value, "seed")? as u64,
-            None => DEFAULT_SEED,
+        let seed = if seed.is_undefined() {
+            DEFAULT_SEED
+        } else {
+            js_count(&seed, "seed")? as u64
         };
-        let inner = ApproxIndex::builder(count(dim, "dimension")?, met)
-            .capacity(count(capacity, "capacity")?)
-            .m(count(m, "m")?)
-            .ef_construction(count(ef_construction, "ef_construction")?)
+        let inner = ApproxIndex::builder(js_count(&dim, "dimension")?, met)
+            .capacity(js_count(&capacity, "capacity")?)
+            .m(js_count(&m, "m")?)
+            .ef_construction(js_count(&ef_construction, "ef_construction")?)
             .seed(seed)
             .build()
             .map_err(to_jserr)?;
         Ok(Self { inner })
     }
 
-    pub fn add(&self, id: BigInt, vector: &[f32]) -> Result<(), JsValue> {
+    pub fn add(
+        &self,
+        id: BigInt,
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
+    ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.add(one_id(id)?, vector).map_err(to_jserr)?)
+        Ok(self
+            .inner
+            .add(one_id(id)?, &vector_values(vector)?)
+            .map_err(to_jserr)?)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
     /// `vectors` a Float32Array of n × dim values (row-major). All-or-nothing:
     /// on error the index is unchanged.
-    pub fn add_batch(&self, ids: &[u64], vectors: &[f32]) -> Result<(), JsValue> {
+    pub fn add_batch(
+        &self,
+        ids: &[u64],
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vectors: &JsValue,
+    ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.add_batch(ids, vectors).map_err(to_jserr)?)
+        Ok(self
+            .inner
+            .add_batch(ids, &vector_values(vectors)?)
+            .map_err(to_jserr)?)
     }
 
     /// Search for k nearest neighbors.
@@ -573,12 +648,13 @@ impl WasmIndex {
     #[allow(non_snake_case)]
     pub fn search(
         &self,
-        query: &[f32],
-        k: f64,
+        #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] query: &JsValue,
+        #[wasm_bindgen(unchecked_param_type = "number")] k: JsValue,
         #[wasm_bindgen(unchecked_optional_param_type = "number | ApproxSearchOptions | null")]
         efSearchOrOptions: Option<JsValue>,
     ) -> Result<WasmSearchResults, JsValue> {
-        let k = count(k, "k")?;
+        let k = js_count(&k, "k")?;
+        let query = vector_values(query)?;
         let mut params = SearchParams::new();
 
         let parsed = match efSearchOrOptions {
@@ -618,7 +694,7 @@ impl WasmIndex {
         let _scope = callback_error
             .is_some()
             .then(|| PredicateScope::enter(self));
-        let results = self.inner.search_with(query, k, &params);
+        let results = self.inner.search_with(&query, k, &params);
         if let Some(error) = callback_error
             .as_ref()
             .and_then(|e| e.lock().unwrap().take())
@@ -699,8 +775,11 @@ impl WasmIndex {
     /// Sets `efSearch`. Rejects anything but an integer between 0 and
     /// 4294967295, leaving the current value in place.
     #[wasm_bindgen(setter, js_name = efSearch)]
-    pub fn set_ef_search(&self, ef: f64) -> Result<(), JsError> {
-        self.inner.set_ef_search(count(ef, "efSearch")?);
+    pub fn set_ef_search(
+        &self,
+        #[wasm_bindgen(unchecked_param_type = "number")] ef: JsValue,
+    ) -> Result<(), JsError> {
+        self.inner.set_ef_search(js_count(&ef, "efSearch")?);
         Ok(())
     }
 

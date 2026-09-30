@@ -23,7 +23,7 @@ for (const signature of reads) {
 assert.match(declarations, /^\s+efSearch: number;/m, 'efSearch must be a property');
 assert.doesNotMatch(declarations, /ef_search|setEfSearch|efSearch\(/, 'the method pair and the snake_case property are gone');
 const vector = new Float32Array([1]);
-const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1];
+const invalidNumbers = [-1, 1.5, NaN, Infinity, -Infinity, 2 ** 32, 2 ** 32 + 1, null, true, false, "50", [], [50], { valueOf: () => 50 }];
 const numericError = /must be an integer between 0 and 4294967295/;
 
 for (const value of invalidNumbers) {
@@ -221,3 +221,31 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     other.free();
 }
 console.log('Generated JavaScript filtered-search boundaries: passed');
+
+// #301/#306: validate the JavaScript types before numerical coercion.
+for (const make of [() => new FlatIndex(3, 'l2'), () => new ApproxIndex(3, 'l2', 20, 4, 20)]) {
+    const idx = make();
+    idx.add(1n, [1, 2, 3]);
+    for (const bad of [null, true, false, '2', [], [2], {}, undefined]) {
+        assert.throws(() => idx.add(2n, [1, bad, 3]), /finite/);
+        assert.equal(idx.contains(2n), false);
+        assert.throws(() => idx.add_batch(new BigUint64Array([2n]), [1, bad, 3]), /finite/);
+        assert.equal(idx.contains(2n), false);
+        assert.throws(() => idx.search([1, bad, 3], 1), /finite/);
+    }
+    for (const operation of [() => idx.add(5, [1, 2, 3]), () => idx.get(5),
+                             () => idx.contains(5), () => idx.remove(5)]) {
+        assert.throws(operation, /BigInt/);
+    }
+    assert.deepEqual([...idx.get(1n)], [1, 2, 3]);
+    if (idx instanceof ApproxIndex) {
+        for (const bad of [null, true, '50', [50]]) {
+            assert.throws(() => idx.search([1, 2, 3], 1, {maxEfSearch: bad}), /number/);
+            assert.throws(() => idx.search([1, 2, 3], 1, {efSearch: bad}), /number/);
+        }
+    }
+    idx.free();
+}
+for (const seed of [null, true, '50', [50]]) {
+    assert.throws(() => new ApproxIndex(3, 'l2', 20, 4, 20, seed), numericError);
+}

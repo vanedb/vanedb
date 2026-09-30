@@ -214,3 +214,11 @@ WebAssembly memory.
 ## Building from source
 
 See the [repository](https://github.com/vanedb/vanedb/tree/main/vanedb-wasm).
+
+Numeric parameters must be JavaScript Numbers with integer values in range.
+Strings, booleans, arrays, and `null` are rejected without changing the index.
+An omitted seed uses the default; an explicitly supplied `null` seed is invalid.
+Vectors accept `Float32Array` or arrays of finite Numbers. Array elements are
+checked before conversion, so a missing coordinate such as `null` cannot silently
+become zero. Single-ID methods require BigInt (for example `5n`); filter ID lists
+continue to accept safe-integer Numbers as documented above.

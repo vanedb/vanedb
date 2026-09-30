@@ -9,6 +9,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- WebAssembly validates numeric parameters and vector array elements before
+  JavaScript coercion, rejecting null, booleans and strings without mutation
+  (#306). Single-ID methods explain that IDs must be BigInt (#301).
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance
