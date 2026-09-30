@@ -86,6 +86,28 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
         assert.equal(index.contains(0n), true);
         assert.equal(index.contains(max), true);
     }
+    // Number ids follow the filter-list rule (#301): a nonnegative safe
+    // integer is the same id as its BigInt; anything else names the rule.
+    const numberRule = /id must be a nonnegative safe integer or a uint64 BigInt/;
+    for (const id of [-1, 1.5, NaN, Infinity, 2 ** 53]) {
+        assert.throws(() => index.add(id, vector), numberRule);
+        assert.throws(() => index.contains(id), numberRule);
+        assert.throws(() => index.remove(id), numberRule);
+        assert.throws(() => index.get(id), numberRule);
+        assert.throws(() => index.get_vector(id), numberRule);
+        assert.equal(index.size(), 2);
+    }
+    for (const id of ['5', null, undefined, {}]) {
+        assert.throws(() => index.add(id, vector), /id must be a Number or BigInt/);
+    }
+    index.add(5, vector);
+    assert.equal(index.contains(5n), true);
+    assert.equal(index.contains(5), true);
+    assert.deepEqual([...index.get(5)], [...vector]);
+    assert.equal(index.contains(Number.MAX_SAFE_INTEGER), false);
+    index.remove(5);
+    assert.equal(index.contains(5n), false);
+    assert.equal(index.size(), 2);
     const results = index.search(vector, 2);
     assert.deepEqual([...results.ids], [0n, max]);
     assert.equal(results.distances.length, 2);
