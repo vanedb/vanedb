@@ -30,7 +30,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 - Full-width graph searches scan stored vectors with bounded top-k selection,
   recovering disconnected nodes without rewriting persisted topology.
 
-### Added
+- Python engine exceptions inherit `vanedb.VaneError` and their previous
+  built-in exception class, preserving existing catch behavior (#262).
 
 - C `vanedb_rs_index_search_filtered_ex` exposes the per-query widening cap
   while preserving the existing entry point and ABI.
