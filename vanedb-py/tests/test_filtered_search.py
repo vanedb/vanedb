@@ -240,3 +240,32 @@ def test_selective_search_widens_after_visits_exceed_beam_cap():
         assert all(id in allowed for id, _ in hits)
         assert len(calls) > len(set(calls)), "retries revisit nodes"
         assert index.search(query, 10, ef_search=10, allow_ids=allowed, **options) == hits
+
+@pytest.mark.parametrize("kind", ["coroutine", "generator", "async_generator", "awaitable"])
+def test_wrapped_deferred_predicate_results_are_not_truthy_verdicts(index, kind):
+    async def deny():
+        return False
+    def generate():
+        yield False
+    async def async_generate():
+        yield False
+    class Awaitable:
+        def __await__(self):
+            yield
+            return False
+    factories = {"coroutine": deny, "generator": generate,
+                 "async_generator": async_generate, "awaitable": Awaitable}
+    calls = []
+    def wrapped(id):
+        calls.append(id)
+        return factories[kind]()
+    with pytest.raises(TypeError, match="synchronous verdict"):
+        index.search([0.], 4, filter=wrapped)
+    assert len(calls) == 1
+    assert index.search([0.], 4, filter=lambda _: False) == []
+    assert len(index.search([0.], 4, filter=lambda _: True)) == 4
+
+def test_non_boolean_synchronous_verdicts_remain_supported(index):
+    import numpy as np
+    assert len(index.search([0.], 4, filter=lambda _: np.bool_(True))) == 4
+    assert index.search([0.], 4, filter=lambda _: 0) == []

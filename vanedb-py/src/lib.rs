@@ -246,10 +246,8 @@ static INSPECT_MODULE: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
 /// would admit every candidate the filter was written to exclude. Checked once
 /// per search, never per candidate.
 ///
-/// The callable itself is inspected, and so is its `__call__`, which is where
-/// a class with an `async def __call__` carries the marker. A plain function
-/// that returns an awaitable it never made itself is not detectable here and
-/// stays the caller's responsibility.
+/// The callable and its `__call__` are inspected. Return values are checked
+/// separately, since a synchronous wrapper can still return a deferred object.
 fn reject_non_synchronous(filter_obj: &Bound<'_, PyAny>) -> PyResult<()> {
     let py = filter_obj.py();
     let inspect = INSPECT_MODULE
@@ -333,7 +331,28 @@ fn extract_py_filter<'a>(
                 return false;
             }
             Python::attach(|py| {
-                let res = callable.call1(py, (id,)).and_then(|val| val.is_truthy(py));
+                let res = callable.call1(py, (id,)).and_then(|val| {
+                    let value = val.bind(py);
+                    if !value.is_instance_of::<pyo3::types::PyBool>() {
+                        let inspect = INSPECT_MODULE
+                            .get_or_try_init(py, || py.import("inspect").map(|m| m.into_any().unbind()))?
+                            .bind(py);
+                        let coroutine = inspect.call_method1("iscoroutine", (value,))?.is_truthy()?;
+                        let deferred = coroutine
+                            || inspect.call_method1("isawaitable", (value,))?.is_truthy()?
+                            || inspect.call_method1("isgenerator", (value,))?.is_truthy()?
+                            || inspect.call_method1("isasyncgen", (value,))?.is_truthy()?;
+                        if deferred {
+                            // Avoid an unawaited-coroutine warning without
+                            // executing its body. Other objects are not closed.
+                            if coroutine { let _ = value.call_method0("close"); }
+                            return Err(PyTypeError::new_err(
+                                "filter must return a synchronous verdict, not an awaitable or generator"
+                            ));
+                        }
+                    }
+                    value.is_truthy()
+                });
                 match res {
                     Ok(accepted) => accepted,
                     Err(err) => {
