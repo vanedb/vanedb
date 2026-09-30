@@ -9,6 +9,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- An overflowed `Metric::Dot` inner product is now reported as negative
+  infinity by the scalar, AVX2 and NEON kernels alike, as documented. The
+  kernels returned NaN when two opposite-sign products both overflowed, and
+  positive infinity when the sum overflowed negative, so the reported value
+  depended on the CPU (#300). Whether an overflow occurs at all for a pair
+  whose partial sums exceed `f32::MAX` still depends on the kernel's
+  summation order; the `Metric::Dot` documentation now says so.
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance

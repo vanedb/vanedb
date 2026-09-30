@@ -29,6 +29,22 @@ TEST_CASE("DistanceComputer matches raw function calls", "[distance_strategy]") 
     DistanceComputer dc(Metric::DOT, dim);
     REQUIRE(dc(a, b) == -dot_product(a, b, dim));
   }
+
+  SECTION("Dot overflow is reported as -inf whichever way it overflowed") {
+    // Shared with the Rust engine (vanedb#300): a saturated score carries no
+    // ranking information, and the result order places non-finite last.
+    DistanceComputer dc(Metric::DOT, 2);
+    const float big[] = {3e38f, 3e38f};
+    const float parallel[] = {2.0f, 2.0f};
+    const float antiparallel[] = {-2.0f, -2.0f};
+    const float opposite[] = {2.0f, -2.0f};
+    const float minus_inf = -std::numeric_limits<float>::infinity();
+    REQUIRE(dc(big, parallel) == minus_inf);
+    REQUIRE(dc(big, antiparallel) == minus_inf);
+    const float mixed = dc(big, opposite);
+    REQUIRE_FALSE(std::isnan(mixed));
+    if (!std::isfinite(mixed)) REQUIRE(mixed == minus_inf);
+  }
 }
 
 TEST_CASE("Explicit enum values are stable", "[distance_strategy]") {
