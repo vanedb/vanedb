@@ -207,7 +207,12 @@ ID lists; batch IDs are a `BigUint64Array`.
 JavaScript typed arrays wrap out-of-range values when constructed, so validate
 IDs before putting them in a batch array. Vectors are finite `Float32Array`
 values matching the index dimension; batch vectors are flattened in row order.
-Invalid inputs throw.
+A plain array of numbers, or another numeric typed array, is converted; an
+element that is not a number (`null`, `undefined`, a hole, a string, a
+boolean) throws rather than becoming `0` or `1`. Numeric parameters such as
+`k`, `dimension` and `efSearch` must be JavaScript numbers: `null`, strings
+and objects are rejected before any coercion, never read as `0`. Invalid
+inputs throw.
 
 `search` returns a `SearchResults` whose `ids` and `distances` share positions.
 Copy what you need, then call `free()` on the result and the index to release
