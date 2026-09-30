@@ -35,6 +35,7 @@ vanedb_rs_index_save
 vanedb_rs_index_save_to_buffer
 vanedb_rs_index_search
 vanedb_rs_index_search_filtered
+vanedb_rs_index_search_filtered_ex
 vanedb_rs_index_seed
 vanedb_rs_index_set_ef_search
 vanedb_rs_index_tombstones
