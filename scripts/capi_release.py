@@ -164,6 +164,15 @@ CycloneDX 1.5 SBOMs, `CAPI-RELEASE.json`, this file and `SHA256SUMS` each have a
 for the C ABI's default features on its recorded target; OS-provided libraries
 are listed separately in each archive's `compatibility.json`.
 
+The ABI-version check is an application check, not a loader guard. The
+published shared libraries do not carry a versioned ELF SONAME or an ABI-specific
+macOS compatibility identity. A 0.1.1 binary does not know about the new check;
+replacing its library in place can load successfully without detecting the
+handle-type change. Recompile and relink consumers against the matching header
+and library. Do not treat an in-place `.so`, `.dylib`, or `.dll` swap as a supported
+upgrade, even when a smoke test appears to work. Versioned loader identities
+remain follow-up work (#303); they cannot retroactively protect old binaries.
+
 Download the assets into an empty directory. Install cosign v3.1.3 from
 https://github.com/sigstore/cosign/releases/tag/v3.1.3 and authenticate the
 checksums before using any archive:
