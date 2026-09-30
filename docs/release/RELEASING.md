@@ -254,7 +254,10 @@ immutable installer action, and verifies the signatures before retaining them.
 After explicit release authorization, a matching crate-tag push must resolve
 to the approved commit on main. The protected publication job downloads the
 retained signed artifact, verifies it again, and attaches it to that tag's
-release without rebuilding. If the release is absent it creates a draft,
+release without rebuilding. It looks the release up by listing all releases,
+so a draft created by hand for the tag is found and reused (a lookup by tag
+name sees published releases only, #302); two releases carrying the tag stop
+the job. If the release is absent it creates a draft,
 uploads the complete set, downloads and verifies the actual remote bytes, then
 publishes the draft. Prerelease versions (for example `0.2.0-rc.1`) create
 GitHub prereleases; an existing release with a contradictory prerelease flag

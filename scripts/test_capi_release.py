@@ -58,6 +58,13 @@ class ReleaseTests(unittest.TestCase):
         for name in release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]:
             (self.directory / (name + release.BUNDLE)).write_text("fixture signature")
 
+    @staticmethod
+    def listing(*releases, pages=1):
+        """A `gh api --paginate repos/.../releases` result: one JSON array per page."""
+        chunks = [releases[i::pages] for i in range(pages)]
+        return release.subprocess.CompletedProcess(
+            [], 0, "".join(json.dumps(list(chunk)) for chunk in chunks), "")
+
     def test_sbom_uses_utf8_on_a_cp1252_host(self):
         # cargo-cyclonedx emits UTF-8 names. U+0101's UTF-8 contains 0x81,
         # undefined in CP1252: exactly the Windows rehearsal failure.
@@ -216,8 +223,8 @@ class ReleaseTests(unittest.TestCase):
         self.assemble()
         self.dummy_bundles()
         asset = "CAPI-RELEASE.json"
-        response = release.subprocess.CompletedProcess([], 0, json.dumps({"draft": False, "body": "human notes",
-                                                     "assets": [{"name": asset}]}), "")
+        response = self.listing({"tag_name": "vanedb-crate-v0.2.0", "draft": False,
+                                 "body": "human notes", "assets": [{"name": asset}]})
         def execute(*args, **kwargs):
             if args[:3] == ("gh", "release", "download"):
                 directory = Path(args[args.index("--dir") + 1])
@@ -240,7 +247,8 @@ class ReleaseTests(unittest.TestCase):
         self.assemble()
         self.dummy_bundles()
         payloads = release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]
-        response = release.subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)")
+        # Another tag's draft must not be mistaken for this one.
+        response = self.listing({"tag_name": "vanedb-crate-v0.1.1", "draft": True, "assets": []})
         remote = {}
         def execute(*args, **kwargs):
             if args[:3] == ("gh", "release", "upload"):
@@ -275,9 +283,9 @@ class ReleaseTests(unittest.TestCase):
         version = "0.2.0-rc.1"
         ref = "refs/tags/vanedb-crate-v" + version
         for existing in (False, True):
-            response = (release.subprocess.CompletedProcess([], 0, json.dumps(
-                {"draft": False, "prerelease": False, "assets": []}), "") if existing else
-                release.subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)"))
+            response = (self.listing({"tag_name": "vanedb-crate-v" + version, "draft": False,
+                                      "prerelease": False, "assets": []}) if existing else
+                        self.listing())
             with self.subTest(existing=existing), patch.dict(os.environ,
                     {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": ref,
                      "GITHUB_REPOSITORY": release.REPOSITORY}), \
@@ -309,6 +317,62 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "cannot inspect release"):
                 release.publish(self.directory, VERSION, COMMIT, REF)
         self.assertFalse(any(c.args[:3] == ("gh", "release", "create") for c in run.call_args_list))
+
+    def test_existing_draft_for_the_tag_is_reused_not_duplicated(self):
+        # Regression for #302: `releases/tags/{tag}` resolves published
+        # releases only, so a maintainer-created draft read as absent and a
+        # second, empty draft was created beside it.
+        self.assemble()
+        self.dummy_bundles()
+        payloads = release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]
+        response = self.listing(
+            {"tag_name": "vanedb-crate-v0.1.1", "draft": False, "assets": []},
+            {"tag_name": "vanedb-crate-v0.2.0", "draft": True, "prerelease": False,
+             "body": "human notes", "assets": []},
+            pages=2)
+        remote = {}
+        def execute(*args, **kwargs):
+            if args[:3] == ("gh", "release", "upload"):
+                remote[Path(args[4]).name] = Path(args[4]).read_bytes()
+            elif args[:3] == ("gh", "release", "download"):
+                name = args[args.index("--pattern") + 1]
+                (Path(args[args.index("--dir") + 1]) / name).write_bytes(remote[name])
+        def verify(directory, *args):
+            return payloads
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,
+                                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
+                patch.object(release, "source_commit", return_value=COMMIT), \
+                patch.object(release, "output", return_value=COMMIT), \
+                patch.object(release, "verify", side_effect=verify), \
+                patch.object(release.subprocess, "run", return_value=response) as api, \
+                patch.object(release, "run", side_effect=execute) as run:
+            release.publish(self.directory, VERSION, COMMIT, REF)
+        self.assertIn("--paginate", api.call_args.args[0])
+        self.assertFalse(any(c.args[:3] == ("gh", "release", "create") for c in run.call_args_list))
+        self.assertEqual(len(remote), 26)
+        edits = [c.args for c in run.call_args_list if c.args[:3] == ("gh", "release", "edit")]
+        self.assertTrue(all("vanedb-crate-v0.2.0" == e[3] for e in edits))
+        self.assertEqual(edits[-1][-1], "--draft=false")
+        # The maintainer's notes are extended, never replaced (checked by the
+        # notes-file edit below existing at all: a fresh draft gets none).
+        self.assertTrue(any("--notes-file" in e for e in edits))
+
+    def test_duplicate_releases_for_the_tag_abort_before_any_write(self):
+        self.assemble()
+        self.dummy_bundles()
+        response = self.listing(
+            {"tag_name": "vanedb-crate-v0.2.0", "draft": True, "assets": []},
+            {"tag_name": "vanedb-crate-v0.2.0", "draft": False, "assets": []})
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,
+                                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
+                patch.object(release, "source_commit", return_value=COMMIT), \
+                patch.object(release, "output", return_value=COMMIT), \
+                patch.object(release, "verify", return_value=[]), \
+                patch.object(release.subprocess, "run", return_value=response), \
+                patch.object(release, "run") as run:
+            with self.assertRaisesRegex(ValueError, "2 releases carry tag"):
+                release.publish(self.directory, VERSION, COMMIT, REF)
+        self.assertFalse(any(c.args[:2] == ("gh", "release") for c in run.call_args_list))
 
     def test_moved_remote_tag_fails_before_signatures_or_release_write(self):
         with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,

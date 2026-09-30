@@ -259,6 +259,38 @@ def verify(directory, version, commit, ref):
     return payloads
 
 
+def find_release(tag):
+    """The release for `tag` in any state, or None when there is none.
+
+    Lists releases rather than reading `releases/tags/{tag}`: that endpoint
+    resolves published releases only, so a draft the maintainer had already
+    created for the tag read as absent and a second, empty draft was created
+    beside it (#302). Only an exhaustive listing proves absence; a
+    permission or network error is not permission to create another release
+    or conceal a partial previous publication.
+    """
+    response = subprocess.run(["gh", "api", "--paginate", f"repos/{REPOSITORY}/releases"],
+                              text=True, capture_output=True)
+    if response.returncode:
+        raise ValueError(f"cannot inspect releases: {response.stderr}")
+    # --paginate concatenates one JSON array per page.
+    releases = []
+    decoder = json.JSONDecoder()
+    position = 0
+    text = response.stdout
+    while position < len(text):
+        while position < len(text) and text[position].isspace():
+            position += 1
+        if position >= len(text):
+            break
+        page, position = decoder.raw_decode(text, position)
+        releases.extend(page)
+    matches = [r for r in releases if r.get("tag_name") == tag]
+    if len(matches) > 1:
+        raise ValueError(f"{len(matches)} releases carry tag {tag}; delete the duplicates first")
+    return matches[0] if matches else None
+
+
 def publish(directory, version, commit, ref):
     if not check_context(version, os.environ.get("GITHUB_EVENT_NAME", ""), ref,
                          os.environ.get("GITHUB_REPOSITORY", "")):
@@ -277,20 +309,13 @@ def publish(directory, version, commit, ref):
     assets = sorted(payloads + [n + BUNDLE for n in payloads])
     tag = ref.removeprefix("refs/tags/")
     prerelease = "-" in version
-    # Only a 404 proves absence; permission/network errors are not permission
-    # to create another release or conceal a partial previous publication.
-    response = subprocess.run(["gh", "api", f"repos/{REPOSITORY}/releases/tags/{tag}"],
-                              text=True, capture_output=True)
-    if response.returncode:
-        if "HTTP 404" not in response.stderr:
-            raise ValueError(f"cannot inspect release: {response.stderr}")
+    release = find_release(tag)
+    if release is None:
         run("gh", "release", "create", tag, "--repo", REPOSITORY, "--verify-tag", "--draft",
             "--title", f"VaneDB {version}", "--notes-file", directory / NOTES,
             *(["--prerelease"] if prerelease else []))
         release = {"draft": True, "prerelease": prerelease,
                    "body": (directory / NOTES).read_text(encoding="utf-8"), "assets": []}
-    else:
-        release = json.loads(response.stdout)
     if bool(release.get("prerelease")) != prerelease:
         raise ValueError("existing release prerelease status disagrees with the version")
     existing = {asset["name"] for asset in release["assets"]}
