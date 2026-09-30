@@ -201,7 +201,9 @@ complaint and the width does nothing.
 Metrics are strings: `"l2"` is squared Euclidean distance, `"cosine"` is cosine
 distance, `"dot"` is negative dot product. Lower distances rank first.
 
-Single IDs are unsigned 64-bit `bigint`; batch IDs are a `BigUint64Array`.
+Single IDs are unsigned 64-bit `bigint`, or a `number` that is a nonnegative
+safe integer (through `Number.MAX_SAFE_INTEGER`), the same rule as the filter
+ID lists; batch IDs are a `BigUint64Array`.
 JavaScript typed arrays wrap out-of-range values when constructed, so validate
 IDs before putting them in a batch array. Vectors are finite `Float32Array`
 values matching the index dimension; batch vectors are flattened in row order.

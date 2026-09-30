@@ -12,20 +12,20 @@ fn test_version() {
 #[wasm_bindgen_test]
 fn test_vector_store_basic() {
     let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
+    store.add(&JsValue::from(1u64), &[1.0, 0.0, 0.0]).unwrap();
+    store.add(&JsValue::from(2u64), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(store.size().unwrap(), 2);
     assert_eq!(store.dimension(), 3);
-    assert!(store.contains(1u64.into()).unwrap());
-    assert!(!store.contains(99u64.into()).unwrap());
+    assert!(store.contains(&JsValue::from(1u64)).unwrap());
+    assert!(!store.contains(&JsValue::from(99u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_vector_store_search() {
     let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-    store.add(1u64.into(), &[0.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(3u64.into(), &[10.0, 10.0]).unwrap();
+    store.add(&JsValue::from(1u64), &[0.0, 0.0]).unwrap();
+    store.add(&JsValue::from(2u64), &[1.0, 0.0]).unwrap();
+    store.add(&JsValue::from(3u64), &[10.0, 10.0]).unwrap();
 
     let hits = store.search(&[0.0, 0.1], 2.0, None).unwrap();
     assert_eq!(hits.length(), 2);
@@ -36,17 +36,17 @@ fn test_vector_store_search() {
 #[wasm_bindgen_test]
 fn test_hnsw_basic() {
     let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
-    idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
+    idx.add(&JsValue::from(1u64), &[1.0, 0.0, 0.0]).unwrap();
+    idx.add(&JsValue::from(2u64), &[0.0, 1.0, 0.0]).unwrap();
     assert_eq!(idx.size().unwrap(), 2);
-    assert!(idx.contains(1u64.into()).unwrap());
+    assert!(idx.contains(&JsValue::from(1u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_hnsw_search() {
     let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
-    idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
+    idx.add(&JsValue::from(1u64), &[0.0, 0.0, 0.0]).unwrap();
+    idx.add(&JsValue::from(2u64), &[10.0, 10.0, 10.0]).unwrap();
 
     let hits = idx.search(&[0.0, 0.0, 0.0], 1.0, None).unwrap();
     assert_eq!(hits.ids()[0], 1);
@@ -55,8 +55,8 @@ fn test_hnsw_search() {
 #[wasm_bindgen_test]
 fn test_cosine_metric() {
     let store = WasmStore::new(2.0, &JsValue::from_str("cosine")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[0.0, 1.0]).unwrap();
+    store.add(&JsValue::from(1u64), &[1.0, 0.0]).unwrap();
+    store.add(&JsValue::from(2u64), &[0.0, 1.0]).unwrap();
     let hits = store.search(&[0.9, 0.1], 1.0, None).unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
@@ -80,7 +80,7 @@ fn test_store_add_batch() {
     // duplicate -> Err, all-or-nothing
     assert!(store.add_batch(&[4, 1], &flat[..4]).is_err());
     assert_eq!(store.size().unwrap(), 3);
-    assert!(!store.contains(4u64.into()).unwrap());
+    assert!(!store.contains(&JsValue::from(4u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
@@ -97,8 +97,8 @@ fn test_hnsw_add_batch() {
 #[wasm_bindgen_test]
 fn test_wasm_filtered_search() {
     let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-    store.add(10u64.into(), &[0.0, 0.0]).unwrap();
-    store.add(20u64.into(), &[1.0, 1.0]).unwrap();
+    store.add(&JsValue::from(10u64), &[0.0, 0.0]).unwrap();
+    store.add(&JsValue::from(20u64), &[1.0, 1.0]).unwrap();
 
     let opts = js_sys::Object::new();
     let allow_arr = js_sys::Array::new();
@@ -112,8 +112,8 @@ fn test_wasm_filtered_search() {
     assert_eq!(res.ids()[0], 20);
 
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    index.add(10u64.into(), &[0.0, 0.0]).unwrap();
-    index.add(20u64.into(), &[1.0, 1.0]).unwrap();
+    index.add(&JsValue::from(10u64), &[0.0, 0.0]).unwrap();
+    index.add(&JsValue::from(20u64), &[1.0, 1.0]).unwrap();
 
     let opts2 = js_sys::Object::new();
     let deny_arr = js_sys::Array::new();
@@ -156,7 +156,7 @@ const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
 fn store_search_round_trips_ids_beyond_f32_precision() {
     let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        store.add((*id).into(), &[i as f32, 0.0]).unwrap();
+        store.add(&JsValue::from(*id), &[i as f32, 0.0]).unwrap();
     }
     let mut got = store.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
     got.sort_unstable();
@@ -169,7 +169,7 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
 fn hnsw_search_round_trips_ids_beyond_f32_precision() {
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 16.0, 100.0, None).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        index.add((*id).into(), &[i as f32, 0.0]).unwrap();
+        index.add(&JsValue::from(*id), &[i as f32, 0.0]).unwrap();
     }
     let mut got = index.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
     got.sort_unstable();
@@ -182,13 +182,13 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
 fn test_non_finite_vectors_and_queries_are_rejected() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
         let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-        assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
+        assert!(store.add(&JsValue::from(1u64), &[value, 0.0]).is_err());
         assert_eq!(store.size().unwrap(), 0);
-        store.add(2u64.into(), &[0.0, 0.0]).unwrap();
+        store.add(&JsValue::from(2u64), &[0.0, 0.0]).unwrap();
         assert!(store.search(&[value, 0.0], 1.0, None).is_err());
 
         let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 4.0, 2.0, 10.0, None).unwrap();
-        assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
+        assert!(index.add(&JsValue::from(1u64), &[value, 0.0]).is_err());
         assert_eq!(index.size().unwrap(), 0);
     }
 }
@@ -211,9 +211,9 @@ fn every_metric_round_trips_and_is_reportable() {
 #[wasm_bindgen_test]
 fn dot_ranks_by_largest_inner_product() {
     let store = WasmStore::new(2.0, &JsValue::from_str("dot")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[4.0, 0.0]).unwrap();
-    store.add(3u64.into(), &[0.0, 1.0]).unwrap();
+    store.add(&JsValue::from(1u64), &[1.0, 0.0]).unwrap();
+    store.add(&JsValue::from(2u64), &[4.0, 0.0]).unwrap();
+    store.add(&JsValue::from(3u64), &[0.0, 1.0]).unwrap();
     let hits = store.search(&[1.0, 0.0], 3.0, None).unwrap();
     let ids = hits.ids();
     assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
@@ -228,12 +228,12 @@ fn dot_ranks_by_largest_inner_product() {
 fn a_deleted_entry_can_be_measured_and_reclaimed() {
     let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     for id in 0..8u64 {
-        index.add(id.into(), &[id as f32]).unwrap();
+        index.add(&JsValue::from(id), &[id as f32]).unwrap();
     }
     assert_eq!(index.tombstones().unwrap(), 0);
 
-    index.remove(3u64.into()).unwrap();
-    index.remove(5u64.into()).unwrap();
+    index.remove(&JsValue::from(3u64)).unwrap();
+    index.remove(&JsValue::from(5u64)).unwrap();
     assert_eq!(index.size().unwrap(), 6);
     assert_eq!(
         index.tombstones().unwrap(),
@@ -253,9 +253,9 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
         "compaction must keep the live set"
     );
     for id in [0u64, 1, 2, 4, 6, 7] {
-        assert!(index.contains(id.into()).unwrap(), "{id} was live");
+        assert!(index.contains(&JsValue::from(id)).unwrap(), "{id} was live");
     }
-    assert!(!index.contains(3u64.into()).unwrap());
+    assert!(!index.contains(&JsValue::from(3u64)).unwrap());
 }
 
 /// A JS caller could not read a stored vector back from `ApproxIndex` at all —
@@ -264,13 +264,16 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
 #[wasm_bindgen_test]
 fn a_stored_vector_can_be_read_back() {
     let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
-    index.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
+    index.add(&JsValue::from(7u64), &[1.0, 2.0, 3.0]).unwrap();
     assert_eq!(
-        index.get_vector(7u64.into()).unwrap(),
+        index.get_vector(&JsValue::from(7u64)).unwrap(),
         Some(vec![1.0, 2.0, 3.0])
     );
-    assert_eq!(index.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
-    assert_eq!(index.get_vector(99u64.into()).unwrap(), None);
+    assert_eq!(
+        index.get(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(index.get_vector(&JsValue::from(99u64)).unwrap(), None);
 }
 
 /// Both read spellings exist on both index types (#85). `ApproxIndex` had the
@@ -279,13 +282,16 @@ fn a_stored_vector_can_be_read_back() {
 #[wasm_bindgen_test]
 fn both_read_spellings_exist_on_the_exact_index_too() {
     let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
-    store.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
-    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
+    store.add(&JsValue::from(7u64), &[1.0, 2.0, 3.0]).unwrap();
     assert_eq!(
-        store.get_vector(7u64.into()).unwrap(),
+        store.get(&JsValue::from(7u64)).unwrap(),
         Some(vec![1.0, 2.0, 3.0])
     );
-    assert_eq!(store.get_vector(99u64.into()).unwrap(), None);
+    assert_eq!(
+        store.get_vector(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(store.get_vector(&JsValue::from(99u64)).unwrap(), None);
 }
 
 /// The seed was hardcoded to 42, so reproducible graph construction was
@@ -309,9 +315,9 @@ fn the_construction_seed_is_settable_and_defaults_as_before() {
 #[wasm_bindgen_test]
 fn remove_does_not_require_an_exclusive_borrow() {
     let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
-    index.add(1u64.into(), &[1.0]).unwrap();
+    index.add(&JsValue::from(1u64), &[1.0]).unwrap();
     let shared = &index;
-    shared.remove(1u64.into()).unwrap();
+    shared.remove(&JsValue::from(1u64)).unwrap();
     assert_eq!(shared.size().unwrap(), 0);
 }
 
@@ -348,22 +354,29 @@ fn a_non_string_metric_is_rejected_not_trapped() {
 #[wasm_bindgen_test]
 fn upsert_replaces_in_place_and_inserts_when_absent() {
     let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    index.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
+    index.add(&JsValue::from(1u64), &[0.0, 0.0, 0.0]).unwrap();
 
-    index.upsert(1u64.into(), &[5.0, 5.0, 5.0]).unwrap();
+    index
+        .upsert(&JsValue::from(1u64), &[5.0, 5.0, 5.0])
+        .unwrap();
     assert_eq!(
         index.size().unwrap(),
         1,
         "replacing must not grow the index"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
+    assert_eq!(
+        index.get(&JsValue::from(1u64)).unwrap(),
+        Some(vec![5.0, 5.0, 5.0])
+    );
     assert_eq!(
         index.tombstones().unwrap(),
         1,
         "the replaced slot is tombstoned"
     );
 
-    index.upsert(2u64.into(), &[1.0, 1.0, 1.0]).unwrap();
+    index
+        .upsert(&JsValue::from(2u64), &[1.0, 1.0, 1.0])
+        .unwrap();
     assert_eq!(
         index.size().unwrap(),
         2,
@@ -373,12 +386,15 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
     // The property that makes this worth having over remove-then-add: a
     // rejected upsert leaves the entry alone, where the two-call form can
     // fail after the removal and lose it.
-    assert!(index.upsert(1u64.into(), &[1.0, 1.0]).is_err());
+    assert!(index.upsert(&JsValue::from(1u64), &[1.0, 1.0]).is_err());
     assert!(
-        index.contains(1u64.into()).unwrap(),
+        index.contains(&JsValue::from(1u64)).unwrap(),
         "a failed upsert must not delete"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
+    assert_eq!(
+        index.get(&JsValue::from(1u64)).unwrap(),
+        Some(vec![5.0, 5.0, 5.0])
+    );
 }
 
 /// A beam width for one query, leaving the index's own setting alone.
@@ -472,8 +488,8 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
 #[wasm_bindgen_test]
 fn to_bytes_round_trips_through_from_bytes() {
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, Some(7.0)).unwrap();
-    index.add(101u64.into(), &[1.0, 0.0]).unwrap();
-    index.add(202u64.into(), &[0.0, 1.0]).unwrap();
+    index.add(&JsValue::from(101u64), &[1.0, 0.0]).unwrap();
+    index.add(&JsValue::from(202u64), &[0.0, 1.0]).unwrap();
     index.set_ef_search(32.0).unwrap();
 
     let bytes = index.to_bytes().unwrap();
@@ -483,7 +499,10 @@ fn to_bytes_round_trips_through_from_bytes() {
     assert_eq!(loaded.dimension(), 2);
     assert_eq!(loaded.metric(), "l2");
     assert_eq!(loaded.ef_search(), 32);
-    assert_eq!(loaded.get(101u64.into()).unwrap(), Some(vec![1.0, 0.0]));
+    assert_eq!(
+        loaded.get(&JsValue::from(101u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
     assert_eq!(loaded.search(&[1.0, 0.0], 1.0, None).unwrap().ids()[0], 101);
     assert_eq!(loaded.to_bytes().unwrap(), bytes);
 }
@@ -501,25 +520,31 @@ fn the_vocabulary_of_rfc_0011() {
     let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
     assert_eq!(store.size().unwrap(), 0);
     assert_eq!(index.size().unwrap(), 0);
-    assert_eq!(store.get(7u64.into()).unwrap(), None);
-    assert_eq!(store.get_vector(7u64.into()).unwrap(), None);
-    assert_eq!(index.get(7u64.into()).unwrap(), None);
-    assert_eq!(index.get_vector(7u64.into()).unwrap(), None);
-    assert!(!store.contains(7u64.into()).unwrap());
-    assert!(!index.contains(7u64.into()).unwrap());
+    assert_eq!(store.get(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(store.get_vector(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(index.get(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(index.get_vector(&JsValue::from(7u64)).unwrap(), None);
+    assert!(!store.contains(&JsValue::from(7u64)).unwrap());
+    assert!(!index.contains(&JsValue::from(7u64)).unwrap());
     assert!(
-        store.remove(7u64.into()).is_err(),
+        store.remove(&JsValue::from(7u64)).is_err(),
         "remove is not named get"
     );
     assert!(
-        index.remove(7u64.into()).is_err(),
+        index.remove(&JsValue::from(7u64)).is_err(),
         "remove is not named get"
     );
 
-    store.add(7u64.into(), &[1.0, 0.0]).unwrap();
-    index.add(7u64.into(), &[1.0, 0.0]).unwrap();
-    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
-    assert_eq!(index.get_vector(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
+    store.add(&JsValue::from(7u64), &[1.0, 0.0]).unwrap();
+    index.add(&JsValue::from(7u64), &[1.0, 0.0]).unwrap();
+    assert_eq!(
+        store.get(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
+    assert_eq!(
+        index.get_vector(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
     assert_eq!(store.size().unwrap(), 1);
     assert_eq!(index.size().unwrap(), 1);
 
@@ -569,14 +594,14 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
     // ApproxIndex: writes, reads and nested searches all throw.
     let index =
         Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
-    index.add(1u64.into(), &[0.0]).unwrap();
+    index.add(&JsValue::from(1u64), &[0.0]).unwrap();
     let errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
     let predicate = {
         let index = Rc::clone(&index);
         let errors = Rc::clone(&errors);
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
             let mut errors = errors.borrow_mut();
-            errors.push(index.add(2u64.into(), &[1.0]).unwrap_err());
+            errors.push(index.add(&JsValue::from(2u64), &[1.0]).unwrap_err());
             errors.push(index.size().unwrap_err());
             errors.push(
                 index
@@ -596,12 +621,12 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         assert_reentrant(error);
     }
     // The guard is released with the search.
-    index.add(2u64.into(), &[1.0]).unwrap();
+    index.add(&JsValue::from(2u64), &[1.0]).unwrap();
     assert_eq!(index.size().unwrap(), 2);
 
     // FlatIndex: the same contract.
     let store = Rc::new(WasmStore::new(1.0, &JsValue::from_str("l2")).unwrap());
-    store.add(1u64.into(), &[0.0]).unwrap();
+    store.add(&JsValue::from(1u64), &[0.0]).unwrap();
     let store_errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
     let predicate = {
         let store = Rc::clone(&store);
@@ -609,7 +634,7 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
             errors
                 .borrow_mut()
-                .push(store.remove(1u64.into()).unwrap_err());
+                .push(store.remove(&JsValue::from(1u64)).unwrap_err());
             true
         })
     };
@@ -619,17 +644,17 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
     assert_eq!(hits.ids(), vec![1]);
     assert_eq!(store_errors.borrow().len(), 1);
     assert_reentrant(&store_errors.borrow()[0]);
-    store.remove(1u64.into()).unwrap();
+    store.remove(&JsValue::from(1u64)).unwrap();
     assert_eq!(store.size().unwrap(), 0);
 
     // A different index remains usable from the predicate.
     let other =
         Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
-    other.add(7u64.into(), &[0.0]).unwrap();
+    other.add(&JsValue::from(7u64), &[0.0]).unwrap();
     let predicate = {
         let other = Rc::clone(&other);
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
-            other.contains(7u64.into()).unwrap()
+            other.contains(&JsValue::from(7u64)).unwrap()
         })
     };
     let hits = index
