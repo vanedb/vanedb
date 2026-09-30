@@ -182,7 +182,7 @@ pub unsafe fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
         sum += a[i] * b[i];
         i += 1;
     }
-    crate::distance::scalar::saturate_dot(sum)
+    crate::distance::scalar::finish_dot(sum, a, b)
 }
 
 #[cfg(test)]

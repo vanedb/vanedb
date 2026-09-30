@@ -11,18 +11,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Fixed
 
-- Python: a `filter=` predicate defined with `async def`, as a generator, or as
-  a class with an `async def __call__` is now refused with `TypeError`. Calling
-  one returns an unevaluated coroutine or generator rather than a verdict, and
-  every such object is truthy, so the search had been admitting every candidate
-  the filter was written to exclude. Checked once per search, not per candidate.
-- An overflowed `Metric::Dot` inner product is now reported as negative
-  infinity by the scalar, AVX2 and NEON kernels alike, as documented. The
-  kernels returned NaN when two opposite-sign products both overflowed, and
-  positive infinity when the sum overflowed negative, so the reported value
-  depended on the CPU (#300). Whether an overflow occurs at all for a pair
-  whose partial sums exceed `f32::MAX` still depends on the kernel's
-  summation order; the `Metric::Dot` documentation now says so.
+- Python predicates reject deferred callables and deferred return values,
+  including synchronous wrappers returning awaitables or generators.
+- DOT kernels recover finite cancellation results after intermediate overflow
+  using a rare f64 recomputation; final out-of-range scores remain negative infinity.
+- WebAssembly validates numeric input types before coercion and accepts
+  safe-integer Number IDs alongside unsigned 64-bit BigInt IDs.
+- Full-width graph searches scan stored vectors with bounded top-k selection,
+  recovering disconnected nodes without rewriting persisted topology.
+
+### Added
+
+- C `vanedb_rs_index_search_filtered_ex` exposes the per-query widening cap
+  while preserving the existing entry point and ABI.
 
 ## [0.2.0-rc.1] - 2026-09-27
 

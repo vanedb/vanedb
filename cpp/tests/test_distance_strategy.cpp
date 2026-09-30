@@ -42,8 +42,13 @@ TEST_CASE("DistanceComputer matches raw function calls", "[distance_strategy]") 
     REQUIRE(dc(big, parallel) == minus_inf);
     REQUIRE(dc(big, antiparallel) == minus_inf);
     const float mixed = dc(big, opposite);
-    REQUIRE_FALSE(std::isnan(mixed));
-    if (!std::isfinite(mixed)) REQUIRE(mixed == minus_inf);
+    REQUIRE(mixed == 0.0f);
+    const float eight_big[] = {1e38f, 1e38f, 1e38f, 1e38f, 1e38f, 1e38f, 1e38f, 1e38f};
+    const float grouped[] = {2, 2, 2, 2, -2, -2, -2, -2};
+    const float alternate[] = {2, -2, 2, -2, 2, -2, 2, -2};
+    DistanceComputer dc8(Metric::DOT, 8);
+    REQUIRE(dc8(eight_big, grouped) == 0.0f);
+    REQUIRE(dc8(eight_big, alternate) == 0.0f);
   }
 }
 
