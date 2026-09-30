@@ -9,6 +9,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Added
+
+- C `vanedb_rs_index_search_filtered_ex` exposes a per-query widening cap
+  without changing existing function signatures (#305). The original entry
+  point retains its default cap. Document selective-filter under-fill and
+  per-binding remedies; short results do not report beam exhaustion (#304).
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance

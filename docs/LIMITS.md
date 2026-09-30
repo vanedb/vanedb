@@ -25,6 +25,24 @@ a limit are named beside it.
 | `ef_search` / `max_ef_search` on `FlatIndex` and `DiskIndex` | ignored: exact scans have no beam, only the filter is read | `SearchParams` | none planned |
 | WebAssembly linear memory | 4 GiB (wasm32) | platform | none planned |
 
+## Selective-filter under-fill
+
+An approximate search returning fewer than `k` results does not prove that
+fewer than `k` live vectors match. The return value has no exhaustion flag.
+The reported 1% selectivity measurements do not guarantee the same fill rate
+below that selectivity: RC testing at 0.2% (40 allowed IDs among 20,000) found
+180 of 200 default queries short; raising `ef_search` to 500 or
+`max_ef_search` to 3,000 filled all 200 in that experiment (#304). These are
+workload-specific observations, not universal thresholds or guarantees.
+
+Retry short results with a larger per-query cap (`max_ef_search` in Rust and
+Python, `maxEfSearch` in JavaScript, or C's
+`vanedb_rs_index_search_filtered_ex`). Raising the cap only helps when widening
+runs; use a larger initial beam to improve recall of already-full results.
+An exact `FlatIndex` or `DiskIndex` is the completeness option. Graph
+reachability is a separate concern (#299); increasing a beam cannot traverse
+an edge that is absent.
+
 ## Memory, computed
 
 `n` vectors of dimension `d`.

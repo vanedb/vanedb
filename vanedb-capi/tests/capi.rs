@@ -1837,8 +1837,40 @@ fn filtered_search_uses_default_beam_widening() {
             out_ids.as_mut_ptr(),
             out_dists.as_mut_ptr(),
         );
-        vanedb_capi::vanedb_rs_index_free(index);
         assert_eq!(count, 0);
+        let original = seen.clone();
+        for cap in [0, 10, 40, N] {
+            seen.clear();
+            let count = vanedb_capi::vanedb_rs_index_search_filtered_ex(
+                index,
+                vectors.as_ptr(),
+                10,
+                10,
+                cap,
+                Some(reject),
+                (&mut seen as *mut Vec<u64>).cast(),
+                std::ptr::null(),
+                0,
+                std::ptr::null(),
+                0,
+                out_ids.as_mut_ptr(),
+                out_dists.as_mut_ptr(),
+            );
+            assert_eq!(count, 0);
+            assert_eq!(vanedb_capi::vanedb_rs_index_ef_search(index), 50);
+            if cap == 0 || cap == 40 {
+                assert_eq!(seen, original, "legacy and explicit default must agree");
+            } else if cap == 10 {
+                let unique: std::collections::HashSet<_> = seen.iter().copied().collect();
+                assert_eq!(unique.len(), seen.len(), "base-only cap must not retry");
+                assert!(seen.len() < original.len());
+            } else {
+                let unique: std::collections::HashSet<_> = seen.iter().copied().collect();
+                assert_eq!(unique.len(), N, "exhaustive cap reaches every L2 candidate");
+            }
+        }
+        seen = original;
+        vanedb_capi::vanedb_rs_index_free(index);
         let mut unique = std::collections::HashSet::new();
         let first_retry = seen.iter().position(|id| !unique.insert(*id));
         assert!(

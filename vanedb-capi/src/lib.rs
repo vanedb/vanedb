@@ -1078,6 +1078,39 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
     out_ids: *mut u64,
     out_dists: *mut f32,
 ) -> usize {
+    vanedb_rs_index_search_filtered_ex(
+        h, q, k, ef_search, 0, filter, user_data, allow, allow_len, deny, deny_len, out_ids,
+        out_dists,
+    )
+}
+
+/// Filtered approximate search with an explicit beam-widening cap.
+/// `ef_search = 0` uses the index's stored beam. `max_ef_search = 0` uses
+/// the default cap (four times the base beam). A nonzero cap is raised to
+/// at least the base beam and k, and limited to the number of stored slots.
+/// A short result does not prove that fewer than k live vectors match:
+/// retry with a larger cap or use an exact index when completeness matters.
+/// This additive entry point leaves the original filtered-search ABI intact.
+///
+/// # Safety
+/// Same pointer, length, output-buffer and callback requirements as
+/// `vanedb_rs_index_search_filtered`.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_search_filtered_ex(
+    h: vanedb_rs_index,
+    q: *const f32,
+    k: usize,
+    ef_search: usize,
+    max_ef_search: usize,
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
     guard(0, || {
         let Some(idx) = index(h) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
@@ -1102,6 +1135,9 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
         } else {
             vanedb::SearchParams::new().ef_search(ef_search)
         };
+        if max_ef_search != 0 {
+            params = params.max_ef_search(max_ef_search);
+        }
         if let Some(f) = c_filter {
             params = params.filter(f);
         }

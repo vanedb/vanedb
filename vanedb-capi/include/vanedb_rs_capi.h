@@ -450,6 +450,33 @@ uintptr_t vanedb_rs_index_search_filtered(vanedb_rs_index h,
                                           float *out_dists);
 
 /**
+ * Filtered approximate search with an explicit beam-widening cap.
+ * `ef_search = 0` uses the index's stored beam. `max_ef_search = 0` uses
+ * the default cap (four times the base beam). A nonzero cap is raised to
+ * at least the base beam and k, and limited to the number of stored slots.
+ * A short result does not prove that fewer than k live vectors match:
+ * retry with a larger cap or use an exact index when completeness matters.
+ * This additive entry point leaves the original filtered-search ABI intact.
+ *
+ * # Safety
+ * Same pointer, length, output-buffer and callback requirements as
+ * `vanedb_rs_index_search_filtered`.
+ */
+uintptr_t vanedb_rs_index_search_filtered_ex(vanedb_rs_index h,
+                                             const float *q,
+                                             uintptr_t k,
+                                             uintptr_t ef_search,
+                                             uintptr_t max_ef_search,
+                                             vanedb_rs_filter_fn filter,
+                                             void *user_data,
+                                             const uint64_t *allow,
+                                             uintptr_t allow_len,
+                                             const uint64_t *deny,
+                                             uintptr_t deny_len,
+                                             uint64_t *out_ids,
+                                             float *out_dists);
+
+/**
  * # Safety
  * `path` must be a valid NUL-terminated C string.
  */

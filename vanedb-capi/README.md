@@ -308,13 +308,16 @@ The store and disk variants take the same arguments without `ef_search`.
 store call from Python, including the `CFUNCTYPE` declaration for a callback.
 
 `vanedb_rs_index_search_filtered` takes `ef_search` under the same rule as the
-plain graph search: `0` uses the handle's setting. The C ABI omits the beam
-cap (`max_ef_search` in Rust, Python and WebAssembly) by design: a filtered
-graph search widens its beam up to the core's default of four times the
-initial beam. Raise `ef_search` on the call to improve recall under a
-selective filter — on the order of `k` divided by the fraction of ids the
-filter accepts — since the cap alone does not improve results that already
-fill `k`. Measured recall at several selectivities is in
+plain graph search: `0` uses the handle's setting. Its default widening cap
+is four times the initial beam. The additive
+`vanedb_rs_index_search_filtered_ex` takes `max_ef_search` immediately after
+`ef_search`: zero retains that default, and a nonzero value sets a per-query
+cap (at least the base beam and `k`, at most the stored slot count).
+
+A short result does not distinguish a small match set from beam exhaustion.
+For very selective filters, retry with a larger cap; raise the initial beam
+to improve recall when results already fill `k`. Use an exact index when
+complete enumeration is required. Measured recall at several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 ### Calling from Python with ctypes

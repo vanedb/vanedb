@@ -151,6 +151,24 @@ fn probes() -> Vec<Probe> {
                 ds.as_mut_ptr(),
             ) == 0
         }),
+        probe!("index", vanedb_rs_index_search_filtered_ex, |h| {
+            let (mut ids, mut ds) = ([0u64; 1], [0f32; 1]);
+            vanedb_rs_index_search_filtered_ex(
+                h,
+                V2.as_ptr(),
+                1,
+                0,
+                200,
+                Some(accept_all),
+                null_mut(),
+                null(),
+                0,
+                null(),
+                0,
+                ids.as_mut_ptr(),
+                ds.as_mut_ptr(),
+            ) == 0
+        }),
         probe!("index", vanedb_rs_index_save, |h| {
             // A path that must never be written: the handle is rejected first.
             let path = std::ffi::CString::new(
