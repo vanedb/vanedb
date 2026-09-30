@@ -50,8 +50,42 @@ impl From<Vec<SearchResult>> for WasmSearchResults {
     }
 }
 
-fn to_jserr(e: vanedb::VaneError) -> JsError {
-    JsError::new(&e.to_string())
+/// The `code` an engine failure carries, mirroring the C ABI's status names
+/// after their `VANEDB_RS_` prefix, in the `ERR_` spelling this binding
+/// already uses for [`REENTRANT_SEARCH_CODE`] (#262).
+fn error_code(e: &vanedb::VaneError) -> &'static str {
+    use vanedb::VaneError as E;
+    match e {
+        E::DimensionMismatch { .. } => "ERR_DIMENSION_MISMATCH",
+        E::BatchLengthMismatch { .. } => "ERR_BATCH_LENGTH_MISMATCH",
+        E::ZeroDimension => "ERR_ZERO_DIMENSION",
+        E::NotFound { .. } => "ERR_NOT_FOUND",
+        E::DuplicateId { .. } => "ERR_DUPLICATE_ID",
+        E::InvalidK => "ERR_INVALID_K",
+        E::NonFiniteValue { .. } => "ERR_NON_FINITE_VALUE",
+        E::InvalidParameter(_) | E::Validation(_) => "ERR_INVALID_PARAMETER",
+        E::FileNotFound { .. } => "ERR_FILE_NOT_FOUND",
+        E::Corrupt { .. } => "ERR_CORRUPT",
+        E::Io { .. } => "ERR_IO",
+        E::Backend { .. } => "ERR_BACKEND",
+        // `VaneError` is #[non_exhaustive]; a variant this binding predates
+        // still reads as a failure, as the C ABI's `VANEDB_RS_UNKNOWN` does.
+        _ => "ERR_UNKNOWN",
+    }
+}
+
+/// An engine failure as a JavaScript `Error`: the engine's message, plus a
+/// `code` property to branch on without matching the message.
+fn to_jserr(e: vanedb::VaneError) -> JsValue {
+    let error = js_sys::Error::new(&e.to_string());
+    // Reflect::set fails only on a frozen or exotic target; a fresh Error
+    // is neither, and the message alone still identifies the failure.
+    let _ = Reflect::set(
+        &error,
+        &JsValue::from_str("code"),
+        &JsValue::from_str(error_code(&e)),
+    );
+    error.into()
 }
 
 /// One id: an unsigned 64-bit BigInt, or a Number that is a nonnegative safe
@@ -268,6 +302,24 @@ export interface ApproxSearchOptions extends SearchFilterOptions {
     efSearch?: number;
     maxEfSearch?: number;
 }
+/** The `code` property of an `Error` thrown for an engine failure. Mirrors
+ * the C ABI's status names. Errors thrown for an argument the binding rejects
+ * before it reaches the engine carry no code. */
+export type VaneErrorCode =
+    | "ERR_DIMENSION_MISMATCH"
+    | "ERR_BATCH_LENGTH_MISMATCH"
+    | "ERR_ZERO_DIMENSION"
+    | "ERR_NOT_FOUND"
+    | "ERR_DUPLICATE_ID"
+    | "ERR_INVALID_K"
+    | "ERR_NON_FINITE_VALUE"
+    | "ERR_INVALID_PARAMETER"
+    | "ERR_FILE_NOT_FOUND"
+    | "ERR_CORRUPT"
+    | "ERR_IO"
+    | "ERR_BACKEND"
+    | "ERR_UNKNOWN"
+    | "ERR_REENTRANT_SEARCH";
 "#;
 
 // Preserve the number until validation: Wasm's i32 boundary would silently
@@ -406,7 +458,7 @@ impl WasmStore {
     pub fn new(
         #[wasm_bindgen(unchecked_param_type = "number")] dim: &JsValue,
         #[wasm_bindgen(unchecked_param_type = "string")] metric: &JsValue,
-    ) -> Result<WasmStore, JsError> {
+    ) -> Result<WasmStore, JsValue> {
         let m = metric_from_value(metric)?;
         let inner = FlatIndex::new(count_value(dim, "dimension")?, m).map_err(to_jserr)?;
         Ok(Self { inner })
@@ -418,10 +470,9 @@ impl WasmStore {
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self
-            .inner
+        self.inner
             .add(one_id(id, "id")?, &vector_values(vector, "vector")?)
-            .map_err(to_jserr)?)
+            .map_err(to_jserr)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
@@ -433,10 +484,9 @@ impl WasmStore {
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vectors: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self
-            .inner
+        self.inner
             .add_batch(ids, &vector_values(vectors, "vectors")?)
-            .map_err(to_jserr)?)
+            .map_err(to_jserr)
     }
 
     /// Search for k nearest neighbors, with optional filter options.
@@ -494,7 +544,7 @@ impl WasmStore {
         #[wasm_bindgen(unchecked_param_type = "number | bigint")] id: &JsValue,
     ) -> Result<Option<Vec<f32>>, JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.get(one_id(id, "id")?).map_err(to_jserr)?)
+        self.inner.get(one_id(id, "id")?).map_err(to_jserr)
     }
 
     /// The same operation as `get`, under the spelling `ApproxIndex` also
@@ -514,7 +564,7 @@ impl WasmStore {
         #[wasm_bindgen(unchecked_param_type = "number | bigint")] id: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.remove(one_id(id, "id")?).map_err(to_jserr)?)
+        self.inner.remove(one_id(id, "id")?).map_err(to_jserr)
     }
 
     pub fn contains(
@@ -564,7 +614,7 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "number | bigint")] id: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.remove(one_id(id, "id")?).map_err(to_jserr)?)
+        self.inner.remove(one_id(id, "id")?).map_err(to_jserr)
     }
 
     /// Replaces the vector stored under `id`, inserting it if absent.
@@ -580,10 +630,9 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self
-            .inner
+        self.inner
             .upsert(one_id(id, "id")?, &vector_values(vector, "vector")?)
-            .map_err(to_jserr)?)
+            .map_err(to_jserr)
     }
 
     /// How many removed slots the graph still carries.
@@ -602,7 +651,7 @@ impl WasmIndex {
     /// rather than after each removal.
     pub fn compact(&self) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.compact().map_err(to_jserr)?)
+        self.inner.compact().map_err(to_jserr)
     }
 
     /// `seed` is optional and defaults to 42, the value this constructor used
@@ -616,7 +665,7 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "number")] m: &JsValue,
         #[wasm_bindgen(unchecked_param_type = "number")] ef_construction: &JsValue,
         #[wasm_bindgen(unchecked_optional_param_type = "number")] seed: Option<JsValue>,
-    ) -> Result<WasmIndex, JsError> {
+    ) -> Result<WasmIndex, JsValue> {
         let met = metric_from_value(metric)?;
         // Ids beyond 2^53 are not exactly representable as f64, so a seed
         // arrives through the same numeric gate as every other count rather
@@ -643,10 +692,9 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vector: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self
-            .inner
+        self.inner
             .add(one_id(id, "id")?, &vector_values(vector, "vector")?)
-            .map_err(to_jserr)?)
+            .map_err(to_jserr)
     }
 
     /// Bulk insert in one wasm call: `ids` is a BigUint64Array of n ids and
@@ -658,10 +706,9 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] vectors: &JsValue,
     ) -> Result<(), JsValue> {
         reject_reentry(self)?;
-        Ok(self
-            .inner
+        self.inner
             .add_batch(ids, &vector_values(vectors, "vectors")?)
-            .map_err(to_jserr)?)
+            .map_err(to_jserr)
     }
 
     /// Search for k nearest neighbors.
@@ -761,7 +808,7 @@ impl WasmIndex {
         #[wasm_bindgen(unchecked_param_type = "number | bigint")] id: &JsValue,
     ) -> Result<Option<Vec<f32>>, JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.get_vector(one_id(id, "id")?).map_err(to_jserr)?)
+        self.inner.get_vector(one_id(id, "id")?).map_err(to_jserr)
     }
 
     /// The same operation as `get_vector`, under the spelling `FlatIndex` uses.
@@ -839,12 +886,12 @@ impl WasmIndex {
     #[wasm_bindgen(js_name = toBytes)]
     pub fn to_bytes(&self) -> Result<Vec<u8>, JsValue> {
         reject_reentry(self)?;
-        Ok(self.inner.to_bytes().map_err(to_jserr)?)
+        self.inner.to_bytes().map_err(to_jserr)
     }
 
     /// Reads a VNDB graph — or a legacy Rust file — from `bytes`.
     #[wasm_bindgen(js_name = fromBytes)]
-    pub fn from_bytes(bytes: &[u8]) -> Result<WasmIndex, JsError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<WasmIndex, JsValue> {
         Ok(Self {
             inner: ApproxIndex::from_bytes(bytes).map_err(to_jserr)?,
         })
