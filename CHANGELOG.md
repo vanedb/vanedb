@@ -9,6 +9,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Added
+
+- Python: `vanedb.VaneError` and one subclass per engine failure
+  (`DimensionMismatchError`, `NotFoundError`, `DuplicateIdError`,
+  `CorruptError`, `MissingFileError`, ...). Each also inherits the built-in it
+  replaced, so `except ValueError` and `except FileNotFoundError` catch what
+  they always did; `except vanedb.VaneError` now catches every engine
+  failure. Messages are unchanged. Errors the binding raises before an
+  argument reaches the engine keep the plain built-in (#262, Python column).
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance
