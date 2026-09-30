@@ -25,6 +25,26 @@ a limit are named beside it.
 | `ef_search` / `max_ef_search` on `FlatIndex` and `DiskIndex` | ignored: exact scans have no beam, only the filter is read | `SearchParams` | none planned |
 | WebAssembly linear memory | 4 GiB (wasm32) | platform | none planned |
 
+## Graph reachability and exhaustive queries
+
+Approximate graph construction can prune every inbound link to a DOT vector
+or disconnect a tightly clustered cosine island (#299). A larger ordinary
+beam cannot cross a missing edge. Stored vectors are intact, but a bounded
+approximate search is not a completeness guarantee.
+
+When the effective beam reaches the **stored slot count**, search performs an
+exact scan with bounded top-k selection. This also works for disconnected
+legacy/C++ files and excludes tombstones and rejected filter IDs. Request it
+with `ef_search >= len() + tombstones()` (JavaScript: `efSearch`), or request
+that many results. Filtered widening can reach it through `max_ef_search`;
+a cap alone does not force exhaustive search if an earlier pass already fills
+`k`. The scan costs O(n × dimension + n log k), so use it deliberately.
+
+Loading, searching and saving still preserve the original graph topology.
+This query fallback does not repair connectivity or claim improved recall
+for smaller beams. `compact()` reclaims tombstones, not a guaranteed graph
+connectivity repair. Use exact indexes when every query needs completeness.
+
 ## Memory, computed
 
 `n` vectors of dimension `d`.
