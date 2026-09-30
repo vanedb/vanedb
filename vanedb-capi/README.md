@@ -190,14 +190,19 @@ function, no struct crosses the boundary (and if one ever does, its first
 field is `size_t size`), and error codes are only added. `VANEDB_RS_VERSION`
 and `vanedb_rs_version()` carry the semver string alongside.
 
-The ABI-version check is an application check, not a loader guard. The
-published shared libraries do not carry a versioned ELF SONAME or an ABI-specific
-macOS compatibility identity. A 0.1.1 binary does not know about the new check;
-replacing its library in place can load successfully without detecting the
-handle-type change. Recompile and relink consumers against the matching header
-and library. Do not treat an in-place `.so`, `.dylib`, or `.dll` swap as a supported
-upgrade, even when a smoke test appears to work. Versioned loader identities
-remain follow-up work (#303); they cannot retroactively protect old binaries.
+**The guard protects consumers that call it, not binaries built before it
+existed.** A program compiled against the 0.1.1 header and started against
+the 0.2.0 shared library without recompiling does not fail: the shipped
+Linux libraries carry no `SONAME`, the macOS dylibs record compatibility
+version 0.0.0, and a pointer and a `uint64_t` are passed identically on every
+supported platform, so the loader accepts the library and every call happens
+to work. A 0.1.1 binary cannot call `vanedb_rs_abi_version()`, which its
+header never declared. Recompiling against the new header is mandatory;
+swapping the `.so`, `.dylib` or `.dll` in place is neither detected nor safe,
+and the next incompatible change may not be representation-compatible by
+accident (#303). A versioned link identity tied to `VANEDB_RS_ABI_VERSION`
+would let the loader refuse a future break; it is not in place, and it would
+protect only from the release that ships it onward.
 
 **Handles are 64-bit ids, not pointers.** Every `vanedb_rs_store`,
 `vanedb_rs_index` and `vanedb_rs_disk` is a `uint64_t` into a table owned by
