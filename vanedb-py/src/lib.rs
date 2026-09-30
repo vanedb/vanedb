@@ -4,11 +4,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use pyo3::buffer::PyBuffer;
-use pyo3::exceptions::{
-    PyFileNotFoundError, PyOSError, PyOverflowError, PyRuntimeError, PyTypeError, PyValueError,
-};
+use pyo3::exceptions::{PyOverflowError, PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::sync::PyOnceLock;
+use pyo3::types::{PyDict, PyTuple, PyType};
 use pyo3::Borrowed;
 
 use ::vanedb::approx::{ApproxIndex, Filter, SearchParams};
@@ -17,31 +16,167 @@ use ::vanedb::flat::{FlatIndex, SearchResult};
 use ::vanedb::VaneError;
 use ::vanedb::{DiskIndex, DiskIndexBuilder};
 
+/// The exception classes of this module, in declaration order. Each is a
+/// subclass of `VaneError` and of the built-in it replaced, so `except
+/// ValueError` and `except FileNotFoundError` keep working (#262).
+///
+/// Built with `builtins.type` at module init rather than `create_exception!`,
+/// which takes a single base: the double inheritance is the point.
+struct ErrorClasses {
+    base: Py<PyType>,
+    /// One per `ERROR_CLASS_SPECS` entry, in that order.
+    subclasses: Vec<Py<PyType>>,
+}
+
+static ERROR_CLASSES: PyOnceLock<ErrorClasses> = PyOnceLock::new();
+
+/// `(name, doc, built-in base)` for every subclass, in the order `__all__`
+/// lists them. `FileNotFoundError` is deliberately not exported under its
+/// built-in name: `from vanedb import *` would shadow the built-in.
+const ERROR_CLASS_SPECS: [(&str, &str, &str); 12] = [
+    (
+        "DimensionMismatchError",
+        "A vector's length did not match the index dimension.",
+        "ValueError",
+    ),
+    (
+        "BatchLengthMismatchError",
+        "A batch's ids and vectors describe different row counts.",
+        "ValueError",
+    ),
+    (
+        "ZeroDimensionError",
+        "An index was constructed with a dimension of zero.",
+        "ValueError",
+    ),
+    (
+        "NotFoundError",
+        "`remove` of an id that is not stored. A lookup miss is `None`, not this.",
+        "ValueError",
+    ),
+    (
+        "DuplicateIdError",
+        "`add` of an id that is already stored.",
+        "ValueError",
+    ),
+    ("InvalidKError", "`search` with `k` of zero.", "ValueError"),
+    (
+        "NonFiniteValueError",
+        "A vector or query held a NaN or an infinity.",
+        "ValueError",
+    ),
+    (
+        "InvalidParameterError",
+        "A parameter, filter or id list was outside its valid range. Also the \
+         class of any engine failure this binding has no more specific class for.",
+        "ValueError",
+    ),
+    (
+        "MissingFileError",
+        "The index file does not exist. A subclass of FileNotFoundError.",
+        "FileNotFoundError",
+    ),
+    (
+        "CorruptError",
+        "The file or bytes are not a valid vanedb structure; retrying will not help.",
+        "ValueError",
+    ),
+    ("IoError", "An I/O failure other than a missing file. A subclass of OSError.", "OSError"),
+    (
+        "BackendError",
+        "A compute backend is unavailable; fall back rather than retry. A subclass of RuntimeError.",
+        "RuntimeError",
+    ),
+];
+
+const DIMENSION_MISMATCH: usize = 0;
+const BATCH_LENGTH_MISMATCH: usize = 1;
+const ZERO_DIMENSION: usize = 2;
+const NOT_FOUND: usize = 3;
+const DUPLICATE_ID: usize = 4;
+const INVALID_K: usize = 5;
+const NON_FINITE_VALUE: usize = 6;
+const INVALID_PARAMETER: usize = 7;
+const MISSING_FILE: usize = 8;
+const CORRUPT: usize = 9;
+const IO: usize = 10;
+const BACKEND: usize = 11;
+
+fn error_classes(py: Python<'_>) -> PyResult<&'static ErrorClasses> {
+    ERROR_CLASSES.get_or_try_init(py, || {
+        let builtins = py.import("builtins")?;
+        let type_ = builtins.getattr("type")?;
+        let new_class =
+            |name: &str, doc: &str, bases: Bound<'_, PyTuple>| -> PyResult<Py<PyType>> {
+                let namespace = PyDict::new(py);
+                namespace.set_item("__module__", "vanedb")?;
+                namespace.set_item("__doc__", doc)?;
+                Ok(type_
+                    .call1((name, bases, namespace))?
+                    .cast_into::<PyType>()?
+                    .unbind())
+            };
+        let exception = builtins.getattr("Exception")?;
+        let base = new_class(
+            "VaneError",
+            "Base class of every exception the engine raises. Each subclass also \
+             inherits the built-in it replaced, so `except ValueError` and \
+             `except FileNotFoundError` still catch what they always did.",
+            PyTuple::new(py, [exception])?,
+        )?;
+        let mut subclasses = Vec::with_capacity(ERROR_CLASS_SPECS.len());
+        for (name, doc, builtin) in ERROR_CLASS_SPECS {
+            let bases = PyTuple::new(
+                py,
+                [base.bind(py).as_any().clone(), builtins.getattr(builtin)?],
+            )?;
+            subclasses.push(new_class(name, doc, bases)?);
+        }
+        Ok(ErrorClasses { base, subclasses })
+    })
+}
+
 fn to_pyerr(e: VaneError) -> PyErr {
-    // A missing file and a corrupt one call for different handling, so they
-    // must not share an exception class. FileNotFoundError is checked first
-    // because it is a subclass of OSError.
-    match &e {
-        VaneError::FileNotFound { .. } => PyFileNotFoundError::new_err(e.to_string()),
-        VaneError::Io { .. } => PyOSError::new_err(e.to_string()),
+    Python::attach(|py| {
+        let classes = match error_classes(py) {
+            Ok(classes) => classes,
+            Err(err) => return err,
+        };
+        // A missing file and a corrupt one call for different handling, so
+        // they must not share an exception class; `MissingFileError` is a
+        // `FileNotFoundError` and `CorruptError` a `ValueError`.
+        //
         // A lookup miss is a value, not an error (RFC 0011): `get` returns
         // `None`, so `NotFound` reaches Python only from `remove`, where a
-        // caller removing what is not there has a bug. That is the
-        // validation bucket, and `KeyError` is no longer raised by any method.
+        // caller removing what is not there has a bug. `NotFoundError` is
+        // therefore a `ValueError`, and `KeyError` is raised by no method.
         //
-        // Corrupt data and every validation failure are ValueError.
+        // `Backend` means a compute backend is unavailable, which is an
+        // environment condition a caller should fall back from, not a bad
+        // argument they should fix: a `RuntimeError`. It cannot reach here
+        // today (constructed only behind `gpu-metal`, which Python does not
+        // build) but must not inherit `ValueError` by falling through.
         //
-        // The catch-all is right for validation, but `VaneError` is
-        // `#[non_exhaustive]` and not every future variant is a validation
-        // failure. `Backend` is the one already written: it means a compute
-        // backend is unavailable, which is an environment condition a caller
-        // should fall back from, not a bad argument they should fix. It cannot
-        // reach here today — it is constructed only in `gpu/metal.rs`, behind
-        // the `gpu-metal` feature, which Python does not build — but it must
-        // get its own class (`RuntimeError`) before that feature is exposed,
-        // rather than inheriting `ValueError` by falling through.
-        _ => PyValueError::new_err(e.to_string()),
-    }
+        // `VaneError` is `#[non_exhaustive]`; a variant this binding predates
+        // is reported as the validation bucket, as it always was.
+        let index = match &e {
+            VaneError::DimensionMismatch { .. } => DIMENSION_MISMATCH,
+            VaneError::BatchLengthMismatch { .. } => BATCH_LENGTH_MISMATCH,
+            VaneError::ZeroDimension => ZERO_DIMENSION,
+            VaneError::NotFound { .. } => NOT_FOUND,
+            VaneError::DuplicateId { .. } => DUPLICATE_ID,
+            VaneError::InvalidK => INVALID_K,
+            VaneError::NonFiniteValue { .. } => NON_FINITE_VALUE,
+            VaneError::InvalidParameter(_) | VaneError::Validation(_) => INVALID_PARAMETER,
+            VaneError::FileNotFound { .. } => MISSING_FILE,
+            VaneError::Corrupt { .. } => CORRUPT,
+            VaneError::Io { .. } => IO,
+            VaneError::Backend { .. } => BACKEND,
+            _ => INVALID_PARAMETER,
+        };
+        let class = &classes.subclasses[index];
+        PyErr::from_type(class.bind(py).clone(), e.to_string())
+    })
 }
 
 /// Converts a Python int to an unsigned value, preserving type errors.
@@ -1112,18 +1247,23 @@ fn vanedb(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyIndex>()?;
     m.add_class::<PyDiskStore>()?;
     m.add_class::<PyDiskStoreBuilder>()?;
+    let classes = error_classes(m.py())?;
+    m.add("VaneError", classes.base.bind(m.py()))?;
+    let mut exported = vec![
+        "FlatIndex",
+        "ApproxIndex",
+        "DiskIndex",
+        "DiskIndexBuilder",
+        "VaneError",
+    ];
+    for ((name, _, _), class) in ERROR_CLASS_SPECS.iter().zip(&classes.subclasses) {
+        m.add(*name, class.bind(m.py()))?;
+        exported.push(name);
+    }
+    exported.push("__version__");
     // maturin's generated __init__ does `from .vanedb import *` and copies
     // __all__ verbatim, so this list is the package's entire public surface --
     // omitting __version__ here removes it from the package altogether.
-    m.add(
-        "__all__",
-        vec![
-            "FlatIndex",
-            "ApproxIndex",
-            "DiskIndex",
-            "DiskIndexBuilder",
-            "__version__",
-        ],
-    )?;
+    m.add("__all__", exported)?;
     Ok(())
 }
