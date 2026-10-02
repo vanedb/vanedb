@@ -69,6 +69,11 @@ pub enum Metric {
     /// ranks last rather than first. Both engines do this deliberately: a
     /// saturated score carries no ranking information, and letting it win
     /// would put an arbitrary vector at the top of every result set.
+    ///
+    /// Non-finite f32 accumulation is recomputed in f64 so that cancelling
+    /// extreme products can still return a finite score. Only a final dot
+    /// outside the f32 range is saturated. Ordinary finite f32 results keep
+    /// the usual rounding differences between scalar and SIMD reduction.
     Dot,
 }
 
