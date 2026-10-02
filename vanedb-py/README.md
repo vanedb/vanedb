@@ -137,7 +137,10 @@ effective initial beam; it does not impose a hard limit on nodes visited.
 As a rule of thumb, set `ef_search` on the order of `k` divided by the
 fraction of ids the filter accepts, and leave `max_ef_search` at its default
 of four times the beam, or raise it if results still fall short of `k`;
-raising only the cap does not improve results that already fill `k`.
+raising only the cap does not improve results that already fill `k`. Below
+roughly 0.5% selectivity at `k = 10` the defaults return fewer than `k` for
+most queries; a short result set there is a tuning signal, not proof that
+fewer matches exist (#304).
 Measured recall at
 several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
