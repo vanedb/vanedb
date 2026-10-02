@@ -157,7 +157,7 @@ pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
         sum += a[i] * b[i];
         i += 1;
     }
-    -sum
+    crate::distance::scalar::finish_dot(sum, a, b)
 }
 
 #[cfg(test)]
