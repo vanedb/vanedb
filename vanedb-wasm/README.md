@@ -6,7 +6,7 @@ Vector search in Node.js and the browser, using the Rust engine compiled to
 WebAssembly. Bring your own embeddings.
 
 ```sh
-npm install @vanedb/wasm@0.2.0-rc.1
+npm install @vanedb/wasm@0.2.0-rc.2
 ```
 
 One package serves both runtimes through conditional `exports`, so the same
