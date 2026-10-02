@@ -27,6 +27,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Fixed
 
+- A graph search whose effective beam reaches every stored slot now uses an
+  exact bounded-top-k scan. Disconnected DOT nodes and cosine islands are
+  retrievable even in legacy files, without rewriting their graph (#299).
+  Smaller beams remain approximate; this does not repair graph connectivity.
 - Python: a `filter=` predicate defined with `async def`, as a generator, or as
   a class with an `async def __call__` is now refused with `TypeError`. Calling
   one returns an unevaluated coroutine or generator rather than a verdict, and
