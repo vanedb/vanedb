@@ -135,6 +135,16 @@ shows the difference: at 1% selectivity, raising the cap from 200 to 1,600
 took recall@10 from 51.5% to 51.8%, while raising the beam to 1,000 took it
 to 96.2%.
 
+Very selective filters can make the defaults under-fill `k`. In one measured
+20,000-vector L2 workload (`m = 16`, `ef_construction = 200`, `k = 10`), a 1%
+allow list returned `k` for every query and 0.5% for all but one, but at 0.2%
+180 of 200 queries came back short; every one of those filled `k` again with
+`ef_search = 500` or `max_ef_search = 3000` (#304). A short result set at low
+selectivity is a tuning signal, not a fact about the data: the return value
+alone cannot tell the two apart, so measure on your own selectivity and raise
+the beam or the cap before concluding that fewer matches exist. These figures
+are observations from that workload, not a universal selectivity threshold.
+
 Every type accepts a `Metric` (`L2`, cosine, or dot), defaulting to `L2` in the
 Python bindings; wasm takes it as a required string argument. Results come back
 nearest

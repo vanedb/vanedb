@@ -450,6 +450,41 @@ uintptr_t vanedb_rs_index_search_filtered(vanedb_rs_index h,
                                           float *out_dists);
 
 /**
+ * `vanedb_rs_index_search_filtered` with the beam-widening cap exposed.
+ *
+ * `max_ef_search` bounds how far a filtered graph search may widen its beam
+ * when the first pass finds fewer than `k` matches (`SearchParams::max_ef_search`
+ * in Rust, `max_ef_search=` in Python, `maxEfSearch` in WebAssembly). It
+ * bounds the beam width alone, not the number of nodes visited. Pass `0` for
+ * the core's default of four times the initial beam, which is what
+ * `vanedb_rs_index_search_filtered` always uses; the cap is raised to at
+ * least the initial beam and lowered to the stored slot count. A selective
+ * filter that returns fewer than `k` results at the default is the case to
+ * raise it for: it widens only the queries that came up short and leaves
+ * the cost of every other query unchanged, whereas raising `ef_search`
+ * widens every query.
+ *
+ * Every other argument, validation rule and failure code is exactly that of
+ * `vanedb_rs_index_search_filtered`.
+ *
+ * # Safety
+ * As for `vanedb_rs_index_search_filtered`.
+ */
+uintptr_t vanedb_rs_index_search_filtered_ex(vanedb_rs_index h,
+                                             const float *q,
+                                             uintptr_t k,
+                                             uintptr_t ef_search,
+                                             uintptr_t max_ef_search,
+                                             vanedb_rs_filter_fn filter,
+                                             void *user_data,
+                                             const uint64_t *allow,
+                                             uintptr_t allow_len,
+                                             const uint64_t *deny,
+                                             uintptr_t deny_len,
+                                             uint64_t *out_ids,
+                                             float *out_dists);
+
+/**
  * # Safety
  * `path` must be a valid NUL-terminated C string.
  */
