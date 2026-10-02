@@ -9,6 +9,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Added
+
+- WebAssembly: every engine failure is thrown as an `Error` carrying a `code`
+  that mirrors the C ABI's status name (`ERR_DIMENSION_MISMATCH`,
+  `ERR_NOT_FOUND`, `ERR_DUPLICATE_ID`, `ERR_CORRUPT`, ...), the spelling the
+  re-entrancy error already used. The declarations export the union as
+  `VaneErrorCode`. Messages are unchanged; an argument the binding rejects
+  before it reaches the engine still throws without a code (#262, wasm
+  column).
+
 ### Fixed
 
 - DOT kernels recompute non-finite f32 accumulations in f64, recovering
