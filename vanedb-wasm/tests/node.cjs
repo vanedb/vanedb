@@ -243,3 +243,62 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
     other.free();
 }
 console.log('Generated JavaScript filtered-search boundaries: passed');
+{
+    // Validation runs before JavaScript's ToNumber coercion (#306): a value
+    // that is not a number is rejected by type, so `null` can no longer
+    // become 0 in a vector or in a numeric parameter.
+    const notANumber = /must be a number, not/;
+    for (const create of [() => new FlatIndex(3, 'l2'), () => new ApproxIndex(3, 'l2', 10, 2, 10)]) {
+        const index = create();
+        try {
+            for (const element of [null, [], true, '2', {}, 1n]) {
+                assert.throws(() => index.add(1n, [1, element, 3]), /vector\[1\] must be a number, not/);
+                assert.throws(() => index.search([1, element, 3], 1), /query\[1\] must be a number, not/);
+            }
+            assert.throws(() => index.add(1n, [1, undefined, 3]), notANumber);
+            assert.throws(() => index.add(1n, [1, , 3]), notANumber, 'a hole is undefined');
+            assert.throws(() => index.add(1n, [1, NaN, 3]), /finite/);
+            assert.throws(() => index.add(1n, 'abc'), /vector must be a Float32Array or an array of numbers, not string/);
+            assert.throws(() => index.add(1n, new BigUint64Array(3)), /vector must be a Float32Array/);
+            assert.throws(() => index.add(1n, new DataView(new ArrayBuffer(12))), /vector must be a Float32Array/);
+            assert.equal(index.size(), 0, 'nothing was stored by a rejected call');
+            index.add(1n, [1, 2, 3]);
+            index.add(2n, new Float64Array([4, 5, 6]));
+            index.add(3n, Int8Array.of(7, 8, 9));
+            assert.deepEqual([...index.get(1n)], [1, 2, 3]);
+            assert.deepEqual([...index.get(2n)], [4, 5, 6]);
+            assert.deepEqual([...index.get(3n)], [7, 8, 9]);
+            assert.throws(() => index.add_batch(BigUint64Array.of(4n), [1, null, 3]), /vectors\[1\] must be a number, not null/);
+            assert.equal(index.size(), 3);
+            const hits = index.search(new Float64Array([1, 2, 3]), 1);
+            assert.deepEqual([...hits.ids], [1n]);
+            hits.free();
+            for (const k of [null, '1', true, [1], { valueOf: () => 1 }]) {
+                assert.throws(() => index.search([1, 2, 3], k), /k must be a number, not/);
+            }
+            if (index instanceof ApproxIndex) {
+                index.efSearch = 73;
+                for (const ef of [null, '50', '  50  ', true, [50], { valueOf: () => 50 }]) {
+                    assert.throws(() => { index.efSearch = ef; }, /efSearch must be a number, not/);
+                    assert.equal(index.efSearch, 73, 'a rejected assignment leaves the value in place');
+                }
+            }
+        } finally { index.free(); }
+    }
+    for (const value of [null, '3', true, [3], { valueOf: () => 3 }]) {
+        assert.throws(() => new FlatIndex(value, 'l2'), /dimension must be a number, not/);
+        assert.throws(() => new ApproxIndex(value, 'l2', 10, 2, 10), /dimension must be a number, not/);
+        assert.throws(() => new ApproxIndex(3, 'l2', value, 2, 10), /capacity must be a number, not/);
+        assert.throws(() => new ApproxIndex(3, 'l2', 10, value, 10), /m must be a number, not/);
+        assert.throws(() => new ApproxIndex(3, 'l2', 10, 2, value), /ef_construction must be a number, not/);
+        if (value !== null) {
+            assert.throws(() => new ApproxIndex(3, 'l2', 10, 2, 10, value), /seed must be a number, not/);
+        }
+    }
+    // A seed of `null` or `undefined` means the default, like an omitted one.
+    for (const seed of [undefined, null]) {
+        const index = new ApproxIndex(3, 'l2', 10, 2, 10, seed);
+        index.free();
+    }
+}
+console.log('Generated JavaScript coercion boundaries: passed');
