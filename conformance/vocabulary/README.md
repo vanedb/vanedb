@@ -17,7 +17,8 @@ reference code, not a shipped binding.
 | `Metric` | enum | `enum.IntEnum`: `.name`, `.value`, iterable, hashable, picklable | string | `uint32_t` |
 | `contains(id)` | yes | yes | yes | `_contains` |
 | `remove(id)` of a missing id | `Err(VaneError::NotFound)` | `ValueError` | throws | `VANEDB_RS_NOT_FOUND` |
-| Asserted by | `vanedb/tests/public_surface.rs` | `vanedb-py/tests/test_api_parity.py` | `vanedb-wasm/tests/web.rs` and, for the JavaScript spellings, `vanedb-wasm/tests/node.cjs` | `vanedb-capi/tests/capi.rs` |
+| Errors | `VaneError` variants | `ValueError` / `FileNotFoundError` / `OSError`; typed subclasses tracked in #262 | throws an `Error` whose `code` mirrors the C status name (`ERR_NOT_FOUND`, `ERR_CORRUPT`, ...) | status codes |
+| Asserted by | `vanedb/tests/public_surface.rs` | `vanedb-py/tests/test_api_parity.py` | `vanedb-wasm/tests/web.rs` (errors in `engine_failures_carry_a_code`) and, for the JavaScript spellings, `vanedb-wasm/tests/node.cjs` | `vanedb-capi/tests/capi.rs` |
 
 Rules the table implies:
 
