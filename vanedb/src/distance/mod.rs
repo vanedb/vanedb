@@ -69,6 +69,14 @@ pub enum Metric {
     /// ranks last rather than first. Both engines do this deliberately: a
     /// saturated score carries no ranking information, and letting it win
     /// would put an arbitrary vector at the top of every result set.
+    ///
+    /// The kernels add the products in different orders (four SIMD
+    /// accumulators versus one scalar one), so for a pair whose *partial*
+    /// sums exceed `f32::MAX` while the true product does not, whether the
+    /// overflow happens at all depends on the kernel in use. Such a pair
+    /// needs components near `1e19`; every kernel that does overflow reports
+    /// the same negative infinity. `vanedb/tests/distance_kernels.rs` pins
+    /// the cases every kernel must agree on.
     Dot,
 }
 

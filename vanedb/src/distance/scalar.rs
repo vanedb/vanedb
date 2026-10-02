@@ -54,7 +54,24 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 /// Negated dot product, so that lower still means nearer as it does for
 /// the other metrics.
 pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    -a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>()
+    saturate_dot(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>())
+}
+
+/// Negates a dot product, reporting every overflowed sum as negative
+/// infinity, the value [`Metric::Dot`](crate::Metric::Dot) documents.
+///
+/// A sum that overflowed may be `+inf`, `-inf`, or NaN when partial sums
+/// of opposite sign both overflowed; which one depends on the order the
+/// active kernel added the products in. Collapsing them here keeps the
+/// three kernels, and the C++ engine, reporting the same value for a
+/// saturated score, which carries no ranking information either way.
+#[inline]
+pub(crate) fn saturate_dot(sum: f32) -> f32 {
+    if sum.is_finite() {
+        -sum
+    } else {
+        f32::NEG_INFINITY
+    }
 }
 
 #[cfg(test)]
