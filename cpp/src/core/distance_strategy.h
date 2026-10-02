@@ -38,11 +38,16 @@ public:
       case Metric::L2:     return l2_sq(a, b, dim_);
       case Metric::COSINE: return cosine_distance(a, b, dim_);
       case Metric::DOT: {
-        // An overflowed inner product is reported as -inf whichever way it
-        // overflowed, matching the Rust engine (vanedb#300); the shared result
-        // order then ranks it last.
         const float dot = dot_product(a, b, dim_);
-        return std::isfinite(dot) ? -dot : -std::numeric_limits<float>::infinity();
+        if (std::isfinite(dot)) return -dot;
+        // Match Rust's rare recovery path: intermediate f32 overflow need
+        // not imply the final dot is outside f32 (opposite products cancel).
+        double wide = 0.0;
+        for (size_t i = 0; i < dim_; ++i)
+          wide += static_cast<double>(a[i]) * static_cast<double>(b[i]);
+        if (std::isfinite(wide) && std::abs(wide) <= std::numeric_limits<float>::max())
+          return -static_cast<float>(wide);
+        return -std::numeric_limits<float>::infinity();
       }
     }
     return std::numeric_limits<float>::infinity();

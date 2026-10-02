@@ -11,13 +11,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Fixed
 
-- An overflowed `Metric::Dot` inner product is now reported as negative
-  infinity by the scalar, AVX2 and NEON kernels alike, as documented. The
-  kernels returned NaN when two opposite-sign products both overflowed, and
-  positive infinity when the sum overflowed negative, so the reported value
-  depended on the CPU (#300). Whether an overflow occurs at all for a pair
-  whose partial sums exceed `f32::MAX` still depends on the kernel's
-  summation order; the `Metric::Dot` documentation now says so.
+- DOT kernels recompute non-finite f32 accumulations in f64, recovering
+  finite scores when extreme products cancel. Only an out-of-range final
+  score is reported as negative infinity, consistently with the C++ engine
+  (#300). Ordinary inputs retain the existing SIMD accumulation path.
 - WebAssembly: the single-id methods (`add`, `upsert`, `get`, `get_vector`,
   `contains`, `remove`) accept a Number id that is a nonnegative safe
   integer, the rule the filter id lists already applied, and name that rule

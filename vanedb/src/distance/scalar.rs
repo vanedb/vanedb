@@ -54,21 +54,35 @@ pub fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
 /// Negated dot product, so that lower still means nearer as it does for
 /// the other metrics.
 pub fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
-    saturate_dot(a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>())
+    finish_dot(
+        a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f32>(),
+        a,
+        b,
+    )
 }
 
-/// Negates a dot product, reporting every overflowed sum as negative
-/// infinity, the value [`Metric::Dot`](crate::Metric::Dot) documents.
-///
-/// A sum that overflowed may be `+inf`, `-inf`, or NaN when partial sums
-/// of opposite sign both overflowed; which one depends on the order the
-/// active kernel added the products in. Collapsing them here keeps the
-/// three kernels, and the C++ engine, reporting the same value for a
-/// saturated score, which carries no ranking information either way.
+/// Keep ordinary vectors on the SIMD/f32 path. A non-finite intermediate
+/// may be caused by cancelling products whose final dot is representable;
+/// recompute those rare cases in f64 before applying the overflow policy.
 #[inline]
-pub(crate) fn saturate_dot(sum: f32) -> f32 {
+pub(crate) fn finish_dot(sum: f32, a: &[f32], b: &[f32]) -> f32 {
     if sum.is_finite() {
         -sum
+    } else {
+        wide_dot(a, b)
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn wide_dot(a: &[f32], b: &[f32]) -> f32 {
+    let sum: f64 = a
+        .iter()
+        .zip(b)
+        .map(|(&x, &y)| f64::from(x) * f64::from(y))
+        .sum();
+    if sum.is_finite() && sum.abs() <= f64::from(f32::MAX) {
+        -(sum as f32)
     } else {
         f32::NEG_INFINITY
     }
