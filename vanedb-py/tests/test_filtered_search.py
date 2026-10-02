@@ -1,5 +1,6 @@
 """Filtered search across the installed wheel's three index implementations."""
 
+import functools
 import subprocess
 import sys
 import textwrap
@@ -57,6 +58,44 @@ def test_predicate_errors_propagate_original_exception(index, truth_conversion):
     assert raised.value is error
     assert len(calls) == 1, "stop running user code after the first failure"
     assert len(index.search([0.], 4)) == 4, "failed callbacks leave the index usable"
+
+
+async def _coroutine_predicate(id):
+    return id > 1
+
+
+def _generator_predicate(id):
+    yield id > 1
+
+
+async def _async_generator_predicate(id):
+    yield id > 1
+
+
+class _AsyncCallablePredicate:
+    async def __call__(self, id):
+        return id > 1
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        _coroutine_predicate,
+        _generator_predicate,
+        _async_generator_predicate,
+        functools.partial(_coroutine_predicate),
+        _AsyncCallablePredicate(),
+    ],
+    ids=["coroutine", "generator", "async_generator", "partial", "async_call"],
+)
+def test_non_synchronous_predicate_is_rejected(index, predicate):
+    """Calling one of these returns an unevaluated object, which is truthy.
+
+    Accepting it would silently pass every candidate the filter should have
+    excluded, so refuse the callable instead of running the search.
+    """
+    with pytest.raises(TypeError, match="synchronous"):
+        index.search([0.], 4, filter=predicate)
 
 
 def test_approx_predicate_can_search_another_index():

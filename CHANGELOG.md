@@ -21,6 +21,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Fixed
 
+- Python: a `filter=` predicate defined with `async def`, as a generator, or as
+  a class with an `async def __call__` is now refused with `TypeError`. Calling
+  one returns an unevaluated coroutine or generator rather than a verdict, and
+  every such object is truthy, so the search had been admitting every candidate
+  the filter was written to exclude. Checked once per search, not per candidate.
 - DOT kernels recompute non-finite f32 accumulations in f64, recovering
   finite scores when extreme products cancel. Only an out-of-range final
   score is reported as negative infinity, consistently with the C++ engine
