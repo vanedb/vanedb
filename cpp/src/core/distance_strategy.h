@@ -1,6 +1,7 @@
 // VaneDB - Copyright (c) 2025 Anton Tsvetkov - MIT License
 #pragma once
 #include "distance.h"
+#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
@@ -36,7 +37,13 @@ public:
     switch (metric_) {
       case Metric::L2:     return l2_sq(a, b, dim_);
       case Metric::COSINE: return cosine_distance(a, b, dim_);
-      case Metric::DOT:    return -dot_product(a, b, dim_);
+      case Metric::DOT: {
+        // An overflowed inner product is reported as -inf whichever way it
+        // overflowed, matching the Rust engine (vanedb#300); the shared result
+        // order then ranks it last.
+        const float dot = dot_product(a, b, dim_);
+        return std::isfinite(dot) ? -dot : -std::numeric_limits<float>::infinity();
+      }
     }
     return std::numeric_limits<float>::infinity();
   }

@@ -72,3 +72,49 @@ fn mismatched_lengths_truncate_to_the_shorter_slice() {
         }
     }
 }
+
+/// An overflowed dot product is reported as negative infinity by every
+/// kernel, whatever sign the saturated sum took (vanedb#300).
+///
+/// The NaN case is the interesting one: two opposite-sign products both
+/// overflow, and `+inf + -inf` is NaN in the scalar order. The dispatched
+/// kernel may not overflow at all on such a pair — its partial sums are
+/// taken in a different order — so the assertion is on the reported value
+/// given that it is non-finite, plus the two cases every order overflows.
+#[test]
+fn dot_overflow_is_reported_as_negative_infinity_by_every_kernel() {
+    let cases: [(&str, Vec<f32>, Vec<f32>); 4] = [
+        ("parallel", vec![3e38, 3e38], vec![2.0, 2.0]),
+        ("antiparallel", vec![3e38, 3e38], vec![-2.0, -2.0]),
+        ("opposite products", vec![3e38, 3e38], vec![2.0, -2.0]),
+        (
+            "interleaved, 8 wide",
+            vec![1e38; 8],
+            vec![2.0, -2.0, 2.0, -2.0, 2.0, -2.0, 2.0, -2.0],
+        ),
+    ];
+    for (name, a, b) in &cases {
+        for (kernel, got) in [
+            ("scalar", scalar::dot_distance(a, b)),
+            ("dispatched", distance_fn(Metric::Dot)(a, b)),
+        ] {
+            assert!(!got.is_nan(), "{name}: {kernel} returned NaN");
+            if !got.is_finite() {
+                assert_eq!(got, f32::NEG_INFINITY, "{name}: {kernel} returned {got}");
+            }
+        }
+    }
+    // The first two overflow in every summation order.
+    for (name, a, b) in &cases[..2] {
+        assert_eq!(
+            scalar::dot_distance(a, b),
+            f32::NEG_INFINITY,
+            "{name} scalar"
+        );
+        assert_eq!(
+            distance_fn(Metric::Dot)(a, b),
+            f32::NEG_INFINITY,
+            "{name} dispatched"
+        );
+    }
+}
