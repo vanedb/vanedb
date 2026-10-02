@@ -2,10 +2,10 @@
 //! single-accumulator FMA loop is latency-bound rather than throughput-bound.
 //!
 //! Every function here requires AVX2 and FMA; callers reach them through
-//! [`distance_fn`](crate::distance::distance_fn), which checks at runtime.
+//! [the dispatcher](crate::distance::distance_fn), which checks at runtime.
 //!
 //! Each compares `a.len().min(b.len())` elements, matching
-//! [`scalar`](crate::distance::scalar); the lengths themselves need not agree.
+//! [the scalar kernels](crate::distance::scalar); the lengths themselves need not agree.
 
 // `crate::`, not `super::`: this module carries an outer `///` line written in
 // `distance/mod.rs` as well as these `//!` lines, and rustdoc resolves the
@@ -182,7 +182,7 @@ pub unsafe fn dot_distance(a: &[f32], b: &[f32]) -> f32 {
         sum += a[i] * b[i];
         i += 1;
     }
-    -sum
+    crate::distance::scalar::saturate_dot(sum)
 }
 
 #[cfg(test)]
