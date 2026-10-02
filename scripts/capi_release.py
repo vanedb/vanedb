@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import tomllib
 import zipfile
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "vanedb/vanedb"
@@ -268,6 +269,49 @@ def verify(directory, version, commit, ref):
     return payloads
 
 
+def release_api(method, endpoint, data=None):
+    """Address one release/asset by ID, never resolve its tag again."""
+    args = ["gh", "api", "--method", method, endpoint]
+    if data is not None:
+        args += ["--input", "-"]
+    response = subprocess.run(args, text=True, capture_output=True,
+                              input=json.dumps(data) if data is not None else None)
+    if response.returncode:
+        raise ValueError(f"cannot inspect or update release: {response.stderr}")
+    return json.loads(response.stdout)
+
+
+def find_release(tag):
+    # The /releases/tags endpoint only finds published releases. List all
+    # pages so a maintainer's pre-created draft is reused, even for old tags.
+    matches = []
+    page = 1
+    while True:
+        releases = release_api("GET", f"repos/{REPOSITORY}/releases?per_page=100&page={page}")
+        matches.extend(r for r in releases if r["tag_name"] == tag)
+        if len(releases) < 100:
+            break
+        page += 1
+    if len(matches) > 1:
+        raise ValueError(f"multiple releases for {tag}; resolve duplicate IDs before publishing")
+    return matches[0] if matches else None
+
+
+def upload_asset(release_id, path):
+    endpoint = (f"https://uploads.github.com/repos/{REPOSITORY}/releases/"
+                f"{release_id}/assets?name={quote(path.name, safe='')}")
+    return json.loads(output("gh", "api", "--method", "POST", endpoint,
+                             "-H", "Content-Type: application/octet-stream",
+                             "--input", path))
+
+
+def download_asset(asset_id, path):
+    with path.open("wb") as destination:
+        subprocess.run(["gh", "api", f"repos/{REPOSITORY}/releases/assets/{asset_id}",
+                        "-H", "Accept: application/octet-stream"],
+                       check=True, stdout=destination)
+
+
 def publish(directory, version, commit, ref):
     if not check_context(version, os.environ.get("GITHUB_EVENT_NAME", ""), ref,
                          os.environ.get("GITHUB_REPOSITORY", "")):
@@ -286,23 +330,17 @@ def publish(directory, version, commit, ref):
     assets = sorted(payloads + [n + BUNDLE for n in payloads])
     tag = ref.removeprefix("refs/tags/")
     prerelease = "-" in version
-    # Only a 404 proves absence; permission/network errors are not permission
-    # to create another release or conceal a partial previous publication.
-    response = subprocess.run(["gh", "api", f"repos/{REPOSITORY}/releases/tags/{tag}"],
-                              text=True, capture_output=True)
-    if response.returncode:
-        if "HTTP 404" not in response.stderr:
-            raise ValueError(f"cannot inspect release: {response.stderr}")
-        run("gh", "release", "create", tag, "--repo", REPOSITORY, "--verify-tag", "--draft",
-            "--title", f"VaneDB {version}", "--notes-file", directory / NOTES,
-            *(["--prerelease"] if prerelease else []))
-        release = {"draft": True, "prerelease": prerelease,
-                   "body": (directory / NOTES).read_text(encoding="utf-8"), "assets": []}
-    else:
-        release = json.loads(response.stdout)
+    release = find_release(tag)
+    if release is None:
+        release = release_api("POST", f"repos/{REPOSITORY}/releases", {
+            "tag_name": tag, "target_commitish": commit, "draft": True,
+            "prerelease": prerelease, "name": f"VaneDB {version}",
+            "body": (directory / NOTES).read_text(encoding="utf-8"),
+        })
+    release_id = release["id"]
     if bool(release.get("prerelease")) != prerelease:
         raise ValueError("existing release prerelease status disagrees with the version")
-    existing = {asset["name"] for asset in release["assets"]}
+    existing = {asset["name"]: asset for asset in release["assets"]}
     unexpected = {n for n in existing if n.startswith("vanedb-capi-")} - set(assets)
     if unexpected:
         raise ValueError(f"unexpected C ABI release assets: {sorted(unexpected)}")
@@ -310,26 +348,24 @@ def publish(directory, version, commit, ref):
         downloaded = Path(temporary)
         for name in assets:
             if name in existing:
-                run("gh", "release", "download", tag, "--repo", REPOSITORY,
-                    "--pattern", name, "--dir", downloaded)
+                download_asset(existing[name]["id"], downloaded / name)
                 if digest(downloaded / name) != digest(directory / name):
                     raise ValueError(f"refusing to overwrite existing release asset: {name}")
             else:
-                run("gh", "release", "upload", tag, directory / name, "--repo", REPOSITORY)
-                run("gh", "release", "download", tag, "--repo", REPOSITORY,
-                    "--pattern", name, "--dir", downloaded)
+                asset = upload_asset(release_id, directory / name)
+                download_asset(asset["id"], downloaded / name)
         verify(downloaded, version, commit, ref)
     # Preserve human-authored release notes and append exact verification
     # instructions once. No --clobber and no moving/recreating published tags.
     body = release.get("body") or ""
     notes = (directory / NOTES).read_text(encoding="utf-8")
+    update = {}
     if notes not in body:
-        with tempfile.TemporaryDirectory() as temporary:
-            combined = Path(temporary) / "notes.md"
-            combined.write_text(body + "\n\n" + notes, encoding="utf-8")
-            run("gh", "release", "edit", tag, "--repo", REPOSITORY, "--notes-file", combined)
+        update["body"] = body + "\n\n" + notes
     if release.get("draft"):
-        run("gh", "release", "edit", tag, "--repo", REPOSITORY, "--draft=false")
+        update["draft"] = False
+    if update:
+        release_api("PATCH", f"repos/{REPOSITORY}/releases/{release_id}", update)
 
 
 def main():
