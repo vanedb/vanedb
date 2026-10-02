@@ -302,3 +302,26 @@ console.log('Generated JavaScript filtered-search boundaries: passed');
     }
 }
 console.log('Generated JavaScript coercion boundaries: passed');
+{
+    // Engine failures carry a `code` (#262); the declarations name the union.
+    assert.match(declarations, /export type VaneErrorCode =/);
+    for (const code of ['ERR_DIMENSION_MISMATCH', 'ERR_NOT_FOUND', 'ERR_CORRUPT', 'ERR_REENTRANT_SEARCH']) {
+        assert.match(declarations, new RegExp(`"${code}"`), `${code} must be declared`);
+    }
+    const index = new ApproxIndex(2, 'l2', 4, 2, 8);
+    index.add(1n, [1, 2]);
+    const codeOf = fn => { try { fn(); } catch (error) { return error.code; } throw new Error('expected a throw'); };
+    assert.equal(codeOf(() => index.add(1n, [1, 2])), 'ERR_DUPLICATE_ID');
+    assert.equal(codeOf(() => index.add(2n, [1])), 'ERR_DIMENSION_MISMATCH');
+    assert.equal(codeOf(() => index.remove(9n)), 'ERR_NOT_FOUND');
+    assert.equal(codeOf(() => index.search([1, 2], 0)), 'ERR_INVALID_K');
+    assert.equal(codeOf(() => index.search([1, 2], 1, { allow: [2n, 1n] })), 'ERR_INVALID_PARAMETER');
+    assert.equal(codeOf(() => ApproxIndex.fromBytes(new Uint8Array([1, 2, 3]))), 'ERR_CORRUPT');
+    assert.throws(() => index.remove(9n), error => error instanceof Error && error.code === 'ERR_NOT_FOUND' && /not found: 9/.test(error.message));
+    // Arguments the binding rejects before the engine sees them carry no code.
+    assert.equal(codeOf(() => index.add(-1, [1, 2])), undefined);
+    assert.equal(codeOf(() => index.search([1, 2], null)), undefined);
+    index.free();
+}
+console.log('Generated JavaScript error codes: passed');
+
