@@ -9,6 +9,44 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Added
+
+- WebAssembly: every engine failure is thrown as an `Error` carrying a `code`
+  that mirrors the C ABI's status name (`ERR_DIMENSION_MISMATCH`,
+  `ERR_NOT_FOUND`, `ERR_DUPLICATE_ID`, `ERR_CORRUPT`, ...), the spelling the
+  re-entrancy error already used. The declarations export the union as
+  `VaneErrorCode`. Messages are unchanged; an argument the binding rejects
+  before it reaches the engine still throws without a code (#262, wasm
+  column).
+
+### Fixed
+
+- Python: a `filter=` predicate defined with `async def`, as a generator, or as
+  a class with an `async def __call__` is now refused with `TypeError`. Calling
+  one returns an unevaluated coroutine or generator rather than a verdict, and
+  every such object is truthy, so the search had been admitting every candidate
+  the filter was written to exclude. Checked once per search, not per candidate.
+- DOT kernels recompute non-finite f32 accumulations in f64, recovering
+  finite scores when extreme products cancel. Only an out-of-range final
+  score is reported as negative infinity, consistently with the C++ engine
+  (#300). Ordinary inputs retain the existing SIMD accumulation path.
+- WebAssembly: the single-id methods (`add`, `upsert`, `get`, `get_vector`,
+  `contains`, `remove`) accept a Number id that is a nonnegative safe
+  integer, the rule the filter id lists already applied, and name that rule
+  when rejecting one. They rejected every Number, including an in-range one,
+  with the BigInt range message "id must be between 0 and 2**64 - 1" (#301).
+  The declarations type the parameter as `number | bigint`.
+- WebAssembly: vector elements and numeric parameters are validated before
+  JavaScript's `ToNumber` coercion rather than after it. `[1, null, 3]` was
+  stored as `[1, 0, 3]`, `[]` and `true` inside a vector became `0` and `1`,
+  and `index.efSearch = null` set the beam to `0`; the same coercion applied to
+  `k`, `dimension`, `capacity`, `m`, `ef_construction` and `seed` (#306). A
+  value that is not a number now throws and names the argument and the type
+  it received. `Float32Array` is unchanged; a plain array of numbers or
+  another numeric typed array is still accepted. Strings such as `"50"` were
+  accepted by accident and are now rejected, which the documented contract
+  already promised.
+
 ## [0.2.0-rc.1] - 2026-09-27
 
 Release candidate for integration testing. Final 0.2.0 performance acceptance
