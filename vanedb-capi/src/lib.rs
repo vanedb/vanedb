@@ -1078,6 +1078,47 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
     out_ids: *mut u64,
     out_dists: *mut f32,
 ) -> usize {
+    vanedb_rs_index_search_filtered_ex(
+        h, q, k, ef_search, 0, filter, user_data, allow, allow_len, deny, deny_len, out_ids,
+        out_dists,
+    )
+}
+
+/// `vanedb_rs_index_search_filtered` with the beam-widening cap exposed.
+///
+/// `max_ef_search` bounds how far a filtered graph search may widen its beam
+/// when the first pass finds fewer than `k` matches (`SearchParams::max_ef_search`
+/// in Rust, `max_ef_search=` in Python, `maxEfSearch` in WebAssembly). It
+/// bounds the beam width alone, not the number of nodes visited. Pass `0` for
+/// the core's default of four times the initial beam, which is what
+/// `vanedb_rs_index_search_filtered` always uses; the cap is raised to at
+/// least the initial beam and lowered to the stored slot count. A selective
+/// filter that returns fewer than `k` results at the default is the case to
+/// raise it for: it widens only the queries that came up short and leaves
+/// the cost of every other query unchanged, whereas raising `ef_search`
+/// widens every query.
+///
+/// Every other argument, validation rule and failure code is exactly that of
+/// `vanedb_rs_index_search_filtered`.
+///
+/// # Safety
+/// As for `vanedb_rs_index_search_filtered`.
+#[no_mangle]
+pub unsafe extern "C" fn vanedb_rs_index_search_filtered_ex(
+    h: vanedb_rs_index,
+    q: *const f32,
+    k: usize,
+    ef_search: usize,
+    max_ef_search: usize,
+    filter: vanedb_rs_filter_fn,
+    user_data: *mut std::ffi::c_void,
+    allow: *const u64,
+    allow_len: usize,
+    deny: *const u64,
+    deny_len: usize,
+    out_ids: *mut u64,
+    out_dists: *mut f32,
+) -> usize {
     guard(0, || {
         let Some(idx) = index(h) else { return 0 };
         if q.is_null() || out_ids.is_null() || out_dists.is_null() {
@@ -1102,6 +1143,11 @@ pub unsafe extern "C" fn vanedb_rs_index_search_filtered(
         } else {
             vanedb::SearchParams::new().ef_search(ef_search)
         };
+        // Same idiom as `ef_search`: 0 is "the core's default", which for the
+        // cap is four times the initial beam.
+        if max_ef_search != 0 {
+            params = params.max_ef_search(max_ef_search);
+        }
         if let Some(f) = c_filter {
             params = params.filter(f);
         }

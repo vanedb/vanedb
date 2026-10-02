@@ -11,6 +11,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ### Added
 
+- C ABI: `vanedb_rs_index_search_filtered_ex`, the filtered graph search with
+  the beam-widening cap exposed as `max_ef_search` after `ef_search`; `0` is
+  the core's default of four times the initial beam, which is what
+  `vanedb_rs_index_search_filtered` always uses. C callers could not tune
+  filtered recall at low selectivity except by raising `ef_search` on every
+  query (#305). Additive, so `VANEDB_RS_ABI_VERSION` stays 1.
 - WebAssembly: every engine failure is thrown as an `Error` carrying a `code`
   that mirrors the C ABI's status name (`ERR_DIMENSION_MISMATCH`,
   `ERR_NOT_FOUND`, `ERR_DUPLICATE_ID`, `ERR_CORRUPT`, ...), the spelling the
