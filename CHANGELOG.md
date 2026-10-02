@@ -9,6 +9,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+## [0.2.0-rc.2] - 2026-10-02
+
+Second release candidate. Fixes every defect found in rc.1 QA and adds
+typed errors across bindings. See the [RC testing notes](docs/release/0.2.0-rc.2-notes.md).
+
 ### Added
 
 - Python: `vanedb.VaneError` and one subclass per engine failure

@@ -21,7 +21,7 @@ text end to end.
 Requires Python 3.11 or newer.
 
 ```sh
-python -m pip install vanedb==0.2.0rc1
+python -m pip install vanedb==0.2.0rc2
 ```
 
 Python lists work without additional dependencies. NumPy is optional; its arrays
