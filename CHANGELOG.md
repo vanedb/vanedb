@@ -15,6 +15,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   finite scores when extreme products cancel. Only an out-of-range final
   score is reported as negative infinity, consistently with the C++ engine
   (#300). Ordinary inputs retain the existing SIMD accumulation path.
+- WebAssembly: the single-id methods (`add`, `upsert`, `get`, `get_vector`,
+  `contains`, `remove`) accept a Number id that is a nonnegative safe
+  integer, the rule the filter id lists already applied, and name that rule
+  when rejecting one. They rejected every Number, including an in-range one,
+  with the BigInt range message "id must be between 0 and 2**64 - 1" (#301).
+  The declarations type the parameter as `number | bigint`.
 
 ## [0.2.0-rc.1] - 2026-09-27
 
