@@ -2,6 +2,11 @@ use vanedb_wasm::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
+/// A vector argument as JavaScript hands it over: a `Float32Array`.
+fn v(values: &[f32]) -> JsValue {
+    js_sys::Float32Array::from(values).into()
+}
+
 #[wasm_bindgen_test]
 fn test_version() {
     // Compared against the same source as the binding, so the two cannot
@@ -11,23 +16,29 @@ fn test_version() {
 
 #[wasm_bindgen_test]
 fn test_vector_store_basic() {
-    let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
+    let store = WasmStore::new(&JsValue::from(3.0), &JsValue::from_str("l2")).unwrap();
+    store
+        .add(&JsValue::from(1u64), &v(&[1.0, 0.0, 0.0]))
+        .unwrap();
+    store
+        .add(&JsValue::from(2u64), &v(&[0.0, 1.0, 0.0]))
+        .unwrap();
     assert_eq!(store.size().unwrap(), 2);
     assert_eq!(store.dimension(), 3);
-    assert!(store.contains(1u64.into()).unwrap());
-    assert!(!store.contains(99u64.into()).unwrap());
+    assert!(store.contains(&JsValue::from(1u64)).unwrap());
+    assert!(!store.contains(&JsValue::from(99u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_vector_store_search() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-    store.add(1u64.into(), &[0.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(3u64.into(), &[10.0, 10.0]).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
+    store.add(&JsValue::from(1u64), &v(&[0.0, 0.0])).unwrap();
+    store.add(&JsValue::from(2u64), &v(&[1.0, 0.0])).unwrap();
+    store.add(&JsValue::from(3u64), &v(&[10.0, 10.0])).unwrap();
 
-    let hits = store.search(&[0.0, 0.1], 2.0, None).unwrap();
+    let hits = store
+        .search(&v(&[0.0, 0.1]), &JsValue::from(2.0), None)
+        .unwrap();
     assert_eq!(hits.length(), 2);
     assert_eq!(hits.distances().len(), 2);
     assert_eq!(hits.ids()[0], 1); // closest
@@ -35,70 +46,103 @@ fn test_vector_store_search() {
 
 #[wasm_bindgen_test]
 fn test_hnsw_basic() {
-    let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    idx.add(1u64.into(), &[1.0, 0.0, 0.0]).unwrap();
-    idx.add(2u64.into(), &[0.0, 1.0, 0.0]).unwrap();
+    let idx = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(100.0),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        None,
+    )
+    .unwrap();
+    idx.add(&JsValue::from(1u64), &v(&[1.0, 0.0, 0.0])).unwrap();
+    idx.add(&JsValue::from(2u64), &v(&[0.0, 1.0, 0.0])).unwrap();
     assert_eq!(idx.size().unwrap(), 2);
-    assert!(idx.contains(1u64.into()).unwrap());
+    assert!(idx.contains(&JsValue::from(1u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_hnsw_search() {
-    let idx = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    idx.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
-    idx.add(2u64.into(), &[10.0, 10.0, 10.0]).unwrap();
+    let idx = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(100.0),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        None,
+    )
+    .unwrap();
+    idx.add(&JsValue::from(1u64), &v(&[0.0, 0.0, 0.0])).unwrap();
+    idx.add(&JsValue::from(2u64), &v(&[10.0, 10.0, 10.0]))
+        .unwrap();
 
-    let hits = idx.search(&[0.0, 0.0, 0.0], 1.0, None).unwrap();
+    let hits = idx
+        .search(&v(&[0.0, 0.0, 0.0]), &JsValue::from(1.0), None)
+        .unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
 
 #[wasm_bindgen_test]
 fn test_cosine_metric() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("cosine")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[0.0, 1.0]).unwrap();
-    let hits = store.search(&[0.9, 0.1], 1.0, None).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("cosine")).unwrap();
+    store.add(&JsValue::from(1u64), &v(&[1.0, 0.0])).unwrap();
+    store.add(&JsValue::from(2u64), &v(&[0.0, 1.0])).unwrap();
+    let hits = store
+        .search(&v(&[0.9, 0.1]), &JsValue::from(1.0), None)
+        .unwrap();
     assert_eq!(hits.ids()[0], 1);
 }
 
 #[wasm_bindgen_test]
 fn test_invalid_metric() {
-    let result = WasmStore::new(3.0, &JsValue::from_str("invalid"));
+    let result = WasmStore::new(&JsValue::from(3.0), &JsValue::from_str("invalid"));
     assert!(result.is_err());
 }
 
 #[wasm_bindgen_test]
 fn test_store_add_batch() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
     let ids = [1u64, 2, 3];
     let flat = [0.0f32, 0.0, 1.0, 1.0, 5.0, 5.0];
-    store.add_batch(&ids, &flat).unwrap();
+    store.add_batch(&ids, &v(&flat)).unwrap();
     assert_eq!(store.size().unwrap(), 3);
-    let results = store.search(&[0.9, 0.9], 1.0, None).unwrap();
+    let results = store
+        .search(&v(&[0.9, 0.9]), &JsValue::from(1.0), None)
+        .unwrap();
     assert_eq!(results.ids()[0], 2);
 
     // duplicate -> Err, all-or-nothing
-    assert!(store.add_batch(&[4, 1], &flat[..4]).is_err());
+    assert!(store.add_batch(&[4, 1], &v(&flat[..4])).is_err());
     assert_eq!(store.size().unwrap(), 3);
-    assert!(!store.contains(4u64.into()).unwrap());
+    assert!(!store.contains(&JsValue::from(4u64)).unwrap());
 }
 
 #[wasm_bindgen_test]
 fn test_hnsw_add_batch() {
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(100.0),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        None,
+    )
+    .unwrap();
     let ids = [10u64, 20];
     let flat = [0.0f32, 0.0, 1.0, 1.0];
-    index.add_batch(&ids, &flat).unwrap();
+    index.add_batch(&ids, &v(&flat)).unwrap();
     assert_eq!(index.size().unwrap(), 2);
-    let results = index.search(&[0.1, 0.1], 1.0, None).unwrap();
+    let results = index
+        .search(&v(&[0.1, 0.1]), &JsValue::from(1.0), None)
+        .unwrap();
     assert_eq!(results.ids()[0], 10);
 }
 
 #[wasm_bindgen_test]
 fn test_wasm_filtered_search() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-    store.add(10u64.into(), &[0.0, 0.0]).unwrap();
-    store.add(20u64.into(), &[1.0, 1.0]).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
+    store.add(&JsValue::from(10u64), &v(&[0.0, 0.0])).unwrap();
+    store.add(&JsValue::from(20u64), &v(&[1.0, 1.0])).unwrap();
 
     let opts = js_sys::Object::new();
     let allow_arr = js_sys::Array::new();
@@ -106,14 +150,26 @@ fn test_wasm_filtered_search() {
     js_sys::Reflect::set(&opts, &JsValue::from_str("allow"), &allow_arr).unwrap();
 
     let res = store
-        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts)))
+        .search(
+            &v(&[0.0, 0.0]),
+            &JsValue::from(2.0),
+            Some(JsValue::from(opts)),
+        )
         .unwrap();
     assert_eq!(res.length(), 1);
     assert_eq!(res.ids()[0], 20);
 
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    index.add(10u64.into(), &[0.0, 0.0]).unwrap();
-    index.add(20u64.into(), &[1.0, 1.0]).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(100.0),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        None,
+    )
+    .unwrap();
+    index.add(&JsValue::from(10u64), &v(&[0.0, 0.0])).unwrap();
+    index.add(&JsValue::from(20u64), &v(&[1.0, 1.0])).unwrap();
 
     let opts2 = js_sys::Object::new();
     let deny_arr = js_sys::Array::new();
@@ -121,7 +177,11 @@ fn test_wasm_filtered_search() {
     js_sys::Reflect::set(&opts2, &JsValue::from_str("deny"), &deny_arr).unwrap();
 
     let res2 = index
-        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts2)))
+        .search(
+            &v(&[0.0, 0.0]),
+            &JsValue::from(2.0),
+            Some(JsValue::from(opts2)),
+        )
         .unwrap();
     assert_eq!(res2.length(), 1);
     assert_eq!(res2.ids()[0], 20);
@@ -132,7 +192,11 @@ fn test_wasm_filtered_search() {
         js_sys::Function::new_no_args("return arguments[0] === 10n || arguments[0] === 10;");
     js_sys::Reflect::set(&opts_pred, &JsValue::from_str("predicate"), &pred_fn).unwrap();
     let res_pred = store
-        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts_pred)))
+        .search(
+            &v(&[0.0, 0.0]),
+            &JsValue::from(2.0),
+            Some(JsValue::from(opts_pred)),
+        )
         .unwrap();
     assert_eq!(res_pred.length(), 1);
     assert_eq!(res_pred.ids()[0], 10);
@@ -144,7 +208,11 @@ fn test_wasm_filtered_search() {
     bad_arr.push(&JsValue::from(10));
     js_sys::Reflect::set(&opts_bad, &JsValue::from_str("allow"), &bad_arr).unwrap();
     assert!(store
-        .search(&[0.0, 0.0], 2.0, Some(JsValue::from(opts_bad)))
+        .search(
+            &v(&[0.0, 0.0]),
+            &JsValue::from(2.0),
+            Some(JsValue::from(opts_bad))
+        )
         .is_err());
 }
 
@@ -154,11 +222,16 @@ const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
 
 #[wasm_bindgen_test]
 fn store_search_round_trips_ids_beyond_f32_precision() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        store.add((*id).into(), &[i as f32, 0.0]).unwrap();
+        store
+            .add(&JsValue::from(*id), &v(&[i as f32, 0.0]))
+            .unwrap();
     }
-    let mut got = store.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
+    let mut got = store
+        .search(&v(&[0.0, 0.0]), &JsValue::from(4.0), None)
+        .unwrap()
+        .ids();
     got.sort_unstable();
     let mut want = PRECISION_IDS.to_vec();
     want.sort_unstable();
@@ -167,11 +240,24 @@ fn store_search_round_trips_ids_beyond_f32_precision() {
 
 #[wasm_bindgen_test]
 fn hnsw_search_round_trips_ids_beyond_f32_precision() {
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 16.0, 100.0, None).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(16.0),
+        &JsValue::from(100.0),
+        None,
+    )
+    .unwrap();
     for (i, id) in PRECISION_IDS.iter().enumerate() {
-        index.add((*id).into(), &[i as f32, 0.0]).unwrap();
+        index
+            .add(&JsValue::from(*id), &v(&[i as f32, 0.0]))
+            .unwrap();
     }
-    let mut got = index.search(&[0.0, 0.0], 4.0, None).unwrap().ids();
+    let mut got = index
+        .search(&v(&[0.0, 0.0]), &JsValue::from(4.0), None)
+        .unwrap()
+        .ids();
     got.sort_unstable();
     let mut want = PRECISION_IDS.to_vec();
     want.sort_unstable();
@@ -181,14 +267,24 @@ fn hnsw_search_round_trips_ids_beyond_f32_precision() {
 #[wasm_bindgen_test]
 fn test_non_finite_vectors_and_queries_are_rejected() {
     for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-        let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-        assert!(store.add(1u64.into(), &[value, 0.0]).is_err());
+        let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
+        assert!(store.add(&JsValue::from(1u64), &v(&[value, 0.0])).is_err());
         assert_eq!(store.size().unwrap(), 0);
-        store.add(2u64.into(), &[0.0, 0.0]).unwrap();
-        assert!(store.search(&[value, 0.0], 1.0, None).is_err());
+        store.add(&JsValue::from(2u64), &v(&[0.0, 0.0])).unwrap();
+        assert!(store
+            .search(&v(&[value, 0.0]), &JsValue::from(1.0), None)
+            .is_err());
 
-        let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 4.0, 2.0, 10.0, None).unwrap();
-        assert!(index.add(1u64.into(), &[value, 0.0]).is_err());
+        let index = WasmIndex::new(
+            &JsValue::from(2.0),
+            &JsValue::from_str("l2"),
+            &JsValue::from(4.0),
+            &JsValue::from(2.0),
+            &JsValue::from(10.0),
+            None,
+        )
+        .unwrap();
+        assert!(index.add(&JsValue::from(1u64), &v(&[value, 0.0])).is_err());
         assert_eq!(index.size().unwrap(), 0);
     }
 }
@@ -199,22 +295,32 @@ fn every_metric_round_trips_and_is_reportable() {
     // was built with. The reported spelling is the one the constructor takes,
     // so it can be fed straight back.
     for name in ["l2", "cosine", "dot"] {
-        let store = WasmStore::new(2.0, &JsValue::from_str(name)).unwrap();
+        let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str(name)).unwrap();
         assert_eq!(store.metric(), name);
-        let index = WasmIndex::new(2.0, &JsValue::from_str(name), 16.0, 4.0, 40.0, None).unwrap();
+        let index = WasmIndex::new(
+            &JsValue::from(2.0),
+            &JsValue::from_str(name),
+            &JsValue::from(16.0),
+            &JsValue::from(4.0),
+            &JsValue::from(40.0),
+            None,
+        )
+        .unwrap();
         assert_eq!(index.metric(), name);
         // Round-trips through the constructor it names.
-        assert!(WasmStore::new(2.0, &JsValue::from_str(&store.metric())).is_ok());
+        assert!(WasmStore::new(&JsValue::from(2.0), &JsValue::from_str(&store.metric())).is_ok());
     }
 }
 
 #[wasm_bindgen_test]
 fn dot_ranks_by_largest_inner_product() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("dot")).unwrap();
-    store.add(1u64.into(), &[1.0, 0.0]).unwrap();
-    store.add(2u64.into(), &[4.0, 0.0]).unwrap();
-    store.add(3u64.into(), &[0.0, 1.0]).unwrap();
-    let hits = store.search(&[1.0, 0.0], 3.0, None).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("dot")).unwrap();
+    store.add(&JsValue::from(1u64), &v(&[1.0, 0.0])).unwrap();
+    store.add(&JsValue::from(2u64), &v(&[4.0, 0.0])).unwrap();
+    store.add(&JsValue::from(3u64), &v(&[0.0, 1.0])).unwrap();
+    let hits = store
+        .search(&v(&[1.0, 0.0]), &JsValue::from(3.0), None)
+        .unwrap();
     let ids = hits.ids();
     assert_eq!(ids[0], 2, "dot must rank the largest inner product first");
     assert_eq!(ids[2], 3);
@@ -226,14 +332,22 @@ fn dot_ranks_by_largest_inner_product() {
 /// with no API to measure or reclaim it.
 #[wasm_bindgen_test]
 fn a_deleted_entry_can_be_measured_and_reclaimed() {
-    let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(1.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
     for id in 0..8u64 {
-        index.add(id.into(), &[id as f32]).unwrap();
+        index.add(&JsValue::from(id), &v(&[id as f32])).unwrap();
     }
     assert_eq!(index.tombstones().unwrap(), 0);
 
-    index.remove(3u64.into()).unwrap();
-    index.remove(5u64.into()).unwrap();
+    index.remove(&JsValue::from(3u64)).unwrap();
+    index.remove(&JsValue::from(5u64)).unwrap();
     assert_eq!(index.size().unwrap(), 6);
     assert_eq!(
         index.tombstones().unwrap(),
@@ -253,9 +367,9 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
         "compaction must keep the live set"
     );
     for id in [0u64, 1, 2, 4, 6, 7] {
-        assert!(index.contains(id.into()).unwrap(), "{id} was live");
+        assert!(index.contains(&JsValue::from(id)).unwrap(), "{id} was live");
     }
-    assert!(!index.contains(3u64.into()).unwrap());
+    assert!(!index.contains(&JsValue::from(3u64)).unwrap());
 }
 
 /// A JS caller could not read a stored vector back from `ApproxIndex` at all —
@@ -263,14 +377,27 @@ fn a_deleted_entry_can_be_measured_and_reclaimed() {
 /// wasm supports "lookup methods".
 #[wasm_bindgen_test]
 fn a_stored_vector_can_be_read_back() {
-    let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
-    index.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
+    index
+        .add(&JsValue::from(7u64), &v(&[1.0, 2.0, 3.0]))
+        .unwrap();
     assert_eq!(
-        index.get_vector(7u64.into()).unwrap(),
+        index.get_vector(&JsValue::from(7u64)).unwrap(),
         Some(vec![1.0, 2.0, 3.0])
     );
-    assert_eq!(index.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
-    assert_eq!(index.get_vector(99u64.into()).unwrap(), None);
+    assert_eq!(
+        index.get(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(index.get_vector(&JsValue::from(99u64)).unwrap(), None);
 }
 
 /// Both read spellings exist on both index types (#85). `ApproxIndex` had the
@@ -278,25 +405,45 @@ fn a_stored_vector_can_be_read_back() {
 /// index broke on the one swap the pair exists to make painless.
 #[wasm_bindgen_test]
 fn both_read_spellings_exist_on_the_exact_index_too() {
-    let store = WasmStore::new(3.0, &JsValue::from_str("l2")).unwrap();
-    store.add(7u64.into(), &[1.0, 2.0, 3.0]).unwrap();
-    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 2.0, 3.0]));
+    let store = WasmStore::new(&JsValue::from(3.0), &JsValue::from_str("l2")).unwrap();
+    store
+        .add(&JsValue::from(7u64), &v(&[1.0, 2.0, 3.0]))
+        .unwrap();
     assert_eq!(
-        store.get_vector(7u64.into()).unwrap(),
+        store.get(&JsValue::from(7u64)).unwrap(),
         Some(vec![1.0, 2.0, 3.0])
     );
-    assert_eq!(store.get_vector(99u64.into()).unwrap(), None);
+    assert_eq!(
+        store.get_vector(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 2.0, 3.0])
+    );
+    assert_eq!(store.get_vector(&JsValue::from(99u64)).unwrap(), None);
 }
 
 /// The seed was hardcoded to 42, so reproducible graph construction was
 /// impossible from JS. Omitting it must keep the previous default.
 #[wasm_bindgen_test]
 fn the_construction_seed_is_settable_and_defaults_as_before() {
-    let defaulted = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
+    let defaulted = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
     assert_eq!(defaulted.seed(), 42);
 
-    let seeded =
-        WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, Some(1234.0)).unwrap();
+    let seeded = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        Some(JsValue::from(1234.0)),
+    )
+    .unwrap();
     assert_eq!(seeded.seed(), 1234);
     assert_eq!(seeded.m(), 4);
     assert_eq!(seeded.ef_construction(), 16);
@@ -308,10 +455,18 @@ fn the_construction_seed_is_settable_and_defaults_as_before() {
 /// "recursive use of an object detected" instead of a deletion.
 #[wasm_bindgen_test]
 fn remove_does_not_require_an_exclusive_borrow() {
-    let index = WasmIndex::new(1.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
-    index.add(1u64.into(), &[1.0]).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(1.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
+    index.add(&JsValue::from(1u64), &v(&[1.0])).unwrap();
     let shared = &index;
-    shared.remove(1u64.into()).unwrap();
+    shared.remove(&JsValue::from(1u64)).unwrap();
     assert_eq!(shared.size().unwrap(), 0);
 }
 
@@ -330,13 +485,20 @@ fn a_non_string_metric_is_rejected_not_trapped() {
         JsValue::from(js_sys::Array::new()),
         JsValue::from(js_sys::Object::new()),
     ] {
-        let store = WasmStore::new(2.0, &value);
+        let store = WasmStore::new(&JsValue::from(2.0), &value);
         assert!(store.is_err(), "{value:?} was accepted as a metric");
-        let index = WasmIndex::new(2.0, &value, 16.0, 4.0, 40.0, None);
+        let index = WasmIndex::new(
+            &JsValue::from(2.0),
+            &value,
+            &JsValue::from(16.0),
+            &JsValue::from(4.0),
+            &JsValue::from(40.0),
+            None,
+        );
         assert!(index.is_err(), "{value:?} was accepted as a metric");
     }
     // A string that is not a metric stays a metric error, not a type error.
-    assert!(WasmStore::new(2.0, &JsValue::from_str("nope")).is_err());
+    assert!(WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("nope")).is_err());
 }
 
 /// `upsert` is one locked operation where `remove` then `add` is two.
@@ -347,23 +509,40 @@ fn a_non_string_metric_is_rejected_not_trapped() {
 /// state, and `add` and `remove` were already exposed.
 #[wasm_bindgen_test]
 fn upsert_replaces_in_place_and_inserts_when_absent() {
-    let index = WasmIndex::new(3.0, &JsValue::from_str("l2"), 100.0, 16.0, 200.0, None).unwrap();
-    index.add(1u64.into(), &[0.0, 0.0, 0.0]).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(100.0),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        None,
+    )
+    .unwrap();
+    index
+        .add(&JsValue::from(1u64), &v(&[0.0, 0.0, 0.0]))
+        .unwrap();
 
-    index.upsert(1u64.into(), &[5.0, 5.0, 5.0]).unwrap();
+    index
+        .upsert(&JsValue::from(1u64), &v(&[5.0, 5.0, 5.0]))
+        .unwrap();
     assert_eq!(
         index.size().unwrap(),
         1,
         "replacing must not grow the index"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
+    assert_eq!(
+        index.get(&JsValue::from(1u64)).unwrap(),
+        Some(vec![5.0, 5.0, 5.0])
+    );
     assert_eq!(
         index.tombstones().unwrap(),
         1,
         "the replaced slot is tombstoned"
     );
 
-    index.upsert(2u64.into(), &[1.0, 1.0, 1.0]).unwrap();
+    index
+        .upsert(&JsValue::from(2u64), &v(&[1.0, 1.0, 1.0]))
+        .unwrap();
     assert_eq!(
         index.size().unwrap(),
         2,
@@ -373,12 +552,15 @@ fn upsert_replaces_in_place_and_inserts_when_absent() {
     // The property that makes this worth having over remove-then-add: a
     // rejected upsert leaves the entry alone, where the two-call form can
     // fail after the removal and lose it.
-    assert!(index.upsert(1u64.into(), &[1.0, 1.0]).is_err());
+    assert!(index.upsert(&JsValue::from(1u64), &v(&[1.0, 1.0])).is_err());
     assert!(
-        index.contains(1u64.into()).unwrap(),
+        index.contains(&JsValue::from(1u64)).unwrap(),
         "a failed upsert must not delete"
     );
-    assert_eq!(index.get(1u64.into()).unwrap(), Some(vec![5.0, 5.0, 5.0]));
+    assert_eq!(
+        index.get(&JsValue::from(1u64)).unwrap(),
+        Some(vec![5.0, 5.0, 5.0])
+    );
 }
 
 /// A beam width for one query, leaving the index's own setting alone.
@@ -409,17 +591,17 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
     // vectors is where a narrow beam genuinely misses: the adversarial case
     // for a proximity graph, which is the point.
     let index = WasmIndex::new(
-        DIM as f64,
+        &JsValue::from(DIM as f64),
         &JsValue::from_str("l2"),
-        N as f64,
-        4.0,
-        8.0,
-        Some(7.0),
+        &JsValue::from(N as f64),
+        &JsValue::from(4.0),
+        &JsValue::from(8.0),
+        Some(JsValue::from(7.0)),
     )
     .unwrap();
     let ids: Vec<u64> = (0..N as u64).collect();
-    index.add_batch(&ids, &vectors).unwrap();
-    index.set_ef_search(1.0).unwrap();
+    index.add_batch(&ids, &v(&vectors)).unwrap();
+    index.set_ef_search(&JsValue::from(1.0)).unwrap();
 
     let query = &vectors[..DIM];
     let mut exact: Vec<(u64, f32)> = (0..N)
@@ -433,10 +615,19 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
     let truth: Vec<u64> = exact[..K].iter().map(|(id, _)| *id).collect();
     let found = |hits: Vec<u64>| hits.iter().filter(|id| truth.contains(id)).count();
 
-    let narrow = found(index.search(query, K as f64, None).unwrap().ids());
+    let narrow = found(
+        index
+            .search(&v(query), &JsValue::from(K as f64), None)
+            .unwrap()
+            .ids(),
+    );
     let widened = found(
         index
-            .search(query, K as f64, Some(JsValue::from(400.0)))
+            .search(
+                &v(query),
+                &JsValue::from(K as f64),
+                Some(JsValue::from(400.0)),
+            )
             .unwrap()
             .ids(),
     );
@@ -452,15 +643,27 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
     );
 
     // Omitting it falls back to that property, and it is validated like `k`.
-    assert_eq!(index.search(query, 5.0, None).unwrap().length(), 5);
-    assert!(index.search(query, 5.0, Some(JsValue::from(-1.0))).is_err());
+    assert_eq!(
+        index
+            .search(&v(query), &JsValue::from(5.0), None)
+            .unwrap()
+            .length(),
+        5
+    );
     assert!(index
-        .search(query, 5.0, Some(JsValue::from(f64::NAN)))
+        .search(&v(query), &JsValue::from(5.0), Some(JsValue::from(-1.0)))
+        .is_err());
+    assert!(index
+        .search(
+            &v(query),
+            &JsValue::from(5.0),
+            Some(JsValue::from(f64::NAN))
+        )
         .is_err());
     // 0 is the narrowest legal override, raised to `k` — not a fallback.
     assert_eq!(
         index
-            .search(query, 5.0, Some(JsValue::from(0.0)))
+            .search(&v(query), &JsValue::from(5.0), Some(JsValue::from(0.0)))
             .unwrap()
             .length(),
         5
@@ -471,10 +674,18 @@ fn per_query_ef_search_widens_the_search_and_leaves_the_setting_alone() {
 /// load. The bytes are a VNDB file, so they load in Rust, Python and C.
 #[wasm_bindgen_test]
 fn to_bytes_round_trips_through_from_bytes() {
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, Some(7.0)).unwrap();
-    index.add(101u64.into(), &[1.0, 0.0]).unwrap();
-    index.add(202u64.into(), &[0.0, 1.0]).unwrap();
-    index.set_ef_search(32.0).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        Some(JsValue::from(7.0)),
+    )
+    .unwrap();
+    index.add(&JsValue::from(101u64), &v(&[1.0, 0.0])).unwrap();
+    index.add(&JsValue::from(202u64), &v(&[0.0, 1.0])).unwrap();
+    index.set_ef_search(&JsValue::from(32.0)).unwrap();
 
     let bytes = index.to_bytes().unwrap();
     assert!(bytes.starts_with(b"VNDB"), "wasm save must be a VNDB file");
@@ -483,8 +694,17 @@ fn to_bytes_round_trips_through_from_bytes() {
     assert_eq!(loaded.dimension(), 2);
     assert_eq!(loaded.metric(), "l2");
     assert_eq!(loaded.ef_search(), 32);
-    assert_eq!(loaded.get(101u64.into()).unwrap(), Some(vec![1.0, 0.0]));
-    assert_eq!(loaded.search(&[1.0, 0.0], 1.0, None).unwrap().ids()[0], 101);
+    assert_eq!(
+        loaded.get(&JsValue::from(101u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
+    assert_eq!(
+        loaded
+            .search(&v(&[1.0, 0.0]), &JsValue::from(1.0), None)
+            .unwrap()
+            .ids()[0],
+        101
+    );
     assert_eq!(loaded.to_bytes().unwrap(), bytes);
 }
 
@@ -497,36 +717,50 @@ fn to_bytes_round_trips_through_from_bytes() {
 /// in `tests/node.cjs`.
 #[wasm_bindgen_test]
 fn the_vocabulary_of_rfc_0011() {
-    let store = WasmStore::new(2.0, &JsValue::from_str("l2")).unwrap();
-    let index = WasmIndex::new(2.0, &JsValue::from_str("l2"), 16.0, 4.0, 16.0, None).unwrap();
+    let store = WasmStore::new(&JsValue::from(2.0), &JsValue::from_str("l2")).unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(2.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
     assert_eq!(store.size().unwrap(), 0);
     assert_eq!(index.size().unwrap(), 0);
-    assert_eq!(store.get(7u64.into()).unwrap(), None);
-    assert_eq!(store.get_vector(7u64.into()).unwrap(), None);
-    assert_eq!(index.get(7u64.into()).unwrap(), None);
-    assert_eq!(index.get_vector(7u64.into()).unwrap(), None);
-    assert!(!store.contains(7u64.into()).unwrap());
-    assert!(!index.contains(7u64.into()).unwrap());
+    assert_eq!(store.get(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(store.get_vector(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(index.get(&JsValue::from(7u64)).unwrap(), None);
+    assert_eq!(index.get_vector(&JsValue::from(7u64)).unwrap(), None);
+    assert!(!store.contains(&JsValue::from(7u64)).unwrap());
+    assert!(!index.contains(&JsValue::from(7u64)).unwrap());
     assert!(
-        store.remove(7u64.into()).is_err(),
+        store.remove(&JsValue::from(7u64)).is_err(),
         "remove is not named get"
     );
     assert!(
-        index.remove(7u64.into()).is_err(),
+        index.remove(&JsValue::from(7u64)).is_err(),
         "remove is not named get"
     );
 
-    store.add(7u64.into(), &[1.0, 0.0]).unwrap();
-    index.add(7u64.into(), &[1.0, 0.0]).unwrap();
-    assert_eq!(store.get(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
-    assert_eq!(index.get_vector(7u64.into()).unwrap(), Some(vec![1.0, 0.0]));
+    store.add(&JsValue::from(7u64), &v(&[1.0, 0.0])).unwrap();
+    index.add(&JsValue::from(7u64), &v(&[1.0, 0.0])).unwrap();
+    assert_eq!(
+        store.get(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
+    assert_eq!(
+        index.get_vector(&JsValue::from(7u64)).unwrap(),
+        Some(vec![1.0, 0.0])
+    );
     assert_eq!(store.size().unwrap(), 1);
     assert_eq!(index.size().unwrap(), 1);
 
     assert_eq!(index.ef_search(), 50, "documented default");
-    index.set_ef_search(64.0).unwrap();
+    index.set_ef_search(&JsValue::from(64.0)).unwrap();
     assert_eq!(index.ef_search(), 64);
-    assert!(index.set_ef_search(-1.0).is_err());
+    assert!(index.set_ef_search(&JsValue::from(-1.0)).is_err());
     assert_eq!(index.ef_search(), 64, "a rejected value leaves the setting");
 }
 
@@ -567,20 +801,29 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
     }
 
     // ApproxIndex: writes, reads and nested searches all throw.
-    let index =
-        Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
-    index.add(1u64.into(), &[0.0]).unwrap();
+    let index = Rc::new(
+        WasmIndex::new(
+            &JsValue::from(1.0),
+            &JsValue::from_str("l2"),
+            &JsValue::from(8.0),
+            &JsValue::from(4.0),
+            &JsValue::from(16.0),
+            None,
+        )
+        .unwrap(),
+    );
+    index.add(&JsValue::from(1u64), &v(&[0.0])).unwrap();
     let errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
     let predicate = {
         let index = Rc::clone(&index);
         let errors = Rc::clone(&errors);
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
             let mut errors = errors.borrow_mut();
-            errors.push(index.add(2u64.into(), &[1.0]).unwrap_err());
+            errors.push(index.add(&JsValue::from(2u64), &v(&[1.0])).unwrap_err());
             errors.push(index.size().unwrap_err());
             errors.push(
                 index
-                    .search(&[0.0], 1.0, None)
+                    .search(&v(&[0.0]), &JsValue::from(1.0), None)
                     .err()
                     .expect("nested search must throw"),
             );
@@ -588,7 +831,11 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         })
     };
     let hits = index
-        .search(&[0.0], 1.0, Some(options_with(&predicate)))
+        .search(
+            &v(&[0.0]),
+            &JsValue::from(1.0),
+            Some(options_with(&predicate)),
+        )
         .unwrap();
     assert_eq!(hits.ids(), vec![1], "the outer search still completes");
     assert_eq!(errors.borrow().len(), 3);
@@ -596,12 +843,12 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         assert_reentrant(error);
     }
     // The guard is released with the search.
-    index.add(2u64.into(), &[1.0]).unwrap();
+    index.add(&JsValue::from(2u64), &v(&[1.0])).unwrap();
     assert_eq!(index.size().unwrap(), 2);
 
     // FlatIndex: the same contract.
-    let store = Rc::new(WasmStore::new(1.0, &JsValue::from_str("l2")).unwrap());
-    store.add(1u64.into(), &[0.0]).unwrap();
+    let store = Rc::new(WasmStore::new(&JsValue::from(1.0), &JsValue::from_str("l2")).unwrap());
+    store.add(&JsValue::from(1u64), &v(&[0.0])).unwrap();
     let store_errors: Rc<RefCell<Vec<JsValue>>> = Rc::new(RefCell::new(Vec::new()));
     let predicate = {
         let store = Rc::clone(&store);
@@ -609,31 +856,48 @@ fn predicate_calling_back_into_the_same_index_throws_instead_of_hanging() {
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
             errors
                 .borrow_mut()
-                .push(store.remove(1u64.into()).unwrap_err());
+                .push(store.remove(&JsValue::from(1u64)).unwrap_err());
             true
         })
     };
     let hits = store
-        .search(&[0.0], 1.0, Some(options_with(&predicate)))
+        .search(
+            &v(&[0.0]),
+            &JsValue::from(1.0),
+            Some(options_with(&predicate)),
+        )
         .unwrap();
     assert_eq!(hits.ids(), vec![1]);
     assert_eq!(store_errors.borrow().len(), 1);
     assert_reentrant(&store_errors.borrow()[0]);
-    store.remove(1u64.into()).unwrap();
+    store.remove(&JsValue::from(1u64)).unwrap();
     assert_eq!(store.size().unwrap(), 0);
 
     // A different index remains usable from the predicate.
-    let other =
-        Rc::new(WasmIndex::new(1.0, &JsValue::from_str("l2"), 8.0, 4.0, 16.0, None).unwrap());
-    other.add(7u64.into(), &[0.0]).unwrap();
+    let other = Rc::new(
+        WasmIndex::new(
+            &JsValue::from(1.0),
+            &JsValue::from_str("l2"),
+            &JsValue::from(8.0),
+            &JsValue::from(4.0),
+            &JsValue::from(16.0),
+            None,
+        )
+        .unwrap(),
+    );
+    other.add(&JsValue::from(7u64), &v(&[0.0])).unwrap();
     let predicate = {
         let other = Rc::clone(&other);
         Closure::<dyn Fn(JsValue) -> bool>::new(move |_id: JsValue| {
-            other.contains(7u64.into()).unwrap()
+            other.contains(&JsValue::from(7u64)).unwrap()
         })
     };
     let hits = index
-        .search(&[0.0], 2.0, Some(options_with(&predicate)))
+        .search(
+            &v(&[0.0]),
+            &JsValue::from(2.0),
+            Some(options_with(&predicate)),
+        )
         .unwrap();
     assert_eq!(hits.length(), 2);
 }
@@ -654,16 +918,16 @@ fn filtered_search_retries_up_to_default_and_explicit_beam_caps() {
         })
         .collect();
     let index = WasmIndex::new(
-        DIM as f64,
+        &JsValue::from(DIM as f64),
         &JsValue::from_str("l2"),
-        N as f64,
-        16.0,
-        200.0,
-        Some(42.0),
+        &JsValue::from(N as f64),
+        &JsValue::from(16.0),
+        &JsValue::from(200.0),
+        Some(JsValue::from(42.0)),
     )
     .unwrap();
     index
-        .add_batch(&(0..N as u64).collect::<Vec<_>>(), &vectors)
+        .add_batch(&(0..N as u64).collect::<Vec<_>>(), &v(&vectors))
         .unwrap();
     let calls = Rc::new(Cell::new(0usize));
     let counter = Rc::clone(&calls);
@@ -681,7 +945,11 @@ fn filtered_search_retries_up_to_default_and_explicit_beam_caps() {
         }
         assert_eq!(
             index
-                .search(&vectors[..DIM], 10.0, Some(options.into()))
+                .search(
+                    &v(&vectors[..DIM]),
+                    &JsValue::from(10.0),
+                    Some(options.into())
+                )
                 .unwrap()
                 .length(),
             0
