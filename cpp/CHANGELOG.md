@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `DistanceComputer` reports an overflowed `DOT` inner product as `-inf`
-  whichever way it overflowed, instead of NaN or `+inf`, matching the Rust
-  engine (vanedb#300).
+- `DistanceComputer` recomputes non-finite `DOT` accumulation in double
+  precision so cancelling products can recover a finite score; a final
+  out-of-range score is `-inf`, matching Rust (vanedb#300).
 
 ## [0.1.1] - 2026-09-10
 

@@ -70,13 +70,10 @@ pub enum Metric {
     /// saturated score carries no ranking information, and letting it win
     /// would put an arbitrary vector at the top of every result set.
     ///
-    /// The kernels add the products in different orders (four SIMD
-    /// accumulators versus one scalar one), so for a pair whose *partial*
-    /// sums exceed `f32::MAX` while the true product does not, whether the
-    /// overflow happens at all depends on the kernel in use. Such a pair
-    /// needs components near `1e19`; every kernel that does overflow reports
-    /// the same negative infinity. `vanedb/tests/distance_kernels.rs` pins
-    /// the cases every kernel must agree on.
+    /// Non-finite f32 accumulation is recomputed in f64 so that cancelling
+    /// extreme products can still return a finite score. Only a final dot
+    /// outside the f32 range is saturated. Ordinary finite f32 results keep
+    /// the usual rounding differences between scalar and SIMD reduction.
     Dot,
 }
 
