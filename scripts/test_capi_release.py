@@ -212,103 +212,114 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(release.check_context(VERSION, "workflow_dispatch", "refs/heads/rehearsal", release.REPOSITORY))
         self.assertTrue(release.check_context(VERSION, "push", REF, release.REPOSITORY))
 
-    def test_release_publication_never_overwrites_different_remote_asset(self):
-        self.assemble()
-        self.dummy_bundles()
-        asset = "CAPI-RELEASE.json"
-        response = release.subprocess.CompletedProcess([], 0, json.dumps({"draft": False, "body": "human notes",
-                                                     "assets": [{"name": asset}]}), "")
-        def execute(*args, **kwargs):
-            if args[:3] == ("gh", "release", "download"):
-                directory = Path(args[args.index("--dir") + 1])
-                name = args[args.index("--pattern") + 1]
-                (directory / name).write_text("different remote content")
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,
-                                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
-                patch.object(release, "source_commit", return_value=COMMIT), \
-                patch.object(release, "output", return_value=COMMIT), \
-                patch.object(release, "verify", return_value=release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]), \
-                patch.object(release.subprocess, "run", return_value=response), \
-                patch.object(release, "run", side_effect=execute) as run:
-            with self.assertRaisesRegex(ValueError, "refusing to overwrite"):
-                release.publish(self.directory, VERSION, COMMIT, REF)
-        self.assertFalse(any(c.args[:3] == ("gh", "release", "upload") for c in run.call_args_list))
-        self.assertFalse(any("--clobber" in c.args for c in run.call_args_list))
-
-
-    def test_publish_new_draft_verifies_remote_bytes_before_making_it_public(self):
-        self.assemble()
+    def publication(self, existing=None, version=VERSION, corrupt=False):
+        if not (self.directory / release.NOTES).exists():
+            self.assemble()
         self.dummy_bundles()
         payloads = release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]
-        response = release.subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)")
         remote = {}
-        def execute(*args, **kwargs):
-            if args[:3] == ("gh", "release", "upload"):
-                remote[Path(args[4]).name] = Path(args[4]).read_bytes()
-            elif args[:3] == ("gh", "release", "download"):
-                name = args[args.index("--pattern") + 1]
-                (Path(args[args.index("--dir") + 1]) / name).write_bytes(remote[name])
+        calls = []
+        if existing:
+            for asset in existing["assets"]:
+                remote[asset["id"]] = (self.directory / asset["name"]).read_bytes()
+        def api(method, endpoint, data=None):
+            calls.append((method, endpoint, data))
+            if method == "POST":
+                return {"id": 71, "assets": [], **data}
+            if method == "PATCH":
+                self.assertEqual(endpoint, f"repos/{release.REPOSITORY}/releases/71")
+                self.assertEqual(len(remote), 26)
+                return {}
+            raise AssertionError((method, endpoint))
+        def upload(release_id, path):
+            self.assertEqual(release_id, 71)
+            asset_id = len(remote) + 100
+            remote[asset_id] = path.read_bytes()
+            return {"id": asset_id}
+        def download(asset_id, path):
+            path.write_bytes(b"tampered" if corrupt else remote[asset_id])
         checked = []
         def verify(directory, *args):
             checked.append(directory)
             release.verify_contents(directory, VERSION, COMMIT, REF, signed=True)
             return payloads
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,
+        ref = "refs/tags/vanedb-crate-v" + version
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": ref,
                                      "GITHUB_REPOSITORY": release.REPOSITORY}), \
                 patch.object(release, "source_commit", return_value=COMMIT), \
                 patch.object(release, "output", return_value=COMMIT), \
                 patch.object(release, "verify", side_effect=verify), \
-                patch.object(release.subprocess, "run", return_value=response), \
-                patch.object(release, "run", side_effect=execute) as run:
-            release.publish(self.directory, VERSION, COMMIT, REF)
-        self.assertEqual(len(remote), 26)
+                patch.object(release, "find_release", return_value=existing), \
+                patch.object(release, "release_api", side_effect=api), \
+                patch.object(release, "upload_asset", side_effect=upload), \
+                patch.object(release, "download_asset", side_effect=download), \
+                patch.object(release, "run"):
+            release.publish(self.directory, version, COMMIT, ref)
+        return calls, checked
+
+    def test_existing_draft_is_reused_and_human_notes_preserved(self):
+        calls, checked = self.publication({"id": 71, "draft": True,
+            "prerelease": False, "body": "human notes", "assets": []})
+        self.assertEqual([c[0] for c in calls], ["PATCH"])
+        self.assertTrue(calls[0][2]["body"].startswith("human notes\n\n"))
+        self.assertFalse(calls[0][2]["draft"])
         self.assertEqual(len(checked), 2)
-        self.assertEqual(run.call_args_list[-1].args,
-                         ("gh", "release", "edit", "vanedb-crate-v0.2.0", "--repo", release.REPOSITORY, "--draft=false"))
-        create = next(c for c in run.call_args_list if c.args[:3] == ("gh", "release", "create"))
-        self.assertIn("--draft", create.args)
-        self.assertIn("--verify-tag", create.args)
-        self.assertNotIn("--prerelease", create.args)
 
-    def test_prerelease_tag_creates_a_prerelease_and_refuses_stable_mismatch(self):
-        self.assemble()
-        version = "0.2.0-rc.1"
-        ref = "refs/tags/vanedb-crate-v" + version
-        for existing in (False, True):
-            response = (release.subprocess.CompletedProcess([], 0, json.dumps(
-                {"draft": False, "prerelease": False, "assets": []}), "") if existing else
-                release.subprocess.CompletedProcess([], 1, "", "gh: Not Found (HTTP 404)"))
-            with self.subTest(existing=existing), patch.dict(os.environ,
-                    {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": ref,
-                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
-                    patch.object(release, "source_commit", return_value=COMMIT), \
-                    patch.object(release, "output", return_value=COMMIT), \
-                    patch.object(release, "verify", return_value=[]), \
-                    patch.object(release.subprocess, "run", return_value=response), \
-                    patch.object(release, "run") as run:
-                if existing:
-                    with self.assertRaisesRegex(ValueError, "prerelease status"):
-                        release.publish(self.directory, version, COMMIT, ref)
-                    self.assertFalse(any(c.args[:2] == ("gh", "release") for c in run.call_args_list))
-                else:
-                    release.publish(self.directory, version, COMMIT, ref)
-                    create = next(c for c in run.call_args_list if c.args[:3] == ("gh", "release", "create"))
-                    self.assertIn("--prerelease", create.args)
+    def test_new_release_stays_draft_until_remote_bytes_verified(self):
+        calls, checked = self.publication()
+        self.assertEqual([c[0] for c in calls], ["POST", "PATCH"])
+        self.assertTrue(calls[0][2]["draft"])
+        self.assertFalse(calls[0][2]["prerelease"])
+        self.assertEqual(calls[0][2]["target_commitish"], COMMIT)
+        self.assertEqual(calls[1][2], {"draft": False})
+        self.assertEqual(len(checked), 2)
 
-    def test_api_failure_is_not_treated_as_missing_release(self):
+    def test_prerelease_creation_and_stable_mismatch(self):
+        calls, _ = self.publication(version="0.2.0-rc.1")
+        self.assertTrue(calls[0][2]["prerelease"])
+        with self.assertRaisesRegex(ValueError, "prerelease status"):
+            self.publication({"id": 71, "draft": False, "prerelease": False,
+                              "body": "", "assets": []}, version="0.2.0-rc.1")
+
+    def test_existing_asset_is_never_overwritten(self):
+        with self.assertRaisesRegex(ValueError, "refusing to overwrite"):
+            self.publication({"id": 71, "draft": False, "prerelease": False,
+                "body": "human notes", "assets": [{"name": "CAPI-RELEASE.json", "id": 42}]},
+                corrupt=True)
+
+    def test_corrupt_uploaded_bytes_cannot_publish(self):
+        with self.assertRaises(ValueError):
+            self.publication(corrupt=True)
+
+    def test_published_release_retry_preserves_notes_and_assets(self):
         self.assemble()
-        self.dummy_bundles()
-        response = release.subprocess.CompletedProcess([], 1, "", "gh: forbidden (HTTP 403)")
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,
-                                     "GITHUB_REPOSITORY": release.REPOSITORY}), \
-                patch.object(release, "source_commit", return_value=COMMIT), \
-                patch.object(release, "output", return_value=COMMIT), \
-                patch.object(release, "verify", return_value=[]), \
-                patch.object(release.subprocess, "run", return_value=response), \
-                patch.object(release, "run") as run:
-            with self.assertRaisesRegex(ValueError, "cannot inspect release"):
-                release.publish(self.directory, VERSION, COMMIT, REF)
-        self.assertFalse(any(c.args[:3] == ("gh", "release", "create") for c in run.call_args_list))
+        assets = release.names(VERSION) + [release.MANIFEST, release.NOTES, release.SUMS]
+        assets += [name + release.BUNDLE for name in assets]
+        calls, checked = self.publication({"id": 71, "draft": False, "prerelease": False,
+            "body": "human notes\n\n" + (self.directory / release.NOTES).read_text(),
+            "assets": [{"id": i, "name": name} for i, name in enumerate(assets)]})
+        self.assertEqual(calls, [])
+        self.assertEqual(len(checked), 2)
+
+    def test_release_lookup_includes_drafts_on_later_pages(self):
+        first = [{"tag_name": f"other-{i}"} for i in range(100)]
+        draft = {"id": 71, "tag_name": "target", "draft": True}
+        with patch.object(release, "release_api", side_effect=[first, [draft]]) as api:
+            self.assertEqual(release.find_release("target"), draft)
+        self.assertIn("page=2", api.call_args.args[1])
+
+    def test_duplicate_tag_release_is_ambiguous_even_if_one_is_published(self):
+        with patch.object(release, "release_api", return_value=[
+            {"tag_name": "target", "draft": True}, {"tag_name": "target", "draft": False}]):
+            with self.assertRaisesRegex(ValueError, "multiple releases"):
+                release.find_release("target")
+
+    def test_release_lookup_errors_do_not_mean_absence(self):
+        for error in ("HTTP 403", "HTTP 404", "network failure"):
+            response = release.subprocess.CompletedProcess([], 1, "", error)
+            with self.subTest(error=error), patch.object(release.subprocess, "run", return_value=response):
+                with self.assertRaisesRegex(ValueError, "cannot inspect"):
+                    release.find_release("target")
 
     def test_moved_remote_tag_fails_before_signatures_or_release_write(self):
         with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "push", "GITHUB_REF": REF,

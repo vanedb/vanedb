@@ -82,11 +82,29 @@ nothing is stored under the id, so a lookup miss is a value rather than an
 exception; `contains` is the cheaper probe when the vector is not needed.
 
 Exceptions are chosen so a caller can branch on the type rather than parse the
-message. Validation errors, including `remove` of a missing id and negative
-or out-of-range integer sizes and seeds, raise `ValueError`; a corrupt file
-raises `ValueError` and an absent one `FileNotFoundError`, so "load it, or build
-it if absent" needs no message matching. Other I/O failures raise `OSError`.
-Arguments of the wrong type can raise `TypeError`.
+message. Every failure the engine reports is a subclass of `vanedb.VaneError`
+and of the built-in it always was, so `except ValueError` keeps working and
+`except vanedb.VaneError` catches everything the engine raises:
+
+| Class | Also a | Raised by |
+|---|---|---|
+| `DimensionMismatchError` | `ValueError` | a vector or query of the wrong length |
+| `BatchLengthMismatchError` | `ValueError` | a batch whose ids and rows disagree |
+| `ZeroDimensionError` | `ValueError` | a constructor given dimension 0 |
+| `NotFoundError` | `ValueError` | `remove` of an id that is not stored |
+| `DuplicateIdError` | `ValueError` | `add` of an id that is already stored |
+| `InvalidKError` | `ValueError` | `search` with `k = 0` |
+| `NonFiniteValueError` | `ValueError` | a NaN or infinity in a vector or query |
+| `InvalidParameterError` | `ValueError` | an out-of-range parameter, an unsorted id list, conflicting filters |
+| `MissingFileError` | `FileNotFoundError` | `load` or `open` of an absent file |
+| `CorruptError` | `ValueError` | a file or bytes that are not a vanedb structure |
+| `IoError` | `OSError` | any other I/O failure |
+| `BackendError` | `RuntimeError` | an unavailable compute backend (none exposed today) |
+
+So "load it, or build it if absent" needs no message matching. Errors the
+binding raises before an argument reaches the engine keep the plain built-in:
+a negative or out-of-range integer is `ValueError`, a wrong type `TypeError`,
+and a predicate calling back into the index being searched `RuntimeError`.
 
 `ApproxIndex.search` accepts a keyword-only `ef_search` that applies to that
 query alone, leaving the shared `ef_search` property untouched — searches
@@ -137,7 +155,11 @@ effective initial beam; it does not impose a hard limit on nodes visited.
 As a rule of thumb, set `ef_search` on the order of `k` divided by the
 fraction of ids the filter accepts, and leave `max_ef_search` at its default
 of four times the beam, or raise it if results still fall short of `k`;
-raising only the cap does not improve results that already fill `k`.
+raising only the cap does not improve results that already fill `k`. In one
+20,000-vector L2 experiment at 0.2% selectivity and `k = 10`, the defaults
+under-filled 180 of 200 queries. This is workload-specific, not a universal
+threshold; short results are a tuning signal, not proof that fewer matches
+exist (#304).
 Measured recall at
 several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).

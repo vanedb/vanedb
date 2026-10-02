@@ -34,6 +34,51 @@ FilterCallable: TypeAlias = Callable[[int], bool]
 #: A filesystem path: `str` or any `os.PathLike`, `pathlib.Path` included.
 PathLike: TypeAlias = str | os.PathLike[str]
 
+class VaneError(Exception):
+    """Base class of every exception the engine raises.
+
+    Each subclass also inherits the built-in it replaced, so `except
+    ValueError` and `except FileNotFoundError` still catch what they did.
+    Errors the binding raises before an argument reaches the engine (a
+    wrong type, an out-of-range integer) are the plain built-ins.
+    """
+
+class DimensionMismatchError(VaneError, ValueError):
+    """A vector's length did not match the index dimension."""
+
+class BatchLengthMismatchError(VaneError, ValueError):
+    """A batch's ids and vectors describe different row counts."""
+
+class ZeroDimensionError(VaneError, ValueError):
+    """An index was constructed with a dimension of zero."""
+
+class NotFoundError(VaneError, ValueError):
+    """`remove` of an id that is not stored. A lookup miss is `None`, not this."""
+
+class DuplicateIdError(VaneError, ValueError):
+    """`add` of an id that is already stored."""
+
+class InvalidKError(VaneError, ValueError):
+    """`search` with `k` of zero."""
+
+class NonFiniteValueError(VaneError, ValueError):
+    """A vector or query held a NaN or an infinity."""
+
+class InvalidParameterError(VaneError, ValueError):
+    """A parameter, filter or id list was outside its valid range."""
+
+class MissingFileError(VaneError, FileNotFoundError):
+    """The index file does not exist."""
+
+class CorruptError(VaneError, ValueError):
+    """The file or bytes are not a valid vanedb structure."""
+
+class IoError(VaneError, OSError):
+    """An I/O failure other than a missing file."""
+
+class BackendError(VaneError, RuntimeError):
+    """A compute backend is unavailable; fall back rather than retry."""
+
 class Metric(enum.IntEnum):
     """Distance metric for vector comparison.
 
@@ -72,7 +117,7 @@ class FlatIndex:
 
     def contains(self, id: int) -> bool: ...
     def remove(self, id: int) -> None:
-        """Raises ValueError if no vector is stored under `id`."""
+        """Raises NotFoundError (a ValueError) if no vector is stored under `id`."""
 
     def search(
         self,
@@ -127,7 +172,7 @@ class ApproxIndex:
 
     def contains(self, id: int) -> bool: ...
     def remove(self, id: int) -> None:
-        """Raises ValueError if no vector is stored under `id`."""
+        """Raises NotFoundError (a ValueError) if no vector is stored under `id`."""
 
     @property
     def tombstones(self) -> int: ...
@@ -146,12 +191,12 @@ class ApproxIndex:
     def save(self, path: PathLike) -> None: ...
     @staticmethod
     def load(path: PathLike) -> ApproxIndex:
-        """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""
+        """Raises MissingFileError (a FileNotFoundError) if the file is absent, CorruptError (a ValueError) if corrupt."""
 
     def to_bytes(self) -> bytes: ...
     @staticmethod
     def from_bytes(data: bytes) -> ApproxIndex:
-        """Raises ValueError if the bytes are not a valid graph."""
+        """Raises CorruptError (a ValueError) if the bytes are not a valid graph."""
 
 class DiskIndexBuilder:
     """Builds a file that DiskIndex can memory-map."""
@@ -201,4 +246,4 @@ class DiskIndex:
     ) -> list[tuple[int, float]]: ...
     @staticmethod
     def open(path: PathLike) -> DiskIndex:
-        """Raises FileNotFoundError if the file is absent, ValueError if corrupt."""
+        """Raises MissingFileError (a FileNotFoundError) if the file is absent, CorruptError (a ValueError) if corrupt."""
