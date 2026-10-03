@@ -130,7 +130,7 @@ jobs:
           pattern: capi-native-*
           path: target/c-artifacts
           merge-multiple: true
-      - uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: 'v3.1.3'
       - name: Enforce the exact five-platform inventory and sign every payload
@@ -168,7 +168,7 @@ jobs:
         with:
           name: capi-signed-release
           path: target/c-release
-      - uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: 'v3.1.3'
       - name: Verify retained bytes, upload without replacement, then verify downloaded assets
