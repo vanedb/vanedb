@@ -211,3 +211,88 @@ def test_a_batch_with_huge_dimension_validates_rows_before_allocation():
     ):
         with pytest.raises(ValueError, match="dimension mismatch"):
             index.add_batch([0, 1], [[1.0], [1.0]])
+
+
+# -- Typed exception classes (#262) -----------------------------------------
+
+
+def test_every_exception_class_is_a_vane_error_and_the_builtin_it_replaced():
+    """`except ValueError` written against 0.1.1 keeps catching what it did,
+    and `except vanedb.VaneError` catches every engine failure."""
+    expected = {
+        "DimensionMismatchError": ValueError,
+        "BatchLengthMismatchError": ValueError,
+        "ZeroDimensionError": ValueError,
+        "NotFoundError": ValueError,
+        "DuplicateIdError": ValueError,
+        "InvalidKError": ValueError,
+        "NonFiniteValueError": ValueError,
+        "InvalidParameterError": ValueError,
+        "MissingFileError": FileNotFoundError,
+        "CorruptError": ValueError,
+        "IoError": OSError,
+        "BackendError": RuntimeError,
+    }
+    assert issubclass(vanedb.VaneError, Exception)
+    assert not issubclass(vanedb.VaneError, ValueError)
+    for name, builtin in expected.items():
+        cls = getattr(vanedb, name)
+        assert issubclass(cls, vanedb.VaneError), name
+        assert issubclass(cls, builtin), name
+        assert cls.__module__ == "vanedb", name
+        assert name in vanedb.__all__, name
+    assert "VaneError" in vanedb.__all__
+    # The built-in's own name is not exported: `from vanedb import *` must not
+    # shadow `FileNotFoundError`.
+    assert "FileNotFoundError" not in vanedb.__all__
+
+
+def _corrupt(tmp_path):
+    path = tmp_path / "garbage.vane"
+    path.write_bytes(b"this is not a vanedb file")
+    return str(path)
+
+
+@pytest.mark.parametrize(
+    ("call", "cls"),
+    [
+        (lambda idx, tmp: idx.add(2, [1.0]), "DimensionMismatchError"),
+        (lambda idx, tmp: idx.add(1, [1.0, 2.0]), "DuplicateIdError"),
+        (lambda idx, tmp: idx.remove(99), "NotFoundError"),
+        (lambda idx, tmp: idx.search([1.0, 2.0], 0), "InvalidKError"),
+        (lambda idx, tmp: idx.add(2, [float("nan"), 1.0]), "NonFiniteValueError"),
+        (lambda idx, tmp: idx.search([float("inf"), 1.0], 1), "NonFiniteValueError"),
+        (lambda idx, tmp: idx.search([1.0, 2.0], 1, allow_ids=[3, 1]), "InvalidParameterError"),
+        (lambda idx, tmp: vanedb.ApproxIndex(2, m=0), "InvalidParameterError"),
+        (lambda idx, tmp: vanedb.FlatIndex(0), "ZeroDimensionError"),
+        (lambda idx, tmp: vanedb.ApproxIndex.from_bytes(b"junk"), "CorruptError"),
+        (lambda idx, tmp: vanedb.ApproxIndex.load(_corrupt(tmp)), "CorruptError"),
+        (lambda idx, tmp: vanedb.ApproxIndex.load(str(tmp / "absent")), "MissingFileError"),
+        (lambda idx, tmp: vanedb.DiskIndex.open(str(tmp / "absent")), "MissingFileError"),
+    ],
+    ids=[
+        "dimension", "duplicate", "remove-missing", "k-zero", "nan-vector",
+        "inf-query", "unsorted-allow", "m-zero", "zero-dimension",
+        "corrupt-bytes", "corrupt-file", "missing-file", "missing-disk-file",
+    ],
+)
+@pytest.mark.parametrize("make", [vanedb.FlatIndex, vanedb.ApproxIndex], ids=["flat", "approx"])
+def test_engine_failures_raise_their_typed_class(tmp_path, make, call, cls):
+    index = make(2)
+    index.add(1, [1.0, 2.0])
+    with pytest.raises(getattr(vanedb, cls)) as excinfo:
+        call(index, tmp_path)
+    assert isinstance(excinfo.value, vanedb.VaneError)
+    # The message is unchanged: it is the engine's own text.
+    assert str(excinfo.value)
+
+
+def test_the_message_still_reaches_the_builtin_handler(tmp_path):
+    """The motivating pattern from 0.1.1, unchanged."""
+    path = str(tmp_path / "index.vane")
+    try:
+        vanedb.ApproxIndex.load(path)
+    except FileNotFoundError as error:
+        assert isinstance(error, vanedb.MissingFileError)
+    else:
+        raise AssertionError("an absent file must raise")

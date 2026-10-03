@@ -924,6 +924,102 @@ fn zero_ef_search_means_the_indexs_own_setting() {
     }
 }
 
+/// `max_ef_search` reaches the filtered search through the `_ex` entry point
+/// and `0` means the core's default (#305).
+///
+/// The fixture is the sparse graph above with an allow list naming a small
+/// fraction of the ids: at the default cap of four times a narrow beam the
+/// widening passes give up short of `k`, while a large cap fills it. The
+/// `_ex` call with a cap of 0 must return exactly what the plain filtered
+/// call returns, since that is the definition of 0.
+#[test]
+fn max_ef_search_reaches_the_filtered_search_and_zero_is_the_default() {
+    const DIM: usize = 32;
+    const N: u64 = 5000;
+    const K: usize = 10;
+    let mut state = 0x9e37_79b9_7f4a_7c15u64;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 40) as f32 / 8192.0 - 1.0
+    };
+    let rows: Vec<Vec<f32>> = (0..N).map(|_| (0..DIM).map(|_| next()).collect()).collect();
+    let query: Vec<f32> = (0..DIM).map(|_| next()).collect();
+    // Every 125th id: 40 of 5000, 0.8% selectivity, strictly ascending.
+    let allow: Vec<u64> = (0..N).step_by(125).collect();
+
+    unsafe {
+        let index = vanedb_capi::vanedb_rs_index_new(DIM, 0, N as usize, 8, 32, 7);
+        assert_ne!(index, 0);
+        for (id, vector) in rows.iter().enumerate() {
+            assert_eq!(
+                vanedb_capi::vanedb_rs_index_add(index, id as u64, vector.as_ptr()),
+                0
+            );
+        }
+
+        let filtered = |max_ef: Option<usize>| {
+            let mut ids = [0u64; K];
+            let mut distances = [0.0f32; K];
+            let n = match max_ef {
+                None => vanedb_capi::vanedb_rs_index_search_filtered(
+                    index,
+                    query.as_ptr(),
+                    K,
+                    K,
+                    None,
+                    std::ptr::null_mut(),
+                    allow.as_ptr(),
+                    allow.len(),
+                    std::ptr::null(),
+                    0,
+                    ids.as_mut_ptr(),
+                    distances.as_mut_ptr(),
+                ),
+                Some(cap) => vanedb_capi::vanedb_rs_index_search_filtered_ex(
+                    index,
+                    query.as_ptr(),
+                    K,
+                    K,
+                    cap,
+                    None,
+                    std::ptr::null_mut(),
+                    allow.as_ptr(),
+                    allow.len(),
+                    std::ptr::null(),
+                    0,
+                    ids.as_mut_ptr(),
+                    distances.as_mut_ptr(),
+                ),
+            };
+            assert_eq!(
+                vanedb_capi::vanedb_rs_last_error(),
+                vanedb_capi::VANEDB_RS_OK
+            );
+            ids[..n].to_vec()
+        };
+
+        let plain = filtered(None);
+        let zero = filtered(Some(0));
+        assert_eq!(
+            zero, plain,
+            "a cap of 0 must be the default the plain call uses"
+        );
+        assert!(
+            plain.len() < K,
+            "the fixture must come up short at the default cap for the test to \
+             separate anything; it returned {} of {K}",
+            plain.len()
+        );
+        let wide = filtered(Some(N as usize));
+        assert_eq!(wide.len(), K, "a wide cap must fill k");
+        assert!(wide.iter().all(|id| allow.contains(id)));
+
+        vanedb_capi::vanedb_rs_index_free(index);
+    }
+}
+
 /// Every status function returned a bare `1` for a duplicate id, a dimension
 /// mismatch, a corrupt file and an I/O failure alike, and searches returned `0`
 /// results for both "empty" and "your query had a NaN in it". A caller could

@@ -1,6 +1,7 @@
 // VaneDB - Copyright (c) 2025 Anton Tsvetkov - MIT License
 #pragma once
 #include "distance.h"
+#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
@@ -36,7 +37,18 @@ public:
     switch (metric_) {
       case Metric::L2:     return l2_sq(a, b, dim_);
       case Metric::COSINE: return cosine_distance(a, b, dim_);
-      case Metric::DOT:    return -dot_product(a, b, dim_);
+      case Metric::DOT: {
+        const float dot = dot_product(a, b, dim_);
+        if (std::isfinite(dot)) return -dot;
+        // Match Rust's rare recovery path: intermediate f32 overflow need
+        // not imply the final dot is outside f32 (opposite products cancel).
+        double wide = 0.0;
+        for (size_t i = 0; i < dim_; ++i)
+          wide += static_cast<double>(a[i]) * static_cast<double>(b[i]);
+        if (std::isfinite(wide) && std::abs(wide) <= std::numeric_limits<float>::max())
+          return -static_cast<float>(wide);
+        return -std::numeric_limits<float>::infinity();
+      }
     }
     return std::numeric_limits<float>::infinity();
   }

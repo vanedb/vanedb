@@ -190,6 +190,20 @@ function, no struct crosses the boundary (and if one ever does, its first
 field is `size_t size`), and error codes are only added. `VANEDB_RS_VERSION`
 and `vanedb_rs_version()` carry the semver string alongside.
 
+**The guard protects consumers that call it, not binaries built before it
+existed.** A program compiled against the 0.1.1 header and started against
+the 0.2.0 shared library without recompiling does not fail: the shipped
+Linux libraries carry no `SONAME`, the macOS dylibs record compatibility
+version 0.0.0, and a pointer and a `uint64_t` are passed identically on every
+supported platform, so the loader accepts the library and every call happens
+to work. A 0.1.1 binary cannot call `vanedb_rs_abi_version()`, which its
+header never declared. Recompiling against the new header is mandatory;
+swapping the `.so`, `.dylib` or `.dll` in place is neither detected nor safe,
+and the next incompatible change may not be representation-compatible by
+accident (#303). A versioned link identity tied to `VANEDB_RS_ABI_VERSION`
+would let the loader refuse a future break; it is not in place, and it would
+protect only from the release that ships it onward.
+
 **Handles are 64-bit ids, not pointers.** Every `vanedb_rs_store`,
 `vanedb_rs_index` and `vanedb_rs_disk` is a `uint64_t` into a table owned by
 the library. An id that was never issued, was freed, was truncated on the way
@@ -308,13 +322,25 @@ The store and disk variants take the same arguments without `ef_search`.
 store call from Python, including the `CFUNCTYPE` declaration for a callback.
 
 `vanedb_rs_index_search_filtered` takes `ef_search` under the same rule as the
-plain graph search: `0` uses the handle's setting. The C ABI omits the beam
-cap (`max_ef_search` in Rust, Python and WebAssembly) by design: a filtered
-graph search widens its beam up to the core's default of four times the
-initial beam. Raise `ef_search` on the call to improve recall under a
-selective filter — on the order of `k` divided by the fraction of ids the
-filter accepts — since the cap alone does not improve results that already
-fill `k`. Measured recall at several selectivities is in
+plain graph search: `0` uses the handle's setting. It widens its beam up to
+the core's default cap of four times the initial beam when a pass finds fewer
+than `k` matches. `vanedb_rs_index_search_filtered_ex` takes the same
+arguments plus that cap, `max_ef_search`, right after `ef_search`
+(`SearchParams::max_ef_search` in Rust, `max_ef_search=` in Python,
+`maxEfSearch` in WebAssembly); `0` is the default cap, so the two calls are
+interchangeable at `0`. The cap bounds the beam width alone, not the number
+of nodes visited, and only queries that came up short pay for it:
+
+```c
+size_t n = vanedb_rs_index_search_filtered_ex(index, query, 10, 0, 3000,
+    NULL, NULL, allow, 2, NULL, 0, ids, dists);   /* cap 3000, default beam */
+```
+
+Raise `ef_search` on the call to improve the recall of results that already
+fill `k` — on the order of `k` divided by the fraction of ids the filter
+accepts — since the cap does not improve results that already fill `k`.
+Raise the cap when a selective filter returns fewer than `k` results at the
+default. Measured recall at several selectivities is in
 [the 0.2.0 validation record](https://github.com/vanedb/vanedb/blob/main/docs/release/0.2.0-filtered-search-validation.md#recall-on-real-embeddings).
 
 ### Calling from Python with ctypes

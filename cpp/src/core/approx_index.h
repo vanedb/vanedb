@@ -213,6 +213,21 @@ public:
     std::shared_lock glock(global_mtx_);
     if (id_map_.empty()) return {};
 
+    // A full beam explicitly requests every stored slot, including nodes
+    // unreachable through the persisted graph. Preserve topology on load.
+    if (std::max(ef_search_.load(std::memory_order_relaxed), k) >= count_.load()) {
+      std::priority_queue<HNSWSearchResult> best;
+      for (size_t i = 0; i < count_.load(); ++i) {
+        if (deleted_[i]) continue;
+        HNSWSearchResult candidate{ext_ids_[i], dist_(query, get_vec(i))};
+        if (best.size() < k) best.push(candidate);
+        else if (candidate < best.top()) { best.pop(); best.push(candidate); }
+      }
+      std::vector<HNSWSearchResult> results;
+      while (!best.empty()) { results.push_back(best.top()); best.pop(); }
+      std::reverse(results.begin(), results.end());
+      return results;
+    }
     size_t curr = ep_.load();
     float d = dist_(query, get_vec(curr));
     for (int l = max_level_.load(); l > 0; --l) {

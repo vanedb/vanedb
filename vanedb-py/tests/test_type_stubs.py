@@ -40,6 +40,11 @@ def _stub_classes() -> dict[str, set[str]]:
 
 
 def _runtime_members(obj: type) -> set[str]:
+    if issubclass(obj, BaseException):
+        # An exception class declares no members of its own; `args`,
+        # `add_note` and OSError's `errno` come from the built-in base the
+        # stub names, and are the built-in's to declare.
+        return set()
     if issubclass(obj, enum.Enum):
         # `dir()` on an IntEnum lists every int method; the members are the
         # surface the stub declares.

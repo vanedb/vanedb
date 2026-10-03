@@ -6,7 +6,7 @@ Vector search in Node.js and the browser, using the Rust engine compiled to
 WebAssembly. Bring your own embeddings.
 
 ```sh
-npm install @vanedb/wasm@0.2.0-rc.1
+npm install @vanedb/wasm@0.2.0-rc.2
 ```
 
 One package serves both runtimes through conditional `exports`, so the same
@@ -192,20 +192,51 @@ one. A width below `k` is raised to `k`, so `0` is the narrowest legal override
 rather than a request to use the index's setting — omit the argument for that.
 Measure recall and latency on your own data when choosing one.
 
-Neither exists on `FlatIndex`, which is exact and has no beam. JavaScript
-ignores surplus arguments, so `flatIndex.search(query, k, 64)` runs without
-complaint and the width does nothing.
+Neither exists on `FlatIndex`, which is exact and has no beam. Its third
+argument is the filter options object, so `flatIndex.search(query, k, 64)`
+throws rather than accepting a width it would ignore.
 
 ## Values
 
 Metrics are strings: `"l2"` is squared Euclidean distance, `"cosine"` is cosine
 distance, `"dot"` is negative dot product. Lower distances rank first.
 
-Single IDs are unsigned 64-bit `bigint`; batch IDs are a `BigUint64Array`.
+Single IDs are unsigned 64-bit `bigint`, or a `number` that is a nonnegative
+safe integer (through `Number.MAX_SAFE_INTEGER`), the same rule as the filter
+ID lists; batch IDs are a `BigUint64Array`.
 JavaScript typed arrays wrap out-of-range values when constructed, so validate
 IDs before putting them in a batch array. Vectors are finite `Float32Array`
 values matching the index dimension; batch vectors are flattened in row order.
-Invalid inputs throw.
+A plain array of numbers, or another numeric typed array, is converted; an
+element that is not a number (`null`, `undefined`, a hole, a string, a
+boolean) throws rather than becoming `0` or `1`. Numeric parameters such as
+`k`, `dimension` and `efSearch` must be JavaScript numbers: `null`, strings
+and objects are rejected before any coercion, never read as `0`. Invalid
+inputs throw.
+
+## Errors
+
+Every failure the engine reports is thrown as an `Error` whose `message` is
+the engine's own text and whose `code` mirrors the C ABI's status name, so a
+caller can branch without matching the message:
+
+| `code` | Thrown by |
+|---|---|
+| `ERR_DIMENSION_MISMATCH` | a vector or query of the wrong length |
+| `ERR_BATCH_LENGTH_MISMATCH` | a batch whose ids and rows disagree |
+| `ERR_ZERO_DIMENSION` | a constructor given dimension 0 |
+| `ERR_NOT_FOUND` | `remove` of an id that is not stored (`get` returns `undefined`) |
+| `ERR_DUPLICATE_ID` | `add` of an id that is already stored |
+| `ERR_INVALID_K` | `search` with `k = 0` |
+| `ERR_NON_FINITE_VALUE` | a NaN or infinity in a vector or query |
+| `ERR_INVALID_PARAMETER` | an out-of-range parameter, an unsorted id list, conflicting filters |
+| `ERR_CORRUPT` | `fromBytes` or `load` of bytes that are not a vanedb graph |
+| `ERR_FILE_NOT_FOUND`, `ERR_IO`, `ERR_BACKEND`, `ERR_UNKNOWN` | reserved for the matching engine failures |
+| `ERR_REENTRANT_SEARCH` | a predicate calling back into the index being searched |
+
+The declarations export the union as `VaneErrorCode`. An argument the
+binding rejects before it reaches the engine (a wrong type, a `null`, an
+out-of-range number or id) throws an `Error` with a message and no `code`.
 
 `search` returns a `SearchResults` whose `ids` and `distances` share positions.
 Copy what you need, then call `free()` on the result and the index to release
