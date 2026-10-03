@@ -72,3 +72,42 @@ fn mismatched_lengths_truncate_to_the_shorter_slice() {
         }
     }
 }
+
+#[test]
+fn dot_recovers_cancelling_overflow_on_every_kernel() {
+    for n in [2, 8, 16, 32, 33, 64, 80] {
+        let a = vec![3e38; n];
+        for grouped in [false, true] {
+            let b: Vec<f32> = (0..n)
+                .map(|i| {
+                    if i >= n / 2 * 2 {
+                        0.0
+                    } else if if grouped { i < n / 2 } else { i % 2 == 0 } {
+                        2.0
+                    } else {
+                        -2.0
+                    }
+                })
+                .collect();
+            for (name, got) in [
+                ("scalar", scalar::dot_distance(&a, &b)),
+                ("dispatched", distance_fn(Metric::Dot)(&a, &b)),
+            ] {
+                assert_eq!(got, 0.0, "{name} n={n} grouped={grouped}");
+            }
+        }
+        for sign in [-1.0, 1.0] {
+            let b = vec![2.0 * sign; n];
+            assert_eq!(scalar::dot_distance(&a, &b), f32::NEG_INFINITY);
+            assert_eq!(distance_fn(Metric::Dot)(&a, &b), f32::NEG_INFINITY);
+        }
+    }
+    // Each product is finite; overflow is only in some reduction orders.
+    for b in [
+        [2., 2., 2., 2., -2., -2., -2., -2.],
+        [2., -2., 2., -2., 2., -2., 2., -2.],
+    ] {
+        assert_eq!(scalar::dot_distance(&[1e38; 8], &b), 0.0);
+        assert_eq!(distance_fn(Metric::Dot)(&[1e38; 8], &b), 0.0);
+    }
+}

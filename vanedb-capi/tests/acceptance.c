@@ -87,6 +87,9 @@ static void exercise(uint32_t metric, const char *directory) {
     CHECK(vanedb_rs_index_dimension(graph) == 3);
     CHECK(vanedb_rs_index_search(graph, vectors, 2, 16, found, distances) == 2);
     CHECK(found[0] == ids[0] && fabsf(distances[0] - expected_distance) < 1e-6f);
+    CHECK(vanedb_rs_index_search_filtered_ex(graph, vectors, 2, 16, 64,
+        NULL, NULL, &ids[1], 1, NULL, 0, found, distances) == 1);
+    CHECK(found[0] == ids[1]);
     CHECK(vanedb_rs_index_upsert(graph, ids[0], replacement) == 0);
     CHECK(vanedb_rs_index_remove(graph, ids[1]) == 0);
     CHECK(!vanedb_rs_index_contains(graph, ids[1]));

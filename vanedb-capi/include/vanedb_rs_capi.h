@@ -11,7 +11,7 @@
 /* The version this header was generated from. Compare against
  * vanedb_rs_version() at runtime to catch a shared object that does not
  * match the header you compiled against. */
-#define VANEDB_RS_VERSION "0.2.0-rc.1"
+#define VANEDB_RS_VERSION "0.2.0-rc.2"
 
 /* Distance metric, passed as uint32_t: */
 #define VANEDB_RS_L2     0u
@@ -448,6 +448,41 @@ uintptr_t vanedb_rs_index_search_filtered(vanedb_rs_index h,
                                           uintptr_t deny_len,
                                           uint64_t *out_ids,
                                           float *out_dists);
+
+/**
+ * `vanedb_rs_index_search_filtered` with the beam-widening cap exposed.
+ *
+ * `max_ef_search` bounds how far a filtered graph search may widen its beam
+ * when the first pass finds fewer than `k` matches (`SearchParams::max_ef_search`
+ * in Rust, `max_ef_search=` in Python, `maxEfSearch` in WebAssembly). It
+ * bounds the beam width alone, not the number of nodes visited. Pass `0` for
+ * the core's default of four times the initial beam, which is what
+ * `vanedb_rs_index_search_filtered` always uses; the cap is raised to at
+ * least the initial beam and lowered to the stored slot count. A selective
+ * filter that returns fewer than `k` results at the default is the case to
+ * raise it for: it widens only the queries that came up short and leaves
+ * the cost of every other query unchanged, whereas raising `ef_search`
+ * widens every query.
+ *
+ * Every other argument, validation rule and failure code is exactly that of
+ * `vanedb_rs_index_search_filtered`.
+ *
+ * # Safety
+ * As for `vanedb_rs_index_search_filtered`.
+ */
+uintptr_t vanedb_rs_index_search_filtered_ex(vanedb_rs_index h,
+                                             const float *q,
+                                             uintptr_t k,
+                                             uintptr_t ef_search,
+                                             uintptr_t max_ef_search,
+                                             vanedb_rs_filter_fn filter,
+                                             void *user_data,
+                                             const uint64_t *allow,
+                                             uintptr_t allow_len,
+                                             const uint64_t *deny,
+                                             uintptr_t deny_len,
+                                             uint64_t *out_ids,
+                                             float *out_dists);
 
 /**
  * # Safety

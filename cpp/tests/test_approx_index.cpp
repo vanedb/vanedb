@@ -1231,3 +1231,33 @@ TEST_CASE("ef_search actually reaches the search", "[index][recall]") {
   REQUIRE(wide > narrow);
   REQUIRE(index.get_ef_search() == 500);
 }
+
+TEST_CASE("A full beam recovers every clustered DOT and cosine vector", "[index][reachability]") {
+  for (auto metric : {vanedb::Metric::DOT, vanedb::Metric::COSINE}) {
+    for (uint64_t seed = 0; seed < 20; ++seed) {
+      vanedb::ApproxIndex index(2, metric, 400, 16, 100, seed);
+      uint64_t state = seed + 1;
+      for (uint64_t id = 0; id < 400; ++id) {
+        state = state * 6364136223846793005ULL + 1;
+        const float cluster = static_cast<float>(state >> 62);
+        const float noise = static_cast<float>(static_cast<uint32_t>(state >> 32)) /
+                            static_cast<float>(UINT32_MAX) * 0.05f;
+        const float vector[] = {cluster * 5.0f + noise, (3.0f - cluster) * 5.0f - noise};
+        index.add(id, vector);
+      }
+      const float query[] = {1.0f, 1.0f};
+      auto all = index.search(query, 400);
+      REQUIRE(all.size() == 400);
+      std::unordered_set<uint64_t> ids;
+      for (const auto& hit : all) ids.insert(hit.id);
+      REQUIRE(ids.size() == 400);
+      index.set_ef_search(400);
+      auto top = index.search(query, 10);
+      REQUIRE(top.size() == 10);
+      for (size_t i = 0; i < top.size(); ++i) {
+        REQUIRE(top[i].id == all[i].id);
+        REQUIRE(top[i].distance == all[i].distance);
+      }
+    }
+  }
+}

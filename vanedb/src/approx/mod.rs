@@ -733,6 +733,28 @@ impl ApproxIndex {
         };
 
         loop {
+            // A full-width request must not depend on graph connectivity:
+            // reverse-link pruning can strand DOT nodes or cosine islands,
+            // including in valid legacy files. Keep loaded topology intact
+            // and scan live slots with bounded top-k at this explicit limit.
+            if current_ef >= inner.count {
+                return Ok(crate::flat::topk::select(
+                    (0..inner.count)
+                        .filter(|&iid| !inner.deleted[iid])
+                        .filter(|&iid| {
+                            filter
+                                .as_ref()
+                                .is_none_or(|f| f.accepts(inner.ext_ids[iid]))
+                        })
+                        .map(|iid| {
+                            SearchResult::new(
+                                inner.ext_ids[iid],
+                                (self.dist_fn)(query, inner.vectors.get(iid)),
+                            )
+                        }),
+                    k,
+                ));
+            }
             let (top, visited_count) = search_layer(
                 &inner.vectors,
                 self.dist_fn,

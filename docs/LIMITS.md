@@ -19,11 +19,31 @@ a limit are named beside it.
 | `k` | at least 1; the graph's effective beam is at least `k` | validation | none planned |
 | Payload | none stored | | RFC 0009 |
 | Metadata filtering | external ID allow/deny lists and predicates (0.2.0, unreleased); no metadata is stored | `SearchParams::filter` on every index (RFC 0004) | RFC 0009 adds stored payload |
-| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included | `ApproxIndex::search_with`; bounds the beam width alone, not the visited nodes or distance evaluations, and widening runs pass after pass up to it until `k` matches are found or every stored slot has been scored (PR #263) | none planned |
+| Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included; one 20k-vector L2 experiment at 0.2% selectivity and `k = 10` under-filled 180/200 queries; tune on the actual workload, since no universal selectivity floor is established (#304) | `ApproxIndex::search_with`; bounds the beam width alone, not the visited nodes or distance evaluations, and widening runs pass after pass up to it until `k` matches are found or every stored slot has been scored (PR #263) | none planned |
 | Allow/deny list length | no limit beyond address space (the C ABI rejects a length above `isize::MAX / 8`); entries must be strictly ascending with no duplicates | validation on every search | none planned |
 | Filter predicates | synchronous, called on the searching thread, possibly more than once per id on the graph; run under the index's read lock (`FlatIndex`, `ApproxIndex`) so they must not touch the searched index, though they may consult other indexes; a C callback must not unwind a foreign exception or `longjmp` | `Filter::Predicate`; C `vanedb_rs_filter_fn` | none planned |
 | `ef_search` / `max_ef_search` on `FlatIndex` and `DiskIndex` | ignored: exact scans have no beam, only the filter is read | `SearchParams` | none planned |
 | WebAssembly linear memory | 4 GiB (wasm32) | platform | none planned |
+
+## Graph reachability and exhaustive queries
+
+Approximate graph construction can prune every inbound link to a DOT vector
+or disconnect a tightly clustered cosine island (#299). A larger ordinary
+beam cannot cross a missing edge. Stored vectors are intact, but a bounded
+approximate search is not a completeness guarantee.
+
+When the effective beam reaches the **stored slot count**, search performs an
+exact scan with bounded top-k selection. This also works for disconnected
+legacy/C++ files and excludes tombstones and rejected filter IDs. Request it
+with `ef_search >= len() + tombstones()` (JavaScript: `efSearch`), or request
+that many results. Filtered widening can reach it through `max_ef_search`;
+a cap alone does not force exhaustive search if an earlier pass already fills
+`k`. The scan costs O(n × dimension + n log k), so use it deliberately.
+
+Loading, searching and saving still preserve the original graph topology.
+This query fallback does not repair connectivity or claim improved recall
+for smaller beams. `compact()` reclaims tombstones, not a guaranteed graph
+connectivity repair. Use exact indexes when every query needs completeness.
 
 ## Memory, computed
 

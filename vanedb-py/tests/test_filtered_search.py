@@ -1,5 +1,6 @@
 """Filtered search across the installed wheel's three index implementations."""
 
+import functools
 import subprocess
 import sys
 import textwrap
@@ -57,6 +58,44 @@ def test_predicate_errors_propagate_original_exception(index, truth_conversion):
     assert raised.value is error
     assert len(calls) == 1, "stop running user code after the first failure"
     assert len(index.search([0.], 4)) == 4, "failed callbacks leave the index usable"
+
+
+async def _coroutine_predicate(id):
+    return id > 1
+
+
+def _generator_predicate(id):
+    yield id > 1
+
+
+async def _async_generator_predicate(id):
+    yield id > 1
+
+
+class _AsyncCallablePredicate:
+    async def __call__(self, id):
+        return id > 1
+
+
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        _coroutine_predicate,
+        _generator_predicate,
+        _async_generator_predicate,
+        functools.partial(_coroutine_predicate),
+        _AsyncCallablePredicate(),
+    ],
+    ids=["coroutine", "generator", "async_generator", "partial", "async_call"],
+)
+def test_non_synchronous_predicate_is_rejected(index, predicate):
+    """Calling one of these returns an unevaluated object, which is truthy.
+
+    Accepting it would silently pass every candidate the filter should have
+    excluded, so refuse the callable instead of running the search.
+    """
+    with pytest.raises(TypeError, match="synchronous"):
+        index.search([0.], 4, filter=predicate)
 
 
 def test_approx_predicate_can_search_another_index():
@@ -201,3 +240,32 @@ def test_selective_search_widens_after_visits_exceed_beam_cap():
         assert all(id in allowed for id, _ in hits)
         assert len(calls) > len(set(calls)), "retries revisit nodes"
         assert index.search(query, 10, ef_search=10, allow_ids=allowed, **options) == hits
+
+@pytest.mark.parametrize("kind", ["coroutine", "generator", "async_generator", "awaitable"])
+def test_wrapped_deferred_predicate_results_are_not_truthy_verdicts(index, kind):
+    async def deny():
+        return False
+    def generate():
+        yield False
+    async def async_generate():
+        yield False
+    class Awaitable:
+        def __await__(self):
+            yield
+            return False
+    factories = {"coroutine": deny, "generator": generate,
+                 "async_generator": async_generate, "awaitable": Awaitable}
+    calls = []
+    def wrapped(id):
+        calls.append(id)
+        return factories[kind]()
+    with pytest.raises(TypeError, match="synchronous verdict"):
+        index.search([0.], 4, filter=wrapped)
+    assert len(calls) == 1
+    assert index.search([0.], 4, filter=lambda _: False) == []
+    assert len(index.search([0.], 4, filter=lambda _: True)) == 4
+
+def test_non_boolean_synchronous_verdicts_remain_supported(index):
+    import numpy as np
+    assert len(index.search([0.], 4, filter=lambda _: np.bool_(True))) == 4
+    assert index.search([0.], 4, filter=lambda _: 0) == []
