@@ -13,6 +13,9 @@ lives in GitHub issues assigned to a milestone, and each release's evidence
 lives in [`docs/release/`](release/). [`MARKET_ANALYSIS.md`](MARKET_ANALYSIS.md)
 (2026-09-13) is the analysis behind the ordering below; it is analysis, not a
 decision, until the corresponding RFC is accepted.
+[`PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md) (2026-09-30) reviews that
+analysis against the 0.2.0-rc.1 state and recommends changes to this order;
+it has the same standing.
 
 ## Order of work
 
