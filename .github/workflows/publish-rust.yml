@@ -130,7 +130,7 @@ jobs:
             --release --locked --compatibility pypi --out dist
             --manifest-path vanedb-py/Cargo.toml
             -i python3.11 -i python3.12 -i python3.13 -i python3.14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vanedb-linux-${{ matrix.libc }}-${{ matrix.arch }}
           path: dist/*.whl
@@ -263,7 +263,7 @@ jobs:
           python -m pip check
           python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vanedb-macos-${{ matrix.target }}-py${{ matrix.python-version }}
           path: dist/*.whl
@@ -297,7 +297,7 @@ jobs:
           python -m pip check
           python scripts/check_wheel_install.py vanedb
           python -m pytest vanedb-py/tests -v
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vanedb-windows-x64-py${{ matrix.python-version }}
           path: dist/*.whl
@@ -317,7 +317,7 @@ jobs:
           maturin-version: v1.9.3
           command: sdist
           args: --out dist --manifest-path vanedb-py/Cargo.toml
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vanedb-sdist
           path: dist/*.tar.gz
