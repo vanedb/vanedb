@@ -9,6 +9,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- WebAssembly: a search `predicate` that returns a thenable or a generator
+  now throws `TypeError`. A Promise and a generator object are always
+  truthy, so an `async` function, a function that returns
+  `Promise.resolve(false)`, or a generator function had matched every stored
+  id. A rejected Promise is handled, so a predicate that throws inside an
+  `async` function no longer ends the process with an unhandled rejection
+  after `search` returns. Ordinary truthy and falsy returns are unchanged.
+
 ## [0.2.0-rc.2] - 2026-10-02
 
 Second release candidate. Fixes every defect found in rc.1 QA and adds
