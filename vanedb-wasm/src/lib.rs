@@ -1,4 +1,4 @@
-use js_sys::{BigInt, Function, Reflect};
+use js_sys::{BigInt, Function, Promise, Reflect, Symbol, TypeError};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
@@ -211,8 +211,12 @@ fn filter_from_parsed<'a>(
                 }
                 let js_id = JsValue::from(BigInt::from(id));
                 let res = f_clone.call1(&JsValue::NULL, &js_id);
-                match res {
-                    Ok(v) => v.is_truthy(),
+                let verdict = match res {
+                    Ok(value) => synchronous_verdict(&value),
+                    Err(err) => Err(err),
+                };
+                match verdict {
+                    Ok(accepted) => accepted,
                     Err(err) => {
                         *error.lock().unwrap() = Some(err);
                         false
@@ -223,6 +227,36 @@ fn filter_from_parsed<'a>(
         }
     }
     None
+}
+
+fn synchronous_verdict(value: &JsValue) -> Result<bool, JsValue> {
+    if value.is_object() && deferred_verdict(value)? {
+        return Err(TypeError::new(
+            "predicate must return a synchronous verdict, not a thenable or generator",
+        )
+        .into());
+    }
+    Ok(value.is_truthy())
+}
+
+fn deferred_verdict(value: &JsValue) -> Result<bool, JsValue> {
+    let then = Reflect::get(value, &JsValue::from_str("then"))?;
+    if then.is_function() {
+        // Only a real Promise rejects on its own. Calling `then` on any other
+        // thenable runs user code, which is not required to observe the value.
+        if value.is_instance_of::<Promise>() {
+            if let Some(then_fn) = then.dyn_ref::<Function>() {
+                let sink = Function::new_with_args("_value", "");
+                then_fn.call2(value, &sink, &sink)?;
+            }
+        }
+        return Ok(true);
+    }
+    let tag = Reflect::get(value, &JsValue::from(Symbol::to_string_tag()))?;
+    Ok(matches!(
+        tag.as_string().as_deref(),
+        Some("Generator" | "AsyncGenerator")
+    ))
 }
 
 fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsValue> {
@@ -294,6 +328,7 @@ export interface SearchFilterOptions {
     /** Mutually exclusive with allow and predicate. */
     deny?: (number | bigint)[] | BigUint64Array;
     /** Stable synchronous predicate, called per candidate (possibly repeatedly).
+     * A thenable or generator result throws TypeError.
      * Slower than ID lists; must not access, mutate, or free this same index.
      * Exceptions propagate from search with the original thrown value. */
     predicate?: (id: bigint) => boolean;
@@ -495,7 +530,8 @@ impl WasmStore {
     /// parallel by index.
     /// Choose exactly one filter. ID lists must be sorted and unique.
     /// Predicates must be synchronous and stable and must not access this
-    /// same index while search holds its read lock. Exceptions propagate.
+    /// same index while search holds its read lock. A thenable or generator
+    /// result throws `TypeError`. Exceptions propagate.
     pub fn search(
         &self,
         #[wasm_bindgen(unchecked_param_type = "Float32Array | number[]")] query: &JsValue,
@@ -729,7 +765,8 @@ impl WasmIndex {
     /// Choose exactly one filter; ID lists must be sorted and unique.
     /// Predicates run per candidate and may run more than once for an ID.
     /// They must be stable and synchronous and must not access this same
-    /// index while search holds its read lock. Exceptions propagate.
+    /// index while search holds its read lock. A thenable or generator
+    /// result throws `TypeError`. Exceptions propagate.
     /// `maxEfSearch` caps beam widening, not the number of visited nodes.
     // The parameter name reaches the TypeScript declarations verbatim, so it
     // is spelled the way RFC 0004 and the JavaScript surface spell it.

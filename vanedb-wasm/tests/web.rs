@@ -1121,8 +1121,14 @@ fn search_approx(index: &WasmIndex, expression: &str) -> Result<WasmSearchResult
 fn assert_type_error(err: &JsValue) {
     use wasm_bindgen::JsCast;
     assert!(err.is_instance_of::<js_sys::TypeError>());
-    let message = js_sys::Reflect::get(err, &JsValue::from_str("message")).unwrap();
-    assert!(message.as_string().unwrap().contains("synchronous verdict"));
+    let message = js_sys::Reflect::get(err, &JsValue::from_str("message"))
+        .unwrap()
+        .as_string()
+        .unwrap();
+    assert!(
+        message.contains("synchronous verdict"),
+        "unexpected error: {message}"
+    );
     assert!(js_sys::Reflect::get(err, &JsValue::from_str("code"))
         .unwrap()
         .is_undefined());
