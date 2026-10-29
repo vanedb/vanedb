@@ -3,6 +3,6 @@
 # package's supported dependency ranges.
 build==1.6.1
 packaging==26.3
-pip==26.2.1
+pip==26.2.2
 PyYAML==6.0.3
 twine==7.0.0
