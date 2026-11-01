@@ -1187,6 +1187,7 @@ fn synchronous_predicate_truthiness_still_filters() {
         ("() => ({})", vec![101, 202]),
         ("() => []", vec![101, 202]),
         ("() => ({ then: 1 })", vec![101, 202]),
+        ("() => (() => false)", vec![101, 202]),
     ];
     for (expression, expected) in cases {
         let flat = cosine_flat();
