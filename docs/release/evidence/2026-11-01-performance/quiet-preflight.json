@@ -1,0 +1,1400 @@
+{
+  "screen": "No background process >50% CPU and sum <=150%; ps snapshots are not continuous isolation proof",
+  "excluded": "This sampler PID and ps only; no benchmarks are running",
+  "samples": [
+    {
+      "utc": "2026-11-01T21:40:07.345699+00:00",
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu_percent": 0.1,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "logd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "mds"
+        },
+        {
+          "pid": 574,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "opendirectoryd"
+        },
+        {
+          "pid": 582,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "locationd"
+        },
+        {
+          "pid": 599,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 25.6,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 691,
+          "ppid": 1,
+          "cpu_percent": 0.8,
+          "executable": "syspolicyd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 1.9,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 6.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 4.0,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 1067,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "fileproviderd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1452,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "perplexityd"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 8.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 17.4,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 22.2,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 0.7,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 10.2,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 16.4,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu_percent": 4.7,
+          "executable": "codex"
+        },
+        {
+          "pid": 34093,
+          "ppid": 33041,
+          "cpu_percent": 0.3,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 35276,
+          "ppid": 35268,
+          "cpu_percent": 1.1,
+          "executable": "ollama"
+        },
+        {
+          "pid": 58740,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "PerfPowerServices"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 6.5,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 73002,
+          "ppid": 33390,
+          "cpu_percent": 4.1,
+          "executable": "npm exec firebase-tools@latest mcp"
+        },
+        {
+          "pid": 73003,
+          "ppid": 33390,
+          "cpu_percent": 3.8,
+          "executable": "mcp@latest"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 0.7,
+          "executable": "SpringBoard"
+        }
+      ],
+      "background_sum": 138.8,
+      "background_max": 25.6,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:15 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": true,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1439
+    },
+    {
+      "utc": "2026-11-01T21:40:12.436441+00:00",
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "logd"
+        },
+        {
+          "pid": 535,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "UserEventAgent"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "mds"
+        },
+        {
+          "pid": 586,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "dasd"
+        },
+        {
+          "pid": 599,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 29.6,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 608,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 1.6,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 8.5,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 2.2,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu_percent": 6.2,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1452,
+          "ppid": 1,
+          "cpu_percent": 0.9,
+          "executable": "perplexityd"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 3.6,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 18.9,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 21.9,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu_percent": 0.4,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 0.7,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 12.1,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 9.2,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 6.9,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76689,
+          "ppid": 1,
+          "cpu_percent": 1.3,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81846,
+          "ppid": 81783,
+          "cpu_percent": 0.1,
+          "executable": "Claude Helper (Renderer)"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 0.8,
+          "executable": "SpringBoard"
+        }
+      ],
+      "background_sum": 128.2,
+      "background_max": 29.6,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:15 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": true,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1441
+    },
+    {
+      "utc": "2026-11-01T21:40:17.530998+00:00",
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu_percent": 0.2,
+          "executable": "launchd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu_percent": 0.8,
+          "executable": "mds"
+        },
+        {
+          "pid": 574,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "opendirectoryd"
+        },
+        {
+          "pid": 599,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 32.5,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 608,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 2.7,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 7.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 3.9,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu_percent": 7.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 943,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 4.4,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 18.5,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 21.7,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu_percent": 1.0,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 15.6,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu_percent": 0.3,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 10.6,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu_percent": 1.0,
+          "executable": "codex"
+        },
+        {
+          "pid": 34144,
+          "ppid": 33041,
+          "cpu_percent": 0.3,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 35276,
+          "ppid": 35268,
+          "cpu_percent": 0.8,
+          "executable": "ollama"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 7.3,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76651,
+          "ppid": 33390,
+          "cpu_percent": 0.7,
+          "executable": "Python"
+        },
+        {
+          "pid": 76699,
+          "ppid": 1,
+          "cpu_percent": 4.5,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 0.7,
+          "executable": "SpringBoard"
+        }
+      ],
+      "background_sum": 144.3,
+      "background_max": 32.5,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:15 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": true,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1437
+    },
+    {
+      "utc": "2026-11-01T21:40:22.607707+00:00",
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu_percent": 0.1,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "logd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "mds"
+        },
+        {
+          "pid": 565,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "diskarbitrationd"
+        },
+        {
+          "pid": 574,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "opendirectoryd"
+        },
+        {
+          "pid": 599,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 27.0,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 627,
+          "ppid": 1,
+          "cpu_percent": 13.0,
+          "executable": "runningboardd"
+        },
+        {
+          "pid": 656,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "lsd"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu_percent": 2.5,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 3.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 8.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 4.3,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 983,
+          "ppid": 1,
+          "cpu_percent": 2.3,
+          "executable": "trustd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1340,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Perplexity"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu_percent": 1.7,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 7.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 1469,
+          "ppid": 1,
+          "cpu_percent": 2.9,
+          "executable": "OneDrive"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 17.6,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 34.4,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu_percent": 0.3,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 2.4,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 11.1,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu_percent": 0.4,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 9.9,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 34144,
+          "ppid": 33041,
+          "cpu_percent": 0.3,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 58983,
+          "ppid": 1,
+          "cpu_percent": 3.2,
+          "executable": "CoreDeviceService"
+        },
+        {
+          "pid": 58984,
+          "ppid": 1,
+          "cpu_percent": 4.2,
+          "executable": "remotepairingd"
+        },
+        {
+          "pid": 59695,
+          "ppid": 1,
+          "cpu_percent": 3.1,
+          "executable": "CoreDeviceService"
+        },
+        {
+          "pid": 59697,
+          "ppid": 1,
+          "cpu_percent": 5.0,
+          "executable": "remotepairingd"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 7.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76699,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 0.7,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu_percent": 0.6,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 88495,
+          "ppid": 88303,
+          "cpu_percent": 0.2,
+          "executable": "mediaanalysisd"
+        }
+      ],
+      "background_sum": 176.1,
+      "background_max": 34.4,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:15 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": false,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1428
+    },
+    {
+      "utc": "2026-11-01T21:40:27.691575+00:00",
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu_percent": 0.1,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 19.7,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 627,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "runningboardd"
+        },
+        {
+          "pid": 665,
+          "ppid": 1,
+          "cpu_percent": 2.6,
+          "executable": "airportd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 712,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "WirelessRadioManagerd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 5.1,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 7.9,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 4.3,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 995,
+          "ppid": 1,
+          "cpu_percent": 0.9,
+          "executable": "WiFiAgent"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 1.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1452,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "perplexityd"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 5.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu_percent": 1.2,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 16.6,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 20.8,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 1.3,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 11.8,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu_percent": 0.3,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 7.5,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu_percent": 0.4,
+          "executable": "codex"
+        },
+        {
+          "pid": 34144,
+          "ppid": 33041,
+          "cpu_percent": 0.2,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 35276,
+          "ppid": 35268,
+          "cpu_percent": 1.1,
+          "executable": "ollama"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 7.8,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81846,
+          "ppid": 81783,
+          "cpu_percent": 0.3,
+          "executable": "Claude Helper (Renderer)"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 0.7,
+          "executable": "SpringBoard"
+        }
+      ],
+      "background_sum": 120.0,
+      "background_max": 20.8,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:15 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": true,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1436
+    },
+    {
+      "utc": "2026-11-01T21:40:32.792761+00:00",
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu_percent": 2.4,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu_percent": 1.0,
+          "executable": "logd"
+        },
+        {
+          "pid": 537,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "fseventsd"
+        },
+        {
+          "pid": 582,
+          "ppid": 1,
+          "cpu_percent": 0.6,
+          "executable": "locationd"
+        },
+        {
+          "pid": 598,
+          "ppid": 1,
+          "cpu_percent": 0.7,
+          "executable": "bluetoothd"
+        },
+        {
+          "pid": 601,
+          "ppid": 1,
+          "cpu_percent": 22.3,
+          "executable": "corebrightnessd"
+        },
+        {
+          "pid": 602,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "com.apple.cmio.registerassistantservice"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu_percent": 42.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu_percent": 4.3,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu_percent": 8.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu_percent": 3.7,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 988,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "rapportd"
+        },
+        {
+          "pid": 1025,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "sharingd"
+        },
+        {
+          "pid": 1060,
+          "ppid": 1,
+          "cpu_percent": 0.5,
+          "executable": "ContinuityCaptureAgent"
+        },
+        {
+          "pid": 1071,
+          "ppid": 1,
+          "cpu_percent": 0.2,
+          "executable": "nearbyd"
+        },
+        {
+          "pid": 1092,
+          "ppid": 1,
+          "cpu_percent": 1.1,
+          "executable": "MenuBarAgent"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu_percent": 10.0,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1153,
+          "ppid": 1,
+          "cpu_percent": 1.0,
+          "executable": "intelligentroutingd"
+        },
+        {
+          "pid": 1159,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "milod"
+        },
+        {
+          "pid": 1302,
+          "ppid": 1,
+          "cpu_percent": 4.3,
+          "executable": "com.apple.AmbientDisplayAgent"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu_percent": 1.0,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu_percent": 0.6,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu_percent": 4.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu_percent": 0.9,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32517,
+          "ppid": 32122,
+          "cpu_percent": 21.3,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 32548,
+          "ppid": 32122,
+          "cpu_percent": 20.4,
+          "executable": "Grok Bot Helper (Renderer)"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu_percent": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33071,
+          "ppid": 33041,
+          "cpu_percent": 10.2,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu_percent": 0.1,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu_percent": 8.9,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu_percent": 1.7,
+          "executable": "codex"
+        },
+        {
+          "pid": 35276,
+          "ppid": 35268,
+          "cpu_percent": 1.4,
+          "executable": "ollama"
+        },
+        {
+          "pid": 58740,
+          "ppid": 1,
+          "cpu_percent": 11.0,
+          "executable": "PerfPowerServices"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu_percent": 6.9,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76651,
+          "ppid": 33390,
+          "cpu_percent": 1.0,
+          "executable": "Python"
+        },
+        {
+          "pid": 76689,
+          "ppid": 1,
+          "cpu_percent": 0.3,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu_percent": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu_percent": 0.4,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu_percent": 1.0,
+          "executable": "SpringBoard"
+        }
+      ],
+      "background_sum": 195.8,
+      "background_max": 42.4,
+      "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:25 remaining present: true\n",
+      "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "quiet": false,
+      "ac_power": false,
+      "zero_cpu_processes_omitted": 1421
+    }
+  ],
+  "public_copy_note": "Zero-CPU process rows omitted; all nonzero CPU samples, PID/PPID, executable basenames, sums, maxima, power and thermal output retained. Unsummarized local record retained.",
+  "sampler_pid": 76651
+}

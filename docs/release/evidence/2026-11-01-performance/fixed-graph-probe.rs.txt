@@ -1,0 +1,39 @@
+#![allow(unused_unsafe)]
+mod workloads;
+use std::{ffi::CString,hint::black_box,path::Path,time::Instant};
+use vanedb::{ApproxIndex,Metric,SearchParams};
+use vanedb_capi as capi;
+const DIM:usize=128;
+fn main(){
+ let args:Vec<String>=std::env::args().collect();let mode=&args[1];let path=Path::new(&args[2]);
+ let w=workloads::generate(3,DIM,10_000,32);
+ if mode=="prepare" {
+  let idx=ApproxIndex::builder(DIM,Metric::L2).capacity(10_000).m(16).ef_construction(200).seed(7).build().unwrap();
+  for i in 0..10_000 {idx.add(w.ids[i],&w.vectors[i*DIM..(i+1)*DIM]).unwrap();}
+  idx.save(path).unwrap();println!("{{\"prepared\":true}}");return;
+ }
+ let reverse=args.get(3).is_some_and(|s|s=="reverse");let cp=CString::new(path.to_str().unwrap()).unwrap();
+ let (idx,h)=if reverse {let h=unsafe{capi::vanedb_rs_index_load(cp.as_ptr())};(ApproxIndex::load(path).unwrap(),h)}else{let idx=ApproxIndex::load(path).unwrap();(idx,unsafe{capi::vanedb_rs_index_load(cp.as_ptr())})};assert_ne!(h as usize,0);
+ let params=SearchParams::new().ef_search(50);
+ let original=std::fs::read(path).unwrap();assert_eq!(idx.to_bytes().unwrap(),original);
+ let capi_copy=path.with_file_name(format!("verify-{}.vndb",std::process::id()));let copy_path=CString::new(capi_copy.to_str().unwrap()).unwrap();assert_eq!(unsafe{capi::vanedb_rs_index_save(h,copy_path.as_ptr())},0);assert_eq!(std::fs::read(&capi_copy).unwrap(),original);std::fs::remove_file(capi_copy).unwrap();
+ let mut ids=[0u64;10];let mut ds=[0f32;10];
+ for (qi,q) in w.queries.chunks_exact(DIM).enumerate(){let expected=idx.search_with(q,10,&params).unwrap();assert_eq!(expected.len(),10);let n=unsafe{capi::vanedb_rs_index_search(h,q.as_ptr(),10,50,ids.as_mut_ptr(),ds.as_mut_ptr())};assert_eq!(n,10);for i in 0..10{assert_eq!(ids[i],expected[i].id);assert_eq!(ds[i].to_bits(),expected[i].distance.to_bits());}println!("{{\"check_query\":{},\"ids\":{:?},\"distance_bits\":{:?}}}",qi,ids,ds.map(f32::to_bits));}
+ if mode=="measure" {
+  for round in 0..10 {
+   let order=if (round%2==0)^reverse {[false,true]} else {[true,false]};
+   for ffi in order {
+    let start=Instant::now();let mut count=0usize;
+    for _ in 0..1000 {
+     for q in w.queries.chunks_exact(DIM){
+      if ffi {count+=unsafe{capi::vanedb_rs_index_search(black_box(h),black_box(q.as_ptr()),10,50,ids.as_mut_ptr(),ds.as_mut_ptr())};}
+      else {let hits=idx.search_with(black_box(q),10,black_box(&params)).unwrap();for (i,r) in hits.iter().take(10).enumerate(){ids[i]=r.id;ds[i]=r.distance;}count+=hits.len();}
+      black_box((&ids,&ds));
+     }
+    }
+    let elapsed=start.elapsed().as_nanos();assert_eq!(count,320_000);println!("{{\"round\":{},\"path\":\"{}\",\"nanoseconds\":{},\"sweeps\":1000,\"queries_per_sweep\":32,\"warmup\":{}}}",round,if ffi{"capi"}else{"native"},elapsed,round<2);
+   }
+  }
+ }
+ unsafe{capi::vanedb_rs_index_free(h)};println!("{{\"verified\":true}}");
+}

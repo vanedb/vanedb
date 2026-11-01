@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "rounds": 2,
+  "engines": 5,
+  "build_and_latency_aggregates_recomputed": true,
+  "fixture_role": "smoke",
+  "performance_evidence": false
+}

@@ -1,0 +1,6 @@
+{
+  "queries": 32,
+  "native_capi_and_cross_revision_exact_ids_and_distance_bits": true,
+  "same_graph_bytes_checked_by_probe": true,
+  "performance_claim": false
+}

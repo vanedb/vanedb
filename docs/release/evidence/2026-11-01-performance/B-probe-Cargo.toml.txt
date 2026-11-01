@@ -1,0 +1,8 @@
+[package]
+name="abi-probe"
+version="0.1.0"
+edition="2021"
+[workspace]
+[dependencies]
+vanedb={path="/Users/anton/code/codex/vanedb-020-perf-20261101/vanedb",features=["disk"]}
+vanedb-capi={path="/Users/anton/code/codex/vanedb-020-perf-20261101/vanedb-capi"}

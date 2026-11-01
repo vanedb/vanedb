@@ -1,0 +1,175 @@
+{
+  "recorded_at": "2026-11-01T21:37:19.529570+00:00",
+  "commands": [
+    {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Darwin mbp.local 27.2.0 Darwin Kernel Version 27.2.0: Wed Oct 14 23:44:56 PDT 2026; root:xnu-13432.41.4~25/RELEASE_ARM64_T6041 arm64\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "sw_vers"
+      ],
+      "exit_code": 0,
+      "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "sysctl",
+        "hw.model",
+        "hw.machine",
+        "hw.memsize",
+        "hw.ncpu",
+        "machdep.cpu.brand_string",
+        "kern.hv_vmm_present"
+      ],
+      "exit_code": 0,
+      "stdout": "hw.model: Mac16,8\nhw.machine: arm64\nhw.memsize: 51539607552\nhw.ncpu: 14\nmachdep.cpu.brand_string: Apple M4 Pro\nkern.hv_vmm_present: 0\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "pmset",
+        "-g",
+        "batt"
+      ],
+      "exit_code": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=35913827)\t100%; discharging; 5:39 remaining present: true\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "pmset",
+        "-g",
+        "therm"
+      ],
+      "exit_code": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "pmset",
+        "-g",
+        "custom"
+      ],
+      "exit_code": 0,
+      "stdout": "Battery Power:\n Sleep On Power Button 1\n powermode            0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         10\n womp                 0\n networkoversleep     0\n sleep                1\n lessbright           1\n tcpkeepalive         1\n disksleep            10\nAC Power:\n Sleep On Power Button 1\n powermode            0\n standby              1\n ttyskeepawake        1\n hibernatemode        3\n powernap             1\n hibernatefile        /var/vm/sleepimage\n displaysleep         20\n womp                 1\n networkoversleep     0\n sleep                0\n tcpkeepalive         1\n disksleep            10\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "vm_stat"
+      ],
+      "exit_code": 0,
+      "stdout": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   113267.\nPages active:                                1102600.\nPages inactive:                              1093177.\nPages speculative:                             10101.\nPages throttled:                                   0.\nPages wired down:                             358234.\nPages purgeable:                               66669.\n\"Translation faults\":                      512589484.\nPages copy-on-write:                        30075804.\nPages zero filled:                         264623437.\nPages reactivated:                           4391000.\nPages purged:                                1785424.\nFile-backed pages:                           1040258.\nAnonymous pages:                             1165620.\nPages stored in compressor:                   816093.\nPages occupied by compressor:                 414339.\nDecompressions:                              1521315.\nCompressions:                                4651755.\nPageins:                                    13548417.\nPageouts:                                       4000.\nSwapins:                                           0.\nSwapouts:                                          0.\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "df",
+        "-h",
+        "."
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   1.8Ti   1.8Ti    28Gi    99%    6.9M  294M    2%   /System/Volumes/Data\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/emulator/emulator",
+        "-version"
+      ],
+      "exit_code": 0,
+      "stdout": "Android emulator version 37.1.11.0 (build_id 15917651) (CL:N/A)\nCopyright (C) 2006-2024 The Android Open Source Project and many others.\nThis program is a derivative of the QEMU CPU emulator (www.qemu.org).\n\n  This software is licensed under the terms of the GNU General Public\n  License version 2, as published by the Free Software Foundation, and\n  may be copied, distributed, and modified under those terms.\n\n  This program is distributed in the hope that it will be useful,\n  but WITHOUT ANY WARRANTY; without even the implied warranty of\n  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n  GNU General Public License for more details.\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/emulator/emulator",
+        "-accel-check"
+      ],
+      "exit_code": 0,
+      "stdout": "accel:\n0\nHypervisor.Framework OS X Version 27.2\naccel\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/emulator/emulator",
+        "-list-avds"
+      ],
+      "exit_code": 0,
+      "stdout": "vanedb_020_api35_arm64\nvanedb_020_full_api35_arm64\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+        "version"
+      ],
+      "exit_code": 0,
+      "stdout": "Android Debug Bridge version 1.0.41\nVersion 37.0.1-15733141\nInstalled as /Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb\nRunning on Darwin 27.2.0 (arm64)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc",
+        "-Vv"
+      ],
+      "exit_code": 0,
+      "stdout": "rustc 1.94.1 (e408947bf 2026-03-25)\nbinary: rustc\ncommit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1\ncommit-date: 2026-03-25\nhost: aarch64-apple-darwin\nrelease: 1.94.1\nLLVM version: 21.1.8\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+        "-V"
+      ],
+      "exit_code": 0,
+      "stdout": "cargo 1.94.1 (29ea6fb6a 2026-03-24)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "clang",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cmake version 4.4.5\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Python 3.13.5\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "git version 2.54.0 (Apple Git-157)\n",
+      "stderr": ""
+    }
+  ],
+  "note": "Initial process inventory omitted from public copy; post-build process CPU samples are in quiet-preflight.json. No hardware serial or UUID collected here."
+}
