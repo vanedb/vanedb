@@ -123,6 +123,36 @@ checkFilteredSearch(cjs);
 
 const { readFileSync, mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
 const { spawnSync, fork } = await import('node:child_process');
+// Exercise the installed bindings with dynamic string compilation disabled,
+// like a CSP without unsafe-eval, and fail on any unhandled rejection.
+const deferredProbe = spawnSync(process.execPath, [
+  '--disallow-code-generation-from-strings', '--unhandled-rejections=strict',
+  '--input-type=module', '-e', `
+    import assert from 'node:assert/strict';
+    import { FlatIndex, ApproxIndex } from '@vanedb/wasm';
+    for (const index of [new FlatIndex(1, 'l2'), new ApproxIndex(1, 'l2', 16, 4, 16)]) {
+      try {
+        index.add(1n, [0]);
+        for (const predicate of [
+          async () => false,
+          async () => { throw new Error('metadata'); },
+          () => Promise.resolve(false),
+          () => Object.assign(() => {}, { then() { throw new Error('must not run'); } }),
+          function* () { return false; },
+          async function* () { return false; },
+        ]) {
+          assert.throws(() => index.search([0], 1, { predicate }),
+            e => e instanceof TypeError && /synchronous verdict/.test(e.message));
+        }
+        const hits = index.search([0], 1, { predicate: () => true });
+        try { assert.deepEqual([...hits.ids], [1n]); } finally { hits.free(); }
+      } finally { index.free(); }
+    }
+    await new Promise(resolve => setTimeout(resolve, 0));
+  `,
+], { encoding: 'utf8', timeout: 30000 });
+assert.equal(deferredProbe.status, 0,
+  `deferred predicate/CSP probe failed: ${deferredProbe.error ?? ''}\n${deferredProbe.stderr}`);
 const os = await import('node:os');
 const path = await import('node:path');
 
