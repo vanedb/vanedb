@@ -1,0 +1,11 @@
+checksum ok for bench/compare/fixtures/smoke.vnef
+fixture role=smoke dim=768 docs=256 queries=16 sha256=ffb7bb61f38482ade08d07bc21c1717a7b2209619c572bd8b8278dd441350c56
+skipping sqlite-vec on cosine (not a native vec0 metric); pass --force-sqlite-vec-cosine to include the harness-side scan, or run --metric l2 for native sqlite-vec
+round 1/2
+round 2/2
+RAW_ROUNDS {"build_secs":[0.020692208,0.01337925],"engine":"vanedb","latency_ns_by_ef":{"100":[34000.0,21625.0],"16":[13416.5,10062.5],"32":[16750.0,10687.0],"50":[21146.0,13500.0]},"recall_at_k_by_ef":{"100":[1.0,1.0],"16":[1.0,1.0],"32":[1.0,1.0],"50":[1.0,1.0]}}
+RAW_ROUNDS {"build_secs":[0.019366875,0.01503125],"engine":"usearch","latency_ns_by_ef":{"100":[33729.5,27937.5],"16":[14646.0,12188.0],"32":[18083.0,18354.5],"50":[23041.5,20145.5]},"recall_at_k_by_ef":{"100":[1.0,1.0],"16":[1.0,1.0],"32":[1.0,1.0],"50":[1.0,1.0]}}
+RAW_ROUNDS {"build_secs":[0.034137083,0.030104583],"engine":"hnswlib","latency_ns_by_ef":{"100":[60187.5,55729.0],"16":[30291.5,29750.5],"32":[33812.5,32812.5],"50":[39833.0,35875.0]},"recall_at_k_by_ef":{"100":[1.0,1.0],"16":[1.0,1.0],"32":[1.0,1.0],"50":[1.0,1.0]}}
+RAW_ROUNDS {"build_secs":[0.256603041,0.251998167],"engine":"instant-distance","latency_ns_by_ef":{"50":[85354.0,82479.0]},"recall_at_k_by_ef":{"50":[1.0,1.0]}}
+RAW_ROUNDS {"build_secs":[0.04190325,0.042301167],"engine":"hnsw_rs","latency_ns_by_ef":{"100":[78333.0,79667.0],"16":[34146.0,34354.0],"32":[42667.0,41666.5],"50":[54208.0,53479.5]},"recall_at_k_by_ef":{"100":[1.0,0.975],"16":[1.0,0.975],"32":[1.0,0.975],"50":[1.0,0.975]}}
+wrote /Users/anton/code/codex/020-perf-acceptance-20261101/smoke.json

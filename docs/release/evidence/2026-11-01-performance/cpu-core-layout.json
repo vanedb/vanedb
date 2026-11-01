@@ -1,0 +1,12 @@
+{
+  "command": [
+    "sysctl",
+    "hw.perflevel0.physicalcpu",
+    "hw.perflevel1.physicalcpu",
+    "hw.optional.arm64",
+    "hw.logicalcpu"
+  ],
+  "exit_code": 0,
+  "stdout": "hw.perflevel0.physicalcpu: 10\nhw.perflevel1.physicalcpu: 4\nhw.optional.arm64: 1\nhw.logicalcpu: 14\n",
+  "stderr": ""
+}

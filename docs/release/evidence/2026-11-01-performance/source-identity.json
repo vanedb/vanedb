@@ -1,0 +1,15 @@
+{
+  "baseline": {
+    "sha": "51cb2d871538985aad933a13ebe50c13a0031dfa",
+    "tree": "c8d4fddf4512cb06001b343daa1533dd8559723f",
+    "status": ""
+  },
+  "candidate": {
+    "sha": "e1761dcf4258011b446a361dc529da082ea2fc94",
+    "tree": "ffb67ebfa6914517558249435780e92149c701c4",
+    "status": ""
+  },
+  "fixture_sha256": "4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d",
+  "graph_sha256": "3672206a43d866b598b2abac71babf71181f7d459a2d73687fc8928d389b1cbc",
+  "probe_sha256": "b0b86a045cba90095623af93125615750358b58cfad4aab66a32815708738f3d"
+}

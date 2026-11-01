@@ -1,0 +1,11 @@
+{
+  "candidate_status_after_restoring_recording_patch": "",
+  "candidate_sha": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "evidence_base": "58247df1f4c8f6ec1a6bb32c528bb46c0dcf63cd",
+  "qualifying_timing_campaigns": 0,
+  "dedicated_attestation": false,
+  "host_screen_failed_samples": 2,
+  "host_screen_total_samples": 6,
+  "performance_regression_disposition": "unresolved; no speculative fix",
+  "ac_power_failed_samples": 6
+}

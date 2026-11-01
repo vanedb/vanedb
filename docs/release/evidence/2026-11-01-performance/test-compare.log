@@ -1,0 +1,189 @@
+   Compiling libc v0.2.189
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling cfg-if v1.0.5
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling zerocopy v0.8.57
+   Compiling version_check v0.9.5
+   Compiling memchr v2.8.3
+   Compiling crossbeam-utils v0.8.23
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.17.1
+   Compiling crossbeam-epoch v0.9.21
+   Compiling serde_core v1.0.229
+   Compiling bitflags v2.13.2
+   Compiling utf8parse v0.2.2
+   Compiling cc v1.5.1
+   Compiling crossbeam-deque v0.8.8
+   Compiling autocfg v1.5.1
+   Compiling generic-array v0.14.7
+   Compiling anstyle-parse v1.0.0
+   Compiling aho-corasick v1.1.5
+   Compiling smallvec v1.16.1
+   Compiling indexmap v2.14.2
+   Compiling num-traits v0.2.19
+   Compiling scratch v1.0.9
+   Compiling serde v1.0.229
+   Compiling anstyle v1.0.14
+   Compiling regex-syntax v0.8.11
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling rayon-core v1.13.0
+   Compiling pkg-config v0.3.34
+   Compiling getrandom v0.3.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling parking_lot_core v0.9.12
+   Compiling heck v0.5.0
+   Compiling anstream v1.0.0
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling regex-automata v0.4.18
+   Compiling ahash v0.8.12
+   Compiling cxxbridge-flags v1.0.202
+   Compiling link-cplusplus v1.0.12
+   Compiling unicode-width v0.2.2
+   Compiling vcpkg v0.2.15
+   Compiling scopeguard v1.2.0
+   Compiling once_cell v1.21.4
+   Compiling typenum v1.20.1
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling cfg_aliases v0.2.2
+   Compiling thiserror v1.0.69
+   Compiling termcolor v1.4.1
+   Compiling nix v0.30.1
+   Compiling libsqlite3-sys v0.30.1
+   Compiling codespan-reporting v0.13.1
+   Compiling lock_api v0.4.14
+   Compiling cxx v1.0.202
+   Compiling getrandom v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling jiff-core v0.1.1
+   Compiling either v1.18.0
+   Compiling thiserror v2.0.20
+   Compiling log v0.4.34
+   Compiling parking_lot v0.12.5
+   Compiling rand_core v0.9.5
+   Compiling rand_core v0.6.4
+   Compiling regex v1.13.1
+   Compiling rayon v1.12.0
+   Compiling cxx-build v1.0.202
+   Compiling thiserror-impl v1.0.69
+   Compiling enum-as-inner v0.6.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling jiff v0.2.37
+   Compiling env_filter v2.0.0
+   Compiling num_cpus v1.17.0
+   Compiling bytes v1.12.1
+   Compiling zmij v1.0.23
+   Compiling virtue v0.0.18
+   Compiling rustix v1.1.4
+   Compiling byteorder v1.5.0
+   Compiling rand_chacha v0.3.1
+   Compiling rand_chacha v0.9.0
+   Compiling bincode_derive v2.0.1
+   Compiling combine v4.6.8
+   Compiling hashbrown v0.14.5
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling cxxbridge-macro v1.0.202
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling chacha20 v0.10.2
+   Compiling errno v0.3.14
+   Compiling mach2 v0.4.3
+   Compiling cpu-time v1.0.0
+   Compiling sysctl v0.6.0
+   Compiling strsim v0.11.1
+   Compiling serde_json v1.0.151
+   Compiling unty v0.0.4
+   Compiling foldhash v0.1.5
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling lazy_static v1.5.0
+   Compiling clap_lex v1.1.1
+   Compiling rand v0.10.3
+   Compiling env_logger v0.11.11
+   Compiling clap_builder v4.6.7
+   Compiling hashbrown v0.15.5
+   Compiling digest v0.10.7
+   Compiling anndists v0.1.5
+   Compiling hashlink v0.9.1
+   Compiling clap_derive v4.6.7
+   Compiling usearch v2.21.0
+   Compiling rand v0.9.5
+   Compiling rand v0.8.8
+   Compiling ordered-float v3.9.2
+   Compiling cpufeatures v0.2.17
+   Compiling memmap2 v0.9.11
+   Compiling vanedb-compare v0.1.0 (/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare)
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fastrand v2.5.0
+   Compiling itoa v1.0.18
+   Compiling instant-distance v0.6.1
+   Compiling tempfile v3.27.0
+   Compiling sha2 v0.10.9
+   Compiling rusqlite v0.32.1
+   Compiling clap v4.6.7
+   Compiling mmap-rs v0.7.0
+   Compiling bincode v1.3.3
+   Compiling bincode v2.0.1
+   Compiling hnsw_rs v0.3.4
+   Compiling vanedb v0.2.0-rc.2 (/Users/anton/code/codex/vanedb-020-perf-20261101/vanedb)
+warning: vanedb-compare@0.1.0: /Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/vendor/sqlite-vec.c:2922:37: warning: initializer-string for character array is too long, array size is 6 but initializer has size 7 (including the null terminating character); did you mean to use the 'nonstring' attribute? [-Wunterminated-string-initialization]
+warning: vanedb-compare@0.1.0:  2922 | static unsigned char NPY_MAGIC[6] = "\x93NUMPY";
+warning: vanedb-compare@0.1.0:       |                                     ^~~~~~~~~~~
+warning: vanedb-compare@0.1.0: 1 warning generated.
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.26s
+     Running unittests src/lib.rs (bench/compare/target/debug/deps/vanedb_compare-fae4420fc5a8a455)
+
+running 32 tests
+test publish::tests::canonical_params_ok ... ok
+test ground_truth::tests::topk_l2 ... ok
+test publish::tests::cosine_engine_cherry_pick_refused ... ok
+test publish::tests::cosine_full_set_ok ... ok
+test publish::tests::bad_hw_label_refused ... ok
+test publish::tests::force_sqlite_refused_before_rounds ... ok
+test publish::tests::incomplete_delete_refused ... ok
+test publish::tests::incomplete_hnswlib_save_refused ... ok
+test publish::tests::l2_full_set_ok ... ok
+test publish::tests::cosine_with_sqlite_refused ... ok
+test publish::tests::non_publish_dim_refused ... ok
+test publish::tests::noncanonical_ef_refused ... ok
+test publish::tests::noncanonical_m_refused ... ok
+test publish::tests::ok_when_clean ... ok
+test publish::tests::refuse_non_publish_role_smoke ... ok
+test fixture::tests::rejects_bad_magic ... ok
+test publish::tests::rounds_lt_2_refused ... ok
+test publish::tests::shared_runner_fs_markers_survive_cleared_env ... ok
+test publish::tests::skip_delete_refused ... ok
+test publish::tests::skip_save_refused ... ok
+test publish::tests::unattested_dedicated_refused ... ok
+test fixture::tests::checksum_mismatch_detected ... ok
+test fixture::tests::checksum_missing_entry ... ok
+test fixture::tests::pending_generation_meta_blocks_publish ... ok
+test fixture::tests::synthetic_meta_never_publish_even_at_100k ... ok
+test fixture::tests::smoke_roundtrip ... ok
+test run::out_dir_tests::explicit_out_dir_is_created ... ok
+test fixture::tests::renamed_smoke_still_classified_smoke ... ok
+test publish::tests::unpinned_repo_sha_refused ... ok
+test run::out_dir_tests::falls_back_when_preferred_unwritable ... ok
+test fixture::tests::missing_meta_never_publish ... ok
+test fixture::tests::publish_floor_requires_100k_docs ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/main.rs (bench/compare/target/debug/deps/compare-8c87a607b185b201)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vanedb_compare
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
