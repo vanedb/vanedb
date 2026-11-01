@@ -230,7 +230,7 @@ fn filter_from_parsed<'a>(
 }
 
 fn synchronous_verdict(value: &JsValue) -> Result<bool, JsValue> {
-    if value.is_object() && deferred_verdict(value)? {
+    if (value.is_object() || value.is_function()) && deferred_verdict(value)? {
         return Err(TypeError::new(
             "predicate must return a synchronous verdict, not a thenable or generator",
         )
@@ -246,7 +246,10 @@ fn deferred_verdict(value: &JsValue) -> Result<bool, JsValue> {
         // thenable runs user code, which is not required to observe the value.
         if value.is_instance_of::<Promise>() {
             if let Some(then_fn) = then.dyn_ref::<Function>() {
-                let sink = Function::new_with_args("_value", "");
+                // A static wasm callback works under CSP without unsafe-eval.
+                // Both settlement paths share a once-closure: whichever runs
+                // releases its Rust allocation (a Promise settles only once).
+                let sink = Closure::once_into_js(|_: JsValue| {});
                 then_fn.call2(value, &sink, &sink)?;
             }
         }

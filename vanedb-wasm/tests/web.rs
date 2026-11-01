@@ -1140,6 +1140,7 @@ fn deferred_predicate_results_throw_type_error() {
         "async () => false",
         "() => Promise.resolve(false)",
         "() => ({ then(resolve) { resolve(false); } })",
+        "() => Object.assign(() => {}, { then(resolve) { resolve(false); } })",
         "function* () { return false; }",
         "async function* () { return false; }",
         "async () => { throw new Error('metadata'); }",
