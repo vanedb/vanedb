@@ -1,0 +1,85 @@
+{
+  "disposition": "Task-generated disposable index files hashed then removed; raw timings and reports retained",
+  "files": [
+    {
+      "name": "hnswlib-l2-r0.idx",
+      "size": 322049236,
+      "sha256": "05691851468ee49a3ebb1961d8fda5399fbcbd8f33a50460e8ae729977c0959a"
+    },
+    {
+      "name": "hnswlib-l2-r1.idx",
+      "size": 322049236,
+      "sha256": "05691851468ee49a3ebb1961d8fda5399fbcbd8f33a50460e8ae729977c0959a"
+    },
+    {
+      "name": "hnswlib-l2-r2.idx",
+      "size": 322049236,
+      "sha256": "05691851468ee49a3ebb1961d8fda5399fbcbd8f33a50460e8ae729977c0959a"
+    },
+    {
+      "name": "hnswlib-l2-r3.idx",
+      "size": 322049236,
+      "sha256": "05691851468ee49a3ebb1961d8fda5399fbcbd8f33a50460e8ae729977c0959a"
+    },
+    {
+      "name": "sqlite-vec-l2-r0.idx",
+      "size": 310947840,
+      "sha256": "a4d93dc6955873e840ebe86986adc877f75292ffb80ca7c5819c31495c95cbb3"
+    },
+    {
+      "name": "sqlite-vec-l2-r1.idx",
+      "size": 310947840,
+      "sha256": "a4d93dc6955873e840ebe86986adc877f75292ffb80ca7c5819c31495c95cbb3"
+    },
+    {
+      "name": "sqlite-vec-l2-r2.idx",
+      "size": 310947840,
+      "sha256": "a4d93dc6955873e840ebe86986adc877f75292ffb80ca7c5819c31495c95cbb3"
+    },
+    {
+      "name": "sqlite-vec-l2-r3.idx",
+      "size": 310947840,
+      "sha256": "a4d93dc6955873e840ebe86986adc877f75292ffb80ca7c5819c31495c95cbb3"
+    },
+    {
+      "name": "usearch-l2-r0.idx",
+      "size": 322076112,
+      "sha256": "fc3e644c751a4df00b43602448ede73c995923420c6c218b435c195340814c51"
+    },
+    {
+      "name": "usearch-l2-r1.idx",
+      "size": 322076112,
+      "sha256": "fc3e644c751a4df00b43602448ede73c995923420c6c218b435c195340814c51"
+    },
+    {
+      "name": "usearch-l2-r2.idx",
+      "size": 322076112,
+      "sha256": "fc3e644c751a4df00b43602448ede73c995923420c6c218b435c195340814c51"
+    },
+    {
+      "name": "usearch-l2-r3.idx",
+      "size": 322076112,
+      "sha256": "fc3e644c751a4df00b43602448ede73c995923420c6c218b435c195340814c51"
+    },
+    {
+      "name": "vanedb-l2-r0.idx",
+      "size": 331473848,
+      "sha256": "c13f92146b81921c2541e2362c663c42a9ddac23b7a0d16248526fc5d5dba646"
+    },
+    {
+      "name": "vanedb-l2-r1.idx",
+      "size": 331473848,
+      "sha256": "c13f92146b81921c2541e2362c663c42a9ddac23b7a0d16248526fc5d5dba646"
+    },
+    {
+      "name": "vanedb-l2-r2.idx",
+      "size": 331473848,
+      "sha256": "c13f92146b81921c2541e2362c663c42a9ddac23b7a0d16248526fc5d5dba646"
+    },
+    {
+      "name": "vanedb-l2-r3.idx",
+      "size": 331473848,
+      "sha256": "c13f92146b81921c2541e2362c663c42a9ddac23b7a0d16248526fc5d5dba646"
+    }
+  ]
+}

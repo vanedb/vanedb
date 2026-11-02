@@ -1,0 +1,164 @@
+{
+  "status": "PASS",
+  "scope": "Independent packaged-copy integrity and arithmetic; not performance qualification",
+  "verification_copy": "/private/tmp/vanedb-020-evidence-verify-2d7hr8i6",
+  "archive_members": 1585,
+  "redactions": [
+    {
+      "file": "android-emulator.log",
+      "redacted_lines": 2
+    },
+    {
+      "file": "android-equivalent-emulator.log",
+      "redacted_lines": 2
+    }
+  ],
+  "checks": [
+    {
+      "name": "public-checksums",
+      "command": [
+        "shasum",
+        "-a",
+        "256",
+        "-c",
+        "SHA256SUMS"
+      ],
+      "exit_code": 0,
+      "stdout": "README.md: OK\nanalyze_criterion.py: OK\nanalyze_index.py: OK\nandroid-avd-config.ini: OK\nandroid-avd-creation.json: OK\nandroid-cosine-campaign.json: OK\nandroid-cosine-indexer-pause.json: OK\nandroid-cosine-rendered.md: OK\nandroid-cosine-verification.json: OK\nandroid-cosine.json: OK\nandroid-emulator-lifecycle.json: OK\nandroid-guardian-setup-attempts.json: OK\nandroid-l2-campaign.json: OK\nandroid-l2-indexer-pause.json: OK\nandroid-l2-rendered.md: OK\nandroid-l2-verification.json: OK\nandroid-l2.json: OK\nandroid-setup-attempt1-campaign.json: OK\nandroid-setup-attempt2-campaign.json: OK\nandroid-setup.json: OK\nandroid-shutdown.json: OK\narchive-index.json: OK\ncosine-campaign.json: OK\ncosine-index-files.json: OK\ncosine-indexer-pause.json: OK\ncosine-rendered.md: OK\ncosine-verification.json: OK\ncosine.json: OK\ncriterion-analysis.json: OK\ncriterion-campaign.json: OK\ncriterion-indexer-pause.json: OK\nfinal-validation.json: OK\nfinalize_checks.py: OK\nindex-confirm-analysis.json: OK\nindex-confirm-campaign.json: OK\nindex-confirm-indexer-pause.json: OK\nl2-campaign.json: OK\nl2-index-files.json: OK\nl2-indexer-pause.json: OK\nl2-rendered.md: OK\nl2-verification.json: OK\nl2.json: OK\nlaunch_android.py: OK\nlocal-original-artifacts.sha256: OK\npackage_evidence.py: OK\npause_indexer.py: OK\nprobe-analysis.json: OK\nprobe-campaign.json: OK\nprobe-indexer-pause.json: OK\nquality-summary.json: OK\nraw-rounds-and-load.tar.gz: OK\nrelease-plan-pr357.json: OK\nrun_android.py: OK\nrun_native.py: OK\nsetup_android.py: OK\nstop_android.py: OK\nsummarize_quality.py: OK\nverify_archive.py: OK\nverify_compare.py: OK\nverify_probe.py: OK\n",
+      "stderr": ""
+    },
+    {
+      "name": "raw-archive-content-index",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_archive.py"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: 1585 archived raw files match their size and SHA-256 records\n",
+      "stderr": ""
+    },
+    {
+      "name": "probe-raw-recomputation",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_probe.py"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: all raw probe rounds, exact outputs, medians, spreads and deltas reconcile\n",
+      "stderr": ""
+    },
+    {
+      "name": "analyze_criterion.py",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "analyze_criterion.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"host\": {\n    \"measured_samples\": 359,\n    \"load_flags\": 26,\n    \"power_flags\": 0,\n    \"all_events_completed\": true,\n    \"screen_passed\": false\n  },\n  \"ratios\": {\n    \"disk_build\": {\n      \"candidate_rs_over_cpp\": 1.0295281805942393,\n      \"rust_delta\": -0.15468368219365658,\n      \"cpp_delta\": -0.01360165048140316,\n      \"ratio_of_ratios_delta\": -0.14302744097362619\n    },\n    \"disk_open\": {\n      \"candidate_rs_over_cpp\": 1.0404646193865388,\n      \"rust_delta\": -0.05610197656264504,\n      \"cpp_delta\": 0.0029433510910799043,\n      \"ratio_of_ratios_delta\": -0.05887204655127409\n    },\n    \"disk_search\": {\n      \"candidate_rs_over_cpp\": 0.9778628847477314,\n      \"rust_delta\": -0.0008085444906488215,\n      \"cpp_delta\": -0.002358767360168712,\n      \"ratio_of_ratios_delta\": 0.0015538881301224716\n    },\n    \"index_build\": {\n      \"candidate_rs_over_cpp\": 1.0410755596835497,\n      \"rust_delta\": 0.024741589186341173,\n      \"cpp_delta\": 0.003942354255785263,\n      \"ratio_of_ratios_delta\": 0.02071755897376626\n    },\n    \"index_search\": {\n      \"candidate_rs_over_cpp\": 1.1810684741132278,\n      \"rust_delta\": 0.036896008212535136,\n      \"cpp_delta\": -0.004186478742224442,\n      \"ratio_of_ratios_delta\": 0.04125520097665447\n    },\n    \"store_add/n=10000\": {\n      \"candidate_rs_over_cpp\": 0.790867193124149,\n      \"rust_delta\": -0.4181599046862161,\n      \"cpp_delta\": 0.008603751191452957,\n      \"ratio_of_ratios_delta\": -0.42312320906355705\n    },\n    \"store_search/n=1000\": {\n      \"candidate_rs_over_cpp\": 1.036039828992994,\n      \"rust_delta\": 0.00421595367852956,\n      \"cpp_delta\": 0.008189157573983197,\n      \"ratio_of_ratios_delta\": -0.003940930990583569\n    },\n    \"store_search/n=10000\": {\n      \"candidate_rs_over_cpp\": 0.9405923669423675,\n      \"rust_delta\": 0.005138303126117627,\n      \"cpp_delta\": 0.0036608536926561186,\n      \"ratio_of_ratios_delta\": 0.0014720604355800138\n    }\n  }\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "analyze_index.py",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "analyze_index.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"all_eight\": {\n    \"host_screen_passed\": false,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            906481.2700162553,\n            902702.2988044923,\n            891410.1906088371,\n            895766.1085399734\n          ],\n          \"B\": [\n            937135.6808157234,\n            931069.7926023349,\n            889667.2978616817,\n            919454.5866144525\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 899234.2036722328,\n          \"B\": 925262.1896083937\n        },\n        \"spread\": {\n          \"A\": 0.016907008205868334,\n          \"B\": 0.053355207129824965\n        },\n        \"delta\": 0.02894461290492467,\n        \"exceeds_floor_and_spreads\": false\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            800893.4707551352,\n            804394.3518767549,\n            787083.8940121176,\n            800983.1361903355\n          ],\n          \"B\": [\n            798257.4132673268,\n            792863.0798995123,\n            760937.0656775528,\n            761511.2886995714\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 800938.3034727353,\n          \"B\": 777187.1842995419\n        },\n        \"spread\": {\n          \"A\": 0.02199315472763409,\n          \"B\": 0.049045248645554144\n        },\n        \"delta\": -0.02965411826380704,\n        \"exceeds_floor_and_spreads\": false\n      }\n    },\n    \"normalized_delta\": 0.060389529415927345\n  },\n  \"planned_abba_block\": {\n    \"host_screen_passed\": false,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            906481.2700162553,\n            902702.2988044923\n          ],\n          \"B\": [\n            937135.6808157234,\n            931069.7926023349\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 904591.7844103738,\n          \"B\": 934102.7367090292\n        },\n        \"spread\": {\n          \"A\": 0.004186287347188238,\n          \"B\": 0.006514966183613778\n        },\n        \"delta\": 0.0326235024540833,\n        \"exceeds_floor_and_spreads\": true\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            800893.4707551352,\n            804394.3518767549\n          ],\n          \"B\": [\n            798257.4132673268,\n            792863.0798995123\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 802643.911315945,\n          \"B\": 795560.2465834196\n        },\n        \"spread\": {\n          \"A\": 0.004371219456089284,\n          \"B\": 0.0068036127606018754\n        },\n        \"delta\": -0.008825413901055623,\n        \"exceeds_floor_and_spreads\": false\n      }\n    },\n    \"normalized_delta\": 0.04181797731343484\n  },\n  \"planned_baab_block\": {\n    \"host_screen_passed\": true,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            891410.1906088371,\n            895766.1085399734\n          ],\n          \"B\": [\n            889667.2978616817,\n            919454.5866144525\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 893588.1495744053,\n          \"B\": 904560.942238067\n        },\n        \"spread\": {\n          \"A\": 0.004886547155312657,\n          \"B\": 0.03348137986454567\n        },\n        \"delta\": 0.01227947423976894,\n        \"exceeds_floor_and_spreads\": false\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            787083.8940121176,\n            800983.1361903355\n          ],\n          \"B\": [\n            760937.0656775528,\n            761511.2886995714\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 794033.5151012265,\n          \"B\": 761224.1771885621\n        },\n        \"spread\": {\n          \"A\": 0.017659162236654622,\n          \"B\": 0.0007546261680750959\n        },\n        \"delta\": -0.04131984014362633,\n        \"exceeds_floor_and_spreads\": true\n      }\n    },\n    \"normalized_delta\": 0.055909485381887336\n  }\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "summarize_quality.py",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "summarize_quality.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"probe\": {\n    \"host_process_phase_samples\": 16,\n    \"host_load_flags\": 0,\n    \"power_flags\": 0,\n    \"host_screen_passed\": true,\n    \"preflight_samples\": 37,\n    \"preflight_load_flags\": 23,\n    \"start\": \"2026-11-02T06:11:04.849798+00:00\",\n    \"end\": \"2026-11-02T06:13:00.732830+00:00\",\n    \"duration_seconds\": 115.883032,\n    \"indexer_restored\": true\n  },\n  \"criterion\": {\n    \"host_process_phase_samples\": 359,\n    \"host_load_flags\": 26,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 85,\n    \"preflight_load_flags\": 9,\n    \"start\": \"2026-11-02T06:14:49.729904+00:00\",\n    \"end\": \"2026-11-02T06:48:28.655863+00:00\",\n    \"duration_seconds\": 2018.925959,\n    \"indexer_restored\": true\n  },\n  \"index-confirm\": {\n    \"host_process_phase_samples\": 48,\n    \"host_load_flags\": 2,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 40,\n    \"preflight_load_flags\": 9,\n    \"start\": \"2026-11-02T06:50:44.680459+00:00\",\n    \"end\": \"2026-11-02T06:56:27.520847+00:00\",\n    \"duration_seconds\": 342.840388,\n    \"indexer_restored\": true\n  },\n  \"cosine\": {\n    \"host_process_phase_samples\": 397,\n    \"host_load_flags\": 42,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 3,\n    \"preflight_load_flags\": 0,\n    \"start\": \"2026-11-02T06:58:54.425448+00:00\",\n    \"end\": \"2026-11-02T07:32:29.756403+00:00\",\n    \"duration_seconds\": 2015.330955,\n    \"indexer_restored\": true\n  },\n  \"l2\": {\n    \"host_process_phase_samples\": 423,\n    \"host_load_flags\": 277,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 34,\n    \"preflight_load_flags\": 31,\n    \"start\": \"2026-11-02T07:56:51.852753+00:00\",\n    \"end\": \"2026-11-02T08:32:36.131618+00:00\",\n    \"duration_seconds\": 2144.278865,\n    \"indexer_restored\": true\n  },\n  \"android-cosine\": {\n    \"host_process_phase_samples\": 691,\n    \"host_load_flags\": 36,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 8,\n    \"preflight_load_flags\": 3,\n    \"start\": \"2026-11-02T09:19:26.224262+00:00\",\n    \"end\": \"2026-11-02T10:17:50.614584+00:00\",\n    \"duration_seconds\": 3504.390322,\n    \"guest_interval_samples\": 115,\n    \"guest_load_flags\": 0,\n    \"guest_screen_passed\": true,\n    \"indexer_restored\": true\n  },\n  \"android-l2\": {\n    \"host_process_phase_samples\": 691,\n    \"host_load_flags\": 24,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 4,\n    \"preflight_load_flags\": 1,\n    \"start\": \"2026-11-02T10:34:25.437515+00:00\",\n    \"end\": \"2026-11-02T11:32:51.010916+00:00\",\n    \"duration_seconds\": 3505.573401,\n    \"guest_interval_samples\": 115,\n    \"guest_load_flags\": 16,\n    \"guest_screen_passed\": false,\n    \"indexer_restored\": true\n  },\n  \"method\": \"Counts apply to complete benchmark process phases, including setup/warmup; preflight failures are separately retained. Snapshot screens do not prove continuous isolation. Guest sampling is interval-based, approximately 30 seconds; its non-target busy CPU includes benchmark-driven kernel/interrupt work and does not by itself prove competing guest activity. Every campaign measurement interval is sequential and non-overlapping.\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "name": "cosine-raw-recomputation",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_compare.py",
+        "cosine.json",
+        "compare-cosine.stderr.log",
+        "cosine-recomputed.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"cosine\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"macos\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+      "stderr": ""
+    },
+    {
+      "name": "l2-raw-recomputation",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_compare.py",
+        "l2.json",
+        "compare-l2.stderr.log",
+        "l2-recomputed.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"l2\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"sqlite-vec\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"macos\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+      "stderr": ""
+    },
+    {
+      "name": "android-cosine-raw-recomputation",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_compare.py",
+        "android-cosine.json",
+        "android-cosine.stderr.log",
+        "android-cosine-recomputed.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"cosine\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"android\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+      "stderr": ""
+    },
+    {
+      "name": "android-l2-raw-recomputation",
+      "command": [
+        "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "verify_compare.py",
+        "android-l2.json",
+        "android-l2.stderr.log",
+        "android-l2-recomputed.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"l2\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"sqlite-vec\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"android\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+      "stderr": ""
+    },
+    {
+      "name": "python-source-syntax",
+      "status": "PASS",
+      "scope": "All extracted top-level Python files compiled; no controllers or benchmarks executed"
+    }
+  ],
+  "public_presentation_normalization": [
+    {
+      "file": "android-cosine-rendered.md",
+      "original_sha256": "e4e8389c8b3683838f10a20276ee8322e268d3f9e20729e6bf114c121953b94f",
+      "public_sha256": "3104db22ba68d9d1935e73c0eed8ae0f0dde9225c9395e8e3ace7929b681de77",
+      "transformation": "Removed excess blank lines at EOF only; original renderer stdout retained in final-validation.json"
+    },
+    {
+      "file": "android-l2-rendered.md",
+      "original_sha256": "447fa51d51347ef476e88e2cbab1799fced9cda9ae4d9e9bf9236a7774a34c9d",
+      "public_sha256": "772d57128cbbb566dc7479a51e2245c599e768297f189375c4cc720f0e025650",
+      "transformation": "Removed excess blank lines at EOF only; original renderer stdout retained in final-validation.json"
+    },
+    {
+      "file": "cosine-rendered.md",
+      "original_sha256": "bcffc9637bf0c3281e36d7ae3a9c646384e36c73a49aec0314f27640e3ea4ce4",
+      "public_sha256": "98e7a6ffe75f89303c5d41010c8ab698ec33a0e5873fe71ce6f36fd565bbfd7b",
+      "transformation": "Removed excess blank lines at EOF only; original renderer stdout retained in final-validation.json"
+    },
+    {
+      "file": "l2-rendered.md",
+      "original_sha256": "0e8c5b4ed1f339d57a474e1f9c75a96e7e9369c6c30777f0ac608fabd59828ba",
+      "public_sha256": "c8b88b145e1ec1ee9555cac16ecc61e07e6ac42fac1f73bbce63e5ee098ad763",
+      "transformation": "Removed excess blank lines at EOF only; original renderer stdout retained in final-validation.json"
+    }
+  ]
+}

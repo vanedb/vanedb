@@ -1,0 +1,52 @@
+{
+  "record_type": "Command reconstruction from this session; execution output in android-avd-create.log",
+  "reason": "Existing AVD had 5.54 million KiB free, insufficient for L2 indices plus temporary SQLite databases. Its prior smoke files also failed hashes (zero length). No timing began on that AVD; existing data was preserved.",
+  "original_avd": "vanedb_020_full_api35_arm64",
+  "original_launch_command": [
+    "/Users/anton/code/codex/020-android-benchmark-sdk/emulator/emulator",
+    "-avd",
+    "vanedb_020_full_api35_arm64",
+    "-no-window",
+    "-no-audio",
+    "-no-snapshot",
+    "-no-boot-anim",
+    "-port",
+    "5580"
+  ],
+  "original_stop_command": [
+    "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+    "-s",
+    "emulator-5580",
+    "emu",
+    "kill"
+  ],
+  "create_command": [
+    "/Users/anton/code/codex/020-android-benchmark-sdk/cmdline-tools/latest/bin/avdmanager",
+    "create",
+    "avd",
+    "-n",
+    "vanedb_020_acceptance_20261102_api35_arm64",
+    "-k",
+    "system-images;android-35;default;arm64-v8a",
+    "-p",
+    "/Users/anton/code/codex/020-android-benchmark-sdk/avd/vanedb_020_acceptance_20261102_api35_arm64.avd"
+  ],
+  "stdin": "no\n",
+  "exit_code": 0,
+  "env": {
+    "ANDROID_HOME": "/Users/anton/code/codex/020-android-benchmark-sdk",
+    "ANDROID_SDK_ROOT": "/Users/anton/code/codex/020-android-benchmark-sdk",
+    "ANDROID_AVD_HOME": "/Users/anton/code/codex/020-android-benchmark-sdk/avd",
+    "ANDROID_USER_HOME": "/Users/anton/code/codex/020-android-benchmark-sdk/user",
+    "JAVA_HOME": "/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home"
+  },
+  "config_overrides": {
+    "hw.ramSize": "8192",
+    "hw.cpu.ncore": "4",
+    "disk.dataPartition.size": "16G",
+    "hw.gpu.enabled": "no",
+    "fastboot.forceColdBoot": "yes",
+    "fastboot.forceFastBoot": "no"
+  },
+  "equivalence": "Same installed API 35 default ARM64 image revision 2, CPU count, RAM and data partition size; separate fresh guest data, accurately labelled emulator"
+}

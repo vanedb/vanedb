@@ -1,0 +1,93 @@
+{
+  "probe": {
+    "host_process_phase_samples": 16,
+    "host_load_flags": 0,
+    "power_flags": 0,
+    "host_screen_passed": true,
+    "preflight_samples": 37,
+    "preflight_load_flags": 23,
+    "start": "2026-11-02T06:11:04.849798+00:00",
+    "end": "2026-11-02T06:13:00.732830+00:00",
+    "duration_seconds": 115.883032,
+    "indexer_restored": true
+  },
+  "criterion": {
+    "host_process_phase_samples": 359,
+    "host_load_flags": 26,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 85,
+    "preflight_load_flags": 9,
+    "start": "2026-11-02T06:14:49.729904+00:00",
+    "end": "2026-11-02T06:48:28.655863+00:00",
+    "duration_seconds": 2018.925959,
+    "indexer_restored": true
+  },
+  "index-confirm": {
+    "host_process_phase_samples": 48,
+    "host_load_flags": 2,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 40,
+    "preflight_load_flags": 9,
+    "start": "2026-11-02T06:50:44.680459+00:00",
+    "end": "2026-11-02T06:56:27.520847+00:00",
+    "duration_seconds": 342.840388,
+    "indexer_restored": true
+  },
+  "cosine": {
+    "host_process_phase_samples": 397,
+    "host_load_flags": 42,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 3,
+    "preflight_load_flags": 0,
+    "start": "2026-11-02T06:58:54.425448+00:00",
+    "end": "2026-11-02T07:32:29.756403+00:00",
+    "duration_seconds": 2015.330955,
+    "indexer_restored": true
+  },
+  "l2": {
+    "host_process_phase_samples": 423,
+    "host_load_flags": 277,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 34,
+    "preflight_load_flags": 31,
+    "start": "2026-11-02T07:56:51.852753+00:00",
+    "end": "2026-11-02T08:32:36.131618+00:00",
+    "duration_seconds": 2144.278865,
+    "indexer_restored": true
+  },
+  "android-cosine": {
+    "host_process_phase_samples": 691,
+    "host_load_flags": 36,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 8,
+    "preflight_load_flags": 3,
+    "start": "2026-11-02T09:19:26.224262+00:00",
+    "end": "2026-11-02T10:17:50.614584+00:00",
+    "duration_seconds": 3504.390322,
+    "guest_interval_samples": 115,
+    "guest_load_flags": 0,
+    "guest_screen_passed": true,
+    "indexer_restored": true
+  },
+  "android-l2": {
+    "host_process_phase_samples": 691,
+    "host_load_flags": 24,
+    "power_flags": 0,
+    "host_screen_passed": false,
+    "preflight_samples": 4,
+    "preflight_load_flags": 1,
+    "start": "2026-11-02T10:34:25.437515+00:00",
+    "end": "2026-11-02T11:32:51.010916+00:00",
+    "duration_seconds": 3505.573401,
+    "guest_interval_samples": 115,
+    "guest_load_flags": 16,
+    "guest_screen_passed": false,
+    "indexer_restored": true
+  },
+  "method": "Counts apply to complete benchmark process phases, including setup/warmup; preflight failures are separately retained. Snapshot screens do not prove continuous isolation. Guest sampling is interval-based, approximately 30 seconds; its non-target busy CPU includes benchmark-driven kernel/interrupt work and does not by itself prove competing guest activity. Every campaign measurement interval is sequential and non-overlapping."
+}
