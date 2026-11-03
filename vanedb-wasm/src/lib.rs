@@ -1,4 +1,4 @@
-use js_sys::{BigInt, Function, Promise, Reflect, Symbol, TypeError};
+use js_sys::{BigInt, Function, Reflect, Symbol, TypeError};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use wasm_bindgen::prelude::*;
@@ -239,20 +239,31 @@ fn synchronous_verdict(value: &JsValue) -> Result<bool, JsValue> {
     Ok(value.is_truthy())
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = ["Promise", "prototype", "then"], js_name = call, catch)]
+    fn observe_promise(
+        value: &JsValue,
+        on_fulfilled: &JsValue,
+        on_rejected: &JsValue,
+    ) -> Result<JsValue, JsValue>;
+}
+
+thread_local! {
+    // One static callback works under CSP and stays alive for pending Promises.
+    // Reuse it so rejected non-Promise receivers allocate no abandoned closures.
+    static PROMISE_SINK: Closure<dyn FnMut(JsValue)> = Closure::new(|_| {});
+}
+
 fn deferred_verdict(value: &JsValue) -> Result<bool, JsValue> {
     let then = Reflect::get(value, &JsValue::from_str("then"))?;
     if then.is_function() {
-        // Only a real Promise rejects on its own. Calling `then` on any other
-        // thenable runs user code, which is not required to observe the value.
-        if value.is_instance_of::<Promise>() {
-            if let Some(then_fn) = then.dyn_ref::<Function>() {
-                // A static wasm callback works under CSP without unsafe-eval.
-                // Both settlement paths share a once-closure: whichever runs
-                // releases its Rust allocation (a Promise settles only once).
-                let sink = Closure::once_into_js(|_: JsValue| {});
-                then_fn.call2(value, &sink, &sink)?;
-            }
-        }
+        // The intrinsic brand check accepts native Promises from other realms,
+        // unlike instanceof. It rejects other thenables without calling their
+        // user-defined `then`; those still receive our synchronous TypeError.
+        PROMISE_SINK.with(|sink| {
+            let _ = observe_promise(value, sink.as_ref(), sink.as_ref());
+        });
         return Ok(true);
     }
     let tag = Reflect::get(value, &JsValue::from(Symbol::to_string_tag()))?;
