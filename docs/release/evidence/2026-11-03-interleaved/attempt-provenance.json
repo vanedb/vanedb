@@ -1,0 +1,54 @@
+{
+  "started": "2026-11-03T09:14:47.671927+00:00",
+  "working_results": "/private/tmp/vanedb-020-perf-20261103T091447Z",
+  "permanent_results": "/Users/anton/code/codex/020-perf-acceptance-20261103T091447Z",
+  "controllers": [
+    {
+      "file": "run_native.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/run_native.py",
+      "original_sha256": "1cf954fe70449f319fb346f814a4e0dd75d9491ffec7c0695d498e5bad171f96",
+      "updated_sha256": "49f34167fd18d03bc0c3d662b9b29bae0bd6c6062ab044d23b20b2cd17f88efb"
+    },
+    {
+      "file": "run_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/run_android.py",
+      "original_sha256": "9dacfc9c1ea42157cf86d586c277a1f196b7449757dbf975bf96f052d16e9d9f",
+      "updated_sha256": "d7eea2837f3d3343b40a831e2990bbe5a39a767fcb0f2e9ef94185ec718ea3a1"
+    },
+    {
+      "file": "launch_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/launch_android.py",
+      "original_sha256": "a4a283dbcd98f33e934259a1b4a11423db8a72df7d75870f5ef9994c0648b22a",
+      "updated_sha256": "588403cfef9f9859b1113e68739e251d704bf0d596db6f51cfe100b02bb9c9d8"
+    },
+    {
+      "file": "setup_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/setup_android.py",
+      "original_sha256": "8fac25010e22a0ed6a3add45f692b87fab974a0c169d6ebd4aafea9011a8ae34",
+      "updated_sha256": "455c98403f257baa68f93219af21f0a7c4e42d6b401cb2667faeb48a276706ac"
+    },
+    {
+      "file": "stop_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/stop_android.py",
+      "original_sha256": "17ffe626ccb5bdd627b5161588242dae62e715aadbd2b5b37210f9261d742f9f",
+      "updated_sha256": "968ea2433c0ba8b5deca878a4e6a1a0c03609c4c88f94747170e160bf3ebf7f0"
+    },
+    {
+      "file": "pause_indexer.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/pause_indexer.py",
+      "original_sha256": "7907df10927e5aa43a58a62a8c04739140dbf5c1a14d4d15384657fe304a9351",
+      "updated_sha256": "79095ceb2d1ab4cf820037de6e5db3ce0349f8e54a597124584c873ea6eb1188"
+    }
+  ],
+  "candidate": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "baseline": "51cb2d871538985aad933a13ebe50c13a0031dfa",
+  "later_wasm_fix": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22",
+  "later_fix_changed_files": [
+    "vanedb-wasm/src/lib.rs",
+    "vanedb-wasm/tests/npm_package.mjs"
+  ],
+  "qualification_scope": "Measures the original pinned candidate; newer wasm-only correction does not change native benchmark inputs. No final-source performance PASS inferred.",
+  "output_isolation": "Temporary directory outside source workspace; same filesystem device. No user application suspended and no load threshold or shared-host check changed. Guarded indexing-service pause recorded separately. Copy raw results to permanent directory between measurement phases.",
+  "filesystem": "Filesystem   1024-blocks       Used Available Capacity iused     ifree %iused  Mounted on\n/dev/disk3s5  1948455240 1909812432  13833116   100% 6899128 138331160    5%   /System/Volumes/Data\n/dev/disk3s5  1948455240 1909812432  13833116   100% 6899128 138331160    5%   /System/Volumes/Data\n",
+  "indexer_isolation": "Temporarily pause the user-owned corespotlightd using the earlier campaign guardian. Discover current PID, verify UID/start/executable and that it was not already stopped; restore on controller exit/guardian interruption, maximum3hours. No process excluded from measurement load accounting."
+}

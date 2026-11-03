@@ -1,0 +1,3639 @@
+{
+  "started": "2026-11-03T09:15:59.429583+00:00",
+  "screen": "12 consecutive five-second quiet samples before starting any campaign; individual <=50%, aggregate <=150%, AC. Controller and ps only excluded. Existing per-target checks remain unchanged.",
+  "status": "ready",
+  "samples": [
+    {
+      "utc": "2026-11-03T09:15:59.480978+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 0.3,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "logd"
+        },
+        {
+          "pid": 574,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "opendirectoryd"
+        },
+        {
+          "pid": 599,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 627,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "runningboardd"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 682,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "symptomsd"
+        },
+        {
+          "pid": 691,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "syspolicyd"
+        },
+        {
+          "pid": 704,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "backupd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 7.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 1.2,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 7.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 1.3,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 1.5,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu": 0.6,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu": 4.8,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 6.8,
+          "executable": "codex"
+        },
+        {
+          "pid": 34093,
+          "ppid": 33041,
+          "cpu": 0.4,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 35276,
+          "ppid": 35268,
+          "cpu": 0.6,
+          "executable": "ollama"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.7,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 3.8,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1492,
+      "background_max": 7.8,
+      "background_sum": 44.6,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 1
+    },
+    {
+      "utc": "2026-11-03T09:16:04.575259+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.3,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.2,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 1.4,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 8.7,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 2.0,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88303,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "launchd_sim"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88307,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 88330,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "locationd"
+        },
+        {
+          "pid": 88343,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "notifyd"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.8,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1501,
+      "background_max": 8.7,
+      "background_sum": 28.4,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 2
+    },
+    {
+      "utc": "2026-11-03T09:16:09.666643+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 537,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "fseventsd"
+        },
+        {
+          "pid": 576,
+          "ppid": 1,
+          "cpu": 1.9,
+          "executable": "apsd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 682,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "symptomsd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.3,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 943,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 979,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "usernotificationsd"
+        },
+        {
+          "pid": 1021,
+          "ppid": 1,
+          "cpu": 6.6,
+          "executable": "identityservicesd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 3.5,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 1.3,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81792,
+          "ppid": 81783,
+          "cpu": 0.6,
+          "executable": "Claude Helper"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1498,
+      "background_max": 8.3,
+      "background_sum": 29.7,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 3
+    },
+    {
+      "utc": "2026-11-03T09:16:14.750873+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 36.0,
+          "executable": "launchd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.8,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.3,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 983,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "trustd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 2.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 1.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "adb"
+        },
+        {
+          "pid": 80224,
+          "ppid": 88303,
+          "cpu": 20.7,
+          "executable": "pairedsyncd"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.4,
+          "executable": "claude"
+        },
+        {
+          "pid": 88303,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "launchd_sim"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.4,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88307,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1503,
+      "background_max": 36.0,
+      "background_sum": 76.5,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 4
+    },
+    {
+      "utc": "2026-11-03T09:16:19.837933+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 627,
+          "ppid": 1,
+          "cpu": 1.3,
+          "executable": "runningboardd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 6.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.5,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88307,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1510,
+      "background_max": 8.4,
+      "background_sum": 21.1,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 5
+    },
+    {
+      "utc": "2026-11-03T09:16:24.931703+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 598,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "bluetoothd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.2,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 0.9,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.8,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 5.1,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 1.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1510,
+      "background_max": 8.2,
+      "background_sum": 18.9,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 6
+    },
+    {
+      "utc": "2026-11-03T09:16:30.020919+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "logd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "mds"
+        },
+        {
+          "pid": 580,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "securityd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.1,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 958,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "secd"
+        },
+        {
+          "pid": 983,
+          "ppid": 1,
+          "cpu": 4.9,
+          "executable": "trustd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 13.5,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 1493,
+          "ppid": 1466,
+          "cpu": 0.2,
+          "executable": "Google Drive"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33481,
+          "ppid": 33041,
+          "cpu": 0.3,
+          "executable": "SkyComputerUseService"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "adb"
+        },
+        {
+          "pid": 80050,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1502,
+      "background_max": 13.5,
+      "background_sum": 35.0,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 7
+    },
+    {
+      "utc": "2026-11-03T09:16:35.118135+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 537,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "fseventsd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.9,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 5.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.6,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88332,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "dasd"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.8,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 88495,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "mediaanalysisd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1501,
+      "background_max": 8.6,
+      "background_sum": 22.3,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 8
+    },
+    {
+      "utc": "2026-11-03T09:16:40.226891+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 0.1,
+          "executable": "launchd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "mds"
+        },
+        {
+          "pid": 565,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diskarbitrationd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 4.2,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 1075,
+          "ppid": 1,
+          "cpu": 340.3,
+          "executable": "corespotlightd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 1.6,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 1.6,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 61501,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "spotlightknowledged.updater"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "SpringBoard"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1505,
+      "background_max": 340.3,
+      "background_sum": 353.2,
+      "quiet": false,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 0
+    },
+    {
+      "utc": "2026-11-03T09:16:45.335004+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 3.6,
+          "executable": "launchd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 4.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 0.9,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 943,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 1075,
+          "ppid": 1,
+          "cpu": 215.7,
+          "executable": "corespotlightd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 3.2,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.3,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1507,
+      "background_max": 215.7,
+      "background_sum": 230.89999999999998,
+      "quiet": false,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 0
+    },
+    {
+      "utc": "2026-11-03T09:16:50.415131+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 0.1,
+          "executable": "launchd"
+        },
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "logd"
+        },
+        {
+          "pid": 565,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diskarbitrationd"
+        },
+        {
+          "pid": 589,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.2,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 926,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 1.4,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 4.2,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.8,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1504,
+      "background_max": 8.2,
+      "background_sum": 19.099999999999998,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 1
+    },
+    {
+      "utc": "2026-11-03T09:16:55.508040+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "logd"
+        },
+        {
+          "pid": 562,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mds"
+        },
+        {
+          "pid": 589,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.1,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 926,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 4.5,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 80050,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "mdworker_shared"
+        },
+        {
+          "pid": 80174,
+          "ppid": 33390,
+          "cpu": 0.9,
+          "executable": "Python"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 1.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81792,
+          "ppid": 81783,
+          "cpu": 0.1,
+          "executable": "Claude Helper"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.4,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1501,
+      "background_max": 8.1,
+      "background_sum": 19.8,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 2
+    },
+    {
+      "utc": "2026-11-03T09:17:00.599548+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 589,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 2.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 609,
+          "ppid": 1,
+          "cpu": 10.1,
+          "executable": "loginwindow"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.2,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.2,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 926,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "distnoted"
+        },
+        {
+          "pid": 1067,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "fileproviderd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 7.2,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 1.5,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 1.2,
+          "executable": "codex"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88299,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "SimRenderServer"
+        },
+        {
+          "pid": 88302,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "SimMetalHost"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 1.8,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88327,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "backboardd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1501,
+      "background_max": 10.1,
+      "background_sum": 40.699999999999996,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 3
+    },
+    {
+      "utc": "2026-11-03T09:17:05.681851+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 598,
+          "ppid": 1,
+          "cpu": 0.8,
+          "executable": "bluetoothd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 1.7,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 988,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "rapportd"
+        },
+        {
+          "pid": 1025,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "sharingd"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 3.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 2.3,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu": 1.2,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu": 0.2,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1503,
+      "background_max": 8.4,
+      "background_sum": 23.6,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 4
+    },
+    {
+      "utc": "2026-11-03T09:17:10.769118+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 663,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mDNSResponder"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.3,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 2.4,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 1.6,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 1.4,
+          "executable": "codex"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1506,
+      "background_max": 8.3,
+      "background_sum": 18.8,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 5
+    },
+    {
+      "utc": "2026-11-03T09:17:15.860933+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 1,
+          "ppid": 0,
+          "cpu": 0.5,
+          "executable": "launchd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.6,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 8.8,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 1.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33081,
+          "ppid": 33041,
+          "cpu": 0.4,
+          "executable": "Codex (Service)"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 2.1,
+          "executable": "codex"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 2.1,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.1,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1504,
+      "background_max": 8.8,
+      "background_sum": 28.3,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 6
+    },
+    {
+      "utc": "2026-11-03T09:17:20.952028+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.3,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 5.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 0.6,
+          "executable": "codex"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 88495,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "mediaanalysisd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1509,
+      "background_max": 8.3,
+      "background_sum": 18.6,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 7
+    },
+    {
+      "utc": "2026-11-03T09:17:26.044492+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 5.3,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 0.1,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81792,
+          "ppid": 81783,
+          "cpu": 0.8,
+          "executable": "Claude Helper"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1508,
+      "background_max": 8.4,
+      "background_sum": 20.3,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 8
+    },
+    {
+      "utc": "2026-11-03T09:17:31.132285+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.3,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 5.6,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 2.0,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "codex"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 1.5,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.1,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1510,
+      "background_max": 8.3,
+      "background_sum": 22.5,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 9
+    },
+    {
+      "utc": "2026-11-03T09:17:36.221825+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 537,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "fseventsd"
+        },
+        {
+          "pid": 598,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "bluetoothd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 665,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "airportd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 682,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "symptomsd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.9,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.2,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 1.6,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33388,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 34093,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "Codex (Renderer)"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 76724,
+          "ppid": 1,
+          "cpu": 2.0,
+          "executable": "adb"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.1,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 88495,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "mediaanalysisd"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1502,
+      "background_max": 8.2,
+      "background_sum": 17.599999999999998,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 10
+    },
+    {
+      "utc": "2026-11-03T09:17:41.310575+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "logd"
+        },
+        {
+          "pid": 537,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "fseventsd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 627,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "runningboardd"
+        },
+        {
+          "pid": 665,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "airportd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.7,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.1,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 4.2,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 32122,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Grok Bot"
+        },
+        {
+          "pid": 32558,
+          "ppid": 32122,
+          "cpu": 0.5,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33028,
+          "ppid": 32122,
+          "cpu": 1.6,
+          "executable": "Grok Bot Helper"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 33390,
+          "ppid": 33041,
+          "cpu": 0.1,
+          "executable": "codex"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.6,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 60782,
+          "ppid": 1,
+          "cpu": 9.4,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 79377,
+          "ppid": 33390,
+          "cpu": 4.8,
+          "executable": "mcp@latest"
+        },
+        {
+          "pid": 79378,
+          "ppid": 33390,
+          "cpu": 4.9,
+          "executable": "npm exec firebase-tools@latest mcp"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Claude"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.3,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.2,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 88307,
+          "ppid": 88303,
+          "cpu": 0.1,
+          "executable": "logd"
+        },
+        {
+          "pid": 88332,
+          "ppid": 88303,
+          "cpu": 8.4,
+          "executable": "dasd"
+        },
+        {
+          "pid": 88355,
+          "ppid": 88303,
+          "cpu": 12.3,
+          "executable": "diagnosticd"
+        },
+        {
+          "pid": 88356,
+          "ppid": 88303,
+          "cpu": 0.4,
+          "executable": "cfprefsd"
+        },
+        {
+          "pid": 88406,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "maild"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1496,
+      "background_max": 12.3,
+      "background_sum": 62.0,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 11
+    },
+    {
+      "utc": "2026-11-03T09:17:46.399272+00:00",
+      "excluded_pids": [
+        80174
+      ],
+      "processes": [
+        {
+          "pid": 532,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "logd"
+        },
+        {
+          "pid": 605,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "WindowServer"
+        },
+        {
+          "pid": 665,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "airportd"
+        },
+        {
+          "pid": 678,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "clocksyncd"
+        },
+        {
+          "pid": 746,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "com.apple.DriverKit-AppleBCMWLAN"
+        },
+        {
+          "pid": 776,
+          "ppid": 1,
+          "cpu": 8.4,
+          "executable": "coreaudiod"
+        },
+        {
+          "pid": 802,
+          "ppid": 1,
+          "cpu": 1.0,
+          "executable": "usbaudiod"
+        },
+        {
+          "pid": 834,
+          "ppid": 1,
+          "cpu": 1.1,
+          "executable": "com.nordvpn.macos.helper"
+        },
+        {
+          "pid": 867,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "mds_stores"
+        },
+        {
+          "pid": 1151,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ControlCenter"
+        },
+        {
+          "pid": 1349,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "Finder"
+        },
+        {
+          "pid": 1458,
+          "ppid": 1,
+          "cpu": 0.4,
+          "executable": "Citrix Workspace Helper"
+        },
+        {
+          "pid": 1464,
+          "ppid": 1,
+          "cpu": 6.4,
+          "executable": "NordVPN"
+        },
+        {
+          "pid": 33041,
+          "ppid": 1,
+          "cpu": 0.1,
+          "executable": "ChatGPT"
+        },
+        {
+          "pid": 57042,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "OrbStack Helper"
+        },
+        {
+          "pid": 60348,
+          "ppid": 1,
+          "cpu": 0.5,
+          "executable": "Citrix Viewer"
+        },
+        {
+          "pid": 81783,
+          "ppid": 1,
+          "cpu": 0.2,
+          "executable": "Claude"
+        },
+        {
+          "pid": 81792,
+          "ppid": 81783,
+          "cpu": 1.2,
+          "executable": "Claude Helper"
+        },
+        {
+          "pid": 82195,
+          "ppid": 1,
+          "cpu": 0.3,
+          "executable": "com.apple.Virtualization.VirtualMachine"
+        },
+        {
+          "pid": 84461,
+          "ppid": 84460,
+          "cpu": 0.2,
+          "executable": "claude"
+        },
+        {
+          "pid": 88306,
+          "ppid": 88303,
+          "cpu": 0.3,
+          "executable": "SpringBoard"
+        },
+        {
+          "pid": 96604,
+          "ppid": 1,
+          "cpu": 0.9,
+          "executable": "Citrix Viewer"
+        }
+      ],
+      "zero_cpu_processes_omitted": 1508,
+      "background_max": 8.4,
+      "background_sum": 22.8,
+      "quiet": true,
+      "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+      "ac_power": true,
+      "quiet_streak": 12
+    }
+  ],
+  "commands": [
+    [
+      "ps",
+      "-axo",
+      "pid=,ppid=,pcpu=,comm="
+    ],
+    [
+      "pmset",
+      "-g",
+      "batt"
+    ]
+  ],
+  "thermal_snapshot": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+  "ended": "2026-11-03T09:17:46.408251+00:00"
+}

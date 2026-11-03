@@ -1,0 +1,12 @@
+{
+  "target_pid": 1075,
+  "original_state": "S",
+  "target_identity": "501 Sat Oct 31 21:06:02 2026     /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd",
+  "controller_pid": 80973,
+  "controller_identity": "Tue Nov  3 09:24:13 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+  "method": "SIGSTOP then SIGCONT of the user-owned corespotlightd; no measurement exclusion",
+  "started": "2026-11-03T09:24:29.260366+00:00",
+  "suspended": true,
+  "resumed": true,
+  "ended": "2026-11-03T09:58:59.622792+00:00"
+}
