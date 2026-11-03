@@ -1,0 +1,37 @@
+{
+  "RUSTC": "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc",
+  "prior_clippy_attempt": "First standalone command selected Homebrew rustc via PATH and failed with missing wasm target; rerun uses the same explicit stable toolchain as the successful build/test. No source failure inferred.",
+  "records": [
+    {
+      "name": "installed-npm-final",
+      "command": [
+        "python3",
+        "scripts/check_npm_package.py"
+      ],
+      "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+      "started": "2026-11-03T08:34:30.239452+00:00",
+      "exit_code": 0,
+      "ended": "2026-11-03T08:34:31.388213+00:00"
+    },
+    {
+      "name": "clippy-wasm",
+      "command": [
+        "cargo",
+        "clippy",
+        "-p",
+        "vanedb-wasm",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--all-targets",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+      "started": "2026-11-03T08:34:31.388451+00:00",
+      "exit_code": 0,
+      "ended": "2026-11-03T08:34:36.064072+00:00"
+    }
+  ]
+}

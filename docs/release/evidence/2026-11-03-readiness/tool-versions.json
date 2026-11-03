@@ -1,0 +1,65 @@
+[
+  {
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc",
+      "--version"
+    ],
+    "stdout": "rustc 1.94.1 (e408947bf 2026-03-25)\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "--version"
+    ],
+    "stdout": "cargo 1.94.1 (29ea6fb6a 2026-03-24)\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "wasm-pack",
+      "--version"
+    ],
+    "stdout": "wasm-pack 0.14.0\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "node",
+      "--version"
+    ],
+    "stdout": "v26.13.0\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "npm",
+      "--version"
+    ],
+    "stdout": "11.20.0\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "--version"
+    ],
+    "stdout": "Python 3.13.5\n",
+    "stderr": "",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "cosign",
+      "version"
+    ],
+    "stdout": "  ______   ______        _______. __    _______ .__   __.\n /      | /  __  \\      /       ||  |  /  _____||  \\ |  |\n|  ,----'|  |  |  |    |   (----`|  | |  |  __  |   \\|  |\n|  |     |  |  |  |     \\   \\    |  | |  | |_ | |  . `  |\n|  `----.|  `--'  | .----)   |   |  | |  |__| | |  |\\   |\n \\______| \\______/  |_______/    |__|  \\______| |__| \\__|\ncosign: A tool for Container Signing, Verification and Storage in an OCI registry\n\nGitVersion:    v3.1.4\nGitCommit:     0e48502cf5ef34e2e60bbd3617aa19945712f705\nGitTreeState:  \"clean\"\nBuildDate:     2026-10-20T17:33:02Z\nGoVersion:     go1.27.3\nCompiler:      gc\nPlatform:      darwin/arm64\n\n",
+    "stderr": "",
+    "exit_code": 0
+  }
+]

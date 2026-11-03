@@ -1,0 +1,20 @@
+{
+  "id": 13215444935,
+  "node_id": "MDg6QXJ0aWZhY3QxMzIxNTQ0NDkzNQ==",
+  "name": "vanedb-wasm-npm",
+  "size_in_bytes": 204913,
+  "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215444935",
+  "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215444935/zip",
+  "expired": false,
+  "digest": "sha256:8602a1d4d7da05e5aedbe780cac5649d86e384e8da98e69642b76e9015ace8f6",
+  "created_at": "2026-11-03T08:37:55Z",
+  "updated_at": "2026-11-03T08:37:55Z",
+  "expires_at": "2027-02-01T08:37:06Z",
+  "workflow_run": {
+    "id": 41604609578,
+    "repository_id": 1195422782,
+    "head_repository_id": 1195422782,
+    "head_branch": "codex/wasm-cross-realm-predicate",
+    "head_sha": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22"
+  }
+}

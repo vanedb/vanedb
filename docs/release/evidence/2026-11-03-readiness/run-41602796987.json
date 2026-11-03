@@ -1,0 +1,947 @@
+{
+  "conclusion": "success",
+  "databaseId": 41602796987,
+  "event": "workflow_dispatch",
+  "headBranch": "codex/020-release-remediation",
+  "headSha": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "jobs": [
+    {
+      "completedAt": "2026-11-03T08:22:39Z",
+      "conclusion": "success",
+      "databaseId": 125805298238,
+      "name": "Validate release identity",
+      "startedAt": "2026-11-03T08:22:32Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:22:34Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:22:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:36Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:22:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:36Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 3,
+          "startedAt": "2026-11-03T08:22:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "success",
+          "name": "Match tag and crate version",
+          "number": 4,
+          "startedAt": "2026-11-03T08:22:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "skipped",
+          "name": "Packaged README carries the published-install form",
+          "number": 5,
+          "startedAt": "2026-11-03T08:22:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "skipped",
+          "name": "Require release tag to be on main",
+          "number": 6,
+          "startedAt": "2026-11-03T08:22:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 11,
+          "startedAt": "2026-11-03T08:22:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 12,
+          "startedAt": "2026-11-03T08:22:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:37Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:22:37Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805298238"
+    },
+    {
+      "completedAt": "2026-11-03T08:24:00Z",
+      "conclusion": "success",
+      "databaseId": 125805355000,
+      "name": "Package and verify",
+      "startedAt": "2026-11-03T08:22:41Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:22:43Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:22:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:44Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:22:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:45Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:22:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:45Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:22:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:22:58Z",
+          "conclusion": "success",
+          "name": "Verify the package builds from its own contents",
+          "number": 5,
+          "startedAt": "2026-11-03T08:22:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:23:56Z",
+          "conclusion": "success",
+          "name": "Test the unpacked crate and retain its archive",
+          "number": 6,
+          "startedAt": "2026-11-03T08:22:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:23:57Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 7,
+          "startedAt": "2026-11-03T08:23:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:23:57Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 13,
+          "startedAt": "2026-11-03T08:23:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:23:57Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:23:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:23:58Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:23:57Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805355000"
+    },
+    {
+      "completedAt": "2026-11-03T08:24:10Z",
+      "conclusion": "success",
+      "databaseId": 125805895647,
+      "name": "C ABI release assets / Validate C release identity",
+      "startedAt": "2026-11-03T08:24:03Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:04Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 3,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Run python scripts/capi_release.py identity",
+          "number": 4,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "skipped",
+          "name": "Require release tag to be on main",
+          "number": 5,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 9,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:07Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:24:07Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805895647"
+    },
+    {
+      "completedAt": "2026-11-03T08:29:31Z",
+      "conclusion": "success",
+      "databaseId": 125805962509,
+      "name": "C ABI release assets / C distribution (windows-x86_64)",
+      "startedAt": "2026-11-03T08:24:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:21Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:39Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:24:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:39Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:24:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:39Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is available",
+          "number": 5,
+          "startedAt": "2026-11-03T08:24:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:29Z",
+          "conclusion": "success",
+          "name": "Build and test the shipping profile and header",
+          "number": 6,
+          "startedAt": "2026-11-03T08:24:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:27:22Z",
+          "conclusion": "success",
+          "name": "Package and test installed static and shared consumers",
+          "number": 7,
+          "startedAt": "2026-11-03T08:26:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:25Z",
+          "conclusion": "success",
+          "name": "Install pinned CycloneDX generator",
+          "number": 8,
+          "startedAt": "2026-11-03T08:27:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:26Z",
+          "conclusion": "success",
+          "name": "Generate the target-specific C ABI SBOM from the same lockfile",
+          "number": 9,
+          "startedAt": "2026-11-03T08:29:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:27Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:29:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:27Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 19,
+          "startedAt": "2026-11-03T08:29:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:30Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:29:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:30Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:29:30Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805962509"
+    },
+    {
+      "completedAt": "2026-11-03T08:25:54Z",
+      "conclusion": "success",
+      "databaseId": 125805962518,
+      "name": "C ABI release assets / C distribution (linux-x86_64)",
+      "startedAt": "2026-11-03T08:24:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:14Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:23Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:24:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:23Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:24:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:23Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is available",
+          "number": 5,
+          "startedAt": "2026-11-03T08:24:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:57Z",
+          "conclusion": "success",
+          "name": "Build and test the shipping profile and header",
+          "number": 6,
+          "startedAt": "2026-11-03T08:24:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:02Z",
+          "conclusion": "success",
+          "name": "Package and test installed static and shared consumers",
+          "number": 7,
+          "startedAt": "2026-11-03T08:24:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:50Z",
+          "conclusion": "success",
+          "name": "Install pinned CycloneDX generator",
+          "number": 8,
+          "startedAt": "2026-11-03T08:25:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:50Z",
+          "conclusion": "success",
+          "name": "Generate the target-specific C ABI SBOM from the same lockfile",
+          "number": 9,
+          "startedAt": "2026-11-03T08:25:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:51Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:25:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:51Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 19,
+          "startedAt": "2026-11-03T08:25:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:52Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:25:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:52Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:25:52Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805962518"
+    },
+    {
+      "completedAt": "2026-11-03T08:29:14Z",
+      "conclusion": "success",
+      "databaseId": 125805962636,
+      "name": "C ABI release assets / C distribution (macos-x86_64)",
+      "startedAt": "2026-11-03T08:24:46Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:48Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:51Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:11Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:24:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:11Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:25:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:11Z",
+          "conclusion": "success",
+          "name": "Ensure pkg-config is available",
+          "number": 5,
+          "startedAt": "2026-11-03T08:25:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:53Z",
+          "conclusion": "success",
+          "name": "Build and test the shipping profile and header",
+          "number": 6,
+          "startedAt": "2026-11-03T08:25:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:27:06Z",
+          "conclusion": "success",
+          "name": "Package and test installed static and shared consumers",
+          "number": 7,
+          "startedAt": "2026-11-03T08:26:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:08Z",
+          "conclusion": "success",
+          "name": "Install pinned CycloneDX generator",
+          "number": 8,
+          "startedAt": "2026-11-03T08:27:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:09Z",
+          "conclusion": "success",
+          "name": "Generate the target-specific C ABI SBOM from the same lockfile",
+          "number": 9,
+          "startedAt": "2026-11-03T08:29:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:10Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:29:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:10Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 19,
+          "startedAt": "2026-11-03T08:29:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:29:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:11Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:29:11Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805962636"
+    },
+    {
+      "completedAt": "2026-11-03T08:28:09Z",
+      "conclusion": "success",
+      "databaseId": 125805962711,
+      "name": "C ABI release assets / C distribution (macos-aarch64)",
+      "startedAt": "2026-11-03T08:24:55Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:57Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:00Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:13Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:25:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:14Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:25:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:14Z",
+          "conclusion": "success",
+          "name": "Ensure pkg-config is available",
+          "number": 5,
+          "startedAt": "2026-11-03T08:25:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:23Z",
+          "conclusion": "success",
+          "name": "Build and test the shipping profile and header",
+          "number": 6,
+          "startedAt": "2026-11-03T08:25:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:34Z",
+          "conclusion": "success",
+          "name": "Package and test installed static and shared consumers",
+          "number": 7,
+          "startedAt": "2026-11-03T08:26:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:02Z",
+          "conclusion": "success",
+          "name": "Install pinned CycloneDX generator",
+          "number": 8,
+          "startedAt": "2026-11-03T08:26:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:03Z",
+          "conclusion": "success",
+          "name": "Generate the target-specific C ABI SBOM from the same lockfile",
+          "number": 9,
+          "startedAt": "2026-11-03T08:28:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:04Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:28:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:04Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 19,
+          "startedAt": "2026-11-03T08:28:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:05Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:28:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:28:07Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:28:05Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805962711"
+    },
+    {
+      "completedAt": "2026-11-03T08:26:05Z",
+      "conclusion": "success",
+      "databaseId": 125805962804,
+      "name": "C ABI release assets / C distribution (linux-aarch64)",
+      "startedAt": "2026-11-03T08:24:14Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:24:16Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:24:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:17Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:24:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:24Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:24:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:24Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 4,
+          "startedAt": "2026-11-03T08:24:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:24:24Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is available",
+          "number": 5,
+          "startedAt": "2026-11-03T08:24:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:01Z",
+          "conclusion": "success",
+          "name": "Build and test the shipping profile and header",
+          "number": 6,
+          "startedAt": "2026-11-03T08:24:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:25:13Z",
+          "conclusion": "success",
+          "name": "Package and test installed static and shared consumers",
+          "number": 7,
+          "startedAt": "2026-11-03T08:25:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:02Z",
+          "conclusion": "success",
+          "name": "Install pinned CycloneDX generator",
+          "number": 8,
+          "startedAt": "2026-11-03T08:25:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:02Z",
+          "conclusion": "success",
+          "name": "Generate the target-specific C ABI SBOM from the same lockfile",
+          "number": 9,
+          "startedAt": "2026-11-03T08:26:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:03Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:26:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:03Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 19,
+          "startedAt": "2026-11-03T08:26:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:04Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:26:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:26:04Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:26:04Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125805962804"
+    },
+    {
+      "completedAt": "2026-11-03T08:30:09Z",
+      "conclusion": "success",
+      "databaseId": 125808128940,
+      "name": "C ABI release assets / Sign and verify the complete C release",
+      "startedAt": "2026-11-03T08:29:33Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:29:35Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:29:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:37Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:29:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:37Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 3,
+          "startedAt": "2026-11-03T08:29:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:39Z",
+          "conclusion": "success",
+          "name": "Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+          "number": 4,
+          "startedAt": "2026-11-03T08:29:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:29:42Z",
+          "conclusion": "success",
+          "name": "Run sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
+          "number": 5,
+          "startedAt": "2026-11-03T08:29:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:30:04Z",
+          "conclusion": "success",
+          "name": "Enforce the exact five-platform inventory and sign every payload",
+          "number": 6,
+          "startedAt": "2026-11-03T08:29:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:30:06Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 7,
+          "startedAt": "2026-11-03T08:30:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:30:06Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 13,
+          "startedAt": "2026-11-03T08:30:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:30:07Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:30:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:30:07Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:30:07Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125808128940"
+    },
+    {
+      "completedAt": "2026-11-03T08:30:09Z",
+      "conclusion": "skipped",
+      "databaseId": 125808392078,
+      "name": "C ABI release assets / Attach signed C assets to the crate release",
+      "startedAt": "2026-11-03T08:30:10Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125808392078"
+    },
+    {
+      "completedAt": "2026-11-03T08:30:10Z",
+      "conclusion": "skipped",
+      "databaseId": 125808393984,
+      "name": "Publish to crates.io",
+      "startedAt": "2026-11-03T08:30:10Z",
+      "status": "completed",
+      "steps": [],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987/job/125808393984"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/vanedb/vanedb/actions/runs/41602796987",
+  "workflowName": "Publish vanedb crate"
+}

@@ -1,0 +1,5648 @@
+{
+  "conclusion": "success",
+  "databaseId": 41604725593,
+  "event": "workflow_dispatch",
+  "headBranch": "codex/wasm-cross-realm-predicate",
+  "headSha": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22",
+  "jobs": [
+    {
+      "completedAt": "2026-11-03T08:38:26Z",
+      "conclusion": "success",
+      "databaseId": 125811615424,
+      "name": "Workflow lint",
+      "startedAt": "2026-11-03T08:38:05Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:09Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:10Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:10Z",
+          "conclusion": "success",
+          "name": "Install actionlint",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:11Z",
+          "conclusion": "success",
+          "name": "Lint GitHub Actions workflows",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:12Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check release wheel tripwires against the build matrices",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "CI dispatch and required-gate regression tests",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Release script tests",
+          "number": 8,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Installed wheel guard tests",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Version bump script tests",
+          "number": 10,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "C ABI packaging script tests",
+          "number": 11,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "C ABI gate tests",
+          "number": 12,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Signed C ABI release inventory and publication guard tests",
+          "number": 13,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "RFC index checks",
+          "number": 14,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 27,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 28,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 29,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811615424"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:09Z",
+      "conclusion": "success",
+      "databaseId": 125811615919,
+      "name": "Detect affected components",
+      "startedAt": "2026-11-03T08:38:04Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:05Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:06Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:06Z",
+          "conclusion": "skipped",
+          "name": "Run dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:07Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:07Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:07Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811615919"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:25Z",
+      "conclusion": "success",
+      "databaseId": 125811666666,
+      "name": "Cross-engine integration / Competitor harness smoke (ubuntu-latest)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:01Z",
+          "conclusion": "success",
+          "name": "Test competitor harness",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:34Z",
+          "conclusion": "success",
+          "name": "Smoke-run every engine on the smoke fixture",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:35Z",
+          "conclusion": "success",
+          "name": "Smoke L2 includes native sqlite-vec",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Cosine default omits sqlite-vec",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Markdown smoke-role refuse (unit; GITHUB_ACTIONS is immutable on Actions)",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Markdown cloud FS markers + dim + repo SUMS pin (unit)",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Render refuses queries_measured shrink",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "fill_comparison_slot replaces Pending only",
+          "number": 11,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "fill_comparison_slot e2e via render gates",
+          "number": 12,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses force-sqlite-vec-cosine",
+          "number": 13,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses skip-delete",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses skip-save",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses non-canonical ef sweep",
+          "number": 16,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses engine cherry-pick",
+          "number": 17,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:37Z",
+          "conclusion": "success",
+          "name": "Markdown refuses missing dedicated attestation",
+          "number": 18,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Markdown refuses shared CI runner even when attested",
+          "number": 19,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "maintainer_fill_host_comparison.sh refuses CI/cloud",
+          "number": 20,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "refuse_shared_runner.sh \u2014 github-hosted / CI refuse; self-hosted allow",
+          "number": 21,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "fill-comparison-self-hosted.yml lands via PR (not tip push)",
+          "number": 22,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "cut-demo-0.2.0.yml is dispatch-only with secret + concurrency",
+          "number": 23,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "tag-demo-0.2.0.yml is dispatch-only with vault confirm + secret",
+          "number": 24,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Closeout comment emitter identity (read-only Actions token)",
+          "number": 25,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:03Z",
+          "conclusion": "success",
+          "name": "Closeout nudge regression tests (mocked GitHub)",
+          "number": 26,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:14Z",
+          "conclusion": "success",
+          "name": "Demo merge gate regression tests",
+          "number": 27,
+          "startedAt": "2026-11-03T08:41:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:17Z",
+          "conclusion": "success",
+          "name": "Issue How preservation regression tests (no network)",
+          "number": 28,
+          "startedAt": "2026-11-03T08:41:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:19Z",
+          "conclusion": "success",
+          "name": "residual",
+          "number": 29,
+          "startedAt": "2026-11-03T08:41:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:20Z",
+          "conclusion": "success",
+          "name": "maintainer_tag_demo_0.2.0.sh push to local bare remote",
+          "number": 30,
+          "startedAt": "2026-11-03T08:41:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:21Z",
+          "conclusion": "success",
+          "name": "maintainer_tag_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN",
+          "number": 31,
+          "startedAt": "2026-11-03T08:41:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:21Z",
+          "conclusion": "success",
+          "name": "maintainer_cut_demo_0.2.0.sh push to local bare remote",
+          "number": 32,
+          "startedAt": "2026-11-03T08:41:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:22Z",
+          "conclusion": "success",
+          "name": "maintainer_cut_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN",
+          "number": 33,
+          "startedAt": "2026-11-03T08:41:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:22Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 66,
+          "startedAt": "2026-11-03T08:41:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:22Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 67,
+          "startedAt": "2026-11-03T08:41:22Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666666"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:40Z",
+      "conclusion": "success",
+      "databaseId": 125811666667,
+      "name": "Cross-engine integration / Build and test both C ABIs (ubuntu-latest)",
+      "startedAt": "2026-11-03T08:38:30Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:32Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:33Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:34Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:01Z",
+          "conclusion": "success",
+          "name": "Test shared harness",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:32Z",
+          "conclusion": "success",
+          "name": "Compile all cross-engine benchmarks",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:37Z",
+          "conclusion": "success",
+          "name": "Smoke-run the report binary",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:38Z",
+          "conclusion": "success",
+          "name": "The harness must not write into the source tree",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:38Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:39:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:38Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:39:38Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666667"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:56Z",
+      "conclusion": "success",
+      "databaseId": 125811666672,
+      "name": "Rust component / C ABI gate against the previous release",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:27Z",
+          "conclusion": "success",
+          "name": "Install libabigail",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:47Z",
+          "conclusion": "success",
+          "name": "Run cargo build -p vanedb-capi --profile capi --locked",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:51Z",
+          "conclusion": "success",
+          "name": "Compare the shared library against the previous tagged release",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:54Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 13,
+          "startedAt": "2026-11-03T08:38:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:55Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:38:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:55Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:38:55Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666672"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:15Z",
+      "conclusion": "success",
+      "databaseId": 125811666676,
+      "name": "Cross-engine integration / Lint the shared harness",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check benchmark formatting",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check competitor-harness formatting",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check fixed legacy graph files",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check portable graph files",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Check competitor fixture checksums",
+          "number": 8,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:45Z",
+          "conclusion": "success",
+          "name": "Lint shared harness",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:12Z",
+          "conclusion": "success",
+          "name": "Lint competitor harness",
+          "number": 10,
+          "startedAt": "2026-11-03T08:38:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:13Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:39:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:13Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:39:13Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666676"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:12Z",
+      "conclusion": "success",
+      "databaseId": 125811666679,
+      "name": "Cross-engine integration / Build and test both C ABIs (macos-latest)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:08Z",
+          "conclusion": "success",
+          "name": "Test shared harness",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:58Z",
+          "conclusion": "success",
+          "name": "Compile all cross-engine benchmarks",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:07Z",
+          "conclusion": "success",
+          "name": "Smoke-run the report binary",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:07Z",
+          "conclusion": "success",
+          "name": "The harness must not write into the source tree",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:08Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:08Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666679"
+    },
+    {
+      "completedAt": "2026-11-03T08:43:03Z",
+      "conclusion": "success",
+      "databaseId": 125811666681,
+      "name": "Cross-engine integration / Competitor harness smoke (macos-latest)",
+      "startedAt": "2026-11-03T08:38:13Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:23Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:25Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Test competitor harness",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:45Z",
+          "conclusion": "success",
+          "name": "Smoke-run every engine on the smoke fixture",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:48Z",
+          "conclusion": "success",
+          "name": "Smoke L2 includes native sqlite-vec",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:52Z",
+          "conclusion": "success",
+          "name": "Cosine default omits sqlite-vec",
+          "number": 7,
+          "startedAt": "2026-11-03T08:41:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:52Z",
+          "conclusion": "success",
+          "name": "Markdown smoke-role refuse (unit; GITHUB_ACTIONS is immutable on Actions)",
+          "number": 8,
+          "startedAt": "2026-11-03T08:41:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:53Z",
+          "conclusion": "success",
+          "name": "Markdown cloud FS markers + dim + repo SUMS pin (unit)",
+          "number": 9,
+          "startedAt": "2026-11-03T08:41:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:53Z",
+          "conclusion": "success",
+          "name": "Render refuses queries_measured shrink",
+          "number": 10,
+          "startedAt": "2026-11-03T08:41:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:53Z",
+          "conclusion": "success",
+          "name": "fill_comparison_slot replaces Pending only",
+          "number": 11,
+          "startedAt": "2026-11-03T08:41:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:53Z",
+          "conclusion": "success",
+          "name": "fill_comparison_slot e2e via render gates",
+          "number": 12,
+          "startedAt": "2026-11-03T08:41:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:54Z",
+          "conclusion": "success",
+          "name": "Markdown refuses force-sqlite-vec-cosine",
+          "number": 13,
+          "startedAt": "2026-11-03T08:41:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:54Z",
+          "conclusion": "success",
+          "name": "Markdown refuses skip-delete",
+          "number": 14,
+          "startedAt": "2026-11-03T08:41:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:54Z",
+          "conclusion": "success",
+          "name": "Markdown refuses skip-save",
+          "number": 15,
+          "startedAt": "2026-11-03T08:41:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:55Z",
+          "conclusion": "success",
+          "name": "Markdown refuses non-canonical ef sweep",
+          "number": 16,
+          "startedAt": "2026-11-03T08:41:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:55Z",
+          "conclusion": "success",
+          "name": "Markdown refuses engine cherry-pick",
+          "number": 17,
+          "startedAt": "2026-11-03T08:41:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:55Z",
+          "conclusion": "success",
+          "name": "Markdown refuses missing dedicated attestation",
+          "number": 18,
+          "startedAt": "2026-11-03T08:41:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:55Z",
+          "conclusion": "success",
+          "name": "Markdown refuses shared CI runner even when attested",
+          "number": 19,
+          "startedAt": "2026-11-03T08:41:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:56Z",
+          "conclusion": "success",
+          "name": "maintainer_fill_host_comparison.sh refuses CI/cloud",
+          "number": 20,
+          "startedAt": "2026-11-03T08:41:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:56Z",
+          "conclusion": "success",
+          "name": "refuse_shared_runner.sh \u2014 github-hosted / CI refuse; self-hosted allow",
+          "number": 21,
+          "startedAt": "2026-11-03T08:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:56Z",
+          "conclusion": "success",
+          "name": "fill-comparison-self-hosted.yml lands via PR (not tip push)",
+          "number": 22,
+          "startedAt": "2026-11-03T08:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:56Z",
+          "conclusion": "success",
+          "name": "cut-demo-0.2.0.yml is dispatch-only with secret + concurrency",
+          "number": 23,
+          "startedAt": "2026-11-03T08:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:56Z",
+          "conclusion": "success",
+          "name": "tag-demo-0.2.0.yml is dispatch-only with vault confirm + secret",
+          "number": 24,
+          "startedAt": "2026-11-03T08:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:57Z",
+          "conclusion": "success",
+          "name": "Closeout comment emitter identity (read-only Actions token)",
+          "number": 25,
+          "startedAt": "2026-11-03T08:41:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:33Z",
+          "conclusion": "success",
+          "name": "Closeout nudge regression tests (mocked GitHub)",
+          "number": 26,
+          "startedAt": "2026-11-03T08:41:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:53Z",
+          "conclusion": "success",
+          "name": "Demo merge gate regression tests",
+          "number": 27,
+          "startedAt": "2026-11-03T08:42:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:57Z",
+          "conclusion": "success",
+          "name": "Issue How preservation regression tests (no network)",
+          "number": 28,
+          "startedAt": "2026-11-03T08:42:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:58Z",
+          "conclusion": "success",
+          "name": "residual",
+          "number": 29,
+          "startedAt": "2026-11-03T08:42:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:58Z",
+          "conclusion": "skipped",
+          "name": "maintainer_tag_demo_0.2.0.sh push to local bare remote",
+          "number": 30,
+          "startedAt": "2026-11-03T08:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:58Z",
+          "conclusion": "skipped",
+          "name": "maintainer_tag_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN",
+          "number": 31,
+          "startedAt": "2026-11-03T08:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:58Z",
+          "conclusion": "skipped",
+          "name": "maintainer_cut_demo_0.2.0.sh push to local bare remote",
+          "number": 32,
+          "startedAt": "2026-11-03T08:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:58Z",
+          "conclusion": "skipped",
+          "name": "maintainer_cut_demo_0.2.0.sh --dry-run ignores ambient GH_TOKEN",
+          "number": 33,
+          "startedAt": "2026-11-03T08:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:59Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 66,
+          "startedAt": "2026-11-03T08:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:01Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 67,
+          "startedAt": "2026-11-03T08:42:59Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666681"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:39Z",
+      "conclusion": "success",
+      "databaseId": 125811666686,
+      "name": "Rust component / Rustdoc (docs.rs configuration)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:21Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:33Z",
+          "conclusion": "success",
+          "name": "Run cargo doc -p vanedb --features disk --no-deps --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:37Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:37Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "startedAt": "2026-11-03T08:38:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:37Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:38:37Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666686"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:15Z",
+      "conclusion": "success",
+      "databaseId": 125811666736,
+      "name": "Rust component / MSRV (1.85) (ubuntu-latest)",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:23Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:24Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:24Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:50Z",
+          "conclusion": "success",
+          "name": "Run cargo check --workspace --features disk --locked",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "success",
+          "name": "Run cargo check -p vanedb-wasm --target wasm32-unknown-unknown --locked",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "skipped",
+          "name": "Run cargo check -p vanedb --features disk,gpu-metal --locked",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 14,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:13Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 15,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:13Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-03T08:39:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:13Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-03T08:39:13Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666736"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:22Z",
+      "conclusion": "success",
+      "databaseId": 125811666741,
+      "name": "Rust component / Check & Lint",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run cargo fmt --all -- --check",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:35Z",
+          "conclusion": "success",
+          "name": "Run cargo clippy --workspace --exclude vanedb-py --all-targets --features disk --locked -- -D warnings",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "success",
+          "name": "Tests compile, lint and pass on the default feature set",
+          "number": 7,
+          "startedAt": "2026-11-03T08:38:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:14Z",
+          "conclusion": "success",
+          "name": "C header is in sync with the ABI",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:14Z",
+          "conclusion": "success",
+          "name": "Export lists are in sync with the header",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:20Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 17,
+          "startedAt": "2026-11-03T08:39:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:20Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 18,
+          "startedAt": "2026-11-03T08:39:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:20Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-03T08:39:20Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666741"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:16Z",
+      "conclusion": "success",
+      "databaseId": 125811666749,
+      "name": "Rust component / MSRV (1.85) (macos-latest)",
+      "startedAt": "2026-11-03T08:38:13Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:32Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:34Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:35Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:17Z",
+          "conclusion": "success",
+          "name": "Run cargo check --workspace --features disk --locked",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:44Z",
+          "conclusion": "success",
+          "name": "Run cargo check -p vanedb-wasm --target wasm32-unknown-unknown --locked",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:54Z",
+          "conclusion": "success",
+          "name": "Run cargo check -p vanedb --features disk,gpu-metal --locked",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:55Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 14,
+          "startedAt": "2026-11-03T08:39:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:09Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 15,
+          "startedAt": "2026-11-03T08:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:12Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 16,
+          "startedAt": "2026-11-03T08:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:14Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-11-03T08:40:12Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666749"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:29Z",
+      "conclusion": "success",
+      "databaseId": 125811666763,
+      "name": "C++ component / Documentation",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:12Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:23Z",
+          "conclusion": "success",
+          "name": "Install Doxygen",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:26Z",
+          "conclusion": "success",
+          "name": "Generate documentation",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:26Z",
+          "conclusion": "success",
+          "name": "Verify documentation output",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:27Z",
+          "conclusion": "success",
+          "name": "Upload documentation artifact",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:27Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 12,
+          "startedAt": "2026-11-03T08:38:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:27Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:38:27Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666763"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:30Z",
+      "conclusion": "success",
+      "databaseId": 125811666773,
+      "name": "Rust component / Advisories & licenses",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:13Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:22Z",
+          "conclusion": "success",
+          "name": "Build EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:23Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:29Z",
+          "conclusion": "success",
+          "name": "Run EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:29Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 8,
+          "startedAt": "2026-11-03T08:38:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:29Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:29Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666773"
+    },
+    {
+      "completedAt": "2026-11-03T08:44:37Z",
+      "conclusion": "success",
+      "databaseId": 125811666782,
+      "name": "Rust component / Test (macOS x86_64)",
+      "startedAt": "2026-11-03T08:39:17Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:24Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:27Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:43Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:44Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:32Z",
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --exclude vanedb-py --features disk --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:37Z",
+          "conclusion": "success",
+          "name": "Install the native object tools",
+          "number": 6,
+          "startedAt": "2026-11-03T08:42:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:26Z",
+          "conclusion": "success",
+          "name": "Build and run C consumer acceptance",
+          "number": 7,
+          "startedAt": "2026-11-03T08:42:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:26Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 8,
+          "startedAt": "2026-11-03T08:43:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:28Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17",
+          "number": 9,
+          "startedAt": "2026-11-03T08:43:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:28Z",
+          "conclusion": "success",
+          "name": "Ensure pkg-config is present",
+          "number": 10,
+          "startedAt": "2026-11-03T08:43:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:45Z",
+          "conclusion": "success",
+          "name": "Package C libraries and test the CMake and pkg-config consumers from the archive",
+          "number": 11,
+          "startedAt": "2026-11-03T08:43:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:45Z",
+          "conclusion": "skipped",
+          "name": "Retain failed Windows static diagnostics",
+          "number": 12,
+          "startedAt": "2026-11-03T08:43:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:46Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:43:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 24,
+          "startedAt": "2026-11-03T08:43:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:32Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:43:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:35Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:44:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:35Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:44:35Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666782"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:01Z",
+      "conclusion": "success",
+      "databaseId": 125811666791,
+      "name": "Rust component / Test (Linux ARM64)",
+      "startedAt": "2026-11-03T08:38:16Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:22Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:23Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:33Z",
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --exclude vanedb-py --features disk --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:33Z",
+          "conclusion": "skipped",
+          "name": "Install the native object tools",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:47Z",
+          "conclusion": "success",
+          "name": "Build and run C consumer acceptance",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:47Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is present",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "success",
+          "name": "Package C libraries and test the CMake and pkg-config consumers from the archive",
+          "number": 11,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "skipped",
+          "name": "Retain failed Windows static diagnostics",
+          "number": 12,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:53Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:53Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 24,
+          "startedAt": "2026-11-03T08:39:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:39:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:39:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:39:59Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666791"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:26Z",
+      "conclusion": "success",
+      "databaseId": 125811666803,
+      "name": "Rust component / Test (macOS ARM64)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:20Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:21Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:40Z",
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --exclude vanedb-py --features disk,gpu-metal --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:43Z",
+          "conclusion": "success",
+          "name": "Install the native object tools",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:01Z",
+          "conclusion": "success",
+          "name": "Build and run C consumer acceptance",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:02Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:03Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:03Z",
+          "conclusion": "success",
+          "name": "Ensure pkg-config is present",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "success",
+          "name": "Package C libraries and test the CMake and pkg-config consumers from the archive",
+          "number": 11,
+          "startedAt": "2026-11-03T08:40:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "skipped",
+          "name": "Retain failed Windows static diagnostics",
+          "number": 12,
+          "startedAt": "2026-11-03T08:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:11Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 24,
+          "startedAt": "2026-11-03T08:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:21Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:22Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:40:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:24Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:40:22Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666803"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:12Z",
+      "conclusion": "success",
+      "databaseId": 125811666807,
+      "name": "Rust component / Check & Lint (macOS, gpu-metal)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:20Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:20Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:56Z",
+          "conclusion": "success",
+          "name": "Run cargo clippy -p vanedb --all-targets --features disk,gpu-metal --locked -- -D warnings",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:11Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:39:11Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666807"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:53Z",
+      "conclusion": "success",
+      "databaseId": 125811666809,
+      "name": "Rust component / Coverage",
+      "startedAt": "2026-11-03T08:38:22Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:24Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:26Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:30Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:30Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "success",
+          "name": "Install cargo-llvm-cov",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Measure the engine that ships",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:39Z",
+          "conclusion": "success",
+          "name": "Upload coverage to Codecov",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:43Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 13,
+          "startedAt": "2026-11-03T08:40:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666809"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:25Z",
+      "conclusion": "success",
+      "databaseId": 125811666813,
+      "name": "C++ component / Linux ARM64 (Native)",
+      "startedAt": "2026-11-03T08:38:15Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:31Z",
+          "conclusion": "success",
+          "name": "Configure CMake",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:22Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666813"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:36Z",
+      "conclusion": "success",
+      "databaseId": 125811666815,
+      "name": "Rust component / Python wheel (maturin latest)",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:15Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "success",
+          "name": "Build the wheel",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:23Z",
+          "conclusion": "skipped",
+          "name": "Build the wheel (retry)",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:30Z",
+          "conclusion": "success",
+          "name": "Install from the wheel alone",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:30Z",
+          "conclusion": "success",
+          "name": "The import must resolve to the wheel",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:32Z",
+          "conclusion": "success",
+          "name": "Run the Python suite against the installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:32Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 18,
+          "startedAt": "2026-11-03T08:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:34Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 19,
+          "startedAt": "2026-11-03T08:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:34Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:39:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:34Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:39:34Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666815"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:30Z",
+      "conclusion": "success",
+      "databaseId": 125811666861,
+      "name": "Rust component / Python wheel (maturin minimum)",
+      "startedAt": "2026-11-03T08:38:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:16Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:17Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:18Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:19Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:16Z",
+          "conclusion": "success",
+          "name": "Build the wheel",
+          "number": 6,
+          "startedAt": "2026-11-03T08:38:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:16Z",
+          "conclusion": "skipped",
+          "name": "Build the wheel (retry)",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:21Z",
+          "conclusion": "success",
+          "name": "Install from the wheel alone",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:21Z",
+          "conclusion": "success",
+          "name": "The import must resolve to the wheel",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:24Z",
+          "conclusion": "success",
+          "name": "Run the Python suite against the installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:24Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 18,
+          "startedAt": "2026-11-03T08:39:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:28Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 19,
+          "startedAt": "2026-11-03T08:39:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:28Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 20,
+          "startedAt": "2026-11-03T08:39:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:28Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:39:28Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666861"
+    },
+    {
+      "completedAt": "2026-11-03T08:38:55Z",
+      "conclusion": "success",
+      "databaseId": 125811666883,
+      "name": "Rust component / Check (Python bindings)",
+      "startedAt": "2026-11-03T08:38:32Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:34Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:35Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:36Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:37Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:49Z",
+          "conclusion": "success",
+          "name": "Run cargo check -p vanedb-py --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:53Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 9,
+          "startedAt": "2026-11-03T08:38:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:53Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 10,
+          "startedAt": "2026-11-03T08:38:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:53Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:38:53Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666883"
+    },
+    {
+      "completedAt": "2026-11-03T08:43:24Z",
+      "conclusion": "success",
+      "databaseId": 125811666888,
+      "name": "Rust component / Test (Windows x86_64)",
+      "startedAt": "2026-11-03T08:38:11Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:14Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:20Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:27Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:30Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:04Z",
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --exclude vanedb-py --features disk --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:09Z",
+          "conclusion": "success",
+          "name": "Install the native object tools",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:46Z",
+          "conclusion": "success",
+          "name": "Build and run C consumer acceptance",
+          "number": 7,
+          "startedAt": "2026-11-03T08:41:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:46Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 8,
+          "startedAt": "2026-11-03T08:41:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:52Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17",
+          "number": 9,
+          "startedAt": "2026-11-03T08:41:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:52Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is present",
+          "number": 10,
+          "startedAt": "2026-11-03T08:41:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:34Z",
+          "conclusion": "success",
+          "name": "Package C libraries and test the CMake and pkg-config consumers from the archive",
+          "number": 11,
+          "startedAt": "2026-11-03T08:41:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:34Z",
+          "conclusion": "skipped",
+          "name": "Retain failed Windows static diagnostics",
+          "number": 12,
+          "startedAt": "2026-11-03T08:42:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:35Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:42:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:35Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 24,
+          "startedAt": "2026-11-03T08:42:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:19Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:42:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:22Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:43:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:22Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:43:22Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811666888"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:05Z",
+      "conclusion": "success",
+      "databaseId": 125811668652,
+      "name": "Rust component / C ABI consumers",
+      "startedAt": "2026-11-03T08:39:31Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:33Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:35Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:35Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:36Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:55Z",
+          "conclusion": "success",
+          "name": "Run the ctypes example against a built library",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:56Z",
+          "conclusion": "success",
+          "name": "Shared library exports exactly the vanedb_rs_* set",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:58Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17 (GCC and Clang)",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:02Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 13,
+          "startedAt": "2026-11-03T08:39:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:02Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:02Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:02Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668652"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:36Z",
+      "conclusion": "success",
+      "databaseId": 125811668745,
+      "name": "Rust component / Test (Android x86_64 emulator and arm64 build)",
+      "startedAt": "2026-11-03T08:38:57Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:00Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:01Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:06Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:01Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:07Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:06Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:32Z",
+          "conclusion": "success",
+          "name": "Set up Android NDK",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:04Z",
+          "conclusion": "success",
+          "name": "Install cargo-ndk",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:27Z",
+          "conclusion": "success",
+          "name": "Cross-compile core and C ABI for Android",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:27Z",
+          "conclusion": "success",
+          "name": "Check the ELF alignment guard on a 4 KiB test library",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:27Z",
+          "conclusion": "success",
+          "name": "Build ARM64 runtime acceptance bundle",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:29Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:29Z",
+          "conclusion": "success",
+          "name": "Enable emulator hardware acceleration",
+          "number": 11,
+          "startedAt": "2026-11-03T08:40:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:29Z",
+          "conclusion": "success",
+          "name": "Run C ABI acceptance in an Android emulator",
+          "number": 12,
+          "startedAt": "2026-11-03T08:40:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:33Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 23,
+          "startedAt": "2026-11-03T08:41:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:34Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 24,
+          "startedAt": "2026-11-03T08:41:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:34Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 25,
+          "startedAt": "2026-11-03T08:41:34Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668745"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:19Z",
+      "conclusion": "success",
+      "databaseId": 125811668774,
+      "name": "Rust component / Test (Linux x86_64)",
+      "startedAt": "2026-11-03T08:39:14Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:18Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:19Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:20Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --exclude vanedb-py --features disk --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "skipped",
+          "name": "Install the native object tools",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:03Z",
+          "conclusion": "success",
+          "name": "Build and run C consumer acceptance",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:03Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 8,
+          "startedAt": "2026-11-03T08:41:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:04Z",
+          "conclusion": "success",
+          "name": "Header compiles warning-free as C99, C11 and C++17",
+          "number": 9,
+          "startedAt": "2026-11-03T08:41:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:04Z",
+          "conclusion": "skipped",
+          "name": "Ensure pkg-config is present",
+          "number": 10,
+          "startedAt": "2026-11-03T08:41:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:07Z",
+          "conclusion": "success",
+          "name": "Package C libraries and test the CMake and pkg-config consumers from the archive",
+          "number": 11,
+          "startedAt": "2026-11-03T08:41:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:07Z",
+          "conclusion": "skipped",
+          "name": "Retain failed Windows static diagnostics",
+          "number": 12,
+          "startedAt": "2026-11-03T08:41:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:09Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:41:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:10Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "number": 24,
+          "startedAt": "2026-11-03T08:41:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:16Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:41:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:16Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:41:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:16Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:41:16Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668774"
+    },
+    {
+      "completedAt": "2026-11-03T08:42:23Z",
+      "conclusion": "success",
+      "databaseId": 125811668823,
+      "name": "Rust component / AddressSanitizer (unsafe paths)",
+      "startedAt": "2026-11-03T08:39:27Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:29Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:30Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:39Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:39Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:46Z",
+          "conclusion": "success",
+          "name": "Distance kernels and index paths under ASan",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:07Z",
+          "conclusion": "success",
+          "name": "C ABI under ASan",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:10Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 11,
+          "startedAt": "2026-11-03T08:42:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:11Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 12,
+          "startedAt": "2026-11-03T08:42:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:11Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:42:11Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668823"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:15Z",
+      "conclusion": "success",
+      "databaseId": 125811668841,
+      "name": "C++ component / ubuntu-latest - clang",
+      "startedAt": "2026-11-03T08:39:22Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:24Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:25Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:26Z",
+          "conclusion": "success",
+          "name": "Cache CMake build",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:26Z",
+          "conclusion": "success",
+          "name": "Set up compiler (Unix)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:38Z",
+          "conclusion": "success",
+          "name": "Configure CMake",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:02Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:03Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:11Z",
+          "conclusion": "success",
+          "name": "Run benchmarks (Unix)",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:11Z",
+          "conclusion": "skipped",
+          "name": "Run benchmarks (Windows)",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:12Z",
+          "conclusion": "success",
+          "name": "Upload benchmark results",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:13Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake build",
+          "number": 19,
+          "startedAt": "2026-11-03T08:40:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:13Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:40:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:13Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:40:13Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668841"
+    },
+    {
+      "completedAt": "2026-11-03T08:47:55Z",
+      "conclusion": "success",
+      "databaseId": 125811668873,
+      "name": "Rust component / Test (iOS arm64 simulator and device build)",
+      "startedAt": "2026-11-03T08:41:12Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:41:17Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:41:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:20Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:41:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:29Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:41:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:30Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:41:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:05Z",
+          "conclusion": "success",
+          "name": "Run cargo build -p vanedb -p vanedb-capi --target aarch64-apple-ios --features disk --release --locked",
+          "number": 5,
+          "startedAt": "2026-11-03T08:41:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:14Z",
+          "conclusion": "success",
+          "name": "Run cargo build -p vanedb-capi --target aarch64-apple-ios-sim --release --locked",
+          "number": 6,
+          "startedAt": "2026-11-03T08:42:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:47:09Z",
+          "conclusion": "success",
+          "name": "Run C ABI acceptance in an iOS simulator",
+          "number": 7,
+          "startedAt": "2026-11-03T08:42:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:47:46Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 13,
+          "startedAt": "2026-11-03T08:47:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:47:47Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 14,
+          "startedAt": "2026-11-03T08:47:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:47:51Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:47:47Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668873"
+    },
+    {
+      "completedAt": "2026-11-03T08:42:34Z",
+      "conclusion": "success",
+      "databaseId": 125811668913,
+      "name": "Rust component / Test (WASM)",
+      "startedAt": "2026-11-03T08:39:38Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:40Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:42Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:44Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:44Z",
+          "conclusion": "success",
+          "name": "Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:45Z",
+          "conclusion": "success",
+          "name": "Install wasm-pack",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:11Z",
+          "conclusion": "success",
+          "name": "Test WASM",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:16Z",
+          "conclusion": "success",
+          "name": "Test WASM in Chrome",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Test generated JavaScript conversions",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:41Z",
+          "conclusion": "success",
+          "name": "Pack JavaScript distributions and test the installed Node artifact",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:05Z",
+          "conclusion": "success",
+          "name": "Test the browser artifact in Chrome, Firefox and WebKit",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:12Z",
+          "conclusion": "success",
+          "name": "Build and consume the merged npm package",
+          "number": 11,
+          "startedAt": "2026-11-03T08:42:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:25Z",
+          "conclusion": "success",
+          "name": "Test the merged package's browser half in Chrome, Firefox and WebKit",
+          "number": 12,
+          "startedAt": "2026-11-03T08:42:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:26Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "number": 13,
+          "startedAt": "2026-11-03T08:42:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:32Z",
+          "conclusion": "success",
+          "name": "Post Run Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
+          "number": 25,
+          "startedAt": "2026-11-03T08:42:26Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:32Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "startedAt": "2026-11-03T08:42:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:32Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 27,
+          "startedAt": "2026-11-03T08:42:32Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668913"
+    },
+    {
+      "completedAt": "2026-11-03T09:00:43Z",
+      "conclusion": "success",
+      "databaseId": 125811668914,
+      "name": "C++ component / macos-latest - clang",
+      "startedAt": "2026-11-03T08:40:48Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:48Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:50Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:51Z",
+          "conclusion": "success",
+          "name": "Cache CMake build",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:51Z",
+          "conclusion": "success",
+          "name": "Set up compiler (Unix)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:13Z",
+          "conclusion": "success",
+          "name": "Configure CMake",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:07Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:10Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 7,
+          "startedAt": "2026-11-03T09:00:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:28Z",
+          "conclusion": "success",
+          "name": "Run benchmarks (Unix)",
+          "number": 8,
+          "startedAt": "2026-11-03T09:00:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:28Z",
+          "conclusion": "skipped",
+          "name": "Run benchmarks (Windows)",
+          "number": 9,
+          "startedAt": "2026-11-03T09:00:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:29Z",
+          "conclusion": "success",
+          "name": "Upload benchmark results",
+          "number": 10,
+          "startedAt": "2026-11-03T09:00:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:32Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake build",
+          "number": 19,
+          "startedAt": "2026-11-03T09:00:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:33Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T09:00:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:42Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T09:00:33Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668914"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:50Z",
+      "conclusion": "success",
+      "databaseId": 125811668916,
+      "name": "C++ component / ubuntu-latest - gcc",
+      "startedAt": "2026-11-03T08:38:58Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:59Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:00Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:02Z",
+          "conclusion": "success",
+          "name": "Cache CMake build",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:02Z",
+          "conclusion": "success",
+          "name": "Set up compiler (Unix)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:09Z",
+          "conclusion": "success",
+          "name": "Configure CMake",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:02Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:37Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:39Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:47Z",
+          "conclusion": "success",
+          "name": "Run benchmarks (Unix)",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:47Z",
+          "conclusion": "skipped",
+          "name": "Run benchmarks (Windows)",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Upload benchmark results",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake build",
+          "number": 19,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:48Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:39:48Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668916"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:51Z",
+      "conclusion": "success",
+      "databaseId": 125811668961,
+      "name": "C++ component / Android (x86_64)",
+      "startedAt": "2026-11-03T08:40:07Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:09Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:21Z",
+          "conclusion": "success",
+          "name": "Set up Android NDK",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Install NDK",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:40Z",
+          "conclusion": "success",
+          "name": "Configure CMake for Android x86_64",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Build for Android x86_64",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Verify Android x86_64 binary",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811668961"
+    },
+    {
+      "completedAt": "2026-11-03T08:44:16Z",
+      "conclusion": "success",
+      "databaseId": 125811669017,
+      "name": "C++ component / windows-latest - msvc",
+      "startedAt": "2026-11-03T08:39:24Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:25Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:31Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:25Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:34Z",
+          "conclusion": "success",
+          "name": "Cache CMake build",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:34Z",
+          "conclusion": "skipped",
+          "name": "Set up compiler (Unix)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:21Z",
+          "conclusion": "success",
+          "name": "Configure CMake",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:55Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:59Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 7,
+          "startedAt": "2026-11-03T08:43:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:59Z",
+          "conclusion": "skipped",
+          "name": "Run benchmarks (Unix)",
+          "number": 8,
+          "startedAt": "2026-11-03T08:43:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:09Z",
+          "conclusion": "success",
+          "name": "Run benchmarks (Windows)",
+          "number": 9,
+          "startedAt": "2026-11-03T08:43:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:11Z",
+          "conclusion": "success",
+          "name": "Upload benchmark results",
+          "number": 10,
+          "startedAt": "2026-11-03T08:44:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:11Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake build",
+          "number": 19,
+          "startedAt": "2026-11-03T08:44:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:13Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:44:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:14Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:44:13Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669017"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:43Z",
+      "conclusion": "success",
+      "databaseId": 125811669020,
+      "name": "C++ component / Android (arm64-v8a)",
+      "startedAt": "2026-11-03T08:40:06Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:08Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:09Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:14Z",
+          "conclusion": "success",
+          "name": "Set up Android NDK",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:33Z",
+          "conclusion": "success",
+          "name": "Install NDK",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:35Z",
+          "conclusion": "success",
+          "name": "Configure CMake for Android",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Build for Android",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:35Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Verify Android arm64-v8a binary",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:39Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 14,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:39Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 15,
+          "startedAt": "2026-11-03T08:40:39Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669020"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:09Z",
+      "conclusion": "success",
+      "databaseId": 125811669062,
+      "name": "C++ component / C API (extern \"C\") - macos-latest",
+      "startedAt": "2026-11-03T08:40:40Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:42Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Cache CMake deps",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:58Z",
+          "conclusion": "success",
+          "name": "Configure CMake (C API)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:05Z",
+          "conclusion": "success",
+          "name": "Build C API smoke test",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:05Z",
+          "conclusion": "success",
+          "name": "Run C API test",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:07Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake deps",
+          "number": 11,
+          "startedAt": "2026-11-03T08:41:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:08Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 12,
+          "startedAt": "2026-11-03T08:41:07Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:08Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:41:08Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669062"
+    },
+    {
+      "completedAt": "2026-11-03T08:42:27Z",
+      "conclusion": "success",
+      "databaseId": 125811669065,
+      "name": "C++ component / Code Coverage",
+      "startedAt": "2026-11-03T08:40:17Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:19Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:20Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:34Z",
+          "conclusion": "success",
+          "name": "Install lcov",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:46Z",
+          "conclusion": "success",
+          "name": "Configure CMake with coverage",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:52Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:13Z",
+          "conclusion": "success",
+          "name": "Run tests",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:16Z",
+          "conclusion": "success",
+          "name": "Capture coverage",
+          "number": 7,
+          "startedAt": "2026-11-03T08:42:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:17Z",
+          "conclusion": "success",
+          "name": "Upload coverage artifact",
+          "number": 8,
+          "startedAt": "2026-11-03T08:42:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:24Z",
+          "conclusion": "success",
+          "name": "Upload coverage to Codecov",
+          "number": 9,
+          "startedAt": "2026-11-03T08:42:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:24Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 18,
+          "startedAt": "2026-11-03T08:42:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:24Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-11-03T08:42:24Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669065"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:05Z",
+      "conclusion": "success",
+      "databaseId": 125811669079,
+      "name": "C++ component / C API (extern \"C\") - ubuntu-latest",
+      "startedAt": "2026-11-03T08:39:51Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:52Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:53Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:52Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:54Z",
+          "conclusion": "success",
+          "name": "Cache CMake deps",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:57Z",
+          "conclusion": "success",
+          "name": "Configure CMake (C API)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:03Z",
+          "conclusion": "success",
+          "name": "Build C API smoke test",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:03Z",
+          "conclusion": "success",
+          "name": "Run C API test",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:04Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake deps",
+          "number": 11,
+          "startedAt": "2026-11-03T08:40:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:04Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 12,
+          "startedAt": "2026-11-03T08:40:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:04Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:40:04Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669079"
+    },
+    {
+      "completedAt": "2026-11-03T08:43:51Z",
+      "conclusion": "success",
+      "databaseId": 125811669091,
+      "name": "C++ component / iOS (arm64)",
+      "startedAt": "2026-11-03T08:43:07Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:43:09Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:43:08Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:11Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:43:09Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:12Z",
+          "conclusion": "success",
+          "name": "Select Xcode",
+          "number": 3,
+          "startedAt": "2026-11-03T08:43:11Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:36Z",
+          "conclusion": "success",
+          "name": "Configure CMake for iOS",
+          "number": 4,
+          "startedAt": "2026-11-03T08:43:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:44Z",
+          "conclusion": "success",
+          "name": "Build for iOS",
+          "number": 5,
+          "startedAt": "2026-11-03T08:43:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:46Z",
+          "conclusion": "success",
+          "name": "Verify iOS build",
+          "number": 6,
+          "startedAt": "2026-11-03T08:43:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:47Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 12,
+          "startedAt": "2026-11-03T08:43:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:48Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:43:47Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669091"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:38Z",
+      "conclusion": "success",
+      "databaseId": 125811669092,
+      "name": "C++ component / Sanitizer Checks (undefined)",
+      "startedAt": "2026-11-03T08:38:41Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:42Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:43Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:56Z",
+          "conclusion": "success",
+          "name": "Configure CMake with sanitizer",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:22Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:56Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Run tests with sanitizer",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:36Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:40:36Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669092"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:46Z",
+      "conclusion": "success",
+      "databaseId": 125811669121,
+      "name": "C++ component / Sanitizer Checks (address)",
+      "startedAt": "2026-11-03T08:40:14Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:15Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:17Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:27Z",
+          "conclusion": "success",
+          "name": "Configure CMake with sanitizer",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:23Z",
+          "conclusion": "success",
+          "name": "Build",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:43Z",
+          "conclusion": "success",
+          "name": "Run tests with sanitizer",
+          "number": 5,
+          "startedAt": "2026-11-03T08:41:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:43Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 10,
+          "startedAt": "2026-11-03T08:41:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:43Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 11,
+          "startedAt": "2026-11-03T08:41:43Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669121"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:06Z",
+      "conclusion": "success",
+      "databaseId": 125811669154,
+      "name": "C++ component / Python Bindings Tests (ubuntu-latest, 3.11)",
+      "startedAt": "2026-11-03T08:39:27Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:28Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:30Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:30Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.11",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:37Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:51Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:57Z",
+          "conclusion": "success",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:39:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:39:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.11",
+          "number": 19,
+          "startedAt": "2026-11-03T08:39:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:39:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:59Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:39:59Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669154"
+    },
+    {
+      "completedAt": "2026-11-03T08:39:21Z",
+      "conclusion": "success",
+      "databaseId": 125811669182,
+      "name": "C++ component / C API (extern \"C\") - windows-latest",
+      "startedAt": "2026-11-03T08:38:28Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:38:29Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:38:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:37Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:38:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:39Z",
+          "conclusion": "success",
+          "name": "Cache CMake deps",
+          "number": 3,
+          "startedAt": "2026-11-03T08:38:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:38:59Z",
+          "conclusion": "success",
+          "name": "Configure CMake (C API)",
+          "number": 4,
+          "startedAt": "2026-11-03T08:38:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:15Z",
+          "conclusion": "success",
+          "name": "Build C API smoke test",
+          "number": 5,
+          "startedAt": "2026-11-03T08:38:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:17Z",
+          "conclusion": "success",
+          "name": "Run C API test",
+          "number": 6,
+          "startedAt": "2026-11-03T08:39:15Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:17Z",
+          "conclusion": "success",
+          "name": "Post Cache CMake deps",
+          "number": 11,
+          "startedAt": "2026-11-03T08:39:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:19Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 12,
+          "startedAt": "2026-11-03T08:39:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:19Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 13,
+          "startedAt": "2026-11-03T08:39:19Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669182"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:20Z",
+      "conclusion": "success",
+      "databaseId": 125811669186,
+      "name": "C++ component / Python Bindings Tests (ubuntu-latest, 3.14)",
+      "startedAt": "2026-11-03T08:39:42Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:39:43Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:39:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:44Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:39:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:45Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.14",
+          "number": 3,
+          "startedAt": "2026-11-03T08:39:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:39:55Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:39:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:13Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:39:55Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:13Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:14Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:13Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:14Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:14Z",
+          "conclusion": "skipped",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:16Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:16Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.14",
+          "number": 19,
+          "startedAt": "2026-11-03T08:40:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:17Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:40:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:17Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:40:17Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669186"
+    },
+    {
+      "completedAt": "2026-11-03T08:43:38Z",
+      "conclusion": "success",
+      "databaseId": 125811669268,
+      "name": "C++ component / Python Bindings Tests (macos-latest, 3.11)",
+      "startedAt": "2026-11-03T08:40:35Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:38Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:41Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:38Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:41Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.11",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:51Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:41Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:16Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:51Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:17Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:43:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:19Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:43:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:19Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:43:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:31Z",
+          "conclusion": "success",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:43:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:33Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:43:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:34Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.11",
+          "number": 19,
+          "startedAt": "2026-11-03T08:43:33Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:34Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:43:34Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:35Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:43:34Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669268"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:50Z",
+      "conclusion": "success",
+      "databaseId": 125811669347,
+      "name": "C++ component / Python Bindings Tests (ubuntu-latest, 3.13)",
+      "startedAt": "2026-11-03T08:40:17Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:18Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:20Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:20Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.13",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:28Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:28Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "skipped",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:47Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:47Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.13",
+          "number": 19,
+          "startedAt": "2026-11-03T08:40:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:48Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:40:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:48Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:40:48Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811669347"
+    },
+    {
+      "completedAt": "2026-11-03T08:46:45Z",
+      "conclusion": "success",
+      "databaseId": 125811670460,
+      "name": "C++ component / Python Bindings Tests (macos-latest, 3.14)",
+      "startedAt": "2026-11-03T08:43:41Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:43:43Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:43:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:46Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:43:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:43:47Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.14",
+          "number": 3,
+          "startedAt": "2026-11-03T08:43:46Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:44:00Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:43:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:29Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:44:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:29Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:46:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:31Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:46:29Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:32Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:46:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:32Z",
+          "conclusion": "skipped",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:46:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:36Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:46:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:37Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.14",
+          "number": 19,
+          "startedAt": "2026-11-03T08:46:36Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:38Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:46:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:46:42Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:46:38Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811670460"
+    },
+    {
+      "completedAt": "2026-11-03T08:40:47Z",
+      "conclusion": "success",
+      "databaseId": 125811670646,
+      "name": "C++ component / Python Bindings Tests (ubuntu-latest, 3.12)",
+      "startedAt": "2026-11-03T08:40:22Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:23Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:22Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:24Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:24Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.12",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:30Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:42Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:42Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:40:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:43Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:40:42Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:43Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:40:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:43Z",
+          "conclusion": "skipped",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:40:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:40:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:44Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.12",
+          "number": 19,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:40:44Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:45Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:40:45Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811670646"
+    },
+    {
+      "completedAt": "2026-11-03T08:41:33Z",
+      "conclusion": "success",
+      "databaseId": 125811670744,
+      "name": "C++ component / Python Bindings Tests (windows-latest, 3.14)",
+      "startedAt": "2026-11-03T08:40:03Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:04Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:04Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:10Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.14",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:27Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:10Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:19Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:40:27Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:19Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:41:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:20Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:41:19Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:21Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:41:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:21Z",
+          "conclusion": "skipped",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:41:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:24Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:41:21Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:24Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.14",
+          "number": 19,
+          "startedAt": "2026-11-03T08:41:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:27Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:41:24Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:27Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:41:27Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811670744"
+    },
+    {
+      "completedAt": "2026-11-03T08:42:27Z",
+      "conclusion": "success",
+      "databaseId": 125811670837,
+      "name": "C++ component / Python Bindings Tests (windows-latest, 3.11)",
+      "startedAt": "2026-11-03T08:40:45Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T08:40:48Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T08:40:47Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:54Z",
+          "conclusion": "success",
+          "name": "Checkout code",
+          "number": 2,
+          "startedAt": "2026-11-03T08:40:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:40:54Z",
+          "conclusion": "success",
+          "name": "Set up Python 3.11",
+          "number": 3,
+          "startedAt": "2026-11-03T08:40:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:41:12Z",
+          "conclusion": "success",
+          "name": "Install Python dependencies",
+          "number": 4,
+          "startedAt": "2026-11-03T08:40:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:03Z",
+          "conclusion": "success",
+          "name": "Build wheel",
+          "number": 5,
+          "startedAt": "2026-11-03T08:41:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:03Z",
+          "conclusion": "success",
+          "name": "Inspect wheel contents",
+          "number": 6,
+          "startedAt": "2026-11-03T08:42:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:05Z",
+          "conclusion": "success",
+          "name": "Install wheel",
+          "number": 7,
+          "startedAt": "2026-11-03T08:42:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:05Z",
+          "conclusion": "success",
+          "name": "Verify installed import",
+          "number": 8,
+          "startedAt": "2026-11-03T08:42:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:20Z",
+          "conclusion": "success",
+          "name": "Test minimum supported NumPy",
+          "number": 9,
+          "startedAt": "2026-11-03T08:42:05Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:23Z",
+          "conclusion": "success",
+          "name": "Run Python tests from installed wheel",
+          "number": 10,
+          "startedAt": "2026-11-03T08:42:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:23Z",
+          "conclusion": "success",
+          "name": "Post Set up Python 3.11",
+          "number": 19,
+          "startedAt": "2026-11-03T08:42:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:26Z",
+          "conclusion": "success",
+          "name": "Post Checkout code",
+          "number": 20,
+          "startedAt": "2026-11-03T08:42:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T08:42:26Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 21,
+          "startedAt": "2026-11-03T08:42:26Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125811670837"
+    },
+    {
+      "completedAt": "2026-11-03T09:00:52Z",
+      "conclusion": "success",
+      "databaseId": 125821079006,
+      "name": "Required CI Gate",
+      "startedAt": "2026-11-03T09:00:46Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-11-03T09:00:50Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-11-03T09:00:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:50Z",
+          "conclusion": "success",
+          "name": "Verify every affected component passed",
+          "number": 2,
+          "startedAt": "2026-11-03T09:00:50Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-11-03T09:00:50Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 3,
+          "startedAt": "2026-11-03T09:00:50Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593/job/125821079006"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593",
+  "workflowName": "CI"
+}

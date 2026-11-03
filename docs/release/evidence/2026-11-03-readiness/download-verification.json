@@ -1,0 +1,559 @@
+[
+  {
+    "run": 41602796987,
+    "id": 13215108152,
+    "name": "capi-native-linux-aarch64",
+    "zip_sha256": "621545d51c9b8afe600b2f8bd268e23fce9b514590d1d272fa58c5c5571f8c30",
+    "files": [
+      {
+        "path": "artifacts/capi-native-linux-aarch64/vanedb-capi-0.2.0-rc.2-linux-aarch64.cdx.json",
+        "size": 66687,
+        "sha256": "4500cce2a4287bb0d286be7f179fe698753e340f22e21d745cd3f700276a3f1b"
+      },
+      {
+        "path": "artifacts/capi-native-linux-aarch64/vanedb-capi-0.2.0-rc.2-linux-aarch64.zip",
+        "size": 2748464,
+        "sha256": "993c49f7492522fcf39eae9cc2c82a5fcccf9ffc780ac8b068b36821661c2127"
+      },
+      {
+        "path": "artifacts/capi-native-linux-aarch64/vanedb-capi-0.2.0-rc.2-linux-aarch64.zip.sha256",
+        "size": 107,
+        "sha256": "0ec64a23251e1b327b4c64e557d306b8f27337186ae7b4e8da0244d028d11e48"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13215960207,
+    "name": "capi-native-linux-x86_64",
+    "zip_sha256": "7fc31354e28f8f002a12e9ce3a59c0915e1d410f5cdaaafa79c2314e9b954e71",
+    "files": [
+      {
+        "path": "artifacts/capi-native-linux-x86_64/vanedb-capi-0.2.0-rc.2-linux-x86_64.cdx.json",
+        "size": 67857,
+        "sha256": "e4f09a2f90a5f2b2b2a3c855b70c684c188d0fec52600ff2048da99e0d8253ba"
+      },
+      {
+        "path": "artifacts/capi-native-linux-x86_64/vanedb-capi-0.2.0-rc.2-linux-x86_64.zip",
+        "size": 2772441,
+        "sha256": "dfbab323cc6961935bf1f31fe30a2b82f9db95d9f4d91a1c3db1eb4f3b4f19cc"
+      },
+      {
+        "path": "artifacts/capi-native-linux-x86_64/vanedb-capi-0.2.0-rc.2-linux-x86_64.zip.sha256",
+        "size": 106,
+        "sha256": "a7e2bb7d333e48f5f6c137182e2db7a0aaf87f9ad7e3e0f0575df46765e30ea2"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13215303175,
+    "name": "capi-native-macos-aarch64",
+    "zip_sha256": "3f542c3fb55d8cf11a0609f5d5c18c6aa71b4c68e23d4ebbf2293e00df590995",
+    "files": [
+      {
+        "path": "artifacts/capi-native-macos-aarch64/vanedb-capi-0.2.0-rc.2-macos-aarch64.cdx.json",
+        "size": 65562,
+        "sha256": "59cee840f9b92e8b1735e1b63a2af37099910049b39e7ef4832af5c600097861"
+      },
+      {
+        "path": "artifacts/capi-native-macos-aarch64/vanedb-capi-0.2.0-rc.2-macos-aarch64.zip",
+        "size": 1076344,
+        "sha256": "22aa30d0f454f447a62d8caaabd7754c98d369b774761200b9f28d500122f7f2"
+      },
+      {
+        "path": "artifacts/capi-native-macos-aarch64/vanedb-capi-0.2.0-rc.2-macos-aarch64.zip.sha256",
+        "size": 107,
+        "sha256": "9bfe7a1f8a176a5855d6a19bdba206bc3d21bbcb049865a4f4ddffd3e0dfb536"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13215508109,
+    "name": "capi-native-macos-x86_64",
+    "zip_sha256": "0157c61b01292f8ccb2f824cdc1eed1b98cebc7cc59d0425ffd89618de76495a",
+    "files": [
+      {
+        "path": "artifacts/capi-native-macos-x86_64/vanedb-capi-0.2.0-rc.2-macos-x86_64.cdx.json",
+        "size": 66732,
+        "sha256": "da302400e653769450b7763ca4a8f2fd5e4d4dd0ebc5b55b18b7e8e770855401"
+      },
+      {
+        "path": "artifacts/capi-native-macos-x86_64/vanedb-capi-0.2.0-rc.2-macos-x86_64.zip",
+        "size": 1099863,
+        "sha256": "7a0126b1ad426e571f5accec2c172608b9f59138b463d0df4cb0b837d7048665"
+      },
+      {
+        "path": "artifacts/capi-native-macos-x86_64/vanedb-capi-0.2.0-rc.2-macos-x86_64.zip.sha256",
+        "size": 106,
+        "sha256": "0227e6bdbc4cfcd33e582372275f8889cacaf14088ccfb8e5181dfb8c081cdb8"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13214948759,
+    "name": "capi-native-windows-x86_64",
+    "zip_sha256": "5a5903fee923eccbca10a89b0b47913914cbc9384ec5247342fc37b105f5797f",
+    "files": [
+      {
+        "path": "artifacts/capi-native-windows-x86_64/vanedb-capi-0.2.0-rc.2-windows-x86_64.cdx.json",
+        "size": 68224,
+        "sha256": "45ed361ccc996d0022f189b58515e7bbffdc8872e94355f3777fc1799fdc8673"
+      },
+      {
+        "path": "artifacts/capi-native-windows-x86_64/vanedb-capi-0.2.0-rc.2-windows-x86_64.zip",
+        "size": 597644,
+        "sha256": "0f7ed98a2187439731999c59f10bc50f6f607a328ee38426c46a2f93e64a8647"
+      },
+      {
+        "path": "artifacts/capi-native-windows-x86_64/vanedb-capi-0.2.0-rc.2-windows-x86_64.zip.sha256",
+        "size": 109,
+        "sha256": "2fe46b8ec5952f17be94d232e5828b4f976483f9f6c840ba03c3ddee47f3cd20"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13214814195,
+    "name": "capi-signed-release",
+    "zip_sha256": "06b1b7e6ff4cb74f77fae404db38ef4350754c32fed42f7dc785817408d0280f",
+    "files": [
+      {
+        "path": "artifacts/capi-signed-release/CAPI-RELEASE.json",
+        "size": 4460,
+        "sha256": "ba0d3ef9fce102a5803464b0171fd9e711941ad5834e764010e6eafb44b445d9"
+      },
+      {
+        "path": "artifacts/capi-signed-release/CAPI-RELEASE.json.sigstore.json",
+        "size": 10935,
+        "sha256": "36f0c5676e93db6060689edb3bc900dccdc10d6caf93e6e35af2065d2412b2c3"
+      },
+      {
+        "path": "artifacts/capi-signed-release/CAPI-VERIFYING.md",
+        "size": 2494,
+        "sha256": "438d53e9cb8600d511315cd3474db73dd6870c6922b7ae8dc14421c95ed0d78c"
+      },
+      {
+        "path": "artifacts/capi-signed-release/CAPI-VERIFYING.md.sigstore.json",
+        "size": 10641,
+        "sha256": "9a98abbe5aa6a3c1d13b9bf818a7c48f8bf06dd5782f56daeb8f1a559f432d15"
+      },
+      {
+        "path": "artifacts/capi-signed-release/SHA256SUMS",
+        "size": 1261,
+        "sha256": "1ea434ebdeb0d20c4473e307d41c9e79e493f5d14831755ed7ccbc3cf55eebce"
+      },
+      {
+        "path": "artifacts/capi-signed-release/SHA256SUMS.sigstore.json",
+        "size": 10692,
+        "sha256": "1b135f9d351235e9173c0aa24a0244b21216b09a3f017ffa73d0fcf898879609"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-aarch64.cdx.json",
+        "size": 66687,
+        "sha256": "4500cce2a4287bb0d286be7f179fe698753e340f22e21d745cd3f700276a3f1b"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-aarch64.cdx.json.sigstore.json",
+        "size": 10739,
+        "sha256": "f4bbd890024149fba43abe7ac0833cdf87345e58206d4f3bbc46c4c2e6f1924d"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-aarch64.zip",
+        "size": 2748464,
+        "sha256": "993c49f7492522fcf39eae9cc2c82a5fcccf9ffc780ac8b068b36821661c2127"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-aarch64.zip.sigstore.json",
+        "size": 10833,
+        "sha256": "0693f8c1b2cfaa15765b348b8e7f458bc711debcb7603dae1f0f9b1141fcdd06"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-x86_64.cdx.json",
+        "size": 67857,
+        "sha256": "e4f09a2f90a5f2b2b2a3c855b70c684c188d0fec52600ff2048da99e0d8253ba"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-x86_64.cdx.json.sigstore.json",
+        "size": 10837,
+        "sha256": "e1a1ff6ccd19ec795273d859a2b3cf5eca05e211716c52e701eb3cac492cd613"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-x86_64.zip",
+        "size": 2772441,
+        "sha256": "dfbab323cc6961935bf1f31fe30a2b82f9db95d9f4d91a1c3db1eb4f3b4f19cc"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-linux-x86_64.zip.sigstore.json",
+        "size": 10696,
+        "sha256": "2fe43762afc6967799e01c7a0dbeb0aca790bee6cfa30aec1bfb94e8bd69bb17"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-aarch64.cdx.json",
+        "size": 65562,
+        "sha256": "59cee840f9b92e8b1735e1b63a2af37099910049b39e7ef4832af5c600097861"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-aarch64.cdx.json.sigstore.json",
+        "size": 10747,
+        "sha256": "51569afb9cba6b761934d26005306c1f9bd979506d5bba07df7d6bbb84a2536c"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-aarch64.zip",
+        "size": 1076344,
+        "sha256": "22aa30d0f454f447a62d8caaabd7754c98d369b774761200b9f28d500122f7f2"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-aarch64.zip.sigstore.json",
+        "size": 10837,
+        "sha256": "7443258af1f1d9e80b15666bcc11c33cfffa4d5794bb729dc206402ce9bda28e"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-x86_64.cdx.json",
+        "size": 66732,
+        "sha256": "da302400e653769450b7763ca4a8f2fd5e4d4dd0ebc5b55b18b7e8e770855401"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-x86_64.cdx.json.sigstore.json",
+        "size": 10786,
+        "sha256": "3d5c981d24d19f754aee38e5f58bac1183b33f33fa4b664aea036cff5e6bfd18"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-x86_64.zip",
+        "size": 1099863,
+        "sha256": "7a0126b1ad426e571f5accec2c172608b9f59138b463d0df4cb0b837d7048665"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-macos-x86_64.zip.sigstore.json",
+        "size": 10884,
+        "sha256": "38195a44c847547c0e8ea3a9aa651cc28fc024283c730f22c29c193d4ac0eb08"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-windows-x86_64.cdx.json",
+        "size": 68224,
+        "sha256": "45ed361ccc996d0022f189b58515e7bbffdc8872e94355f3777fc1799fdc8673"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-windows-x86_64.cdx.json.sigstore.json",
+        "size": 10837,
+        "sha256": "843c33a7463308790f83fb3c831aed74b355501180f4ed944d11fbc39d9e3266"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-windows-x86_64.zip",
+        "size": 597644,
+        "sha256": "0f7ed98a2187439731999c59f10bc50f6f607a328ee38426c46a2f93e64a8647"
+      },
+      {
+        "path": "artifacts/capi-signed-release/vanedb-capi-0.2.0-rc.2-windows-x86_64.zip.sigstore.json",
+        "size": 10880,
+        "sha256": "cb90d128b0286e6f613938674ac99a1e99b144bec2f6cf350a2254e5d13bdea5"
+      }
+    ]
+  },
+  {
+    "run": 41602796987,
+    "id": 13215845685,
+    "name": "vanedb-crate",
+    "zip_sha256": "989d04d9a8b6bce440cf2b15e751c1691c5ff6a74ba0dee4a42a622d5f6a5fd4",
+    "files": [
+      {
+        "path": "artifacts/vanedb-crate/SHA256SUMS",
+        "size": 90,
+        "sha256": "e0ca3256163206584b4aa4d84add99c56fc91abcdc47c6db0ec53b2eef32ede9"
+      },
+      {
+        "path": "artifacts/vanedb-crate/package-contents.txt",
+        "size": 2702,
+        "sha256": "40358f9231d9e0cff1bc8bc3de948d402b69c05858c4084d60d8824b76d10b03"
+      },
+      {
+        "path": "artifacts/vanedb-crate/vanedb-0.2.0-rc.2.crate",
+        "size": 191207,
+        "sha256": "0aa7d9c84384bde1ec7fdda618dda2f7e7a6b101f385adf7cbc59c7c7fcdf0ea"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215167615,
+    "name": "vanedb-linux-manylinux-aarch64",
+    "zip_sha256": "444a79c272e46d159f434934f2efdc80fbf4f6064b425075ea40b2ae6bffa8e2",
+    "files": [
+      {
+        "path": "artifacts/vanedb-linux-manylinux-aarch64/vanedb-0.2.0rc2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+        "size": 439298,
+        "sha256": "e74c7e03a13072d4d07670da94a456c9fadccfb8ae3df0c20f9dc6cb3fe600c1"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-aarch64/vanedb-0.2.0rc2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+        "size": 432824,
+        "sha256": "fd510b97ec2f1c9e7e29d9e83a1a2edcbc3b0f914181cbad803a4d3f6ca5611c"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-aarch64/vanedb-0.2.0rc2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+        "size": 433589,
+        "sha256": "67e8d963d4b7f5e187637bb9a593f99b4a902ad7f0d4c335d91578f021bd2895"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-aarch64/vanedb-0.2.0rc2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+        "size": 432821,
+        "sha256": "8d051346c65e26126a16d90f19643e6ea88ced3f1b477364b0b885c4a09187ed"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215830809,
+    "name": "vanedb-linux-manylinux-x86_64",
+    "zip_sha256": "2413d500f0ce2df6f96735ccdac16f19af3cf950fdcd97f68e7406b576df37a3",
+    "files": [
+      {
+        "path": "artifacts/vanedb-linux-manylinux-x86_64/vanedb-0.2.0rc2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "size": 448287,
+        "sha256": "6660a204c8fde409e677bbc40fc5ee754f76be603ccd615c56529e159c8cd980"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-x86_64/vanedb-0.2.0rc2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "size": 443004,
+        "sha256": "068fefa92bab09fd868a0f4b2031d86891e0818ac70c55726eb05a94c482307d"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-x86_64/vanedb-0.2.0rc2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "size": 443562,
+        "sha256": "4573401860f93cb5c1c3aa30729d3a8307ed3464451bdc753b190a93d7ec9bd3"
+      },
+      {
+        "path": "artifacts/vanedb-linux-manylinux-x86_64/vanedb-0.2.0rc2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+        "size": 443770,
+        "sha256": "ffb75573348e3e347d3ab7bd1d4593d76bab9998ef30f428540a3c834b42a4f0"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215262471,
+    "name": "vanedb-linux-musllinux-aarch64",
+    "zip_sha256": "6a9f23a18c28df225dee1772ba311221232b8bd4b2fe0d46459fddc8469fe40e",
+    "files": [
+      {
+        "path": "artifacts/vanedb-linux-musllinux-aarch64/vanedb-0.2.0rc2-cp311-cp311-musllinux_1_2_aarch64.whl",
+        "size": 616957,
+        "sha256": "bf462d16a283dc14c0b7764a5c7ad7a21f5e333331dded30e58c0245ad1b5566"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-aarch64/vanedb-0.2.0rc2-cp312-cp312-musllinux_1_2_aarch64.whl",
+        "size": 611649,
+        "sha256": "577f8cc34b41b911f9d700d71e5ada9cbb91f7cabaa44b2e80d5d838e8320e29"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-aarch64/vanedb-0.2.0rc2-cp313-cp313-musllinux_1_2_aarch64.whl",
+        "size": 612148,
+        "sha256": "5ffbf9df216cf94e75092dbd07ee5439e45d46894369c5f74ec9e5802ed9c016"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-aarch64/vanedb-0.2.0rc2-cp314-cp314-musllinux_1_2_aarch64.whl",
+        "size": 611679,
+        "sha256": "654ef6e59712fc13bef3fbf9a7ac61763b831365da277f7b6bdfd9a9866c5eeb"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13214448091,
+    "name": "vanedb-linux-musllinux-x86_64",
+    "zip_sha256": "a1ab927077d5defb16a28e94f1b596b02ab9537073f3a336fd379bcaab818b05",
+    "files": [
+      {
+        "path": "artifacts/vanedb-linux-musllinux-x86_64/vanedb-0.2.0rc2-cp311-cp311-musllinux_1_2_x86_64.whl",
+        "size": 655669,
+        "sha256": "13dbf392215c52d8a440107acfbfcd4416df13268fb7e76c61b57324b0939dda"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-x86_64/vanedb-0.2.0rc2-cp312-cp312-musllinux_1_2_x86_64.whl",
+        "size": 649795,
+        "sha256": "0ced9bf68b59c5c86e605a20c457ba6851397df0884f0380d82cdaf363f506d4"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-x86_64/vanedb-0.2.0rc2-cp313-cp313-musllinux_1_2_x86_64.whl",
+        "size": 649631,
+        "sha256": "c04d5f6df779fab037bd70d2e9321b48e279aea1b76f10930aa6d641103a2d8f"
+      },
+      {
+        "path": "artifacts/vanedb-linux-musllinux-x86_64/vanedb-0.2.0rc2-cp314-cp314-musllinux_1_2_x86_64.whl",
+        "size": 649605,
+        "sha256": "81eb1dd032c06416efdcba2a6fee058eb5036edeb28c7bf915782117097fd88b"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215406915,
+    "name": "vanedb-macos-aarch64-py3.11",
+    "zip_sha256": "8f1926e4d4c50c116c544eede34d5e485c558c6d48d8f39bc8fc3dd103bf149a",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-aarch64-py3.11/vanedb-0.2.0rc2-cp311-cp311-macosx_11_0_arm64.whl",
+        "size": 403117,
+        "sha256": "35f5945e592271b5ae9ccde943212dd42295fdfdec75201dd861a7e0afd37fc3"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215067816,
+    "name": "vanedb-macos-aarch64-py3.12",
+    "zip_sha256": "8459047555887ae97f1c0b38fd3298bd2d27d565409c639d0bb57638b21f3ebe",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-aarch64-py3.12/vanedb-0.2.0rc2-cp312-cp312-macosx_11_0_arm64.whl",
+        "size": 394912,
+        "sha256": "dd1d9e911e971bec7f27dbffb449ee9272797ca2eb83c16678cba13b3ead19bd"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215845530,
+    "name": "vanedb-macos-aarch64-py3.13",
+    "zip_sha256": "83ccfa4b52ea489d05af11cb0fc27e9e523d1a76f6601c2862413f795dd0303c",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-aarch64-py3.13/vanedb-0.2.0rc2-cp313-cp313-macosx_11_0_arm64.whl",
+        "size": 394876,
+        "sha256": "ad173bcffd43ca54b7bd9fbe9a50474bce46df8099aeedec406046163eaf0379"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215865722,
+    "name": "vanedb-macos-aarch64-py3.14",
+    "zip_sha256": "26c55aa6c38ba69521c26dc1099558ef106b5624740aff9ce2b9b2befe67d82a",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-aarch64-py3.14/vanedb-0.2.0rc2-cp314-cp314-macosx_11_0_arm64.whl",
+        "size": 395608,
+        "sha256": "76863e6dbed8dd7f5983827b725ce28812872c22d3269e8d137deeb75e57ae96"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215247854,
+    "name": "vanedb-macos-x86_64-py3.11",
+    "zip_sha256": "d1778c9b63c75aeb20e937431b3713ed7ce9df4aeb8d732ff5dfc32ddc471f8e",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-x86_64-py3.11/vanedb-0.2.0rc2-cp311-cp311-macosx_10_12_x86_64.whl",
+        "size": 402734,
+        "sha256": "68607f04a29a09572b31d5babd5c3001e56d65ee52d23b2d4dd699e91c6d8649"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13214892757,
+    "name": "vanedb-macos-x86_64-py3.12",
+    "zip_sha256": "0adde9b5602b1f69ddf32b99646e691c9653a89ad2665a7737f24888d12b2660",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-x86_64-py3.12/vanedb-0.2.0rc2-cp312-cp312-macosx_10_12_x86_64.whl",
+        "size": 403910,
+        "sha256": "db18038abcfcde2891b223da9e65d0db7bd1e0df005e54844c3c3d331c45beb4"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13214604501,
+    "name": "vanedb-macos-x86_64-py3.13",
+    "zip_sha256": "83f366810a95933cf501360fabde58b9c2ee7138b28fe785b402cd4f188f49d7",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-x86_64-py3.13/vanedb-0.2.0rc2-cp313-cp313-macosx_10_12_x86_64.whl",
+        "size": 403724,
+        "sha256": "b5316861b9e2b17ea6a5d344c68462820a7512b7d839b1cd80476195e6d94bf2"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13214982925,
+    "name": "vanedb-macos-x86_64-py3.14",
+    "zip_sha256": "d0ba0af633cc7ab9aa4918c67a289525df187437103f73aa2f2d562c48aab203",
+    "files": [
+      {
+        "path": "artifacts/vanedb-macos-x86_64-py3.14/vanedb-0.2.0rc2-cp314-cp314-macosx_10_12_x86_64.whl",
+        "size": 404347,
+        "sha256": "0d636ded10b0c6c4f2a9f030de93c61234fb51586cced6b40308c422fd23b503"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215746160,
+    "name": "vanedb-sdist",
+    "zip_sha256": "42abc9afd9e2721ceb6aafcd63f60bc55c086c32a6b1d98b86938052e7889d46",
+    "files": [
+      {
+        "path": "artifacts/vanedb-sdist/vanedb-0.2.0rc2.tar.gz",
+        "size": 244520,
+        "sha256": "98dcb2afe7e1fdea5cf66c71e2c898f0c34c8483e571f46748e3bdda5caddde9"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215102226,
+    "name": "vanedb-windows-x64-py3.11",
+    "zip_sha256": "b8557b93803290bbd197afd94bcf2730bb110da0d531757dfb3405f6cb40956b",
+    "files": [
+      {
+        "path": "artifacts/vanedb-windows-x64-py3.11/vanedb-0.2.0rc2-cp311-cp311-win_amd64.whl",
+        "size": 297404,
+        "sha256": "952e3297129a699de7abc4317bbbf4e8bf7fd1b6f94e3e412d46babf98e2eb90"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215207098,
+    "name": "vanedb-windows-x64-py3.12",
+    "zip_sha256": "a33ef4e03ee4ef027e9c349e25a845d4f0ffcb7d497ce2348e8079cd75e95eac",
+    "files": [
+      {
+        "path": "artifacts/vanedb-windows-x64-py3.12/vanedb-0.2.0rc2-cp312-cp312-win_amd64.whl",
+        "size": 293297,
+        "sha256": "cc7dc11f01eddc90562eb245b6f695d9cb82f8434bff17911fa183b19faeed6e"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215381971,
+    "name": "vanedb-windows-x64-py3.13",
+    "zip_sha256": "05eeb279810383e7b44d9f59c317f7af98c9c8be65b668b2bd220c36de8678b4",
+    "files": [
+      {
+        "path": "artifacts/vanedb-windows-x64-py3.13/vanedb-0.2.0rc2-cp313-cp313-win_amd64.whl",
+        "size": 293156,
+        "sha256": "dd9446e737b9bd51307eff163e5ec6d57bfc48787877106d030dccb492603d35"
+      }
+    ]
+  },
+  {
+    "run": 41602801159,
+    "id": 13215780951,
+    "name": "vanedb-windows-x64-py3.14",
+    "zip_sha256": "c8c070aba59f19309aba34b3660fa7323bef562f9d61997c85a292d3528e03d4",
+    "files": [
+      {
+        "path": "artifacts/vanedb-windows-x64-py3.14/vanedb-0.2.0rc2-cp314-cp314-win_amd64.whl",
+        "size": 294553,
+        "sha256": "a282e0b03a24306a1b3178a535bd28c93ab26388cc5dc3a8845b823fe0129bbe"
+      }
+    ]
+  }
+]

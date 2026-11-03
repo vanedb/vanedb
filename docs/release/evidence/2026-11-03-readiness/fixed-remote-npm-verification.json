@@ -1,0 +1,14 @@
+{
+  "candidate": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22",
+  "workflow": 41604609578,
+  "zip_sha256": "8602a1d4d7da05e5aedbe780cac5649d86e384e8da98e69642b76e9015ace8f6",
+  "tarball_sha256": "9c8d4119584165af8709daf1f7cdea4ae632e0d822c81ce1e77e8b4177685a19",
+  "command": [
+    "python3",
+    "scripts/check_npm_package.py",
+    "/Users/anton/code/codex/020-release-readiness-20261103T082227Z/fixed-npm-artifact/vanedb-wasm-0.2.0-rc.2.tgz"
+  ],
+  "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+  "exit_code": 0,
+  "checked": "2026-11-03T08:42:07.748854+00:00"
+}

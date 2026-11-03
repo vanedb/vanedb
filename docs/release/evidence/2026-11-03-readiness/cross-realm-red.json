@@ -1,0 +1,10 @@
+{
+  "command": [
+    "python3",
+    "scripts/check_npm_package.py",
+    "/Users/anton/code/codex/020-release-readiness-20261103T082227Z/npm-artifact/vanedb-wasm-0.2.0-rc.2.tgz"
+  ],
+  "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+  "exit_code": 1,
+  "utc": "2026-11-03T08:29:02.793710+00:00"
+}
