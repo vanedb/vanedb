@@ -1,0 +1,8 @@
+{
+  "sha": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22",
+  "base": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "worktree": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+  "branch": "codex/wasm-cross-realm-predicate",
+  "review": "Independent review found no implementation blocker; negative-control counter improvement applied and verified",
+  "utc": "2026-11-03T08:35:56.472113+00:00"
+}

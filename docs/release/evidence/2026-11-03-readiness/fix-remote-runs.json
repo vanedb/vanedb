@@ -1,0 +1,32 @@
+{
+  "head": "6e4fc2d88f2f248cb06becb24bcc0ef228323d22",
+  "npm_rehearsal": {
+    "command": [
+      "gh",
+      "workflow",
+      "run",
+      "publish-wasm.yml",
+      "--repo",
+      "vanedb/vanedb",
+      "--ref",
+      "codex/wasm-cross-realm-predicate"
+    ],
+    "url": "https://github.com/vanedb/vanedb/actions/runs/41604609578"
+  },
+  "full_ci": {
+    "command": [
+      "gh",
+      "workflow",
+      "run",
+      "ci.yml",
+      "--repo",
+      "vanedb/vanedb",
+      "--ref",
+      "codex/wasm-cross-realm-predicate"
+    ],
+    "url": "https://github.com/vanedb/vanedb/actions/runs/41604725593",
+    "exit_code": 0,
+    "started": "2026-11-03T08:38:01.126954+00:00"
+  },
+  "reason": "PR #359 is stacked on #356; automatic CI pull_request filter only matches main, so dispatch full component CI explicitly."
+}

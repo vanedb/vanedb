@@ -1,0 +1,20 @@
+{
+  "id": 13215082368,
+  "node_id": "MDg6QXJ0aWZhY3QxMzIxNTA4MjM2OA==",
+  "name": "vanedb-wasm-npm",
+  "size_in_bytes": 205568,
+  "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215082368",
+  "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215082368/zip",
+  "expired": false,
+  "digest": "sha256:68c8a06d5e17b6a09515870cbf09bc37b5cce3169be0e3eed08d64fdeb705018",
+  "created_at": "2026-11-03T08:23:21Z",
+  "updated_at": "2026-11-03T08:23:21Z",
+  "expires_at": "2027-02-01T08:22:34Z",
+  "workflow_run": {
+    "id": 41602805577,
+    "repository_id": 1195422782,
+    "head_repository_id": 1195422782,
+    "head_branch": "codex/020-release-remediation",
+    "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+  }
+}

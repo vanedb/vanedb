@@ -1,0 +1,60 @@
+{
+  "candidate": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "branch": "codex/020-release-remediation",
+  "scope": "Candidate publication-disabled rehearsals only. Not final stable-source acceptance, performance evidence, merge, tag or publication.",
+  "records": [
+    {
+      "workflow": "publish-crate.yml",
+      "command": [
+        "gh",
+        "workflow",
+        "run",
+        "publish-crate.yml",
+        "--repo",
+        "vanedb/vanedb",
+        "--ref",
+        "codex/020-release-remediation"
+      ],
+      "started": "2026-11-03T08:22:27.748943+00:00",
+      "exit_code": 0,
+      "stdout": "https://github.com/vanedb/vanedb/actions/runs/41602796987\n",
+      "stderr": ""
+    },
+    {
+      "workflow": "publish-rust.yml",
+      "command": [
+        "gh",
+        "workflow",
+        "run",
+        "publish-rust.yml",
+        "--repo",
+        "vanedb/vanedb",
+        "--ref",
+        "codex/020-release-remediation",
+        "-f",
+        "publish_testpypi=false"
+      ],
+      "started": "2026-11-03T08:22:29.924977+00:00",
+      "exit_code": 0,
+      "stdout": "https://github.com/vanedb/vanedb/actions/runs/41602801159\n",
+      "stderr": ""
+    },
+    {
+      "workflow": "publish-wasm.yml",
+      "command": [
+        "gh",
+        "workflow",
+        "run",
+        "publish-wasm.yml",
+        "--repo",
+        "vanedb/vanedb",
+        "--ref",
+        "codex/020-release-remediation"
+      ],
+      "started": "2026-11-03T08:22:32.133439+00:00",
+      "exit_code": 0,
+      "stdout": "https://github.com/vanedb/vanedb/actions/runs/41602805577\n",
+      "stderr": ""
+    }
+  ]
+}

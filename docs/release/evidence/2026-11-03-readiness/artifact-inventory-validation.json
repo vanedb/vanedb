@@ -1,0 +1,179 @@
+{
+  "candidate": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "python_wheel_count": 28,
+  "python_sdist_count": 1,
+  "python_version": "0.2.0rc2",
+  "wheels": [
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "e74c7e03a13072d4d07670da94a456c9fadccfb8ae3df0c20f9dc6cb3fe600c1",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-manylinux2014_aarch64\nTag: cp311-cp311-manylinux_2_17_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "fd510b97ec2f1c9e7e29d9e83a1a2edcbc3b0f914181cbad803a4d3f6ca5611c",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-manylinux2014_aarch64\nTag: cp312-cp312-manylinux_2_17_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "67e8d963d4b7f5e187637bb9a593f99b4a902ad7f0d4c335d91578f021bd2895",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-manylinux2014_aarch64\nTag: cp313-cp313-manylinux_2_17_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "8d051346c65e26126a16d90f19643e6ea88ced3f1b477364b0b885c4a09187ed",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-manylinux2014_aarch64\nTag: cp314-cp314-manylinux_2_17_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "6660a204c8fde409e677bbc40fc5ee754f76be603ccd615c56529e159c8cd980",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-manylinux2014_x86_64\nTag: cp311-cp311-manylinux_2_17_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "068fefa92bab09fd868a0f4b2031d86891e0818ac70c55726eb05a94c482307d",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-manylinux2014_x86_64\nTag: cp312-cp312-manylinux_2_17_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "4573401860f93cb5c1c3aa30729d3a8307ed3464451bdc753b190a93d7ec9bd3",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-manylinux2014_x86_64\nTag: cp313-cp313-manylinux_2_17_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "ffb75573348e3e347d3ab7bd1d4593d76bab9998ef30f428540a3c834b42a4f0",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-manylinux2014_x86_64\nTag: cp314-cp314-manylinux_2_17_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-musllinux_1_2_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "bf462d16a283dc14c0b7764a5c7ad7a21f5e333331dded30e58c0245ad1b5566",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-musllinux_1_2_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-musllinux_1_2_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "577f8cc34b41b911f9d700d71e5ada9cbb91f7cabaa44b2e80d5d838e8320e29",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-musllinux_1_2_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-musllinux_1_2_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "5ffbf9df216cf94e75092dbd07ee5439e45d46894369c5f74ec9e5802ed9c016",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-musllinux_1_2_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-musllinux_1_2_aarch64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "654ef6e59712fc13bef3fbf9a7ac61763b831365da277f7b6bdfd9a9866c5eeb",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-musllinux_1_2_aarch64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-musllinux_1_2_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "13dbf392215c52d8a440107acfbfcd4416df13268fb7e76c61b57324b0939dda",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-musllinux_1_2_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-musllinux_1_2_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "0ced9bf68b59c5c86e605a20c457ba6851397df0884f0380d82cdaf363f506d4",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-musllinux_1_2_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-musllinux_1_2_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "c04d5f6df779fab037bd70d2e9321b48e279aea1b76f10930aa6d641103a2d8f",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-musllinux_1_2_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-musllinux_1_2_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "81eb1dd032c06416efdcba2a6fee058eb5036edeb28c7bf915782117097fd88b",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-musllinux_1_2_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-macosx_11_0_arm64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "35f5945e592271b5ae9ccde943212dd42295fdfdec75201dd861a7e0afd37fc3",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-macosx_11_0_arm64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-macosx_11_0_arm64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "dd1d9e911e971bec7f27dbffb449ee9272797ca2eb83c16678cba13b3ead19bd",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-macosx_11_0_arm64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-macosx_11_0_arm64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "ad173bcffd43ca54b7bd9fbe9a50474bce46df8099aeedec406046163eaf0379",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-macosx_11_0_arm64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-macosx_11_0_arm64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "76863e6dbed8dd7f5983827b725ce28812872c22d3269e8d137deeb75e57ae96",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-macosx_11_0_arm64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-macosx_10_12_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "68607f04a29a09572b31d5babd5c3001e56d65ee52d23b2d4dd699e91c6d8649",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-macosx_10_12_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-macosx_10_12_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "db18038abcfcde2891b223da9e65d0db7bd1e0df005e54844c3c3d331c45beb4",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-macosx_10_12_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-macosx_10_12_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "b5316861b9e2b17ea6a5d344c68462820a7512b7d839b1cd80476195e6d94bf2",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-macosx_10_12_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-macosx_10_12_x86_64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "0d636ded10b0c6c4f2a9f030de93c61234fb51586cced6b40308c422fd23b503",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-macosx_10_12_x86_64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp311-cp311-win_amd64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "952e3297129a699de7abc4317bbbf4e8bf7fd1b6f94e3e412d46babf98e2eb90",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp311-cp311-win_amd64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp312-cp312-win_amd64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "cc7dc11f01eddc90562eb245b6f695d9cb82f8434bff17911fa183b19faeed6e",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp312-cp312-win_amd64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp313-cp313-win_amd64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "dd9446e737b9bd51307eff163e5ec6d57bfc48787877106d030dccb492603d35",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp313-cp313-win_amd64\n"
+    },
+    {
+      "file": "vanedb-0.2.0rc2-cp314-cp314-win_amd64.whl",
+      "version": "0.2.0rc2",
+      "sha256": "a282e0b03a24306a1b3178a535bd28c93ab26388cc5dc3a8845b823fe0129bbe",
+      "wheel_metadata": "Wheel-Version: 1.0\nGenerator: maturin (1.16.0)\nRoot-Is-Purelib: false\nTag: cp314-cp314-win_amd64\n"
+    }
+  ],
+  "crate_npm_capi_sha256sums": "PASS",
+  "capi_signature_verifier_exit": 0,
+  "scope": "Artifacts from original remediation candidate; later wasm fix and final stable source require relevant fresh validation."
+}

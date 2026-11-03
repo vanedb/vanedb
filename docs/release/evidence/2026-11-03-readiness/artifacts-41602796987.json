@@ -1,0 +1,145 @@
+{
+  "total_count": 7,
+  "artifacts": [
+    {
+      "id": 13215960207,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTk2MDIwNw==",
+      "name": "capi-native-linux-x86_64",
+      "size_in_bytes": 2724116,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215960207",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215960207/zip",
+      "expired": false,
+      "digest": "sha256:7fc31354e28f8f002a12e9ce3a59c0915e1d410f5cdaaafa79c2314e9b954e71",
+      "created_at": "2026-11-03T08:25:51Z",
+      "updated_at": "2026-11-03T08:25:51Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215845685,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTg0NTY4NQ==",
+      "name": "vanedb-crate",
+      "size_in_bytes": 192023,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215845685",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215845685/zip",
+      "expired": false,
+      "digest": "sha256:989d04d9a8b6bce440cf2b15e751c1691c5ff6a74ba0dee4a42a622d5f6a5fd4",
+      "created_at": "2026-11-03T08:23:57Z",
+      "updated_at": "2026-11-03T08:23:57Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215508109,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTUwODEwOQ==",
+      "name": "capi-native-macos-x86_64",
+      "size_in_bytes": 1093333,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215508109",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215508109/zip",
+      "expired": false,
+      "digest": "sha256:0157c61b01292f8ccb2f824cdc1eed1b98cebc7cc59d0425ffd89618de76495a",
+      "created_at": "2026-11-03T08:29:10Z",
+      "updated_at": "2026-11-03T08:29:10Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215303175,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTMwMzE3NQ==",
+      "name": "capi-native-macos-aarch64",
+      "size_in_bytes": 1071604,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215303175",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215303175/zip",
+      "expired": false,
+      "digest": "sha256:3f542c3fb55d8cf11a0609f5d5c18c6aa71b4c68e23d4ebbf2293e00df590995",
+      "created_at": "2026-11-03T08:28:04Z",
+      "updated_at": "2026-11-03T08:28:04Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215108152,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTEwODE1Mg==",
+      "name": "capi-native-linux-aarch64",
+      "size_in_bytes": 2686236,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215108152",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215108152/zip",
+      "expired": false,
+      "digest": "sha256:621545d51c9b8afe600b2f8bd268e23fce9b514590d1d272fa58c5c5571f8c30",
+      "created_at": "2026-11-03T08:26:03Z",
+      "updated_at": "2026-11-03T08:26:03Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214948759,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDk0ODc1OQ==",
+      "name": "capi-native-windows-x86_64",
+      "size_in_bytes": 602646,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214948759",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214948759/zip",
+      "expired": false,
+      "digest": "sha256:5a5903fee923eccbca10a89b0b47913914cbc9384ec5247342fc37b105f5797f",
+      "created_at": "2026-11-03T08:29:27Z",
+      "updated_at": "2026-11-03T08:29:27Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214814195,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDgxNDE5NQ==",
+      "name": "capi-signed-release",
+      "size_in_bytes": 8271509,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214814195",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214814195/zip",
+      "expired": false,
+      "digest": "sha256:06b1b7e6ff4cb74f77fae404db38ef4350754c32fed42f7dc785817408d0280f",
+      "created_at": "2026-11-03T08:30:06Z",
+      "updated_at": "2026-11-03T08:30:06Z",
+      "expires_at": "2027-02-01T08:22:30Z",
+      "workflow_run": {
+        "id": 41602796987,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    }
+  ]
+}

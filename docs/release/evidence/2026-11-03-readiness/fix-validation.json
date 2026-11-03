@@ -1,0 +1,53 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+    "started": "2026-11-03T08:30:53.578011+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-03T08:30:53.712345+00:00"
+  },
+  {
+    "name": "build-npm",
+    "command": [
+      "python3",
+      "scripts/build_npm_package.py"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+    "started": "2026-11-03T08:30:53.712572+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-03T08:31:03.679056+00:00"
+  },
+  {
+    "name": "installed-npm",
+    "command": [
+      "python3",
+      "scripts/check_npm_package.py"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103",
+    "started": "2026-11-03T08:31:03.679266+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-03T08:31:04.948431+00:00"
+  },
+  {
+    "name": "wasm-node",
+    "command": [
+      "wasm-pack",
+      "test",
+      "--node",
+      "--mode",
+      "no-install",
+      "--locked"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-wasm-cross-realm-20261103/vanedb-wasm",
+    "started": "2026-11-03T08:31:04.948667+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-03T08:31:15.206218+00:00"
+  }
+]

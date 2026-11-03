@@ -1,0 +1,26 @@
+{
+  "first_attempt": {
+    "command": [
+      "gh",
+      "run",
+      "view",
+      "41604725593",
+      "--repo",
+      "vanedb/vanedb",
+      "--log"
+    ],
+    "exit_code": 1,
+    "stderr": "too many API requests needed to fetch logs; try narrowing down to a specific job with the --job option",
+    "note": "Log retrieval limitation only; recorded workflow conclusion is success."
+  },
+  "archive_command": [
+    "gh",
+    "api",
+    "repos/vanedb/vanedb/actions/runs/41604725593/logs"
+  ],
+  "started": "2026-11-03T09:02:20.751301+00:00",
+  "exit_code": 0,
+  "stderr": "",
+  "sha256": "739ee9361c4cf0a5e223a8a16f33953cbd64073a32ca9702a8d056fefd8a1c10",
+  "file_count": 709
+}

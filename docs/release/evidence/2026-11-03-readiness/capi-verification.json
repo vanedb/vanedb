@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "scripts/capi_release.py",
+    "verify",
+    "--directory",
+    "/Users/anton/code/codex/020-release-readiness-20261103T082227Z/artifacts/capi-signed-release",
+    "--version",
+    "0.2.0-rc.2",
+    "--commit",
+    "e1761dcf4258011b446a361dc529da082ea2fc94",
+    "--ref",
+    "refs/heads/codex/020-release-remediation"
+  ],
+  "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+  "started": "2026-11-03T08:35:59.942039+00:00",
+  "exit_code": 0,
+  "ended": "2026-11-03T08:36:13.727572+00:00"
+}

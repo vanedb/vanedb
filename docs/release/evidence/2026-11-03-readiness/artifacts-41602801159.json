@@ -1,0 +1,345 @@
+{
+  "total_count": 17,
+  "artifacts": [
+    {
+      "id": 13215865722,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTg2NTcyMg==",
+      "name": "vanedb-macos-aarch64-py3.14",
+      "size_in_bytes": 394785,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215865722",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215865722/zip",
+      "expired": false,
+      "digest": "sha256:26c55aa6c38ba69521c26dc1099558ef106b5624740aff9ce2b9b2befe67d82a",
+      "created_at": "2026-11-03T08:24:50Z",
+      "updated_at": "2026-11-03T08:24:50Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215845530,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTg0NTUzMA==",
+      "name": "vanedb-macos-aarch64-py3.13",
+      "size_in_bytes": 394080,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215845530",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215845530/zip",
+      "expired": false,
+      "digest": "sha256:83ccfa4b52ea489d05af11cb0fc27e9e523d1a76f6601c2862413f795dd0303c",
+      "created_at": "2026-11-03T08:23:09Z",
+      "updated_at": "2026-11-03T08:23:09Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215830809,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTgzMDgwOQ==",
+      "name": "vanedb-linux-manylinux-x86_64",
+      "size_in_bytes": 1775967,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215830809",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215830809/zip",
+      "expired": false,
+      "digest": "sha256:2413d500f0ce2df6f96735ccdac16f19af3cf950fdcd97f68e7406b576df37a3",
+      "created_at": "2026-11-03T08:24:08Z",
+      "updated_at": "2026-11-03T08:24:08Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215780951,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTc4MDk1MQ==",
+      "name": "vanedb-windows-x64-py3.14",
+      "size_in_bytes": 294189,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215780951",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215780951/zip",
+      "expired": false,
+      "digest": "sha256:c8c070aba59f19309aba34b3660fa7323bef562f9d61997c85a292d3528e03d4",
+      "created_at": "2026-11-03T08:24:20Z",
+      "updated_at": "2026-11-03T08:24:20Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215746160,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTc0NjE2MA==",
+      "name": "vanedb-sdist",
+      "size_in_bytes": 244043,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215746160",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215746160/zip",
+      "expired": false,
+      "digest": "sha256:42abc9afd9e2721ceb6aafcd63f60bc55c086c32a6b1d98b86938052e7889d46",
+      "created_at": "2026-11-03T08:23:00Z",
+      "updated_at": "2026-11-03T08:23:00Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215406915,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTQwNjkxNQ==",
+      "name": "vanedb-macos-aarch64-py3.11",
+      "size_in_bytes": 402350,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215406915",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215406915/zip",
+      "expired": false,
+      "digest": "sha256:8f1926e4d4c50c116c544eede34d5e485c558c6d48d8f39bc8fc3dd103bf149a",
+      "created_at": "2026-11-03T08:23:33Z",
+      "updated_at": "2026-11-03T08:23:33Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215381971,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTM4MTk3MQ==",
+      "name": "vanedb-windows-x64-py3.13",
+      "size_in_bytes": 292771,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215381971",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215381971/zip",
+      "expired": false,
+      "digest": "sha256:05eeb279810383e7b44d9f59c317f7af98c9c8be65b668b2bd220c36de8678b4",
+      "created_at": "2026-11-03T08:24:02Z",
+      "updated_at": "2026-11-03T08:24:02Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215262471,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTI2MjQ3MQ==",
+      "name": "vanedb-linux-musllinux-aarch64",
+      "size_in_bytes": 2444388,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215262471",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215262471/zip",
+      "expired": false,
+      "digest": "sha256:6a9f23a18c28df225dee1772ba311221232b8bd4b2fe0d46459fddc8469fe40e",
+      "created_at": "2026-11-03T08:24:06Z",
+      "updated_at": "2026-11-03T08:24:06Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215247854,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTI0Nzg1NA==",
+      "name": "vanedb-macos-x86_64-py3.11",
+      "size_in_bytes": 401992,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215247854",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215247854/zip",
+      "expired": false,
+      "digest": "sha256:d1778c9b63c75aeb20e937431b3713ed7ce9df4aeb8d732ff5dfc32ddc471f8e",
+      "created_at": "2026-11-03T08:26:01Z",
+      "updated_at": "2026-11-03T08:26:01Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215207098,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTIwNzA5OA==",
+      "name": "vanedb-windows-x64-py3.12",
+      "size_in_bytes": 292908,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215207098",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215207098/zip",
+      "expired": false,
+      "digest": "sha256:a33ef4e03ee4ef027e9c349e25a845d4f0ffcb7d497ce2348e8079cd75e95eac",
+      "created_at": "2026-11-03T08:24:13Z",
+      "updated_at": "2026-11-03T08:24:13Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215167615,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTE2NzYxNQ==",
+      "name": "vanedb-linux-manylinux-aarch64",
+      "size_in_bytes": 1733900,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215167615",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215167615/zip",
+      "expired": false,
+      "digest": "sha256:444a79c272e46d159f434934f2efdc80fbf4f6064b425075ea40b2ae6bffa8e2",
+      "created_at": "2026-11-03T08:24:13Z",
+      "updated_at": "2026-11-03T08:24:13Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215102226,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTEwMjIyNg==",
+      "name": "vanedb-windows-x64-py3.11",
+      "size_in_bytes": 297046,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215102226",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215102226/zip",
+      "expired": false,
+      "digest": "sha256:b8557b93803290bbd197afd94bcf2730bb110da0d531757dfb3405f6cb40956b",
+      "created_at": "2026-11-03T08:24:24Z",
+      "updated_at": "2026-11-03T08:24:24Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13215067816,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNTA2NzgxNg==",
+      "name": "vanedb-macos-aarch64-py3.12",
+      "size_in_bytes": 393761,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215067816",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13215067816/zip",
+      "expired": false,
+      "digest": "sha256:8459047555887ae97f1c0b38fd3298bd2d27d565409c639d0bb57638b21f3ebe",
+      "created_at": "2026-11-03T08:24:39Z",
+      "updated_at": "2026-11-03T08:24:39Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214982925,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDk4MjkyNQ==",
+      "name": "vanedb-macos-x86_64-py3.14",
+      "size_in_bytes": 403681,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214982925",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214982925/zip",
+      "expired": false,
+      "digest": "sha256:d0ba0af633cc7ab9aa4918c67a289525df187437103f73aa2f2d562c48aab203",
+      "created_at": "2026-11-03T08:25:26Z",
+      "updated_at": "2026-11-03T08:25:26Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214892757,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDg5Mjc1Nw==",
+      "name": "vanedb-macos-x86_64-py3.12",
+      "size_in_bytes": 403206,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214892757",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214892757/zip",
+      "expired": false,
+      "digest": "sha256:0adde9b5602b1f69ddf32b99646e691c9653a89ad2665a7737f24888d12b2660",
+      "created_at": "2026-11-03T08:23:33Z",
+      "updated_at": "2026-11-03T08:23:33Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214604501,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDYwNDUwMQ==",
+      "name": "vanedb-macos-x86_64-py3.13",
+      "size_in_bytes": 403017,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214604501",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214604501/zip",
+      "expired": false,
+      "digest": "sha256:83f366810a95933cf501360fabde58b9c2ee7138b28fe785b402cd4f188f49d7",
+      "created_at": "2026-11-03T08:24:48Z",
+      "updated_at": "2026-11-03T08:24:48Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    },
+    {
+      "id": 13214448091,
+      "node_id": "MDg6QXJ0aWZhY3QxMzIxNDQ0ODA5MQ==",
+      "name": "vanedb-linux-musllinux-x86_64",
+      "size_in_bytes": 2599641,
+      "url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214448091",
+      "archive_download_url": "https://api.github.com/repos/vanedb/vanedb/actions/artifacts/13214448091/zip",
+      "expired": false,
+      "digest": "sha256:a1ab927077d5defb16a28e94f1b596b02ab9537073f3a336fd379bcaab818b05",
+      "created_at": "2026-11-03T08:24:05Z",
+      "updated_at": "2026-11-03T08:24:05Z",
+      "expires_at": "2027-02-01T08:22:32Z",
+      "workflow_run": {
+        "id": 41602801159,
+        "repository_id": 1195422782,
+        "head_repository_id": 1195422782,
+        "head_branch": "codex/020-release-remediation",
+        "head_sha": "e1761dcf4258011b446a361dc529da082ea2fc94"
+      }
+    }
+  ]
+}
