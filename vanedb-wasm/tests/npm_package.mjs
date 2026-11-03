@@ -129,21 +129,32 @@ const deferredProbe = spawnSync(process.execPath, [
   '--disallow-code-generation-from-strings', '--unhandled-rejections=strict',
   '--input-type=module', '-e', `
     import assert from 'node:assert/strict';
+    import { runInNewContext } from 'node:vm';
     import { FlatIndex, ApproxIndex } from '@vanedb/wasm';
+    // A vm context has its own Promise constructor, like a browser iframe.
+    const foreignReject = runInNewContext('(async () => { throw new Error("foreign metadata"); })');
+    const foreignResolve = runInNewContext('(() => Promise.resolve(false))');
+    let thenCalls = 0;
+    function customThen() { thenCalls++; throw new Error('must not run'); }
     for (const index of [new FlatIndex(1, 'l2'), new ApproxIndex(1, 'l2', 16, 4, 16)]) {
       try {
         index.add(1n, [0]);
         for (const predicate of [
           async () => false,
           async () => { throw new Error('metadata'); },
+          foreignReject,
+          foreignResolve,
           () => Promise.resolve(false),
-          () => Object.assign(() => {}, { then() { throw new Error('must not run'); } }),
+          () => ({ then: customThen }),
+          () => Object.assign(() => {}, { then: customThen }),
+          () => Object.assign(Object.create(Promise.prototype), { then: customThen }),
           function* () { return false; },
           async function* () { return false; },
         ]) {
           assert.throws(() => index.search([0], 1, { predicate }),
             e => e instanceof TypeError && /synchronous verdict/.test(e.message));
         }
+        assert.equal(thenCalls, 0, 'reject thenables without invoking custom then methods');
         const hits = index.search([0], 1, { predicate: () => true });
         try { assert.deepEqual([...hits.ids], [1n]); } finally { hits.free(); }
       } finally { index.free(); }
