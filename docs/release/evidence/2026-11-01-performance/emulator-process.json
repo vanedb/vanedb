@@ -1,0 +1,17 @@
+{
+  "pid": 76798,
+  "command": [
+    "/Users/anton/code/codex/020-android-benchmark-sdk/emulator/emulator",
+    "-avd",
+    "vanedb_020_full_api35_arm64",
+    "-no-window",
+    "-no-audio",
+    "-no-snapshot",
+    "-no-boot-anim",
+    "-port",
+    "5580"
+  ],
+  "started": "2026-11-01T21:40:39.197310+00:00",
+  "avd": "vanedb_020_full_api35_arm64",
+  "kind": "ARM64 emulator; not physical device"
+}

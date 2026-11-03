@@ -1,0 +1,275 @@
+{
+  "report_kind": "vanedb-compare-v1",
+  "commit": "e1761dc",
+  "hostname": "unknown",
+  "hardware_label": "unlabelled",
+  "recorded_at_utc": "2026-11-01T21:39:15Z",
+  "shared_runner": false,
+  "dedicated_attested": false,
+  "host_os": "macos",
+  "host_arch": "aarch64",
+  "host_has_avx2": false,
+  "host_android": false,
+  "fixture_role": "smoke",
+  "fixture_sha256": "ffb7bb61f38482ade08d07bc21c1717a7b2209619c572bd8b8278dd441350c56",
+  "fixture_n_docs": 256,
+  "fixture_n_queries": 16,
+  "queries_measured": 4,
+  "fixture_dim": 768,
+  "metric": "cosine",
+  "k": 10,
+  "params": {
+    "m": 16,
+    "ef_construction": 200,
+    "seed": 42
+  },
+  "results": [
+    {
+      "engine": "vanedb",
+      "version": "0.2.0-rc.2",
+      "metric": "cosine",
+      "build_secs_median": 0.017035729,
+      "build_secs_spread": 0.5465895322981482,
+      "peak_rss_bytes": 589824,
+      "file_size_bytes": 848896,
+      "latency_ns_by_ef": [
+        {
+          "ef": 16,
+          "median_ns": 11739.5,
+          "spread": 0.3333167701863354
+        },
+        {
+          "ef": 32,
+          "median_ns": 13718.5,
+          "spread": 0.5673247871245438
+        },
+        {
+          "ef": 50,
+          "median_ns": 17323.0,
+          "spread": 0.5663703703703704
+        },
+        {
+          "ef": 100,
+          "median_ns": 27812.5,
+          "spread": 0.5722543352601156
+        }
+      ],
+      "recall_at_k_by_ef": [
+        {
+          "ef": 16,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 32,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 50,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 100,
+          "recall_median": 1.0
+        }
+      ],
+      "delete_ok": true,
+      "notes": [
+        "vanedb crate 0.2.0-rc.2; ApproxIndex M=16 efC=200 seed=42; build uses add_batch (same graph topology as serial add; wall time is not sequential-insert peer)"
+      ],
+      "rounds": 2
+    },
+    {
+      "engine": "usearch",
+      "version": "2.21.0",
+      "metric": "cosine",
+      "build_secs_median": 0.0171990625,
+      "build_secs_spread": 0.2884407484407484,
+      "peak_rss_bytes": 1228800,
+      "file_size_bytes": 823408,
+      "latency_ns_by_ef": [
+        {
+          "ef": 16,
+          "median_ns": 13417.0,
+          "spread": 0.20167377748605186
+        },
+        {
+          "ef": 32,
+          "median_ns": 18218.75,
+          "spread": 0.015014101642426588
+        },
+        {
+          "ef": 50,
+          "median_ns": 21593.5,
+          "spread": 0.1437541882802611
+        },
+        {
+          "ef": 100,
+          "median_ns": 30833.5,
+          "spread": 0.20731991051454138
+        }
+      ],
+      "recall_at_k_by_ef": [
+        {
+          "ef": 16,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 32,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 50,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 100,
+          "recall_median": 1.0
+        }
+      ],
+      "delete_ok": true,
+      "notes": [
+        "connectivity(M)=16 expansion_add(efC)=200; seed not exposed by usearch IndexOptions (requested 42)"
+      ],
+      "rounds": 2
+    },
+    {
+      "engine": "hnswlib",
+      "version": "0.8.0",
+      "metric": "cosine",
+      "build_secs_median": 0.032120833,
+      "build_secs_spread": 0.13394970460145547,
+      "peak_rss_bytes": 3538944,
+      "file_size_bytes": 824820,
+      "latency_ns_by_ef": [
+        {
+          "ef": 16,
+          "median_ns": 30021.0,
+          "spread": 0.018184568326582745
+        },
+        {
+          "ef": 32,
+          "median_ns": 33312.5,
+          "spread": 0.030476190476190476
+        },
+        {
+          "ef": 50,
+          "median_ns": 37854.0,
+          "spread": 0.11032752613240418
+        },
+        {
+          "ef": 100,
+          "median_ns": 57958.25,
+          "spread": 0.08000322991620162
+        }
+      ],
+      "recall_at_k_by_ef": [
+        {
+          "ef": 16,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 32,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 50,
+          "recall_median": 1.0
+        },
+        {
+          "ef": 100,
+          "recall_median": 1.0
+        }
+      ],
+      "delete_ok": true,
+      "notes": [
+        "vendored hnswlib v0.8.0; M=16 efC=200 seed=42",
+        "cosine via InnerProductSpace on L2-normalized vectors (hnswlib convention)"
+      ],
+      "rounds": 2
+    },
+    {
+      "engine": "instant-distance",
+      "version": "0.6.1",
+      "metric": "cosine",
+      "build_secs_median": 0.254300604,
+      "build_secs_spread": 0.01827344244134911,
+      "peak_rss_bytes": 1835008,
+      "file_size_bytes": null,
+      "latency_ns_by_ef": [
+        {
+          "ef": 50,
+          "median_ns": 83916.5,
+          "spread": 0.03485735763042714
+        }
+      ],
+      "recall_at_k_by_ef": [
+        {
+          "ef": 50,
+          "recall_median": 1.0
+        }
+      ],
+      "delete_ok": null,
+      "notes": [
+        "M is a crate constant (32); cannot set harness M",
+        "ef_construction=200 ef_search=50 seed=42",
+        "requested M=16 ignored; instant-distance uses M=32",
+        "per-query ef is ignored; harness emits a single latency/recall row at construction ef_search"
+      ],
+      "rounds": 2
+    },
+    {
+      "engine": "hnsw_rs",
+      "version": "0.3.4",
+      "metric": "cosine",
+      "build_secs_median": 0.0421022085,
+      "build_secs_spread": 0.009496089205491163,
+      "peak_rss_bytes": 1409024,
+      "file_size_bytes": null,
+      "latency_ns_by_ef": [
+        {
+          "ef": 16,
+          "median_ns": 34250.0,
+          "spread": 0.006091489486323435
+        },
+        {
+          "ef": 32,
+          "median_ns": 42166.75,
+          "spread": 0.024012096048384193
+        },
+        {
+          "ef": 50,
+          "median_ns": 53843.75,
+          "spread": 0.013622042090894642
+        },
+        {
+          "ef": 100,
+          "median_ns": 79000.0,
+          "spread": 0.017029859701530644
+        }
+      ],
+      "recall_at_k_by_ef": [
+        {
+          "ef": 16,
+          "recall_median": 0.9875
+        },
+        {
+          "ef": 32,
+          "recall_median": 0.9875
+        },
+        {
+          "ef": 50,
+          "recall_median": 0.9875
+        },
+        {
+          "ef": 100,
+          "recall_median": 0.9875
+        }
+      ],
+      "delete_ok": null,
+      "notes": [
+        "max_nb_connection(M)=16 efC=200 max_layer=5; seed not plumbed by hnsw_rs Hnsw::new (requested 42)"
+      ],
+      "rounds": 2
+    }
+  ]
+}

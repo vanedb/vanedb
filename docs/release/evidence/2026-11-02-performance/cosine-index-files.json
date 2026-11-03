@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "file": "hnswlib-cosine-r0.idx",
+      "bytes": 322049236,
+      "sha256": "dc514b61453c9c1a97bdecb8e07ba828c78a19771f53137cf2fddd9b8211b55f"
+    },
+    {
+      "file": "hnswlib-cosine-r1.idx",
+      "bytes": 322049236,
+      "sha256": "dc514b61453c9c1a97bdecb8e07ba828c78a19771f53137cf2fddd9b8211b55f"
+    },
+    {
+      "file": "hnswlib-cosine-r2.idx",
+      "bytes": 322049236,
+      "sha256": "dc514b61453c9c1a97bdecb8e07ba828c78a19771f53137cf2fddd9b8211b55f"
+    },
+    {
+      "file": "hnswlib-cosine-r3.idx",
+      "bytes": 322049236,
+      "sha256": "dc514b61453c9c1a97bdecb8e07ba828c78a19771f53137cf2fddd9b8211b55f"
+    },
+    {
+      "file": "usearch-cosine-r0.idx",
+      "bytes": 322076112,
+      "sha256": "2c1d19b2fd8afae261872b3407163f05f500ce93c6597058fec1f64aac57b836"
+    },
+    {
+      "file": "usearch-cosine-r1.idx",
+      "bytes": 322076112,
+      "sha256": "2c1d19b2fd8afae261872b3407163f05f500ce93c6597058fec1f64aac57b836"
+    },
+    {
+      "file": "usearch-cosine-r2.idx",
+      "bytes": 322076112,
+      "sha256": "2c1d19b2fd8afae261872b3407163f05f500ce93c6597058fec1f64aac57b836"
+    },
+    {
+      "file": "usearch-cosine-r3.idx",
+      "bytes": 322076112,
+      "sha256": "2c1d19b2fd8afae261872b3407163f05f500ce93c6597058fec1f64aac57b836"
+    },
+    {
+      "file": "vanedb-cosine-r0.idx",
+      "bytes": 331618472,
+      "sha256": "d43af4c2f259b19914d26c3002bfaa82b044234bb708b4b42b270760ca457976"
+    },
+    {
+      "file": "vanedb-cosine-r1.idx",
+      "bytes": 331618472,
+      "sha256": "d43af4c2f259b19914d26c3002bfaa82b044234bb708b4b42b270760ca457976"
+    },
+    {
+      "file": "vanedb-cosine-r2.idx",
+      "bytes": 331618472,
+      "sha256": "d43af4c2f259b19914d26c3002bfaa82b044234bb708b4b42b270760ca457976"
+    },
+    {
+      "file": "vanedb-cosine-r3.idx",
+      "bytes": 331618472,
+      "sha256": "d43af4c2f259b19914d26c3002bfaa82b044234bb708b4b42b270760ca457976"
+    }
+  ],
+  "disposition": "Task-generated disposable index files hashed then removed after the complete campaign; all timing reports and raw rounds retained"
+}

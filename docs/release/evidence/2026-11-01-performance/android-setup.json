@@ -1,0 +1,209 @@
+[
+  {
+    "name": "mkdir",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "mkdir",
+      "-p",
+      "/data/local/tmp/vanedb-020-perf-20261101"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "push-compare",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare",
+      "/data/local/tmp/vanedb-020-perf-20261101/compare"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare: 1 file pushed, 0 skipped. 424.5 MB/s (4982080 bytes in 0.011s)\n"
+  },
+  {
+    "name": "push-libc++_shared.so",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/020-android-benchmark-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
+      "/data/local/tmp/vanedb-020-perf-20261101/libc++_shared.so"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/020-android-benchmark-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so: 1 file pushed, 0 skipped. 432.7 MB/s (1822720 bytes in 0.004s)\n"
+  },
+  {
+    "name": "push-embeddings.vnef",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/embeddings.vnef",
+      "/data/local/tmp/vanedb-020-perf-20261101/embeddings.vnef"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/embeddings.vnef: 1 file pushed, 0 skipped. 772.8 MB/s (311072028 bytes in 0.384s)\n"
+  },
+  {
+    "name": "push-smoke.vnef",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/smoke.vnef",
+      "/data/local/tmp/vanedb-020-perf-20261101/smoke.vnef"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/smoke.vnef: 1 file pushed, 0 skipped. 352.2 MB/s (837660 bytes in 0.002s)\n"
+  },
+  {
+    "name": "push-SHA256SUMS",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/SHA256SUMS",
+      "/data/local/tmp/vanedb-020-perf-20261101/SHA256SUMS"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/SHA256SUMS: 1 file pushed, 0 skipped. 0.6 MB/s (159 bytes in 0.000s)\n"
+  },
+  {
+    "name": "push-metadata.json",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/metadata.json",
+      "/data/local/tmp/vanedb-020-perf-20261101/metadata.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/metadata.json: 1 file pushed, 0 skipped. 1.4 MB/s (544 bytes in 0.000s)\n"
+  },
+  {
+    "name": "chmod",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "chmod",
+      "700",
+      "/data/local/tmp/vanedb-020-perf-20261101/compare"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "device-facts",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "uname -a; getprop ro.product.cpu.abi; getprop ro.build.version.sdk; getconf PAGESIZE; cat /proc/meminfo | head -4; getprop ro.kernel.qemu"
+    ],
+    "exit_code": 0,
+    "stdout": "Linux localhost 6.6.30-android15-8-gdd9c02ccfe27-ab11987101-4k #1 SMP PREEMPT Tue Jun 18 20:50:32 UTC 2024 aarch64 Toybox\narm64-v8a\n35\n4096\nMemTotal:        8129460 kB\nMemFree:         5574828 kB\nMemAvailable:    7073672 kB\nBuffers:           17296 kB\n1\n",
+    "stderr": ""
+  },
+  {
+    "name": "device-hashes",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "cd /data/local/tmp/vanedb-020-perf-20261101 && sha256sum compare libc++_shared.so embeddings.vnef smoke.vnef SHA256SUMS metadata.json"
+    ],
+    "exit_code": 0,
+    "stdout": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10  compare\n4e843755cda12ed65cd2b450be720b122d6657b24b690bf32de74fdc3f529447  libc++_shared.so\n4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d  embeddings.vnef\nffb7bb61f38482ade08d07bc21c1717a7b2209619c572bd8b8278dd441350c56  smoke.vnef\ne1971531b55bca4b8b1a1fef735e9b6ef9502008a09cb725ec2b79442a11c515  SHA256SUMS\n8417d46793a51bd38a27f0d98f71c5dc407d81c3f73f49111ac8ba9951680909  metadata.json\n",
+    "stderr": ""
+  },
+  {
+    "name": "smoke-cosine",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "cd /data/local/tmp/vanedb-020-perf-20261101 && LD_LIBRARY_PATH=/data/local/tmp/vanedb-020-perf-20261101 VANEDB_COMPARE_HW=android-arm64-emulator ./compare run --fixture smoke.vnef --allow-smoke --rounds 2 --max-queries 4 --metric cosine --out-dir /data/local/tmp/vanedb-020-perf-20261101/smoke-out --json-out /data/local/tmp/vanedb-020-perf-20261101/smoke-cosine.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "checksum ok for smoke.vnef\nfixture role=smoke dim=768 docs=256 queries=16 sha256=ffb7bb61f38482ade08d07bc21c1717a7b2209619c572bd8b8278dd441350c56\nskipping sqlite-vec on cosine (not a native vec0 metric); pass --force-sqlite-vec-cosine to include the harness-side scan, or run --metric l2 for native sqlite-vec\nround 1/2\nround 2/2\nRAW_ROUNDS {\"build_secs\":[0.013384667,0.013481375],\"engine\":\"vanedb\",\"latency_ns_by_ef\":{\"100\":[21333.5,21895.5],\"16\":[8500.0,8645.5],\"32\":[10666.5,10895.5],\"50\":[13312.5,13520.5]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.014050708,0.013783709],\"engine\":\"usearch\",\"latency_ns_by_ef\":{\"100\":[26854.0,26812.0],\"16\":[11459.0,19688.0],\"32\":[14104.5,14312.5],\"50\":[17000.0,16979.5]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.050839,0.050266875],\"engine\":\"hnswlib\",\"latency_ns_by_ef\":{\"100\":[87063.0,88895.5],\"16\":[39729.0,39875.0],\"32\":[48687.0,48916.5],\"50\":[59187.5,57354.0]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.418256083,0.421792542],\"engine\":\"instant-distance\",\"latency_ns_by_ef\":{\"50\":[86187.5,79062.5]},\"recall_at_k_by_ef\":{\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.04298225,0.04386875],\"engine\":\"hnsw_rs\",\"latency_ns_by_ef\":{\"100\":[75125.0,79063.0],\"16\":[35396.0,31833.5],\"32\":[40604.5,42563.0],\"50\":[47771.0,54000.0]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nwrote /data/local/tmp/vanedb-020-perf-20261101/smoke-cosine.json\n"
+  },
+  {
+    "name": "pull-cosine",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "pull",
+      "/data/local/tmp/vanedb-020-perf-20261101/smoke-cosine.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/android-smoke-cosine.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/data/local/tmp/vanedb-020-perf-20261101/smoke-cosine.json: 1 file pulled, 0 skipped. 6.6 MB/s (6596 bytes in 0.001s)\n"
+  },
+  {
+    "name": "smoke-l2",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "cd /data/local/tmp/vanedb-020-perf-20261101 && LD_LIBRARY_PATH=/data/local/tmp/vanedb-020-perf-20261101 VANEDB_COMPARE_HW=android-arm64-emulator ./compare run --fixture smoke.vnef --allow-smoke --rounds 2 --max-queries 4 --metric l2 --out-dir /data/local/tmp/vanedb-020-perf-20261101/smoke-out --json-out /data/local/tmp/vanedb-020-perf-20261101/smoke-l2.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "checksum ok for smoke.vnef\nfixture role=smoke dim=768 docs=256 queries=16 sha256=ffb7bb61f38482ade08d07bc21c1717a7b2209619c572bd8b8278dd441350c56\nround 1/2\nround 2/2\nRAW_ROUNDS {\"build_secs\":[0.009420251,0.009429291],\"engine\":\"vanedb\",\"latency_ns_by_ef\":{\"100\":[17208.0,20042.0],\"16\":[6437.5,7667.0],\"32\":[8083.5,9708.0],\"50\":[10458.5,12187.0]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.013459083,0.01339075],\"engine\":\"usearch\",\"latency_ns_by_ef\":{\"100\":[25604.0,25687.5],\"16\":[13271.0,10729.0],\"32\":[14770.5,13479.0],\"50\":[16167.0,16250.0]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.032968458,0.033609958],\"engine\":\"hnswlib\",\"latency_ns_by_ef\":{\"100\":[58646.5,59166.5],\"16\":[25791.5,25833.0],\"32\":[31937.5,34875.0],\"50\":[40395.5,39437.5]},\"recall_at_k_by_ef\":{\"100\":[1.0,1.0],\"16\":[1.0,1.0],\"32\":[1.0,1.0],\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.32598125,0.325397042],\"engine\":\"instant-distance\",\"latency_ns_by_ef\":{\"50\":[63292.0,61646.0]},\"recall_at_k_by_ef\":{\"50\":[1.0,1.0]}}\nRAW_ROUNDS {\"build_secs\":[0.036448875,0.035914708],\"engine\":\"hnsw_rs\",\"latency_ns_by_ef\":{\"100\":[81958.5,71396.0],\"16\":[27395.5,32458.0],\"32\":[38562.0,39062.5],\"50\":[51146.0,48146.0]},\"recall_at_k_by_ef\":{\"100\":[1.0,0.975],\"16\":[1.0,0.975],\"32\":[1.0,0.975],\"50\":[1.0,0.975]}}\nRAW_ROUNDS {\"build_secs\":[0.353230375,0.345862584],\"engine\":\"sqlite-vec\",\"latency_ns_by_ef\":{\"50\":[546229.5,554604.0]},\"recall_at_k_by_ef\":{\"50\":[1.0,1.0]}}\nwrote /data/local/tmp/vanedb-020-perf-20261101/smoke-l2.json\n"
+  },
+  {
+    "name": "pull-l2",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "pull",
+      "/data/local/tmp/vanedb-020-perf-20261101/smoke-l2.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/android-smoke-l2.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/data/local/tmp/vanedb-020-perf-20261101/smoke-l2.json: 1 file pulled, 0 skipped. 8.9 MB/s (7252 bytes in 0.001s)\n"
+  },
+  {
+    "name": "stop-task-avd",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "emu",
+      "kill"
+    ],
+    "exit_code": 0,
+    "stdout": "OK: killing emulator, bye bye\nOK\n",
+    "stderr": ""
+  }
+]

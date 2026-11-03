@@ -1,0 +1,13 @@
+error: failed to download `alloca v0.4.0`
+
+Caused by:
+  unable to get packages from source
+
+Caused by:
+  failed to unpack package `alloca v0.4.0`
+
+Caused by:
+  failed to create directory `/Users/anton/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/alloca-0.4.0`
+
+Caused by:
+  Operation not permitted (os error 1)

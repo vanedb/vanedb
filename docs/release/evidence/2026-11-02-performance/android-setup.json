@@ -1,0 +1,124 @@
+[
+  {
+    "name": "mkdir",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "mkdir -p /data/local/tmp/vanedb-020-perf-20261102"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "push-compare",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare",
+      "/data/local/tmp/vanedb-020-perf-20261102/compare"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare: 1 file pushed, 0 skipped. 429.5 MB/s (4982080 bytes in 0.011s)\n"
+  },
+  {
+    "name": "push-libc++_shared.so",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/020-android-benchmark-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so",
+      "/data/local/tmp/vanedb-020-perf-20261102/libc++_shared.so"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/020-android-benchmark-sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so: 1 file pushed, 0 skipped. 453.8 MB/s (1822720 bytes in 0.004s)\n"
+  },
+  {
+    "name": "push-embeddings.vnef",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/embeddings.vnef",
+      "/data/local/tmp/vanedb-020-perf-20261102/embeddings.vnef"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/embeddings.vnef: 1 file pushed, 0 skipped. 663.7 MB/s (311072028 bytes in 0.447s)\n"
+  },
+  {
+    "name": "push-metadata.json",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/metadata.json",
+      "/data/local/tmp/vanedb-020-perf-20261102/metadata.json"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/metadata.json: 1 file pushed, 0 skipped. 2.2 MB/s (544 bytes in 0.000s)\n"
+  },
+  {
+    "name": "push-SHA256SUMS",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "push",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/SHA256SUMS",
+      "/data/local/tmp/vanedb-020-perf-20261102/SHA256SUMS"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/SHA256SUMS: 1 file pushed, 0 skipped. 0.5 MB/s (159 bytes in 0.000s)\n"
+  },
+  {
+    "name": "chmod-and-sync",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "chmod 700 /data/local/tmp/vanedb-020-perf-20261102/compare && sync"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "hashes",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "cd /data/local/tmp/vanedb-020-perf-20261102 && sha256sum compare libc++_shared.so embeddings.vnef metadata.json SHA256SUMS"
+    ],
+    "exit_code": 0,
+    "stdout": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10  compare\n4e843755cda12ed65cd2b450be720b122d6657b24b690bf32de74fdc3f529447  libc++_shared.so\n4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d  embeddings.vnef\n8417d46793a51bd38a27f0d98f71c5dc407d81c3f73f49111ac8ba9951680909  metadata.json\ne1971531b55bca4b8b1a1fef735e9b6ef9502008a09cb725ec2b79442a11c515  SHA256SUMS\n",
+    "stderr": ""
+  },
+  {
+    "name": "capacity",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "df -k /data"
+    ],
+    "exit_code": 0,
+    "stdout": "Filesystem       1K-blocks   Used Available Use% Mounted on\n/dev/block/dm-42  16337876 583628  15606792   4% /data/user/0\n",
+    "stderr": ""
+  }
+]

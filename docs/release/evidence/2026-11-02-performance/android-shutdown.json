@@ -1,0 +1,73 @@
+[
+  {
+    "name": "emulator-identity",
+    "utc": "2026-11-02T11:33:12.114398+00:00",
+    "command": [
+      "ps",
+      "-p",
+      "18277",
+      "-o",
+      "lstart=,comm="
+    ],
+    "exit_code": 0,
+    "stdout": "Mon Nov  2 09:01:11 2026     /Users/anton/code/codex/020-android-benchmark-sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64-headless\n",
+    "stderr": ""
+  },
+  {
+    "name": "avd-name",
+    "utc": "2026-11-02T11:33:12.125295+00:00",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "emu",
+      "avd",
+      "name"
+    ],
+    "exit_code": 0,
+    "stdout": "vanedb_020_acceptance_20261102_api35_arm64\nOK\n",
+    "stderr": ""
+  },
+  {
+    "name": "final-guest-hashes-and-sync",
+    "utc": "2026-11-02T11:33:12.626337+00:00",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "sync && cd /data/local/tmp/vanedb-020-perf-20261102 && sha256sum cosine.json l2.json compare libc++_shared.so embeddings.vnef SHA256SUMS metadata.json"
+    ],
+    "exit_code": 0,
+    "stdout": "e7ef547499ae3f3b1c6bb88b8cb5aed89efa3940fad963562c011322b95f3a21  cosine.json\n1531a94d758065f1d8c546b9f040575d94b17c2210e7637063489e213cd6d5e4  l2.json\n6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10  compare\n4e843755cda12ed65cd2b450be720b122d6657b24b690bf32de74fdc3f529447  libc++_shared.so\n4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d  embeddings.vnef\ne1971531b55bca4b8b1a1fef735e9b6ef9502008a09cb725ec2b79442a11c515  SHA256SUMS\n8417d46793a51bd38a27f0d98f71c5dc407d81c3f73f49111ac8ba9951680909  metadata.json\n",
+    "stderr": ""
+  },
+  {
+    "name": "final-guest-capacity",
+    "utc": "2026-11-02T11:33:12.766828+00:00",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "shell",
+      "df -k /data"
+    ],
+    "exit_code": 0,
+    "stdout": "Filesystem       1K-blocks    Used Available Use% Mounted on\n/dev/block/dm-42  16337876 1801076  14389344  12% /data/user/0\n",
+    "stderr": ""
+  },
+  {
+    "name": "stop-task-avd",
+    "utc": "2026-11-02T11:33:12.777671+00:00",
+    "command": [
+      "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+      "-s",
+      "emulator-5580",
+      "emu",
+      "kill"
+    ],
+    "exit_code": 0,
+    "stdout": "OK: killing emulator, bye bye\nOK\n",
+    "stderr": ""
+  }
+]

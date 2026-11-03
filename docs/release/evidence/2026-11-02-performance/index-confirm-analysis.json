@@ -1,0 +1,243 @@
+{
+  "runs": [
+    {
+      "name": "index-confirm-1-A",
+      "arm": "A",
+      "values_ns": {
+        "index_search/rs": 906481.2700162553,
+        "index_search/cpp": 800893.4707551352
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    },
+    {
+      "name": "index-confirm-2-B",
+      "arm": "B",
+      "values_ns": {
+        "index_search/rs": 937135.6808157234,
+        "index_search/cpp": 798257.4132673268
+      },
+      "host_screen_passed": false,
+      "load_flags": 1
+    },
+    {
+      "name": "index-confirm-3-B",
+      "arm": "B",
+      "values_ns": {
+        "index_search/rs": 931069.7926023349,
+        "index_search/cpp": 792863.0798995123
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    },
+    {
+      "name": "index-confirm-4-A",
+      "arm": "A",
+      "values_ns": {
+        "index_search/rs": 902702.2988044923,
+        "index_search/cpp": 804394.3518767549
+      },
+      "host_screen_passed": false,
+      "load_flags": 1
+    },
+    {
+      "name": "index-confirm-5-B",
+      "arm": "B",
+      "values_ns": {
+        "index_search/rs": 889667.2978616817,
+        "index_search/cpp": 760937.0656775528
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    },
+    {
+      "name": "index-confirm-6-A",
+      "arm": "A",
+      "values_ns": {
+        "index_search/rs": 891410.1906088371,
+        "index_search/cpp": 787083.8940121176
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    },
+    {
+      "name": "index-confirm-7-A",
+      "arm": "A",
+      "values_ns": {
+        "index_search/rs": 895766.1085399734,
+        "index_search/cpp": 800983.1361903355
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    },
+    {
+      "name": "index-confirm-8-B",
+      "arm": "B",
+      "values_ns": {
+        "index_search/rs": 919454.5866144525,
+        "index_search/cpp": 761511.2886995714
+      },
+      "host_screen_passed": true,
+      "load_flags": 0
+    }
+  ],
+  "all_eight": {
+    "host_screen_passed": false,
+    "rows": {
+      "index_search/rs": {
+        "samples_ns": {
+          "A": [
+            906481.2700162553,
+            902702.2988044923,
+            891410.1906088371,
+            895766.1085399734
+          ],
+          "B": [
+            937135.6808157234,
+            931069.7926023349,
+            889667.2978616817,
+            919454.5866144525
+          ]
+        },
+        "median_ns": {
+          "A": 899234.2036722328,
+          "B": 925262.1896083937
+        },
+        "spread": {
+          "A": 0.016907008205868334,
+          "B": 0.053355207129824965
+        },
+        "delta": 0.02894461290492467,
+        "exceeds_floor_and_spreads": false
+      },
+      "index_search/cpp": {
+        "samples_ns": {
+          "A": [
+            800893.4707551352,
+            804394.3518767549,
+            787083.8940121176,
+            800983.1361903355
+          ],
+          "B": [
+            798257.4132673268,
+            792863.0798995123,
+            760937.0656775528,
+            761511.2886995714
+          ]
+        },
+        "median_ns": {
+          "A": 800938.3034727353,
+          "B": 777187.1842995419
+        },
+        "spread": {
+          "A": 0.02199315472763409,
+          "B": 0.049045248645554144
+        },
+        "delta": -0.02965411826380704,
+        "exceeds_floor_and_spreads": false
+      }
+    },
+    "normalized_delta": 0.060389529415927345
+  },
+  "planned_abba_block": {
+    "host_screen_passed": false,
+    "rows": {
+      "index_search/rs": {
+        "samples_ns": {
+          "A": [
+            906481.2700162553,
+            902702.2988044923
+          ],
+          "B": [
+            937135.6808157234,
+            931069.7926023349
+          ]
+        },
+        "median_ns": {
+          "A": 904591.7844103738,
+          "B": 934102.7367090292
+        },
+        "spread": {
+          "A": 0.004186287347188238,
+          "B": 0.006514966183613778
+        },
+        "delta": 0.0326235024540833,
+        "exceeds_floor_and_spreads": true
+      },
+      "index_search/cpp": {
+        "samples_ns": {
+          "A": [
+            800893.4707551352,
+            804394.3518767549
+          ],
+          "B": [
+            798257.4132673268,
+            792863.0798995123
+          ]
+        },
+        "median_ns": {
+          "A": 802643.911315945,
+          "B": 795560.2465834196
+        },
+        "spread": {
+          "A": 0.004371219456089284,
+          "B": 0.0068036127606018754
+        },
+        "delta": -0.008825413901055623,
+        "exceeds_floor_and_spreads": false
+      }
+    },
+    "normalized_delta": 0.04181797731343484
+  },
+  "planned_baab_block": {
+    "host_screen_passed": true,
+    "rows": {
+      "index_search/rs": {
+        "samples_ns": {
+          "A": [
+            891410.1906088371,
+            895766.1085399734
+          ],
+          "B": [
+            889667.2978616817,
+            919454.5866144525
+          ]
+        },
+        "median_ns": {
+          "A": 893588.1495744053,
+          "B": 904560.942238067
+        },
+        "spread": {
+          "A": 0.004886547155312657,
+          "B": 0.03348137986454567
+        },
+        "delta": 0.01227947423976894,
+        "exceeds_floor_and_spreads": false
+      },
+      "index_search/cpp": {
+        "samples_ns": {
+          "A": [
+            787083.8940121176,
+            800983.1361903355
+          ],
+          "B": [
+            760937.0656775528,
+            761511.2886995714
+          ]
+        },
+        "median_ns": {
+          "A": 794033.5151012265,
+          "B": 761224.1771885621
+        },
+        "spread": {
+          "A": 0.017659162236654622,
+          "B": 0.0007546261680750959
+        },
+        "delta": -0.04131984014362633,
+        "exceeds_floor_and_spreads": true
+      }
+    },
+    "normalized_delta": 0.055909485381887336
+  },
+  "scope": "Focused index_search confirmation; separate fixed-graph native/CAPI probe retained independently"
+}

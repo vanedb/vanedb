@@ -1,0 +1,29 @@
+{
+  "status": "blocked",
+  "samples": 6,
+  "load_flags": 4,
+  "power_flags": 0,
+  "threshold": "Individual background <=50% CPU, aggregate <=150%, AC required; only sampler and ps excluded",
+  "actions": "Read-only sampling only; no benchmark, emulator, build, test, or application/service control started",
+  "automation": "resume-vanedb-performance-checks",
+  "previous_evidence_commit": "94745d31c8ead67f0ccdf7c69eae8904b240035a",
+  "commands": [
+    [
+      "ps",
+      "-axo",
+      "pid=,ppid=,pcpu=,comm="
+    ],
+    [
+      "pmset",
+      "-g",
+      "batt"
+    ]
+  ],
+  "sample_interval_seconds": 5,
+  "required_consecutive_quiet_samples": 3,
+  "final_quiet_streak": 2,
+  "observed_busy_process": "mediaanalysisd",
+  "automation_disposition": "One-time automation deleted after this blocked follow-up; no automatic retries scheduled",
+  "observed_start": "2026-11-02T14:47:03.566680+00:00",
+  "observed_end": "2026-11-02T14:47:29.017820+00:00"
+}

@@ -1,0 +1,446 @@
+[
+  {
+    "name": "source-head-vanedb-020-perf-20261101",
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "exit_code": 0,
+    "stdout": "e1761dcf4258011b446a361dc529da082ea2fc94\n",
+    "stderr": ""
+  },
+  {
+    "name": "source-clean-vanedb-020-perf-20261101",
+    "command": [
+      "git",
+      "status",
+      "--porcelain",
+      "--untracked-files=no"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "source-head-vanedb-020-perf-baseline-20261101",
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-baseline-20261101",
+    "exit_code": 0,
+    "stdout": "51cb2d871538985aad933a13ebe50c13a0031dfa\n",
+    "stderr": ""
+  },
+  {
+    "name": "source-clean-vanedb-020-perf-baseline-20261101",
+    "command": [
+      "git",
+      "status",
+      "--porcelain",
+      "--untracked-files=no"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-baseline-20261101",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "preserved-original-checkout",
+    "command": [
+      "git",
+      "status",
+      "--porcelain"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb",
+    "exit_code": 0,
+    "stdout": " M bench/Cargo.toml\n M vanedb/Cargo.toml\n?? docs/published-artifact-exploration-2026-09-11.md\n?? docs/simplification-review-2026-09-11.md\n?? docs/use-case-exploration-2026-09-11.md\n?? scripts/published_capi_exploration.py\n?? scripts/published_node_exploration.mjs\n?? scripts/published_python_exploration.py\n?? vanedb/tests/use_case_exploration.rs\n",
+    "stderr": ""
+  },
+  {
+    "name": "final-binary-fixture-graph-hashes",
+    "status": "PASS",
+    "binary_hashes": {
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/release/compare": "0762a133290f3bb205aef2ee244e7986581050e3ba5b063a3e94387f3aeef1c0",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-A/target/release/abi-probe": "c9545812caa2e9e2a8a30a7d94472540930f34c6da165dab9b75e4116c403992",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/target/release/abi-probe": "306a60de5cdd78fd3d8a5527023aa883d5e6c3f8d305df00ca6151ed31b10450",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/index-658c81f6de177204": "6846a56077a451b0c9a4bf0493ee776dac70dc17ffccb18cf6675656c4610818",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/store-e70ec4775ea8e612": "562d353d50ccef7dbf1f2b47fecfcb831bf6ac5d7ce48ad2d5083d9491e97c89",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/disk-a56e87673c187dea": "009262127b9154b548d1137105559eaaa4104e3d3367d145746213b977251df2",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/distance-1e290a5f3c6d0872": "d6a2749c0ff895bb0038db3664d88c810eda19480856a4d5a5313abee0054320",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/index-de7c029f5b0e9191": "2eaff9468bb3efc19402d12039ab804c39d92c02a65d33ee8a25ab3d4e9ad04a",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/distance-ee40971703f278d5": "0b5c3f7ee6146e3a0c5f9c0363a55914b9fb040b30449d65155d6a872b585986",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/disk-a1d984776aebbaec": "84f7d391ef5cb0ac3401fcd9425603cbbd109a1812b0abe392f328794d67d105",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/store-24bf4e73a135d5f0": "a817f208dafbb34df0597757f6bcbd144ff28b98db825c4b6d92a3620679e8ca"
+    }
+  },
+  {
+    "name": "probe-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/verify_probe.py"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "PASS: all raw probe rounds, exact outputs, medians, spreads and deltas reconcile\n",
+    "stderr": ""
+  },
+  {
+    "name": "criterion-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/analyze_criterion.py"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\n  \"host\": {\n    \"measured_samples\": 359,\n    \"load_flags\": 26,\n    \"power_flags\": 0,\n    \"all_events_completed\": true,\n    \"screen_passed\": false\n  },\n  \"ratios\": {\n    \"disk_build\": {\n      \"candidate_rs_over_cpp\": 1.0295281805942393,\n      \"rust_delta\": -0.15468368219365658,\n      \"cpp_delta\": -0.01360165048140316,\n      \"ratio_of_ratios_delta\": -0.14302744097362619\n    },\n    \"disk_open\": {\n      \"candidate_rs_over_cpp\": 1.0404646193865388,\n      \"rust_delta\": -0.05610197656264504,\n      \"cpp_delta\": 0.0029433510910799043,\n      \"ratio_of_ratios_delta\": -0.05887204655127409\n    },\n    \"disk_search\": {\n      \"candidate_rs_over_cpp\": 0.9778628847477314,\n      \"rust_delta\": -0.0008085444906488215,\n      \"cpp_delta\": -0.002358767360168712,\n      \"ratio_of_ratios_delta\": 0.0015538881301224716\n    },\n    \"index_build\": {\n      \"candidate_rs_over_cpp\": 1.0410755596835497,\n      \"rust_delta\": 0.024741589186341173,\n      \"cpp_delta\": 0.003942354255785263,\n      \"ratio_of_ratios_delta\": 0.02071755897376626\n    },\n    \"index_search\": {\n      \"candidate_rs_over_cpp\": 1.1810684741132278,\n      \"rust_delta\": 0.036896008212535136,\n      \"cpp_delta\": -0.004186478742224442,\n      \"ratio_of_ratios_delta\": 0.04125520097665447\n    },\n    \"store_add/n=10000\": {\n      \"candidate_rs_over_cpp\": 0.790867193124149,\n      \"rust_delta\": -0.4181599046862161,\n      \"cpp_delta\": 0.008603751191452957,\n      \"ratio_of_ratios_delta\": -0.42312320906355705\n    },\n    \"store_search/n=1000\": {\n      \"candidate_rs_over_cpp\": 1.036039828992994,\n      \"rust_delta\": 0.00421595367852956,\n      \"cpp_delta\": 0.008189157573983197,\n      \"ratio_of_ratios_delta\": -0.003940930990583569\n    },\n    \"store_search/n=10000\": {\n      \"candidate_rs_over_cpp\": 0.9405923669423675,\n      \"rust_delta\": 0.005138303126117627,\n      \"cpp_delta\": 0.0036608536926561186,\n      \"ratio_of_ratios_delta\": 0.0014720604355800138\n    }\n  }\n}\n",
+    "stderr": ""
+  },
+  {
+    "name": "index-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/analyze_index.py"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\n  \"all_eight\": {\n    \"host_screen_passed\": false,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            906481.2700162553,\n            902702.2988044923,\n            891410.1906088371,\n            895766.1085399734\n          ],\n          \"B\": [\n            937135.6808157234,\n            931069.7926023349,\n            889667.2978616817,\n            919454.5866144525\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 899234.2036722328,\n          \"B\": 925262.1896083937\n        },\n        \"spread\": {\n          \"A\": 0.016907008205868334,\n          \"B\": 0.053355207129824965\n        },\n        \"delta\": 0.02894461290492467,\n        \"exceeds_floor_and_spreads\": false\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            800893.4707551352,\n            804394.3518767549,\n            787083.8940121176,\n            800983.1361903355\n          ],\n          \"B\": [\n            798257.4132673268,\n            792863.0798995123,\n            760937.0656775528,\n            761511.2886995714\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 800938.3034727353,\n          \"B\": 777187.1842995419\n        },\n        \"spread\": {\n          \"A\": 0.02199315472763409,\n          \"B\": 0.049045248645554144\n        },\n        \"delta\": -0.02965411826380704,\n        \"exceeds_floor_and_spreads\": false\n      }\n    },\n    \"normalized_delta\": 0.060389529415927345\n  },\n  \"planned_abba_block\": {\n    \"host_screen_passed\": false,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            906481.2700162553,\n            902702.2988044923\n          ],\n          \"B\": [\n            937135.6808157234,\n            931069.7926023349\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 904591.7844103738,\n          \"B\": 934102.7367090292\n        },\n        \"spread\": {\n          \"A\": 0.004186287347188238,\n          \"B\": 0.006514966183613778\n        },\n        \"delta\": 0.0326235024540833,\n        \"exceeds_floor_and_spreads\": true\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            800893.4707551352,\n            804394.3518767549\n          ],\n          \"B\": [\n            798257.4132673268,\n            792863.0798995123\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 802643.911315945,\n          \"B\": 795560.2465834196\n        },\n        \"spread\": {\n          \"A\": 0.004371219456089284,\n          \"B\": 0.0068036127606018754\n        },\n        \"delta\": -0.008825413901055623,\n        \"exceeds_floor_and_spreads\": false\n      }\n    },\n    \"normalized_delta\": 0.04181797731343484\n  },\n  \"planned_baab_block\": {\n    \"host_screen_passed\": true,\n    \"rows\": {\n      \"index_search/rs\": {\n        \"samples_ns\": {\n          \"A\": [\n            891410.1906088371,\n            895766.1085399734\n          ],\n          \"B\": [\n            889667.2978616817,\n            919454.5866144525\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 893588.1495744053,\n          \"B\": 904560.942238067\n        },\n        \"spread\": {\n          \"A\": 0.004886547155312657,\n          \"B\": 0.03348137986454567\n        },\n        \"delta\": 0.01227947423976894,\n        \"exceeds_floor_and_spreads\": false\n      },\n      \"index_search/cpp\": {\n        \"samples_ns\": {\n          \"A\": [\n            787083.8940121176,\n            800983.1361903355\n          ],\n          \"B\": [\n            760937.0656775528,\n            761511.2886995714\n          ]\n        },\n        \"median_ns\": {\n          \"A\": 794033.5151012265,\n          \"B\": 761224.1771885621\n        },\n        \"spread\": {\n          \"A\": 0.017659162236654622,\n          \"B\": 0.0007546261680750959\n        },\n        \"delta\": -0.04131984014362633,\n        \"exceeds_floor_and_spreads\": true\n      }\n    },\n    \"normalized_delta\": 0.055909485381887336\n  }\n}\n",
+    "stderr": ""
+  },
+  {
+    "name": "cosine-raw-round-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/verify_compare.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/cosine.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/compare-cosine.stderr.log",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/cosine-verification.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"cosine\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"macos\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+    "stderr": ""
+  },
+  {
+    "name": "cosine-repository-renderer",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/scripts/render_comparison_md.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/cosine.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "### apple-m4-pro (unknown) \u2014 metric `cosine`\n\n- Date (UTC) / commit: `2026-11-02T07:32:29Z` / `e1761dc`\n- Fixture: role=publish, dim=768, n_docs=100000, n_queries=1000 (measured 1000), sha256=`4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`\n- Params: M=16, ef_construction=200, k=10, seed=42\n\n| Engine | Version | Build (s, median) | Spread | Peak RSS | File size | Delete OK |\n|---|---|---:|---:|---:|---:|:---:|\n| vanedb | 0.2.0-rc.2 | 42.1981 | 4.4% | 329.30 MiB | 316.26 MiB | yes |\n| usearch | 2.21.0 | 55.0176 | 2.8% | 287.98 MiB | 307.16 MiB | yes |\n| hnswlib | 0.8.0 | 99.8138 | 1.9% | 2.03 MiB | 307.13 MiB | yes |\n| instant-distance | 0.6.1 | 127.5928 | 0.7% | 371.39 MiB | n/a | n/a |\n| hnsw_rs | 0.3.4 | 159.3735 | 2.5% | 129.20 MiB | n/a | n/a |\n\nRecall@10 and latency by ef (median across rounds):\n\n**vanedb**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 93.46 \u00b5s | 6.4% | 0.935 |\n| 32 | 150.51 \u00b5s | 3.2% | 0.970 |\n| 50 | 212.29 \u00b5s | 1.9% | 0.983 |\n| 100 | 365.39 \u00b5s | 4.2% | 0.993 |\n\nNotes:\n- vanedb crate 0.2.0-rc.2; ApproxIndex M=16 efC=200 seed=42; build uses add_batch (same graph topology as serial add; wall time is not sequential-insert peer)\n\n**usearch**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 104.53 \u00b5s | 6.6% | 0.943 |\n| 32 | 165.42 \u00b5s | 5.9% | 0.975 |\n| 50 | 234.34 \u00b5s | 3.9% | 0.986 |\n| 100 | 398.38 \u00b5s | 3.5% | 0.995 |\n\nNotes:\n- connectivity(M)=16 expansion_add(efC)=200; seed not exposed by usearch IndexOptions (requested 42)\n\n**hnswlib**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 161.11 \u00b5s | 2.0% | 0.944 |\n| 32 | 251.53 \u00b5s | 1.8% | 0.977 |\n| 50 | 348.50 \u00b5s | 1.9% | 0.986 |\n| 100 | 595.23 \u00b5s | 2.5% | 0.995 |\n\nNotes:\n- vendored hnswlib v0.8.0; M=16 efC=200 seed=42\n- cosine via InnerProductSpace on L2-normalized vectors (hnswlib convention)\n\n**instant-distance**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 877.78 \u00b5s | 2.2% | 0.993 |\n\nNotes:\n- M is a crate constant (32); cannot set harness M\n- ef_construction=200 ef_search=50 seed=42\n- requested M=16 ignored; instant-distance uses M=32\n- per-query ef is ignored; harness emits a single latency/recall row at construction ef_search\n\n**hnsw_rs**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 290.14 \u00b5s | 3.4% | 0.920 |\n| 32 | 472.99 \u00b5s | 5.8% | 0.955 |\n| 50 | 637.82 \u00b5s | 2.5% | 0.963 |\n| 100 | 1.06 ms | 1.6% | 0.975 |\n\nNotes:\n- max_nb_connection(M)=16 efC=200 max_layer=11; seed not plumbed by hnsw_rs Hnsw::new (requested 42)\n\n",
+    "stderr": ""
+  },
+  {
+    "name": "l2-raw-round-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/verify_compare.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/l2.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/compare-l2.stderr.log",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/l2-verification.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"l2\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"sqlite-vec\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"macos\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+    "stderr": ""
+  },
+  {
+    "name": "l2-repository-renderer",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/scripts/render_comparison_md.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/l2.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "### apple-m4-pro (unknown) \u2014 metric `l2`\n\n- Date (UTC) / commit: `2026-11-02T08:32:36Z` / `e1761dc`\n- Fixture: role=publish, dim=768, n_docs=100000, n_queries=1000 (measured 1000), sha256=`4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`\n- Params: M=16, ef_construction=200, k=10, seed=42\n\n| Engine | Version | Build (s, median) | Spread | Peak RSS | File size | Delete OK |\n|---|---|---:|---:|---:|---:|:---:|\n| vanedb | 0.2.0-rc.2 | 32.5740 | 5.1% | 329.12 MiB | 316.12 MiB | yes |\n| usearch | 2.21.0 | 49.1395 | 5.5% | 299.19 MiB | 307.16 MiB | yes |\n| hnswlib | 0.8.0 | 99.8550 | 5.1% | 2.20 MiB | 307.13 MiB | yes |\n| instant-distance | 0.6.1 | 107.4400 | 3.5% | 371.80 MiB | n/a | n/a |\n| hnsw_rs | 0.3.4 | 117.9553 | 5.1% | 123.27 MiB | n/a | n/a |\n| sqlite-vec | 0.1.6 | 44.4412 | 17.2% | 3.42 MiB | 296.54 MiB | yes |\n\nRecall@10 and latency by ef (median across rounds):\n\n**vanedb**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 80.54 \u00b5s | 8.5% | 0.928 |\n| 32 | 129.66 \u00b5s | 9.0% | 0.970 |\n| 50 | 183.50 \u00b5s | 8.0% | 0.983 |\n| 100 | 320.59 \u00b5s | 8.9% | 0.993 |\n\nNotes:\n- vanedb crate 0.2.0-rc.2; ApproxIndex M=16 efC=200 seed=42; build uses add_batch (same graph topology as serial add; wall time is not sequential-insert peer)\n\n**usearch**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 96.41 \u00b5s | 7.9% | 0.940 |\n| 32 | 151.02 \u00b5s | 8.1% | 0.976 |\n| 50 | 210.59 \u00b5s | 8.0% | 0.986 |\n| 100 | 373.49 \u00b5s | 6.9% | 0.995 |\n\nNotes:\n- connectivity(M)=16 expansion_add(efC)=200; seed not exposed by usearch IndexOptions (requested 42)\n\n**hnswlib**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 160.22 \u00b5s | 3.2% | 0.932 |\n| 32 | 249.34 \u00b5s | 0.6% | 0.975 |\n| 50 | 345.19 \u00b5s | 1.0% | 0.985 |\n| 100 | 586.65 \u00b5s | 4.4% | 0.994 |\n\nNotes:\n- vendored hnswlib v0.8.0; M=16 efC=200 seed=42\n\n**instant-distance**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 746.76 \u00b5s | 2.1% | 0.995 |\n\nNotes:\n- M is a crate constant (32); cannot set harness M\n- ef_construction=200 ef_search=50 seed=42\n- requested M=16 ignored; instant-distance uses M=32\n- per-query ef is ignored; harness emits a single latency/recall row at construction ef_search\n\n**hnsw_rs**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 212.74 \u00b5s | 3.5% | 0.912 |\n| 32 | 338.25 \u00b5s | 4.1% | 0.950 |\n| 50 | 464.23 \u00b5s | 3.8% | 0.962 |\n| 100 | 783.90 \u00b5s | 2.6% | 0.973 |\n\nNotes:\n- max_nb_connection(M)=16 efC=200 max_layer=11; seed not plumbed by hnsw_rs Hnsw::new (requested 42)\n\n**sqlite-vec**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 66.34 ms | 3.4% | 1.000 |\n\nNotes:\n- brute-force KNN via vec0 for L2 (no ANN; sqlite-vec #25)\n- ef unused \u2014 single construction-ef latency row only\n- metric l2: native vec0 MATCH\n\n",
+    "stderr": ""
+  },
+  {
+    "name": "android-cosine-raw-round-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/verify_compare.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-cosine.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-cosine.stderr.log",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-cosine-verification.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"cosine\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"android\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+    "stderr": ""
+  },
+  {
+    "name": "android-cosine-repository-renderer",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/scripts/render_comparison_md.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-cosine.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "### android-arm64-emulator (emu64a) \u2014 metric `cosine`\n\n- Date (UTC) / commit: `2026-11-02T10:17:50Z` / `unknown`\n- Fixture: role=publish, dim=768, n_docs=100000, n_queries=1000 (measured 1000), sha256=`4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`\n- Params: M=16, ef_construction=200, k=10, seed=42\n\n| Engine | Version | Build (s, median) | Spread | Peak RSS | File size | Delete OK |\n|---|---|---:|---:|---:|---:|:---:|\n| vanedb | 0.2.0-rc.2 | 45.8733 | 7.8% | n/a | 316.26 MiB | yes |\n| usearch | 2.21.0 | 59.0057 | 3.0% | n/a | 307.14 MiB | yes |\n| hnswlib | 0.8.0 | 169.6426 | 0.2% | n/a | 307.13 MiB | yes |\n| instant-distance | 0.6.1 | 405.7684 | 0.3% | n/a | n/a | n/a |\n| hnsw_rs | 0.3.4 | 174.9291 | 4.0% | n/a | n/a | n/a |\n\nRecall@10 and latency by ef (median across rounds):\n\n**vanedb**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 104.72 \u00b5s | 3.3% | 0.935 |\n| 32 | 170.20 \u00b5s | 5.3% | 0.970 |\n| 50 | 239.14 \u00b5s | 6.2% | 0.983 |\n| 100 | 418.73 \u00b5s | 5.6% | 0.993 |\n\nNotes:\n- vanedb crate 0.2.0-rc.2; ApproxIndex M=16 efC=200 seed=42; build uses add_batch (same graph topology as serial add; wall time is not sequential-insert peer)\n\n**usearch**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 119.41 \u00b5s | 2.1% | 0.944 |\n| 32 | 187.01 \u00b5s | 5.2% | 0.974 |\n| 50 | 262.10 \u00b5s | 1.4% | 0.986 |\n| 100 | 457.05 \u00b5s | 4.5% | 0.995 |\n\nNotes:\n- connectivity(M)=16 expansion_add(efC)=200; seed not exposed by usearch IndexOptions (requested 42)\n\n**hnswlib**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 274.52 \u00b5s | 5.4% | 0.944 |\n| 32 | 423.66 \u00b5s | 2.0% | 0.977 |\n| 50 | 584.34 \u00b5s | 1.2% | 0.986 |\n| 100 | 1.00 ms | 1.8% | 0.995 |\n\nNotes:\n- vendored hnswlib v0.8.0; M=16 efC=200 seed=42\n- cosine via InnerProductSpace on L2-normalized vectors (hnswlib convention)\n\n**instant-distance**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 957.64 \u00b5s | 5.0% | 0.995 |\n\nNotes:\n- M is a crate constant (32); cannot set harness M\n- ef_construction=200 ef_search=50 seed=42\n- requested M=16 ignored; instant-distance uses M=32\n- per-query ef is ignored; harness emits a single latency/recall row at construction ef_search\n\n**hnsw_rs**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 350.79 \u00b5s | 12.3% | 0.919 |\n| 32 | 566.14 \u00b5s | 13.6% | 0.956 |\n| 50 | 778.47 \u00b5s | 5.7% | 0.965 |\n| 100 | 1.30 ms | 7.1% | 0.975 |\n\nNotes:\n- max_nb_connection(M)=16 efC=200 max_layer=11; seed not plumbed by hnsw_rs Hnsw::new (requested 42)\n\n",
+    "stderr": ""
+  },
+  {
+    "name": "android-l2-raw-round-arithmetic",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/verify_compare.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-l2.json",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-l2.stderr.log",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-l2-verification.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\"status\": \"PASS\", \"scope\": \"Report completeness and raw-round arithmetic only; host qualification is separate\", \"metric\": \"l2\", \"engines\": [\"hnsw_rs\", \"hnswlib\", \"instant-distance\", \"sqlite-vec\", \"usearch\", \"vanedb\"], \"rounds\": 4, \"queries\": 1000, \"host_os\": \"android\", \"host_arch\": \"aarch64\", \"shared_runner\": false, \"dedicated_attested\": true}\n",
+    "stderr": ""
+  },
+  {
+    "name": "android-l2-repository-renderer",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/scripts/render_comparison_md.py",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/android-l2.json"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "### android-arm64-emulator (emu64a) \u2014 metric `l2`\n\n- Date (UTC) / commit: `2026-11-02T11:32:50Z` / `unknown`\n- Fixture: role=publish, dim=768, n_docs=100000, n_queries=1000 (measured 1000), sha256=`4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`\n- Params: M=16, ef_construction=200, k=10, seed=42\n\n| Engine | Version | Build (s, median) | Spread | Peak RSS | File size | Delete OK |\n|---|---|---:|---:|---:|---:|:---:|\n| vanedb | 0.2.0-rc.2 | 37.6520 | 7.3% | n/a | 316.12 MiB | yes |\n| usearch | 2.21.0 | 55.4377 | 3.1% | n/a | 307.14 MiB | yes |\n| hnswlib | 0.8.0 | 108.4466 | 0.8% | n/a | 307.13 MiB | yes |\n| instant-distance | 0.6.1 | 318.2067 | 0.2% | n/a | n/a | n/a |\n| hnsw_rs | 0.3.4 | 135.0904 | 4.0% | n/a | n/a | n/a |\n| sqlite-vec | 0.1.6 | 136.5145 | 0.7% | n/a | 296.54 MiB | yes |\n\nRecall@10 and latency by ef (median across rounds):\n\n**vanedb**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 92.82 \u00b5s | 8.3% | 0.928 |\n| 32 | 145.03 \u00b5s | 6.2% | 0.970 |\n| 50 | 203.88 \u00b5s | 9.1% | 0.983 |\n| 100 | 365.52 \u00b5s | 13.0% | 0.993 |\n\nNotes:\n- vanedb crate 0.2.0-rc.2; ApproxIndex M=16 efC=200 seed=42; build uses add_batch (same graph topology as serial add; wall time is not sequential-insert peer)\n\n**usearch**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 110.42 \u00b5s | 3.1% | 0.938 |\n| 32 | 177.52 \u00b5s | 4.6% | 0.977 |\n| 50 | 245.76 \u00b5s | 5.7% | 0.985 |\n| 100 | 425.31 \u00b5s | 1.8% | 0.994 |\n\nNotes:\n- connectivity(M)=16 expansion_add(efC)=200; seed not exposed by usearch IndexOptions (requested 42)\n\n**hnswlib**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 174.93 \u00b5s | 1.5% | 0.932 |\n| 32 | 278.75 \u00b5s | 5.5% | 0.975 |\n| 50 | 379.80 \u00b5s | 3.4% | 0.985 |\n| 100 | 646.66 \u00b5s | 1.5% | 0.994 |\n\nNotes:\n- vendored hnswlib v0.8.0; M=16 efC=200 seed=42\n\n**instant-distance**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 769.55 \u00b5s | 3.2% | 0.995 |\n\nNotes:\n- M is a crate constant (32); cannot set harness M\n- ef_construction=200 ef_search=50 seed=42\n- requested M=16 ignored; instant-distance uses M=32\n- per-query ef is ignored; harness emits a single latency/recall row at construction ef_search\n\n**hnsw_rs**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 16 | 271.79 \u00b5s | 6.3% | 0.915 |\n| 32 | 441.61 \u00b5s | 11.6% | 0.953 |\n| 50 | 609.60 \u00b5s | 17.6% | 0.963 |\n| 100 | 1.01 ms | 6.9% | 0.973 |\n\nNotes:\n- max_nb_connection(M)=16 efC=200 max_layer=11; seed not plumbed by hnsw_rs Hnsw::new (requested 42)\n\n**sqlite-vec**\n\n| ef | latency/query | spread | recall@10 (median) |\n|---:|---:|---:|---:|\n| 50 | 66.95 ms | 12.7% | 1.000 |\n\nNotes:\n- brute-force KNN via vec0 for L2 (no ANN; sqlite-vec #25)\n- ef unused \u2014 single construction-ef latency row only\n- metric l2: native vec0 MATCH\n\n",
+    "stderr": ""
+  },
+  {
+    "name": "quality-counter-reconciliation",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "/Users/anton/code/codex/020-perf-acceptance-20261102/summarize_quality.py"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "{\n  \"probe\": {\n    \"host_process_phase_samples\": 16,\n    \"host_load_flags\": 0,\n    \"power_flags\": 0,\n    \"host_screen_passed\": true,\n    \"preflight_samples\": 37,\n    \"preflight_load_flags\": 23,\n    \"start\": \"2026-11-02T06:11:04.849798+00:00\",\n    \"end\": \"2026-11-02T06:13:00.732830+00:00\",\n    \"duration_seconds\": 115.883032,\n    \"indexer_restored\": true\n  },\n  \"criterion\": {\n    \"host_process_phase_samples\": 359,\n    \"host_load_flags\": 26,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 85,\n    \"preflight_load_flags\": 9,\n    \"start\": \"2026-11-02T06:14:49.729904+00:00\",\n    \"end\": \"2026-11-02T06:48:28.655863+00:00\",\n    \"duration_seconds\": 2018.925959,\n    \"indexer_restored\": true\n  },\n  \"index-confirm\": {\n    \"host_process_phase_samples\": 48,\n    \"host_load_flags\": 2,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 40,\n    \"preflight_load_flags\": 9,\n    \"start\": \"2026-11-02T06:50:44.680459+00:00\",\n    \"end\": \"2026-11-02T06:56:27.520847+00:00\",\n    \"duration_seconds\": 342.840388,\n    \"indexer_restored\": true\n  },\n  \"cosine\": {\n    \"host_process_phase_samples\": 397,\n    \"host_load_flags\": 42,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 3,\n    \"preflight_load_flags\": 0,\n    \"start\": \"2026-11-02T06:58:54.425448+00:00\",\n    \"end\": \"2026-11-02T07:32:29.756403+00:00\",\n    \"duration_seconds\": 2015.330955,\n    \"indexer_restored\": true\n  },\n  \"l2\": {\n    \"host_process_phase_samples\": 423,\n    \"host_load_flags\": 277,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 34,\n    \"preflight_load_flags\": 31,\n    \"start\": \"2026-11-02T07:56:51.852753+00:00\",\n    \"end\": \"2026-11-02T08:32:36.131618+00:00\",\n    \"duration_seconds\": 2144.278865,\n    \"indexer_restored\": true\n  },\n  \"android-cosine\": {\n    \"host_process_phase_samples\": 691,\n    \"host_load_flags\": 36,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 8,\n    \"preflight_load_flags\": 3,\n    \"start\": \"2026-11-02T09:19:26.224262+00:00\",\n    \"end\": \"2026-11-02T10:17:50.614584+00:00\",\n    \"duration_seconds\": 3504.390322,\n    \"guest_interval_samples\": 115,\n    \"guest_load_flags\": 0,\n    \"guest_screen_passed\": true,\n    \"indexer_restored\": true\n  },\n  \"android-l2\": {\n    \"host_process_phase_samples\": 691,\n    \"host_load_flags\": 24,\n    \"power_flags\": 0,\n    \"host_screen_passed\": false,\n    \"preflight_samples\": 4,\n    \"preflight_load_flags\": 1,\n    \"start\": \"2026-11-02T10:34:25.437515+00:00\",\n    \"end\": \"2026-11-02T11:32:51.010916+00:00\",\n    \"duration_seconds\": 3505.573401,\n    \"guest_interval_samples\": 115,\n    \"guest_load_flags\": 16,\n    \"guest_screen_passed\": false,\n    \"indexer_restored\": true\n  },\n  \"method\": \"Counts apply to complete benchmark process phases, including setup/warmup; preflight failures are separately retained. Snapshot screens do not prove continuous isolation. Guest sampling is interval-based, approximately 30 seconds; its non-target busy CPU includes benchmark-driven kernel/interrupt work and does not by itself prove competing guest activity. Every campaign measurement interval is sequential and non-overlapping.\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-python",
+    "command": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Python 3.13.5\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-rustc",
+    "command": [
+      "rustc",
+      "-Vv"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "rustc 1.94.1 (e408947bf 2026-03-25)\nbinary: rustc\ncommit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1\ncommit-date: 2026-03-25\nhost: aarch64-apple-darwin\nrelease: 1.94.1\nLLVM version: 21.1.8\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-cargo",
+    "command": [
+      "cargo",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "cargo 1.94.1 (29ea6fb6a 2026-03-24)\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-clang",
+    "command": [
+      "clang",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-cmake",
+    "command": [
+      "cmake",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "cmake version 4.4.5\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-git",
+    "command": [
+      "git",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "git version 2.54.0 (Apple Git-157)\n",
+    "stderr": ""
+  },
+  {
+    "name": "tool-version-gh",
+    "command": [
+      "gh",
+      "--version"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "gh version 2.103.3 (2026-10-26)\nhttps://github.com/cli/cli/releases/tag/v2.103.3\n",
+    "stderr": ""
+  },
+  {
+    "name": "workspace-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-evidence-20261101",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "bench-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "bench/Cargo.toml",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-evidence-20261101",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-utc",
+    "command": [
+      "date",
+      "-u"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Mon Nov  2 11:33:32 UTC 2026\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-architecture",
+    "command": [
+      "uname",
+      "-m"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "arm64\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-os",
+    "command": [
+      "sw_vers"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-hardware",
+    "command": [
+      "sysctl",
+      "hw.model",
+      "machdep.cpu.brand_string",
+      "hw.physicalcpu",
+      "hw.logicalcpu",
+      "hw.memsize",
+      "kern.hv_vmm_present"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "hw.model: Mac16,8\nmachdep.cpu.brand_string: Apple M4 Pro\nhw.physicalcpu: 14\nhw.logicalcpu: 14\nhw.memsize: 51539607552\nkern.hv_vmm_present: 0\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-power",
+    "command": [
+      "pmset",
+      "-g",
+      "batt"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-thermal",
+    "command": [
+      "pmset",
+      "-g",
+      "therm"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-swap",
+    "command": [
+      "sysctl",
+      "vm.swapusage"
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "vm.swapusage: total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)\n",
+    "stderr": ""
+  },
+  {
+    "name": "host-final-disk",
+    "command": [
+      "df",
+      "-k",
+      "."
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "Filesystem   1024-blocks       Used Available Capacity iused     ifree %iused  Mounted on\n/dev/disk3s5  1948455240 1910026316  13619164   100% 6892175 136191640    5%   /System/Volumes/Data\n",
+    "stderr": ""
+  },
+  {
+    "name": "indexer-final-state",
+    "command": [
+      "ps",
+      "-p",
+      "1075",
+      "-o",
+      "uid=,lstart=,state=,comm="
+    ],
+    "cwd": "/Users/anton/code/codex/020-perf-acceptance-20261102",
+    "exit_code": 0,
+    "stdout": "  501 Sat Oct 31 21:06:02 2026     R    /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd\n",
+    "stderr": ""
+  }
+]

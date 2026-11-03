@@ -1,0 +1,200 @@
+{
+  "utc": "2026-11-03T09:59:53.898894+00:00",
+  "hashes": {
+    "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/release/compare": {
+      "expected": "0762a133290f3bb205aef2ee244e7986581050e3ba5b063a3e94387f3aeef1c0",
+      "actual": "0762a133290f3bb205aef2ee244e7986581050e3ba5b063a3e94387f3aeef1c0",
+      "passed": true
+    },
+    "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare": {
+      "expected": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10",
+      "actual": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-A/target/release/abi-probe": {
+      "expected": "c9545812caa2e9e2a8a30a7d94472540930f34c6da165dab9b75e4116c403992",
+      "actual": "c9545812caa2e9e2a8a30a7d94472540930f34c6da165dab9b75e4116c403992",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/target/release/abi-probe": {
+      "expected": "306a60de5cdd78fd3d8a5527023aa883d5e6c3f8d305df00ca6151ed31b10450",
+      "actual": "306a60de5cdd78fd3d8a5527023aa883d5e6c3f8d305df00ca6151ed31b10450",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/index-658c81f6de177204": {
+      "expected": "6846a56077a451b0c9a4bf0493ee776dac70dc17ffccb18cf6675656c4610818",
+      "actual": "6846a56077a451b0c9a4bf0493ee776dac70dc17ffccb18cf6675656c4610818",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/store-e70ec4775ea8e612": {
+      "expected": "562d353d50ccef7dbf1f2b47fecfcb831bf6ac5d7ce48ad2d5083d9491e97c89",
+      "actual": "562d353d50ccef7dbf1f2b47fecfcb831bf6ac5d7ce48ad2d5083d9491e97c89",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/disk-a56e87673c187dea": {
+      "expected": "009262127b9154b548d1137105559eaaa4104e3d3367d145746213b977251df2",
+      "actual": "009262127b9154b548d1137105559eaaa4104e3d3367d145746213b977251df2",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/distance-1e290a5f3c6d0872": {
+      "expected": "d6a2749c0ff895bb0038db3664d88c810eda19480856a4d5a5313abee0054320",
+      "actual": "d6a2749c0ff895bb0038db3664d88c810eda19480856a4d5a5313abee0054320",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/index-de7c029f5b0e9191": {
+      "expected": "2eaff9468bb3efc19402d12039ab804c39d92c02a65d33ee8a25ab3d4e9ad04a",
+      "actual": "2eaff9468bb3efc19402d12039ab804c39d92c02a65d33ee8a25ab3d4e9ad04a",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/distance-ee40971703f278d5": {
+      "expected": "0b5c3f7ee6146e3a0c5f9c0363a55914b9fb040b30449d65155d6a872b585986",
+      "actual": "0b5c3f7ee6146e3a0c5f9c0363a55914b9fb040b30449d65155d6a872b585986",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/disk-a1d984776aebbaec": {
+      "expected": "84f7d391ef5cb0ac3401fcd9425603cbbd109a1812b0abe392f328794d67d105",
+      "actual": "84f7d391ef5cb0ac3401fcd9425603cbbd109a1812b0abe392f328794d67d105",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/store-24bf4e73a135d5f0": {
+      "expected": "a817f208dafbb34df0597757f6bcbd144ff28b98db825c4b6d92a3620679e8ca",
+      "actual": "a817f208dafbb34df0597757f6bcbd144ff28b98db825c4b6d92a3620679e8ca",
+      "passed": true
+    },
+    "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/fixtures/embeddings.vnef": {
+      "expected": "4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d",
+      "actual": "4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d",
+      "passed": true
+    },
+    "/Users/anton/code/codex/020-perf-acceptance-20261101/graph.vndb": {
+      "expected": "3672206a43d866b598b2abac71babf71181f7d459a2d73687fc8928d389b1cbc",
+      "actual": "3672206a43d866b598b2abac71babf71181f7d459a2d73687fc8928d389b1cbc",
+      "passed": true
+    }
+  },
+  "sources": [
+    {
+      "revision": {
+        "command": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+        "exit_code": 0,
+        "stdout": "e1761dcf4258011b446a361dc529da082ea2fc94\n",
+        "stderr": ""
+      },
+      "status": {
+        "command": [
+          "git",
+          "status",
+          "--porcelain",
+          "--untracked-files=no"
+        ],
+        "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    },
+    {
+      "revision": {
+        "command": [
+          "git",
+          "rev-parse",
+          "HEAD"
+        ],
+        "cwd": "/Users/anton/code/codex/vanedb-020-perf-baseline-20261101",
+        "exit_code": 0,
+        "stdout": "51cb2d871538985aad933a13ebe50c13a0031dfa\n",
+        "stderr": ""
+      },
+      "status": {
+        "command": [
+          "git",
+          "status",
+          "--porcelain",
+          "--untracked-files=no"
+        ],
+        "cwd": "/Users/anton/code/codex/vanedb-020-perf-baseline-20261101",
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    }
+  ],
+  "owned_process_check": {
+    "command": [
+      "ps",
+      "-p",
+      "80973,81028,81458,81668,81888,82098,82473,82678,82886,83103,83418,83624,83841,84059,84369,84604,84856,85102,85442,85646,85873,86133,86586,86817,87024",
+      "-o",
+      "pid=,ppid=,stat=,lstart=,comm="
+    ],
+    "cwd": null,
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "indexer_guardian": {
+    "target_pid": 1075,
+    "original_state": "S",
+    "target_identity": "501 Sat Oct 31 21:06:02 2026     /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd",
+    "controller_pid": 80973,
+    "controller_identity": "Tue Nov  3 09:24:13 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+    "method": "SIGSTOP then SIGCONT of the user-owned corespotlightd; no measurement exclusion",
+    "started": "2026-11-03T09:24:29.260366+00:00",
+    "suspended": true,
+    "resumed": true,
+    "ended": "2026-11-03T09:58:59.622792+00:00"
+  },
+  "indexer_current_state": {
+    "command": [
+      "ps",
+      "-p",
+      "1075",
+      "-o",
+      "uid=,lstart=,stat=,comm="
+    ],
+    "cwd": null,
+    "exit_code": 0,
+    "stdout": "  501 Sat Oct 31 21:06:02 2026     S    /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd\n",
+    "stderr": ""
+  },
+  "power": {
+    "command": [
+      "pmset",
+      "-g",
+      "batt"
+    ],
+    "cwd": null,
+    "exit_code": 0,
+    "stdout": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=35913827)\t100%; charged; 0:00 remaining present: true\n",
+    "stderr": ""
+  },
+  "storage": {
+    "command": [
+      "df",
+      "-h",
+      "/private/tmp/vanedb-020-perf-20261103T091447Z"
+    ],
+    "cwd": null,
+    "exit_code": 0,
+    "stdout": "Filesystem      Size    Used   Avail Capacity iused ifree %iused  Mounted on\n/dev/disk3s5   1.8Ti   1.8Ti    13Gi   100%    6.9M  138M    5%   /System/Volumes/Data\n",
+    "stderr": ""
+  },
+  "controllers": {
+    "initial_preflight.py": "032b9ee5e85754d6dc7daa97c957bb25b1825a89fde9680073deff70e69f7db3",
+    "analyze_criterion.py": "1aeaed64a9710c95513933ce3d5a754d810327457f245e523b094fbb1566d809",
+    "setup_android.py": "455c98403f257baa68f93219af21f0a7c4e42d6b401cb2667faeb48a276706ac",
+    "run_native.py": "49f34167fd18d03bc0c3d662b9b29bae0bd6c6062ab044d23b20b2cd17f88efb",
+    "run_android.py": "d7eea2837f3d3343b40a831e2990bbe5a39a767fcb0f2e9ef94185ec718ea3a1",
+    "launch_android.py": "588403cfef9f9859b1113e68739e251d704bf0d596db6f51cfe100b02bb9c9d8",
+    "pause_indexer.py": "79095ceb2d1ab4cf820037de6e5db3ce0349f8e54a597124584c873ea6eb1188",
+    "stop_android.py": "968ea2433c0ba8b5deca878a4e6a1a0c03609c4c88f94747170e160bf3ebf7f0",
+    "package_attempt.py": "9f754933ec7082f6086d2db48768624566c8dac853c596324837e6560d11baa4",
+    "finalize_attempt.py": "4ffaf3f570873d8fba39678c8c89c986178888cec3cfbb0d396997914bba7fa7"
+  },
+  "decision": "No further full competitor campaigns on this repeatedly nonqualifying host. Existing November2 complete raw campaigns retained. No host-screen bypass; no numerical performance PASS inferred."
+}

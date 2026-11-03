@@ -1,0 +1,174 @@
+[
+  {
+    "name": "build-probe-A",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-A/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:37:00.379546+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:37:05.391920+00:00"
+  },
+  {
+    "name": "verify-probe-A",
+    "command": [
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-A/target/release/abi-probe",
+      "verify",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/graph.vndb"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:37:05.392197+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:37:05.602898+00:00"
+  },
+  {
+    "name": "build-probe-B",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:37:05.603264+00:00",
+    "exit_code": 101,
+    "ended": "2026-11-01T21:37:05.649309+00:00"
+  },
+  {
+    "name": "build-probe-B",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:37:57.471992+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:38:02.568944+00:00"
+  },
+  {
+    "name": "verify-probe-B",
+    "command": [
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/target/release/abi-probe",
+      "verify",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/graph.vndb"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:38:02.569211+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:38:02.776373+00:00"
+  },
+  {
+    "name": "test-compare",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "bench/compare/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:38:02.776742+00:00",
+    "exit_code": 101,
+    "ended": "2026-11-01T21:38:02.827566+00:00"
+  },
+  {
+    "name": "test-compare",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "bench/compare/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:38:47.063505+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:38:55.864851+00:00"
+  },
+  {
+    "name": "build-compare",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "bench/compare/Cargo.toml"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:38:55.865167+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:39:14.999012+00:00"
+  },
+  {
+    "name": "smoke-compare",
+    "command": [
+      "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/release/compare",
+      "run",
+      "--fixture",
+      "bench/compare/fixtures/smoke.vnef",
+      "--allow-smoke",
+      "--rounds",
+      "2",
+      "--max-queries",
+      "4",
+      "--json-out",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/smoke.json",
+      "--out-dir",
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/smoke-out"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:39:14.999373+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:39:15.983701+00:00"
+  },
+  {
+    "name": "build-android",
+    "command": [
+      "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+      "build",
+      "--release",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "bench/compare/Cargo.toml",
+      "--target",
+      "aarch64-linux-android",
+      "-j",
+      "4"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:39:15.984040+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:39:44.492165+00:00"
+  },
+  {
+    "name": "check-android-elf",
+    "command": [
+      "python3",
+      "scripts/check_android_elf.py",
+      "bench/compare/target/aarch64-linux-android/release/compare"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-20261101",
+    "started": "2026-11-01T21:39:44.492574+00:00",
+    "exit_code": 0,
+    "ended": "2026-11-01T21:39:44.526294+00:00"
+  }
+]

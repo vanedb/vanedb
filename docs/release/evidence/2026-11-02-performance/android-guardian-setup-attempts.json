@@ -1,0 +1,24 @@
+{
+  "record_type": "Reconstructed from retained tool responses; full terminal stack traces were not separately saved to files",
+  "command": [
+    "python3",
+    "/Users/anton/code/codex/020-perf-acceptance-20261102/pause_indexer.py",
+    "android-cosine"
+  ],
+  "guardian_source_sha256": "7907df10927e5aa43a58a62a8c04739140dbf5c1a14d4d15384657fe304a9351",
+  "attempts": [
+    {
+      "setup_attempt": 1,
+      "exit_code": 1,
+      "error": "FileNotFoundError: android-cosine-host.jsonl did not exist because the controller stopped at device hash verification",
+      "signal_sent": false
+    },
+    {
+      "setup_attempt": 2,
+      "exit_code": 1,
+      "error": "CalledProcessError: ps -p 19192 -o lstart=,comm= exited 1 because the controller had already stopped on its guest sampler preflight error",
+      "signal_sent": false
+    }
+  ],
+  "scope": "Both failed before the guardian SIGSTOP statement; neither setup attempt started measurement. Subsequent successful pause/resume records are separate."
+}

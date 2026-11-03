@@ -1,0 +1,6 @@
+error: failed to select a version for the requirement `cc = "^1.1.6"` (locked to 1.5.1)
+candidate versions found which didn't match: 1.4.6, 1.4.5, 1.4.4, ...
+location searched: crates.io index
+required by package `libsqlite3-sys v0.30.1`
+    ... which satisfies dependency `libsqlite3-sys = "=0.30.1"` (locked to 0.30.1) of package `vanedb-compare v0.1.0 (/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare)`
+As a reminder, you're using offline mode (--offline) which can sometimes cause surprising resolution failures, if this error is too confusing you may wish to retry without `--offline`.

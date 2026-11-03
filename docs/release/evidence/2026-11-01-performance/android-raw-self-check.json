@@ -1,0 +1,16 @@
+[
+  {
+    "metric": "cosine",
+    "engines": 5,
+    "rounds": 2,
+    "aggregate_recomputation": "PASS",
+    "performance_evidence": false
+  },
+  {
+    "metric": "l2",
+    "engines": 6,
+    "rounds": 2,
+    "aggregate_recomputation": "PASS",
+    "performance_evidence": false
+  }
+]

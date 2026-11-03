@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "scope": "Report completeness and raw-round arithmetic only; host qualification is separate",
+  "metric": "l2",
+  "engines": [
+    "hnsw_rs",
+    "hnswlib",
+    "instant-distance",
+    "sqlite-vec",
+    "usearch",
+    "vanedb"
+  ],
+  "rounds": 4,
+  "queries": 1000,
+  "host_os": "android",
+  "host_arch": "aarch64",
+  "shared_runner": false,
+  "dedicated_attested": true
+}

@@ -1,0 +1,13 @@
+diff --git a/bench/compare/src/run.rs b/bench/compare/src/run.rs
+index d8d2e39..4915ac9 100644
+--- a/bench/compare/src/run.rs
++++ b/bench/compare/src/run.rs
+@@ -277,6 +277,8 @@ impl EngineAccum {
+     }
+
+     fn into_result(self, cfg: &RunConfig) -> EngineResult {
++        // Emit retained round arrays only after all measurement loops finish.
++        eprintln!("RAW_ROUNDS {}", serde_json::json!({"engine": self.kind.make().name(), "build_secs": self.build_secs, "latency_ns_by_ef": self.latency, "recall_at_k_by_ef": self.recall}));
+         let engine = self.kind.make();
+         let version = engine.version();
+         let name = engine.name().to_string();

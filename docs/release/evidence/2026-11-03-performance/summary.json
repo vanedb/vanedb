@@ -1,0 +1,180 @@
+{
+  "status": "blocked",
+  "reason": "Unrelated background activity exceeded the unchanged host-load screen during measurement. Task controller intentionally interrupted; no complete interleaved campaign and no acceptance PASS.",
+  "candidate": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "baseline": "51cb2d871538985aad933a13ebe50c13a0031dfa",
+  "started": "2026-11-03T08:02:10.569724+00:00",
+  "stopped": "2026-11-03T08:10:18.147590+00:00",
+  "controller_status": "failed",
+  "controller_error": "KeyboardInterrupt()",
+  "process_phase_samples": 44,
+  "process_phase_load_flags": 6,
+  "power_flags_all_samples": 0,
+  "preflight_samples": 56,
+  "preflight_load_flags": 44,
+  "stages": {
+    "pass-1-A-distance": {
+      "samples": 22,
+      "load_flags": 1,
+      "power_flags": 0
+    },
+    "pass-1-A-index": {
+      "samples": 10,
+      "load_flags": 0,
+      "power_flags": 0
+    },
+    "pass-1-A-store": {
+      "samples": 12,
+      "load_flags": 5,
+      "power_flags": 0
+    }
+  },
+  "background_process_peak_cpu_over_50": {
+    "pairedsyncd": 56.4,
+    "corespotlightd": 336.3,
+    "duetexpertd": 100.2
+  },
+  "completed_targets": [
+    "pass-1-A-distance",
+    "pass-1-A-store"
+  ],
+  "interrupted_target": "pass-1-A-index",
+  "criterion_rows_with_artifacts": [
+    {
+      "path": "pass-1-A/criterion/cosine_dim=128/cpp/128/new/benchmark.json",
+      "benchmark": "cosine/dim=128/cpp/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/cosine_dim=128/rs/128/new/benchmark.json",
+      "benchmark": "cosine/dim=128/rs/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/cosine_dim=768/cpp/768/new/benchmark.json",
+      "benchmark": "cosine/dim=768/cpp/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/cosine_dim=768/rs/768/new/benchmark.json",
+      "benchmark": "cosine/dim=768/rs/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/dot_dim=128/cpp/128/new/benchmark.json",
+      "benchmark": "dot/dim=128/cpp/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/dot_dim=128/rs/128/new/benchmark.json",
+      "benchmark": "dot/dim=128/rs/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/dot_dim=768/cpp/768/new/benchmark.json",
+      "benchmark": "dot/dim=768/cpp/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/dot_dim=768/rs/768/new/benchmark.json",
+      "benchmark": "dot/dim=768/rs/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/index_build/cpp/new/benchmark.json",
+      "benchmark": "index_build/cpp",
+      "sample_count": 10,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/index_build/rs/new/benchmark.json",
+      "benchmark": "index_build/rs",
+      "sample_count": 10,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/index_search/cpp/new/benchmark.json",
+      "benchmark": "index_search/cpp",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/l2_sq_dim=128/cpp/128/new/benchmark.json",
+      "benchmark": "l2_sq/dim=128/cpp/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/l2_sq_dim=128/rs/128/new/benchmark.json",
+      "benchmark": "l2_sq/dim=128/rs/128",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/l2_sq_dim=768/cpp/768/new/benchmark.json",
+      "benchmark": "l2_sq/dim=768/cpp/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/l2_sq_dim=768/rs/768/new/benchmark.json",
+      "benchmark": "l2_sq/dim=768/rs/768",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_add_n=10000/cpp/new/benchmark.json",
+      "benchmark": "store_add/n=10000/cpp",
+      "sample_count": 10,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_add_n=10000/rs/new/benchmark.json",
+      "benchmark": "store_add/n=10000/rs",
+      "sample_count": 10,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_search_n=1000/cpp/new/benchmark.json",
+      "benchmark": "store_search/n=1000/cpp",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_search_n=1000/rs/new/benchmark.json",
+      "benchmark": "store_search/n=1000/rs",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_search_n=10000/cpp/new/benchmark.json",
+      "benchmark": "store_search/n=10000/cpp",
+      "sample_count": 100,
+      "estimates_present": true
+    },
+    {
+      "path": "pass-1-A/criterion/store_search_n=10000/rs/new/benchmark.json",
+      "benchmark": "store_search/n=10000/rs",
+      "sample_count": 100,
+      "estimates_present": true
+    }
+  ],
+  "benchmark_and_controller_pids_absent": [
+    67722,
+    68292,
+    68550,
+    68755
+  ],
+  "binary_hashes_reverified": 12,
+  "no_apps_or_services_suspended": true,
+  "remaining_campaigns": "Not started after observed host-load failure: Mac cosine/L2 and Android cosine/L2. Previous complete attempts and clean fixed-graph diagnostic preserved.",
+  "orb": "2.2.4; two existing stopped ARM64 machines. Apple Silicon x86 execution uses Rosetta; not native x86-64 AVX2 release evidence. No VM was started."
+}

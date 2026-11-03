@@ -1,0 +1,96 @@
+{
+  "phase": "android-cosine",
+  "candidate": "e1761dcf4258011b446a361dc529da082ea2fc94",
+  "status": "blocked",
+  "controller_pid": 17865,
+  "emulator_pid": 17586,
+  "avd": "vanedb_020_full_api35_arm64",
+  "hardware": "ARM64 emulator, API 35, HVF, 4 vCPUs, 8192 MiB, 4 KiB guest pages; not a physical device",
+  "reservation": "User reserved Mac on 2026-11-02",
+  "commands": [
+    {
+      "name": "shared-host-check",
+      "command": [
+        "bash",
+        "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/scripts/refuse_shared_runner.sh"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "emulator-identity",
+      "command": [
+        "ps",
+        "-p",
+        "17586",
+        "-o",
+        "lstart=,comm="
+      ],
+      "exit_code": 0,
+      "stdout": "Mon Nov  2 08:40:06 2026     /Users/anton/code/codex/020-android-benchmark-sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64-headless\n",
+      "stderr": ""
+    },
+    {
+      "name": "boot",
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+        "-s",
+        "emulator-5580",
+        "shell",
+        "getprop sys.boot_completed"
+      ],
+      "exit_code": 0,
+      "stdout": "1\n",
+      "stderr": ""
+    },
+    {
+      "name": "guest-facts",
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+        "-s",
+        "emulator-5580",
+        "shell",
+        "uname -a; getprop ro.product.cpu.abi; getprop ro.build.version.sdk; getconf PAGESIZE; getconf CLK_TCK; nproc; getprop ro.kernel.qemu; head -4 /proc/meminfo; df -k /data"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux localhost 6.6.30-android15-8-gdd9c02ccfe27-ab11987101-4k #1 SMP PREEMPT Tue Jun 18 20:50:32 UTC 2024 aarch64 Toybox\narm64-v8a\n35\n4096\n100\n4\n1\nMemTotal:        8129460 kB\nMemFree:         5944148 kB\nMemAvailable:    7094916 kB\nBuffers:           16928 kB\nFilesystem       1K-blocks     Used Available Use% Mounted on\n/dev/block/dm-42  16337876 10648796   5541624  66% /data/user/0\n",
+      "stderr": ""
+    },
+    {
+      "name": "capacity",
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+        "-s",
+        "emulator-5580",
+        "shell",
+        "df -k /data"
+      ],
+      "exit_code": 0,
+      "stdout": "Filesystem       1K-blocks     Used Available Use% Mounted on\n/dev/block/dm-42  16337876 10648796   5541624  66% /data/user/0\n",
+      "stderr": ""
+    },
+    {
+      "name": "reused-device-hashes",
+      "command": [
+        "/Users/anton/code/codex/020-android-benchmark-sdk/platform-tools/adb",
+        "-s",
+        "emulator-5580",
+        "shell",
+        "cd /data/local/tmp/vanedb-020-perf-20261101 && sha256sum compare libc++_shared.so embeddings.vnef SHA256SUMS metadata.json"
+      ],
+      "exit_code": 0,
+      "stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  compare\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  libc++_shared.so\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  embeddings.vnef\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  SHA256SUMS\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  metadata.json\n",
+      "stderr": ""
+    }
+  ],
+  "load_flags": 0,
+  "guest_load_flags": 0,
+  "power_flags": 0,
+  "sampling": "Host every 5 seconds; guest /proc/stat and readable per-process stat approximately every 30 seconds during campaign and every 5 seconds in preflight. Host excludes controller, ps, task emulator tree and current adb tree only. Guest aggregate busy minus measured compare process ticks includes all other guest activity, including sampler overhead. Snapshots do not prove continuous isolation.",
+  "screen": "Host max background <=50%, sum <=150%, AC; guest aggregate background <=50% of one virtual CPU and visible individual <=50%; three consecutive quiet preflight samples; no load-failure discard",
+  "started": "2026-11-02T08:42:50.642302+00:00",
+  "emulator_identity": "Mon Nov  2 08:40:06 2026     /Users/anton/code/codex/020-android-benchmark-sdk/emulator/qemu/darwin-aarch64/qemu-system-aarch64-headless\n",
+  "error": "AssertionError('compare')",
+  "stopped": "2026-11-02T08:42:50.757558+00:00"
+}

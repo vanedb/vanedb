@@ -1,0 +1,14 @@
+{
+  "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/release/compare": "0762a133290f3bb205aef2ee244e7986581050e3ba5b063a3e94387f3aeef1c0",
+  "/Users/anton/code/codex/vanedb-020-perf-20261101/bench/compare/target/aarch64-linux-android/release/compare": "6f7fa2c6b5f5c5f0627f1f61d255e536c5975cb9766a0f6eb38a8a9c5fc5bc10",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-A/target/release/abi-probe": "c9545812caa2e9e2a8a30a7d94472540930f34c6da165dab9b75e4116c403992",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/probe-B/target/release/abi-probe": "306a60de5cdd78fd3d8a5527023aa883d5e6c3f8d305df00ca6151ed31b10450",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/index-658c81f6de177204": "6846a56077a451b0c9a4bf0493ee776dac70dc17ffccb18cf6675656c4610818",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/store-e70ec4775ea8e612": "562d353d50ccef7dbf1f2b47fecfcb831bf6ac5d7ce48ad2d5083d9491e97c89",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/disk-a56e87673c187dea": "009262127b9154b548d1137105559eaaa4104e3d3367d145746213b977251df2",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/distance-1e290a5f3c6d0872": "d6a2749c0ff895bb0038db3664d88c810eda19480856a4d5a5313abee0054320",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/index-de7c029f5b0e9191": "2eaff9468bb3efc19402d12039ab804c39d92c02a65d33ee8a25ab3d4e9ad04a",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/distance-ee40971703f278d5": "0b5c3f7ee6146e3a0c5f9c0363a55914b9fb040b30449d65155d6a872b585986",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/disk-a1d984776aebbaec": "84f7d391ef5cb0ac3401fcd9425603cbbd109a1812b0abe392f328794d67d105",
+  "/Users/anton/code/codex/020-perf-acceptance-20261101/target-B/release/deps/store-24bf4e73a135d5f0": "a817f208dafbb34df0597757f6bcbd144ff28b98db825c4b6d92a3620679e8ca"
+}
