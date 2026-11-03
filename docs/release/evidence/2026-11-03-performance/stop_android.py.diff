@@ -1,0 +1,11 @@
+--- /Users/anton/code/codex/020-perf-acceptance-20261102/stop_android.py
++++ /Users/anton/code/codex/020-perf-acceptance-20261103T080155Z/stop_android.py
+@@ -1,7 +1,7 @@
+ """Verify final guest artifacts, sync, and stop only this task's emulator."""
+ from pathlib import Path
+ import subprocess,json,hashlib,datetime
+-O=Path(__file__).parent;R=O.parent;S=R/'vanedb-020-perf-20261101';SDK=R/'020-android-benchmark-sdk';adb=[str(SDK/'platform-tools/adb'),'-s','emulator-5580'];dest='/data/local/tmp/vanedb-020-perf-20261102';records=[];output=O/'android-shutdown.json';assert not output.exists()
++O=Path(__file__).parent;R=O.parent;S=R/'vanedb-020-perf-20261101';SDK=R/'020-android-benchmark-sdk';adb=[str(SDK/'platform-tools/adb'),'-s','emulator-5580'];dest='/data/local/tmp/vanedb-020-perf-20261103T080155Z';records=[];output=O/'android-shutdown.json';assert not output.exists()
+ for metric in ('cosine','l2'):assert json.loads((O/('android-'+metric+'-campaign.json')).read_text())['status']=='completed'
+ life=json.loads((O/'android-emulator-lifecycle.json').read_text());m=json.loads((O/'android-l2-campaign.json').read_text())
+ def run(name,args):

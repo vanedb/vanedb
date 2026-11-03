@@ -1,0 +1,15 @@
+--- /Users/anton/code/codex/020-perf-acceptance-20261102/run_native.py
++++ /Users/anton/code/codex/020-perf-acceptance-20261103T080155Z/run_native.py
+@@ -1,10 +1,10 @@
+ """Sequential, prebuilt-only benchmarks; never turn load/power flags into PASS."""
+ from pathlib import Path
+ import datetime, hashlib, json, os, signal, subprocess, sys, time
+-R=Path('/Users/anton/code/codex');O=R/'020-perf-acceptance-20261102';P=R/'020-perf-acceptance-20261101';S=R/'vanedb-020-perf-20261101';A=R/'vanedb-020-perf-baseline-20261101'
++R=Path('/Users/anton/code/codex');O=R/'020-perf-acceptance-20261103T080155Z';P=R/'020-perf-acceptance-20261101';S=R/'vanedb-020-perf-20261101';A=R/'vanedb-020-perf-baseline-20261101'
+ PHASE=sys.argv[1] if len(sys.argv)>1 else 'probe'; assert PHASE in ('probe','criterion','index-confirm','cosine','l2')
+ E=os.environ.copy();E['PATH']='/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin:'+E['PATH'];E['RUSTC']='/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc';E.pop('CARGO_TARGET_DIR',None)
+-M={'phase':PHASE,'reservation':'User on 2026-11-02: i now can give msc for tests (interpreted as reserving the Mac)','candidate':'e1761dcf4258011b446a361dc529da082ea2fc94','baseline':'51cb2d871538985aad933a13ebe50c13a0031dfa','status':'preflight','events':[],'host_samples_file':PHASE+'-host.jsonl','sampling':'5-second ps snapshots; excluding this controller, ps and current benchmark process descendants only; no background application exclusions','screen':'max background CPU <=50%, sum <=150%, AC power; all observations retained; samples are not continuous isolation proof'}
++M={'phase':PHASE,'reservation':'User on 2026-11-03: Mac is quiet now, can you do it?','candidate':'e1761dcf4258011b446a361dc529da082ea2fc94','baseline':'51cb2d871538985aad933a13ebe50c13a0031dfa','status':'preflight','events':[],'host_samples_file':PHASE+'-host.jsonl','sampling':'5-second ps snapshots; excluding this controller, ps and current benchmark process descendants only; no background application exclusions','screen':'max background CPU <=50%, sum <=150%, AC power; all observations retained; samples are not continuous isolation proof'}
+ manifest=O/(PHASE+'-campaign.json');assert not manifest.exists(),'Never overwrite an attempt'
+ def now():return datetime.datetime.now(datetime.timezone.utc).isoformat()
+ def save():manifest.write_text(json.dumps(M,indent=2)+'\n')

@@ -1,0 +1,40 @@
+{
+  "changes": [
+    {
+      "file": "run_native.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/run_native.py",
+      "source_sha256": "1cf954fe70449f319fb346f814a4e0dd75d9491ffec7c0695d498e5bad171f96",
+      "sha256": "373e16dacf911bc987ff2f5bfb33a808e46f6ef7205a48cbf2635a35be3d59bf"
+    },
+    {
+      "file": "run_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/run_android.py",
+      "source_sha256": "9dacfc9c1ea42157cf86d586c277a1f196b7449757dbf975bf96f052d16e9d9f",
+      "sha256": "de241aed7a7eb4892802fc672cd44813c117f77bc09a5091d8da03bf725e71dc"
+    },
+    {
+      "file": "launch_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/launch_android.py",
+      "source_sha256": "a4a283dbcd98f33e934259a1b4a11423db8a72df7d75870f5ef9994c0648b22a",
+      "sha256": "39b7c65e07385fb593be88ccad2fd1a40a836f729231c44aa962d8c873be35dd"
+    },
+    {
+      "file": "setup_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/setup_android.py",
+      "source_sha256": "8fac25010e22a0ed6a3add45f692b87fab974a0c169d6ebd4aafea9011a8ae34",
+      "sha256": "00e643659270cd224a91d327489efb4fb4040cc82b73c06cbdd53dbdc23ebda7"
+    },
+    {
+      "file": "stop_android.py",
+      "source": "/Users/anton/code/codex/020-perf-acceptance-20261102/stop_android.py",
+      "source_sha256": "17ffe626ccb5bdd627b5161588242dae62e715aadbd2b5b37210f9261d742f9f",
+      "sha256": "0ec33dadb0a993cdb336290006775fa84af3fc85b653cef738dba0523ec8e316"
+    }
+  ],
+  "policy": "Only output destinations and reservation date changed; all benchmark parameters, load/power thresholds and shared-host checks preserved. No process suspension. Prior complete attempts remain unchanged.",
+  "orb": "Installed OrbStack 2.2.4; existing VMs are arm64. Rosetta x86 translation on Apple Silicon cannot qualify as native Linux x86-64 AVX2 evidence.",
+  "orb_sources": [
+    "https://docs.orbstack.dev/architecture",
+    "https://docs.orbstack.dev/machines/"
+  ]
+}

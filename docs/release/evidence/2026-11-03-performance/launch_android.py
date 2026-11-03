@@ -1,0 +1,5 @@
+from pathlib import Path
+import subprocess,os,json,datetime
+R=Path('/Users/anton/code/codex');O=R/'020-perf-acceptance-20261103T080155Z';sdk=R/'020-android-benchmark-sdk';env=os.environ.copy();env.update(ANDROID_HOME=str(sdk),ANDROID_SDK_ROOT=str(sdk),ANDROID_AVD_HOME=str(sdk/'avd'),ANDROID_USER_HOME=str(sdk/'user'));args=[str(sdk/'emulator/emulator'),'-avd','vanedb_020_acceptance_20261102_api35_arm64','-no-window','-no-audio','-no-snapshot','-no-boot-anim','-port','5580'];f=O/'android-emulator-lifecycle.json';assert not f.exists()
+with (O/'android-equivalent-emulator.log').open('w') as log:
+ p=subprocess.Popen(args,env=env,stdout=log,stderr=log,start_new_session=True);m=dict(pid=p.pid,command=args,started=datetime.datetime.now(datetime.timezone.utc).isoformat(),env={k:env[k] for k in ('ANDROID_HOME','ANDROID_SDK_ROOT','ANDROID_AVD_HOME','ANDROID_USER_HOME')});f.write_text(json.dumps(m,indent=2)+'\n');code=p.wait();m.update(exit_code=code,ended=datetime.datetime.now(datetime.timezone.utc).isoformat());f.write_text(json.dumps(m,indent=2)+'\n')

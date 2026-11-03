@@ -1,0 +1,65 @@
+{
+  "utc": "2026-11-03T08:16:23.831670+00:00",
+  "public_checksums": "PASS before adding this validation record; manifest regenerated below",
+  "local_links": "PASS after fixing the initial broken November 1 README reference",
+  "records": [
+    {
+      "command": [
+        "python3",
+        "/var/folders/ym/j5wd_nm115qgfh_pyv4l9ncm0000gn/T/vanedb-nov3-evidence-final-5b38tlfr/evidence/verify_archive.py"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: 176 archived raw files match their size and SHA-256 records\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "python3",
+        "/var/folders/ym/j5wd_nm115qgfh_pyv4l9ncm0000gn/T/vanedb-nov3-evidence-final-5b38tlfr/evidence/verify_attempt.py"
+      ],
+      "exit_code": 0,
+      "stdout": "PASS: 100 load/power samples, 21 retained Criterion rows, controller provenance and recorded cleanup; acceptance remains blocked\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "cwd": "/Users/anton/code/codex/vanedb-020-perf-evidence-20261101",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/anton/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+        "fmt",
+        "--manifest-path",
+        "bench/Cargo.toml",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "cwd": "/Users/anton/code/codex/vanedb-020-perf-evidence-20261101",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "cwd": "/Users/anton/code/codex/vanedb-020-perf-evidence-20261101",
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "qualification": "Evidence integrity checks only; host qualification failed and performance gates remain blocked"
+}

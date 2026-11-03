@@ -1,0 +1,20 @@
+{
+  "utc": "2026-11-03T08:10:17.885981+00:00",
+  "action": "SIGINT task-owned benchmark controller; controller cleanup terminates current benchmark process group and caffeinate",
+  "controller_pid": 67722,
+  "controller_identity": "67722 Tue Nov  3 08:02:10 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -u /Users/anton/code/codex/020-perf-acceptance-20261103T080155Z/run_native.py criterion\n",
+  "active_event": {
+    "name": "pass-1-A-index",
+    "command": [
+      "/Users/anton/code/codex/020-perf-acceptance-20261101/target-A/release/deps/index-658c81f6de177204",
+      "--bench",
+      "--noplot"
+    ],
+    "cwd": "/Users/anton/code/codex/vanedb-020-perf-baseline-20261101",
+    "started": "2026-11-03T08:09:30.327248+00:00",
+    "load_flags": 0,
+    "power_flags": 0,
+    "pid": 68755
+  },
+  "reason": "Repeated unrelated host activity during measurement: Spotlight >300% CPU and duetexpertd about100%; preserve partial campaign, stop this nonqualifying attempt rather than continue expensive comparisons on a busy host."
+}
