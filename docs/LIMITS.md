@@ -35,7 +35,15 @@ vector or cut off a tightly clustered cosine island. Files they wrote load with 
 
 Reachable is not the same as found. A bounded approximate search can still
 miss a stored vector its beam never gets near, so it is not a completeness
-guarantee.
+guarantee. In particular, a vector no neighbour kept a link to is chained to
+the vector stored just before it; it is on a path, but only a wide beam or
+the exhaustive scan below will return it.
+
+Inserting into a graph loaded from an earlier release protects only the nodes
+that still have a mutual link to an earlier node. The first insert after any
+load derives the tree over the whole graph under the write lock: about 0.13 s
+at 300,000 × 128 on an M4 Pro, growing linearly. A read-only index never pays
+it.
 
 When the effective beam reaches the **stored slot count**, search performs an
 exact scan with bounded top-k selection. This also works for disconnected

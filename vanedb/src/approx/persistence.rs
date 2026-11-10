@@ -474,6 +474,7 @@ impl ApproxIndex {
                 persisted_rng,
                 // Derived on the first insert; see `spanning`.
                 parent: Vec::new(),
+                children: Vec::new(),
             }),
         })
     }

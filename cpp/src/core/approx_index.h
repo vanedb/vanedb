@@ -143,6 +143,7 @@ public:
     if (parent_.size() != count_.load()) derive_tree();
     size_t iid = count_++;
     parent_.push_back(NO_PARENT);
+    children_.push_back(0);
     id_map_[id] = iid;
     ext_ids_[iid] = id;
     std::copy_n(vec, dim_, vectors_.begin() + iid * dim_);
@@ -563,26 +564,30 @@ private:
   // unreachable by any beam search.
   //
   // Call `p` a mutual elder of `x` when `p` was stored before `x` and each
-  // lists the other on layer 0. The parent of `x` is its nearest mutual elder,
-  // ties broken by slot, and pruning never evicts the edge between a node and
-  // its parent. Parents have the smaller slot, so these edges form a tree
-  // rooted at slot 0 that spans layer 0 in both directions.
+  // lists the other on layer 0. The parent of `x` is its nearest mutual elder
+  // that has not already taken `child_limit()` children, ties broken by slot,
+  // and pruning never evicts the edge between a node and its parent. Parents
+  // have the smaller slot, so these edges form a tree rooted at slot 0 that
+  // spans layer 0 in both directions.
   //
-  // Mutual elders of `x` are created only while `x` is inserted and can only
-  // be evicted afterwards, and the nearest never is, so the parent is a
-  // function of the graph and the vectors. It is not persisted: the VNDB
-  // format is unchanged and a loaded graph keeps the topology it was saved
-  // with. Mirrors `vanedb/src/approx/spanning.rs`.
+  // The child limit keeps this cheap: under DOT a few high-norm nodes are
+  // everyone's nearest neighbour, and without it their lists would fill with
+  // protected children. A node nobody has room for is chained to the node
+  // stored just before it, which always has a free slot.
+  //
+  // The tree is a function of the graph and the vectors: mutual elders of `x`
+  // are created only while `x` is inserted, the parent is never evicted, and
+  // child counts replay identically in slot order. It is not persisted, the
+  // VNDB format is unchanged, and a loaded graph keeps the topology it was
+  // saved with. Mirrors `vanedb/src/approx/spanning.rs`; keep them in step.
   static constexpr uint32_t NO_PARENT = UINT32_MAX;
+
+  uint16_t child_limit() const {
+    return static_cast<uint16_t>(std::clamp<size_t>(M_ / 8, 1, UINT16_MAX));
+  }
 
   bool is_tree_edge(size_t a, size_t b) const {
     return parent_[a] == b || parent_[b] == a;
-  }
-
-  size_t tree_degree(size_t node) const {
-    size_t n = 0;
-    for (size_t other : neighbors_[node][0]) n += is_tree_edge(node, other);
-    return n;
   }
 
   bool lists(size_t node, size_t other) const {
@@ -591,74 +596,58 @@ private:
     return std::find(l0.begin(), l0.end(), other) != l0.end();
   }
 
-  uint32_t nearest_mutual_elder(size_t node) const {
+  // Nearest mutual elder with room for a child, or NO_PARENT.
+  uint32_t eligible_elder(size_t node) const {
     if (neighbors_[node].empty()) return NO_PARENT;
+    const uint16_t limit = child_limit();
     bool found = false;
     DistanceId best{};
     for (size_t elder : neighbors_[node][0]) {
-      if (elder >= node || !lists(elder, node)) continue;
+      if (elder >= node || children_[elder] >= limit || !lists(elder, node)) continue;
       DistanceId candidate{dist_(get_vec(elder), get_vec(node)), elder};
       if (!found || detail::DistanceIdLess{}(candidate, best)) { best = candidate; found = true; }
     }
     return found ? static_cast<uint32_t>(best.second) : NO_PARENT;
   }
 
+  // Slots are visited in order because a parent's child count at the time a
+  // child arrived decides whether it was eligible.
   void derive_tree() {
     const size_t count = count_.load();
     parent_.assign(count, NO_PARENT);
-    for (size_t node = 0; node < count; ++node) parent_[node] = nearest_mutual_elder(node);
+    children_.assign(count, 0);
+    for (size_t node = 0; node < count; ++node) {
+      const uint32_t p = eligible_elder(node);
+      parent_[node] = p;
+      if (p != NO_PARENT) ++children_[p];
+    }
   }
 
   // Gives the node just linked on layer 0 its parent. Normally a selected
-  // neighbour kept the reverse link. If pruning dropped the new node from
-  // every list, which is how nodes were stranded, it is put back into the
-  // nearest neighbour that can take it, in place of that neighbour's farthest
-  // non-tree entry.
+  // neighbour kept the reverse link and has room for a child. Otherwise the
+  // node is chained to the most recently stored node that can take it, which
+  // costs that node a free slot and nobody a neighbour.
   void adopt(size_t iid) {
-    const uint32_t derived = nearest_mutual_elder(iid);
-    if (derived != NO_PARENT) { parent_[iid] = derived; return; }
-
-    std::vector<DistanceId> nearest_first;
-    for (size_t n : neighbors_[iid][0]) nearest_first.emplace_back(dist_(get_vec(n), get_vec(iid)), n);
-    std::sort(nearest_first.begin(), nearest_first.end(), detail::DistanceIdLess{});
-
-    // A host needs a free slot or a non-tree entry; prefer one whose list is
-    // not already mostly tree edges. A tree always has a leaf, so the scan
-    // over every slot cannot fail for a graph built by insertion.
-    size_t host = INVALID_ID;
-    for (const auto& c : nearest_first)
-      if (tree_degree(c.second) < M_) { host = c.second; break; }
-    const auto can_host = [&](size_t n) {
-      const size_t len = neighbors_[n][0].size();
-      return len < M_max0_ || tree_degree(n) < len;
-    };
-    for (size_t i = 0; host == INVALID_ID && i < nearest_first.size(); ++i)
-      if (can_host(nearest_first[i].second)) host = nearest_first[i].second;
-    for (size_t n = 0; host == INVALID_ID && n < iid; ++n)
-      if (can_host(n)) host = n;
-    if (host == INVALID_ID) return;  // LCOV_EXCL_LINE
-
-    auto& list = neighbors_[host][0];
-    if (!lists(host, iid)) {
-      if (list.size() < M_max0_) {
-        list.push_back(iid);
-      } else {
-        size_t victim = INVALID_ID;
-        DistanceId farthest{};
-        for (size_t i = 0; i < list.size(); ++i) {
-          if (is_tree_edge(host, list[i])) continue;
-          DistanceId candidate{dist_(get_vec(host), get_vec(list[i])), list[i]};
-          if (victim == INVALID_ID || detail::DistanceIdLess{}(farthest, candidate)) {
-            farthest = candidate;
-            victim = i;
-          }
-        }
-        if (victim == INVALID_ID) return;  // LCOV_EXCL_LINE
-        list[victim] = iid;
+    // The node stored just before this one always qualifies in a graph built
+    // by insertion. The walk only matters after a load, and stays bounded so
+    // an insert cannot turn into a scan.
+    static constexpr size_t WALK_BACK = 64;
+    const uint16_t limit = child_limit();
+    uint32_t parent = eligible_elder(iid);
+    if (parent == NO_PARENT) {
+      size_t host = INVALID_ID;
+      for (size_t step = 1; step <= WALK_BACK && step <= iid; ++step) {
+        const size_t h = iid - step;
+        if (neighbors_[h].empty() || children_[h] >= limit) continue;
+        if (lists(h, iid) || neighbors_[h][0].size() < M_max0_) { host = h; break; }
       }
+      if (host == INVALID_ID) return;
+      if (!lists(host, iid)) neighbors_[host][0].push_back(iid);
+      if (!lists(iid, host)) neighbors_[iid][0].push_back(host);
+      parent = static_cast<uint32_t>(host);  // The only mutual elder with room.
     }
-    if (!lists(iid, host)) neighbors_[iid][0].push_back(host);
-    parent_[iid] = static_cast<uint32_t>(host);  // The only mutual elder, hence the nearest.
+    parent_[iid] = parent;
+    ++children_[parent];
   }
 
   template <bool LiveOnly = false>
@@ -761,9 +750,10 @@ private:
   std::unordered_map<uint64_t, size_t> id_map_;
   std::vector<int> levels_;
   std::vector<std::vector<std::vector<size_t>>> neighbors_;
-  // Layer-0 spanning-tree parent per slot. Derived, never persisted: empty
-  // after a load until the next insert.
+  // Layer-0 spanning-tree parent and child count per slot. Derived, never
+  // persisted: empty after a load until the next insert.
   std::vector<uint32_t> parent_;
+  std::vector<uint16_t> children_;
   std::atomic<size_t> ep_{INVALID_ID};
   std::atomic<int> max_level_{-1};
   std::atomic<size_t> count_{0};

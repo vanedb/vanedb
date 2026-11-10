@@ -173,6 +173,8 @@ pub(super) struct Inner {
     /// not persisted: a loaded index leaves this empty and the first insert
     /// derives it.
     pub(super) parent: Vec<u32>,
+    /// How many children each slot has in that tree; derived with it.
+    pub(super) children: Vec<u16>,
 }
 
 /// Configures an [`ApproxIndex`] before construction.
@@ -406,6 +408,7 @@ impl ApproxIndex {
             rng: StdRng::seed_from_u64(self.seed),
             persisted_rng: None,
             parent: Vec::with_capacity(live.len()),
+            children: Vec::with_capacity(live.len()),
         };
         for (id, vector) in &live {
             self.insert_into(&mut inner, *id, vector);
@@ -537,7 +540,12 @@ impl ApproxIndex {
         if inner.parent.len() != iid {
             // First insert since a load. Searches never need the tree, so a
             // read-only index never pays for it.
-            inner.parent = spanning::derive(&inner.neighbors, &inner.vectors, self.dist_fn);
+            (inner.parent, inner.children) = spanning::derive(
+                &inner.neighbors,
+                &inner.vectors,
+                self.dist_fn,
+                spanning::child_limit(self.m),
+            );
         }
         inner.count += 1;
 
@@ -554,6 +562,7 @@ impl ApproxIndex {
         inner.ext_ids.push(id);
         inner.id_map.insert(id, iid);
         inner.parent.push(spanning::NO_PARENT);
+        inner.children.push(0);
 
         // Generate random level
         let level = Self::get_level(&mut inner.rng, self.mult);
@@ -668,7 +677,7 @@ impl ApproxIndex {
             }
 
             if lev == 0 {
-                self.adopt(inner, iid, &neighbors_to_add, &results);
+                self.adopt(inner, iid);
             }
 
             // Use the closest result as entry point for the next layer down
@@ -687,73 +696,45 @@ impl ApproxIndex {
     /// Gives the node just linked on layer 0 its spanning-tree parent, so no
     /// later pruning can cut it off (#299; see [`spanning`]).
     ///
-    /// Normally some selected neighbour kept the reverse link, and the
-    /// nearest of those is the parent. If pruning dropped the new node from
-    /// every list, which is how nodes used to be stranded, it is put back
-    /// into the nearest neighbour that can take it, in place of that
-    /// neighbour's farthest non-tree entry.
-    fn adopt(
-        &self,
-        inner: &mut Inner,
-        iid: usize,
-        selected: &[(f32, usize)],
-        searched: &[(f32, usize)],
-    ) {
-        let derived =
-            spanning::nearest_mutual_elder(&inner.neighbors, &inner.vectors, self.dist_fn, iid);
-        if derived != spanning::NO_PARENT {
-            inner.parent[iid] = derived;
-            return;
-        }
+    /// Normally a selected neighbour kept the reverse link and has room for
+    /// a child, and the nearest such neighbour is the parent. Otherwise the
+    /// node is chained to the most recently stored node that can take it,
+    /// which costs that node a free slot and nobody a neighbour.
+    fn adopt(&self, inner: &mut Inner, iid: usize) {
+        // How far back to look for a host. The node stored just before this
+        // one always qualifies in a graph built by insertion: nothing later
+        // has linked to it or become its child. The walk only matters after
+        // a load, and stays bounded so an insert cannot turn into a scan.
+        const WALK_BACK: usize = 64;
 
-        // Nobody kept it. A host needs a free slot or an entry that is not a
-        // tree edge; prefer one whose list is not already mostly tree edges,
-        // so the links it holds stay chosen by distance. Nearest first: the
-        // selected neighbours, then anything the construction search scored,
-        // then anything at all.
-        let tree_edges = |inner: &Inner, node: usize| {
-            spanning::tree_degree(&inner.parent, &inner.neighbors[node][0], node)
-        };
-        let mut nearest_first = selected.to_vec();
-        nearest_first.sort_by_key(|a| FloatOrd(a.0));
-        let nearby = || nearest_first.iter().chain(searched).map(|&(_, nb)| nb);
-        let Some(host) = nearby()
-            .find(|&nb| tree_edges(inner, nb) < self.m)
-            .or_else(|| {
-                nearby().chain(0..iid).find(|&nb| {
-                    let len = inner.neighbors[nb][0].len();
-                    len < self.m_max0 || tree_edges(inner, nb) < len
-                })
-            })
-        else {
-            // Unreachable for a graph built by insertion: a tree always has
-            // a leaf. Kept so a malformed loaded graph cannot turn an insert
-            // into a panic.
-            return;
-        };
-
-        if !inner.neighbors[host][0].contains(&iid) {
-            if inner.neighbors[host][0].len() < self.m_max0 {
+        let limit = spanning::child_limit(self.m);
+        let mut parent = spanning::eligible_elder(
+            &inner.neighbors,
+            &inner.vectors,
+            self.dist_fn,
+            &inner.children,
+            limit,
+            iid,
+        );
+        if parent == spanning::NO_PARENT {
+            let Some(host) = (0..iid).rev().take(WALK_BACK).find(|&h| {
+                inner.children[h] < limit
+                    && (inner.neighbors[h][0].contains(&iid)
+                        || inner.neighbors[h][0].len() < self.m_max0)
+            }) else {
+                return;
+            };
+            if !inner.neighbors[host][0].contains(&iid) {
                 inner.neighbors[host][0].push(iid);
-            } else {
-                let host_vec = inner.vectors.get(host);
-                let Some(victim) = inner.neighbors[host][0]
-                    .iter()
-                    .enumerate()
-                    .filter(|&(_, &e)| !spanning::is_tree_edge(&inner.parent, host, e))
-                    .max_by_key(|&(_, &e)| FloatOrd((self.dist_fn)(host_vec, inner.vectors.get(e))))
-                    .map(|(position, _)| position)
-                else {
-                    return;
-                };
-                inner.neighbors[host][0][victim] = iid;
             }
+            if !inner.neighbors[iid][0].contains(&host) {
+                inner.neighbors[iid][0].push(host);
+            }
+            // The host is now the only mutual elder with room.
+            parent = host as u32;
         }
-        if !inner.neighbors[iid][0].contains(&host) {
-            inner.neighbors[iid][0].push(host);
-        }
-        // The host is now the only mutual elder, hence the nearest.
-        inner.parent[iid] = host as u32;
+        inner.parent[iid] = parent;
+        inner.children[parent as usize] += 1;
     }
 
     /// The `k` nearest vectors to `query`, nearest first.
@@ -1239,6 +1220,7 @@ impl ApproxIndexBuilder {
                 rng: StdRng::seed_from_u64(self.seed),
                 persisted_rng: None,
                 parent: Vec::new(),
+                children: Vec::new(),
             }),
         })
     }
@@ -1655,8 +1637,11 @@ mod tests {
         for metric in [Metric::Dot, Metric::Cosine, Metric::L2] {
             let idx = build_clustered(metric, 2, 400, 8);
             let inner = idx.inner.read();
-            let derived = spanning::derive(&inner.neighbors, &inner.vectors, idx.dist_fn);
-            assert_eq!(inner.parent, derived, "{metric:?}");
+            let limit = spanning::child_limit(idx.m);
+            let (parent, children) =
+                spanning::derive(&inner.neighbors, &inner.vectors, idx.dist_fn, limit);
+            assert_eq!(inner.parent, parent, "{metric:?}");
+            assert_eq!(inner.children, children, "{metric:?}");
             assert_eq!(inner.parent[0], spanning::NO_PARENT, "slot 0 is the root");
             assert!(
                 inner.parent[1..]
@@ -1665,6 +1650,70 @@ mod tests {
                     .all(|(i, &p)| (p as usize) < i + 1),
                 "{metric:?}: every other node has an elder parent"
             );
+            assert!(
+                inner.children.iter().all(|&c| c <= limit),
+                "{metric:?}: no node takes more than {limit} children"
+            );
         }
+    }
+
+    /// DOT vectors whose norms span two orders of magnitude: a few become
+    /// everyone's nearest neighbour.
+    fn uneven_norms(seed: u64, n: usize, dim: usize) -> Vec<f32> {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut out = Vec::with_capacity(n * dim);
+        for _ in 0..n {
+            let scale = normal(&mut rng).exp();
+            for _ in 0..dim {
+                out.push(normal(&mut rng) * scale);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn reachability_does_not_cost_dot_recall() {
+        // Protecting edges must not crowd the high-norm nodes that DOT
+        // navigation runs through. An earlier form of the fix let them fill
+        // with protected children; recall on this data fell from 1.0 to 0.3.
+        let (n, dim, k) = (6_000, 16, 10);
+        let vectors = uneven_norms(11, n, dim);
+        let idx = ApproxIndex::builder(dim, Metric::Dot)
+            .m(16)
+            .ef_construction(100)
+            .seed(11)
+            .build()
+            .unwrap();
+        let flat = crate::FlatIndex::new(dim, Metric::Dot).unwrap();
+        let ids: Vec<u64> = (0..n as u64).collect();
+        idx.add_batch(&ids, &vectors).unwrap();
+        flat.add_batch(&ids, &vectors).unwrap();
+        assert_layer0_connected(&idx, "dot uneven norms");
+
+        let queries = uneven_norms(12, 100, dim);
+        let (mut hit, mut want) = (0, 0);
+        for q in queries.chunks(dim) {
+            let truth: Vec<u64> = flat.search(q, k).unwrap().iter().map(|r| r.id).collect();
+            let got = idx.search(q, k).unwrap();
+            hit += got.iter().filter(|r| truth.contains(&r.id)).count();
+            want += truth.len();
+        }
+        let recall = hit as f64 / want as f64;
+        assert!(recall >= 0.97, "recall@{k} {recall:.3} at the default beam");
+    }
+
+    #[test]
+    fn duplicate_vectors_stay_connected_without_a_scan() {
+        // Every node ties with every other, so pruning drops most new nodes
+        // from every list and they take the chained path.
+        let (n, dim) = (3_000, 4);
+        let idx = ApproxIndex::builder(dim, Metric::L2)
+            .m(4)
+            .seed(1)
+            .build()
+            .unwrap();
+        let ids: Vec<u64> = (0..n as u64).collect();
+        idx.add_batch(&ids, &vec![1.0; n * dim]).unwrap();
+        assert_layer0_connected(&idx, "identical vectors");
     }
 }

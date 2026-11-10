@@ -8,30 +8,39 @@
 //!
 //! The remedy is to protect one edge pair per node. Call `p` a *mutual
 //! elder* of `x` when `p` was stored before `x` and each lists the other on
-//! layer 0. The **parent** of `x` is its nearest mutual elder, ties broken
-//! by slot. Pruning never evicts the edge between a node and its parent, in
-//! either direction. Parents always have the smaller slot, so the protected
-//! edges form a tree rooted at slot 0 that spans the layer both ways, and
-//! layer 0 is strongly connected whatever start the upper layers hand the
-//! beam.
+//! layer 0. The **parent** of `x` is its nearest mutual elder that has not
+//! already taken [`child_limit`] children, ties broken by slot. Pruning
+//! never evicts the edge between a node and its parent, in either
+//! direction. Parents always have the smaller slot, so the protected edges
+//! form a tree rooted at slot 0 that spans the layer both ways, and layer 0
+//! is strongly connected whatever start the upper layers hand the beam.
 //!
-//! The parent is a function of the graph and the vectors, not extra state
+//! The child limit is what keeps this cheap. Under DOT a few high-norm
+//! nodes are everyone's nearest neighbour; without a limit their lists
+//! would fill with protected children and stop tracking the nodes that
+//! matter for navigation. With it a node gives up at most `child_limit + 1`
+//! of its `2m` slots, and a node nobody has room for is chained to the
+//! node stored just before it, which always has a free slot.
+//!
+//! The tree is a function of the graph and the vectors, not extra state
 //! with a history. Mutual elders of `x` are created only while `x` is being
-//! inserted and can only be evicted afterwards, and the nearest one never
-//! is, so it stays the nearest. That is why the tree is not persisted and
-//! the VNDB graph format is unchanged: [`derive`] recomputes exactly the
-//! tree the writer had, and an index resumed from a file keeps building the
-//! graph it would have built without the round trip.
+//! inserted and can only be evicted afterwards; the parent never is; and
+//! child counts replay identically in slot order. That is why nothing is
+//! persisted and the VNDB graph format is unchanged: [`derive`] recomputes
+//! exactly the tree the writer had, and an index resumed from a file keeps
+//! building the graph it would have built without the round trip.
 //!
 //! The degree cap holds without further rules: an overflowing list is one
 //! over its cap because a node was just pushed onto it, and that node has
-//! no parent yet, so there is always an entry that may be dropped. When the
-//! farthest entry is not a tree edge, which is the ordinary case, the
-//! outcome is exactly the old truncation.
+//! no parent yet, so there is always an entry that may be dropped.
+//!
+//! Reachable is a statement about the graph, not about a bounded beam. A
+//! node chained to its predecessor is on a path, but a narrow beam that
+//! never comes near it will still not return it.
 //!
 //! A file written by an older release of either engine is loaded as it was
-//! saved. Nodes it already stranded have no mutual elder, stay outside
-//! the tree, and stay stranded until `compact()` rebuilds the graph.
+//! saved. Its nodes are protected where they have a mutual elder; nodes it
+//! already stranded stay stranded until `compact()` rebuilds the graph.
 
 use super::storage::ChunkedVectors;
 use crate::distance::DistanceFn;
@@ -47,11 +56,11 @@ pub(super) fn is_tree_edge(parent: &[u32], a: usize, b: usize) -> bool {
     parent[a] == b as u32 || parent[b] == a as u32
 }
 
-/// Number of tree edges in `node`'s layer-0 list.
-pub(super) fn tree_degree(parent: &[u32], list: &[usize], node: usize) -> usize {
-    list.iter()
-        .filter(|&&other| is_tree_edge(parent, node, other))
-        .count()
+/// How many children one node may take: an eighth of `m`, at least one.
+/// Together with its own parent that is the most slots a node gives up to
+/// the tree.
+pub(super) fn child_limit(m: usize) -> u16 {
+    (m / 8).clamp(1, u16::MAX as usize) as u16
 }
 
 /// Position of the entry an overflowing list should drop: the farthest one
@@ -66,21 +75,23 @@ pub(super) fn eviction_index(parent: &[u32], node: usize, sorted: &[(f32, usize)
         .unwrap_or(sorted.len() - 1)
 }
 
-/// The parent of `node`: its nearest mutual elder, ties broken by slot, or
-/// [`NO_PARENT`] if it has none.
+/// The parent of `node`: its nearest mutual elder with fewer than `limit`
+/// children, ties broken by slot, or [`NO_PARENT`] if there is none.
 ///
 /// Insertion and [`derive`] both go through here, which is what makes the
 /// tree the same before and after a save.
-pub(super) fn nearest_mutual_elder(
+pub(super) fn eligible_elder(
     neighbors: &[Vec<Vec<usize>>],
     vectors: &ChunkedVectors,
     dist_fn: DistanceFn,
+    children: &[u16],
+    limit: u16,
     node: usize,
 ) -> u32 {
     let layer0 = |n: usize| neighbors[n].first().map_or(&[][..], Vec::as_slice);
     let mut best: Option<(f32, usize)> = None;
     for &elder in layer0(node) {
-        if elder >= node || !layer0(elder).contains(&node) {
+        if elder >= node || children[elder] >= limit || !layer0(elder).contains(&node) {
             continue;
         }
         let d = dist_fn(vectors.get(elder), vectors.get(node));
@@ -93,15 +104,26 @@ pub(super) fn nearest_mutual_elder(
     best.map_or(NO_PARENT, |(_, elder)| elder as u32)
 }
 
-/// Recomputes the whole tree from a graph, without changing the graph.
+/// Recomputes the whole tree from a graph, without changing the graph:
+/// each slot's parent, and each slot's child count. Slots are visited in
+/// order because a parent's count at the time a child arrived decides
+/// whether it was eligible.
 pub(super) fn derive(
     neighbors: &[Vec<Vec<usize>>],
     vectors: &ChunkedVectors,
     dist_fn: DistanceFn,
-) -> Vec<u32> {
-    (0..neighbors.len())
-        .map(|node| nearest_mutual_elder(neighbors, vectors, dist_fn, node))
-        .collect()
+    limit: u16,
+) -> (Vec<u32>, Vec<u16>) {
+    let mut parent = Vec::with_capacity(neighbors.len());
+    let mut children = vec![0u16; neighbors.len()];
+    for node in 0..neighbors.len() {
+        let p = eligible_elder(neighbors, vectors, dist_fn, &children, limit, node);
+        if p != NO_PARENT {
+            children[p as usize] += 1;
+        }
+        parent.push(p);
+    }
+    (parent, children)
 }
 
 /// Counts layer-0 nodes the entry cannot reach, and nodes that cannot reach

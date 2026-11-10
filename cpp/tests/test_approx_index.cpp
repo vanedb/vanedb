@@ -1339,3 +1339,52 @@ TEST_CASE("ApproxIndex - resuming from a file builds the graph it would have bui
   for (const auto& p : {straight_path, halfway_path, resumed_path}) std::filesystem::remove(p);
   REQUIRE(identical);
 }
+
+TEST_CASE("ApproxIndex - reachability does not cost DOT recall", "[index][reachability]") {
+  // Norms spanning two orders of magnitude: a few vectors are everyone's
+  // nearest neighbour. Protected edges must not crowd them out; an earlier
+  // form of the fix did, and recall on this data fell from 1.0 to 0.3.
+  constexpr size_t n = 6000, dim = 16, k = 10;
+  std::mt19937 rng(11);
+  std::normal_distribution<float> normal(0.0f, 1.0f);
+  auto make = [&](size_t count) {
+    std::vector<float> out(count * dim);
+    for (size_t i = 0; i < count; ++i) {
+      const float scale = std::exp(normal(rng));
+      for (size_t d = 0; d < dim; ++d) out[i * dim + d] = normal(rng) * scale;
+    }
+    return out;
+  };
+  const auto vectors = make(n);
+  const auto queries = make(100);
+  vanedb::ApproxIndex index(dim, vanedb::Metric::DOT, n, 16, 100, 11);
+  for (size_t i = 0; i < n; ++i) index.add(i, vectors.data() + i * dim);
+
+  size_t hit = 0;
+  for (size_t q = 0; q < 100; ++q) {
+    const float* query = queries.data() + q * dim;
+    std::vector<std::pair<float, size_t>> exact(n);
+    for (size_t i = 0; i < n; ++i) {
+      float dot = 0;
+      for (size_t d = 0; d < dim; ++d) dot += query[d] * vectors[i * dim + d];
+      exact[i] = {-dot, i};
+    }
+    std::partial_sort(exact.begin(), exact.begin() + k, exact.end());
+    const auto got = index.search(query, k);
+    for (size_t t = 0; t < k; ++t)
+      for (const auto& r : got)
+        if (r.id == exact[t].second) { ++hit; break; }
+  }
+  REQUIRE(static_cast<double>(hit) / (100 * k) >= 0.97);
+}
+
+TEST_CASE("ApproxIndex - duplicate vectors stay reachable", "[index][reachability]") {
+  // Every node ties with every other, so pruning drops most new nodes from
+  // every list and they take the chained path.
+  constexpr size_t n = 3000, dim = 4;
+  const std::vector<float> same(dim, 1.0f);
+  vanedb::ApproxIndex index(dim, vanedb::Metric::L2, n, 4, 200, 1);
+  for (size_t i = 0; i < n; ++i) index.add(i, same.data());
+  index.set_ef_search(n - 1);
+  REQUIRE(index.search(same.data(), n - 1).size() == n - 1);
+}

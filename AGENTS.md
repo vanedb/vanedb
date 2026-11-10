@@ -102,10 +102,13 @@ and toolchain for checks that cannot run locally.
   `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
   reverse lists use distance sort+truncate rather than the diversity heuristic.
   Change either only with cross-engine conformance and interleaved benchmarks.
-  The one exception to plain truncation, in both engines: on layer 0 it never
-  drops the edge between a node and its spanning-tree parent, which is what
-  keeps every stored vector reachable (#299, `approx/spanning.rs` and
-  `cpp/src/core/approx_index.h`). The tree is derived from the graph, never
+  Two exceptions to plain truncation, in both engines, keep every stored
+  vector reachable (#299, `approx/spanning.rs` and
+  `cpp/src/core/approx_index.h`): on layer 0 pruning never drops the edge
+  between a node and its spanning-tree parent, and a node no neighbour kept
+  is chained to the node stored just before it. A node takes at most `M/8`
+  children, so high-norm DOT hubs keep their lists; do not raise that limit
+  without DOT recall measurements. The tree is derived from the graph, never
   persisted. Keep the two implementations in step.
 - **Bounded top-k, not full sorts and not quickselect**: `SearchResult`'s
   `Ord` tie-breaks on id, which makes full sorts slow — but `select_nth_unstable`
