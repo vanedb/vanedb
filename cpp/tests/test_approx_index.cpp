@@ -1261,3 +1261,130 @@ TEST_CASE("A full beam recovers every clustered DOT and cosine vector", "[index]
     }
   }
 }
+
+// --- #299: construction must not strand stored vectors ---------------------
+
+namespace {
+
+// `n` points around four far-apart centres: the data that stranded nodes
+// under DOT and built islands under cosine.
+std::vector<float> clustered_vectors(uint32_t seed, size_t n, size_t dim) {
+  std::mt19937 rng(seed);
+  std::normal_distribution<float> normal(0.0f, 1.0f);
+  std::vector<float> centres(4 * dim);
+  for (auto& c : centres) c = normal(rng) * 5.0f;
+  std::vector<float> out(n * dim);
+  for (size_t i = 0; i < n; ++i) {
+    const size_t c = rng() % 4;
+    for (size_t d = 0; d < dim; ++d) out[i * dim + d] = centres[c * dim + d] + normal(rng) * 0.05f;
+  }
+  return out;
+}
+
+std::vector<char> read_bytes(const std::filesystem::path& path) {
+  std::ifstream in(path, std::ios::binary);
+  return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+}  // namespace
+
+TEST_CASE("ApproxIndex - a beam one short of the corpus returns everything asked for",
+          "[index][reachability]") {
+  // A beam of `n` takes the exact scan, so ask for `n - 1`: that still walks
+  // the graph, and before the fix it came back short on this data.
+  constexpr size_t n = 400;
+  struct Case { vanedb::Metric metric; size_t dim; };
+  for (const auto& c : {Case{vanedb::Metric::DOT, 8}, Case{vanedb::Metric::DOT, 2},
+                        Case{vanedb::Metric::COSINE, 2}, Case{vanedb::Metric::L2, 8}}) {
+    for (uint32_t seed = 0; seed < 6; ++seed) {
+      const auto vectors = clustered_vectors(seed, n, c.dim);
+      vanedb::ApproxIndex index(c.dim, c.metric, n, 16, 100, seed);
+      for (size_t i = 0; i < n; ++i) index.add(i, vectors.data() + i * c.dim);
+      index.set_ef_search(n - 1);
+      // Start the walk from several places: reachability must not depend on
+      // where the upper layers happen to drop the beam.
+      for (size_t q : {size_t{0}, n / 3, n - 1}) {
+        INFO("metric " << static_cast<int>(c.metric) << " dim " << c.dim << " seed " << seed
+                       << " query " << q);
+        REQUIRE(index.search(vectors.data() + q * c.dim, n - 1).size() == n - 1);
+      }
+    }
+  }
+}
+
+TEST_CASE("ApproxIndex - resuming from a file builds the graph it would have built anyway",
+          "[index][reachability][persistence]") {
+  // The spanning tree is derived from the graph, not stored. If a reader
+  // derived a different tree, inserts after a load would prune differently.
+  constexpr size_t n = 300, dim = 8;
+  const auto vectors = clustered_vectors(3, n, dim);
+  const auto dir = std::filesystem::temp_directory_path();
+  const auto tag = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+  const auto straight_path = dir / ("vanedb-299-straight-" + tag + ".vndb");
+  const auto halfway_path = dir / ("vanedb-299-halfway-" + tag + ".vndb");
+  const auto resumed_path = dir / ("vanedb-299-resumed-" + tag + ".vndb");
+
+  vanedb::ApproxIndex straight(dim, vanedb::Metric::DOT, n, 16, 100, 7);
+  for (size_t i = 0; i < n; ++i) straight.add(i, vectors.data() + i * dim);
+  straight.save(straight_path.string());
+
+  vanedb::ApproxIndex first_half(dim, vanedb::Metric::DOT, n, 16, 100, 7);
+  for (size_t i = 0; i < n / 2; ++i) first_half.add(i, vectors.data() + i * dim);
+  first_half.save(halfway_path.string());
+  auto resumed = vanedb::ApproxIndex::load(halfway_path.string());
+  for (size_t i = n / 2; i < n; ++i) resumed->add(i, vectors.data() + i * dim);
+  resumed->save(resumed_path.string());
+
+  const bool identical = read_bytes(straight_path) == read_bytes(resumed_path);
+  for (const auto& p : {straight_path, halfway_path, resumed_path}) std::filesystem::remove(p);
+  REQUIRE(identical);
+}
+
+TEST_CASE("ApproxIndex - reachability does not cost DOT recall", "[index][reachability]") {
+  // Norms spanning two orders of magnitude: a few vectors are everyone's
+  // nearest neighbour. Protected edges must not crowd them out; an earlier
+  // form of the fix did, and recall on this data fell from 1.0 to 0.3.
+  constexpr size_t n = 6000, dim = 16, k = 10;
+  std::mt19937 rng(11);
+  std::normal_distribution<float> normal(0.0f, 1.0f);
+  auto make = [&](size_t count) {
+    std::vector<float> out(count * dim);
+    for (size_t i = 0; i < count; ++i) {
+      const float scale = std::exp(normal(rng));
+      for (size_t d = 0; d < dim; ++d) out[i * dim + d] = normal(rng) * scale;
+    }
+    return out;
+  };
+  const auto vectors = make(n);
+  const auto queries = make(100);
+  vanedb::ApproxIndex index(dim, vanedb::Metric::DOT, n, 16, 100, 11);
+  for (size_t i = 0; i < n; ++i) index.add(i, vectors.data() + i * dim);
+
+  size_t hit = 0;
+  for (size_t q = 0; q < 100; ++q) {
+    const float* query = queries.data() + q * dim;
+    std::vector<std::pair<float, size_t>> exact(n);
+    for (size_t i = 0; i < n; ++i) {
+      float dot = 0;
+      for (size_t d = 0; d < dim; ++d) dot += query[d] * vectors[i * dim + d];
+      exact[i] = {-dot, i};
+    }
+    std::partial_sort(exact.begin(), exact.begin() + k, exact.end());
+    const auto got = index.search(query, k);
+    for (size_t t = 0; t < k; ++t)
+      for (const auto& r : got)
+        if (r.id == exact[t].second) { ++hit; break; }
+  }
+  REQUIRE(static_cast<double>(hit) / (100 * k) >= 0.97);
+}
+
+TEST_CASE("ApproxIndex - duplicate vectors stay reachable", "[index][reachability]") {
+  // Every node ties with every other, so pruning drops most new nodes from
+  // every list and they take the chained path.
+  constexpr size_t n = 3000, dim = 4;
+  const std::vector<float> same(dim, 1.0f);
+  vanedb::ApproxIndex index(dim, vanedb::Metric::L2, n, 4, 200, 1);
+  for (size_t i = 0; i < n; ++i) index.add(i, same.data());
+  index.set_ef_search(n - 1);
+  REQUIRE(index.search(same.data(), n - 1).size() == n - 1);
+}

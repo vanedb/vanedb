@@ -27,10 +27,29 @@ a limit are named beside it.
 
 ## Graph reachability and exhaustive queries
 
-Approximate graph construction can prune every inbound link to a DOT vector
-or disconnect a tightly clustered cosine island (#299). A larger ordinary
-beam cannot cross a missing edge. Stored vectors are intact, but a bounded
-approximate search is not a completeness guarantee.
+A graph built by this release keeps every stored vector reachable: layer 0
+carries a spanning tree whose edges pruning never removes (#299). Releases up
+to 0.2.0-rc.2, in both engines, could prune every inbound link to a DOT
+vector or cut off a tightly clustered cosine island. Files they wrote load with the topology they were saved with, stranded vectors included;
+`compact()` rebuilds the graph and reconnects them.
+
+Reachable is not the same as found. A bounded approximate search can still
+miss a stored vector its beam never gets near, so it is not a completeness
+guarantee. In particular, a vector no neighbour kept a link to is chained to
+the vector stored just before it; it is on a path, but only a wide beam or
+the exhaustive scan below will return it.
+
+Inserting into a graph loaded from an earlier release protects only the nodes
+that still have a mutual link to an earlier node. The first insert after any
+load derives the tree over the whole graph under the write lock: about 0.03 s
+at 300,000 × 128 on an M4 Pro, growing linearly. A read-only index never pays
+it.
+
+The derived tree equals the writer's when the same distance kernel reads the
+file. A different kernel (another SIMD path, or the other engine) can order a
+near-tie differently and derive a different, equally valid tree; an index
+resumed that way stays connected but is no longer byte-identical to one that
+was never saved.
 
 When the effective beam reaches the **stored slot count**, search performs an
 exact scan with bounded top-k selection. This also works for disconnected
