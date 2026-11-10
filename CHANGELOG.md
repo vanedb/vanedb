@@ -21,6 +21,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   input and seed. A file saved by an earlier release keeps its topology on
   load; call `compact()` to rebuild it. The C++ reference engine carries the
   same fix.
+- WebAssembly: a search `predicate` that returns a thenable or a generator
+  now throws `TypeError`. A Promise and a generator object are always
+  truthy, so an `async` function, a function that returns
+  `Promise.resolve(false)`, or a generator function had matched every stored
+  id. A rejected Promise is handled, so a predicate that throws inside an
+  `async` function no longer ends the process with an unhandled rejection
+  after `search` returns. Ordinary truthy and falsy returns are unchanged.
 
 ## [0.2.0-rc.2] - 2026-10-02
 
