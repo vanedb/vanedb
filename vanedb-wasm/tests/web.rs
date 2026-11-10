@@ -1049,3 +1049,158 @@ fn engine_failures_carry_a_code() {
         .unwrap()
         .is_undefined());
 }
+
+fn cosine_flat() -> WasmStore {
+    let index = WasmStore::new(&JsValue::from(3.0), &JsValue::from_str("cosine")).unwrap();
+    index
+        .add(&JsValue::from(101u64), &v(&[1.0, 0.0, 0.0]))
+        .unwrap();
+    index
+        .add(&JsValue::from(202u64), &v(&[0.0, 1.0, 0.0]))
+        .unwrap();
+    index
+}
+
+fn cosine_approx() -> WasmIndex {
+    let index = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("cosine"),
+        &JsValue::from(16.0),
+        &JsValue::from(8.0),
+        &JsValue::from(32.0),
+        None,
+    )
+    .unwrap();
+    index
+        .add(&JsValue::from(101u64), &v(&[1.0, 0.0, 0.0]))
+        .unwrap();
+    index
+        .add(&JsValue::from(202u64), &v(&[0.0, 1.0, 0.0]))
+        .unwrap();
+    index
+}
+
+fn predicate_options(expression: &str) -> JsValue {
+    let factory = js_sys::Function::new_no_args(&format!(
+        "globalThis.__vanedbPredicateCalls = 0; \
+         const inner = ({expression}); \
+         return (id) => {{ globalThis.__vanedbPredicateCalls++; return inner(id); }};"
+    ));
+    let predicate = factory.call0(&JsValue::NULL).unwrap();
+    let options = js_sys::Object::new();
+    js_sys::Reflect::set(&options, &JsValue::from_str("predicate"), &predicate).unwrap();
+    options.into()
+}
+
+fn predicate_calls() -> f64 {
+    js_sys::Reflect::get(
+        &js_sys::global(),
+        &JsValue::from_str("__vanedbPredicateCalls"),
+    )
+    .unwrap()
+    .as_f64()
+    .unwrap()
+}
+
+fn search_flat(index: &WasmStore, expression: &str) -> Result<WasmSearchResults, JsValue> {
+    index.search(
+        &v(&[1.0, 0.0, 0.0]),
+        &JsValue::from(2.0),
+        Some(predicate_options(expression)),
+    )
+}
+
+fn search_approx(index: &WasmIndex, expression: &str) -> Result<WasmSearchResults, JsValue> {
+    index.search(
+        &v(&[1.0, 0.0, 0.0]),
+        &JsValue::from(2.0),
+        Some(predicate_options(expression)),
+    )
+}
+
+fn assert_type_error(err: &JsValue) {
+    use wasm_bindgen::JsCast;
+    assert!(err.is_instance_of::<js_sys::TypeError>());
+    let message = js_sys::Reflect::get(err, &JsValue::from_str("message"))
+        .unwrap()
+        .as_string()
+        .unwrap();
+    assert!(
+        message.contains("synchronous verdict"),
+        "unexpected error: {message}"
+    );
+    assert!(js_sys::Reflect::get(err, &JsValue::from_str("code"))
+        .unwrap()
+        .is_undefined());
+}
+
+#[wasm_bindgen_test]
+fn deferred_predicate_results_throw_type_error() {
+    const DEFERRED: &[&str] = &[
+        "async () => false",
+        "() => Promise.resolve(false)",
+        "() => ({ then(resolve) { resolve(false); } })",
+        "() => Object.assign(() => {}, { then(resolve) { resolve(false); } })",
+        "function* () { return false; }",
+        "async function* () { return false; }",
+        "async () => { throw new Error('metadata'); }",
+    ];
+    for expression in DEFERRED {
+        let flat = cosine_flat();
+        match search_flat(&flat, expression) {
+            Err(err) => assert_type_error(&err),
+            Ok(hits) => panic!("{expression} kept {} flat ids", hits.length()),
+        }
+        assert_eq!(predicate_calls(), 1.0, "{expression}");
+        assert_eq!(
+            flat.search(&v(&[1.0, 0.0, 0.0]), &JsValue::from(2.0), None)
+                .unwrap()
+                .ids(),
+            vec![101, 202]
+        );
+
+        let approx = cosine_approx();
+        match search_approx(&approx, expression) {
+            Err(err) => assert_type_error(&err),
+            Ok(hits) => panic!("{expression} kept {} approx ids", hits.length()),
+        }
+        assert_eq!(predicate_calls(), 1.0, "{expression}");
+        assert_eq!(
+            approx
+                .search(&v(&[1.0, 0.0, 0.0]), &JsValue::from(2.0), None)
+                .unwrap()
+                .ids(),
+            vec![101, 202]
+        );
+    }
+}
+
+#[wasm_bindgen_test]
+fn synchronous_predicate_truthiness_still_filters() {
+    let cases = [
+        ("() => false", Vec::<u64>::new()),
+        ("() => true", vec![101, 202]),
+        ("() => 0", Vec::new()),
+        ("() => 1", vec![101, 202]),
+        ("() => null", Vec::new()),
+        ("() => undefined", Vec::new()),
+        ("() => ({})", vec![101, 202]),
+        ("() => []", vec![101, 202]),
+        ("() => ({ then: 1 })", vec![101, 202]),
+        ("() => (() => false)", vec![101, 202]),
+    ];
+    for (expression, expected) in cases {
+        let flat = cosine_flat();
+        assert_eq!(
+            search_flat(&flat, expression).unwrap().ids(),
+            expected,
+            "flat {expression}"
+        );
+        let approx = cosine_approx();
+        assert_eq!(
+            search_approx(&approx, expression).unwrap().ids(),
+            expected,
+            "approx {expression}"
+        );
+    }
+}
