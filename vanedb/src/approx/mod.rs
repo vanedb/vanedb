@@ -1657,6 +1657,28 @@ mod tests {
         }
     }
 
+    #[test]
+    fn deriving_never_leaves_a_node_with_a_mutual_elder_unprotected() {
+        // With m = 4 a node takes one child. Slots 1 and 2 both have slot 0
+        // as their only mutual elder, a shape insertion never produces but a
+        // file read with a different distance kernel can. Slot 2 must still
+        // be protected, over the limit, rather than left with no parent.
+        let idx = ApproxIndex::builder(2, Metric::L2).m(4).build().unwrap();
+        for (id, v) in [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]].iter().enumerate() {
+            idx.add(id as u64, v).unwrap();
+        }
+        let mut inner = idx.inner.write();
+        inner.neighbors[0][0] = vec![1, 2];
+        inner.neighbors[1][0] = vec![0];
+        inner.neighbors[2][0] = vec![0];
+        let limit = spanning::child_limit(idx.m);
+        assert_eq!(limit, 1);
+        let (parent, children) =
+            spanning::derive(&inner.neighbors, &inner.vectors, idx.dist_fn, limit);
+        assert_eq!(parent, vec![spanning::NO_PARENT, 0, 0]);
+        assert_eq!(children, vec![2, 0, 0]);
+    }
+
     /// DOT vectors whose norms span two orders of magnitude: a few become
     /// everyone's nearest neighbour.
     fn uneven_norms(seed: u64, n: usize, dim: usize) -> Vec<f32> {

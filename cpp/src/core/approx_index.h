@@ -596,14 +596,16 @@ private:
     return std::find(l0.begin(), l0.end(), other) != l0.end();
   }
 
-  // Nearest mutual elder with room for a child, or NO_PARENT.
-  uint32_t eligible_elder(size_t node) const {
+  // Nearest mutual elder with room for a child, or NO_PARENT. With
+  // `ignore_limit`, the nearest mutual elder whatever its child count.
+  uint32_t eligible_elder(size_t node, bool ignore_limit = false) const {
     if (neighbors_[node].empty()) return NO_PARENT;
     const uint16_t limit = child_limit();
     bool found = false;
     DistanceId best{};
     for (size_t elder : neighbors_[node][0]) {
-      if (elder >= node || children_[elder] >= limit || !lists(elder, node)) continue;
+      if (elder >= node || !lists(elder, node)) continue;
+      if (!ignore_limit && children_[elder] >= limit) continue;
       DistanceId candidate{dist_(get_vec(elder), get_vec(node)), elder};
       if (!found || detail::DistanceIdLess{}(candidate, best)) { best = candidate; found = true; }
     }
@@ -612,14 +614,21 @@ private:
 
   // Slots are visited in order because a parent's child count at the time a
   // child arrived decides whether it was eligible.
+  //
+  // A node whose mutual elders are all full still takes the nearest one. That
+  // never happens when the graph is derived with the distance kernel that
+  // built it. It can when the kernels differ (another SIMD path, or the Rust
+  // engine's file): a last-bit difference flips a near-tie, the counts shift,
+  // and a node could otherwise come out with no parent and no protection.
   void derive_tree() {
     const size_t count = count_.load();
     parent_.assign(count, NO_PARENT);
     children_.assign(count, 0);
     for (size_t node = 0; node < count; ++node) {
-      const uint32_t p = eligible_elder(node);
+      uint32_t p = eligible_elder(node);
+      if (p == NO_PARENT) p = eligible_elder(node, true);
       parent_[node] = p;
-      if (p != NO_PARENT) ++children_[p];
+      if (p != NO_PARENT && children_[p] < UINT16_MAX) ++children_[p];
     }
   }
 

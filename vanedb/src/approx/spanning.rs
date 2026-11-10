@@ -30,6 +30,12 @@
 //! exactly the tree the writer had, and an index resumed from a file keeps
 //! building the graph it would have built without the round trip.
 //!
+//! "Exactly" assumes the same distance kernel. Distances that differ in the
+//! last bit, as between NEON, AVX2 and scalar, or between the two engines,
+//! can order a near-tie differently and so derive a different tree. That
+//! tree is still a valid one and is protected consistently from then on;
+//! what is lost is only the byte-for-byte equality with a never-saved index.
+//!
 //! The degree cap holds without further rules: an overflowing list is one
 //! over its cap because a node was just pushed onto it, and that node has
 //! no parent yet, so there is always an entry that may be dropped.
@@ -88,10 +94,24 @@ pub(super) fn eligible_elder(
     limit: u16,
     node: usize,
 ) -> u32 {
+    nearest_elder(neighbors, vectors, dist_fn, node, |elder| {
+        children[elder] < limit
+    })
+}
+
+/// The nearest mutual elder of `node` that `admit` accepts, ties broken by
+/// slot, or [`NO_PARENT`].
+fn nearest_elder(
+    neighbors: &[Vec<Vec<usize>>],
+    vectors: &ChunkedVectors,
+    dist_fn: DistanceFn,
+    node: usize,
+    admit: impl Fn(usize) -> bool,
+) -> u32 {
     let layer0 = |n: usize| neighbors[n].first().map_or(&[][..], Vec::as_slice);
     let mut best: Option<(f32, usize)> = None;
     for &elder in layer0(node) {
-        if elder >= node || children[elder] >= limit || !layer0(elder).contains(&node) {
+        if elder >= node || !admit(elder) || !layer0(elder).contains(&node) {
             continue;
         }
         let d = dist_fn(vectors.get(elder), vectors.get(node));
@@ -108,6 +128,14 @@ pub(super) fn eligible_elder(
 /// each slot's parent, and each slot's child count. Slots are visited in
 /// order because a parent's count at the time a child arrived decides
 /// whether it was eligible.
+///
+/// A node whose mutual elders are all full still takes the nearest one.
+/// That never happens when the graph is derived with the distance kernel
+/// that built it, because the recorded parent is always eligible on replay.
+/// It can when the kernels differ: NEON against AVX2 or scalar, or one
+/// engine reading the other's file. A last-bit difference flips a near-tie,
+/// the counts shift, and a node could otherwise come out with no parent and
+/// no protection. Going over the limit there is the lesser cost.
 pub(super) fn derive(
     neighbors: &[Vec<Vec<usize>>],
     vectors: &ChunkedVectors,
@@ -117,9 +145,12 @@ pub(super) fn derive(
     let mut parent = Vec::with_capacity(neighbors.len());
     let mut children = vec![0u16; neighbors.len()];
     for node in 0..neighbors.len() {
-        let p = eligible_elder(neighbors, vectors, dist_fn, &children, limit, node);
+        let mut p = eligible_elder(neighbors, vectors, dist_fn, &children, limit, node);
+        if p == NO_PARENT {
+            p = nearest_elder(neighbors, vectors, dist_fn, node, |_| true);
+        }
         if p != NO_PARENT {
-            children[p as usize] += 1;
+            children[p as usize] = children[p as usize].saturating_add(1);
         }
         parent.push(p);
     }

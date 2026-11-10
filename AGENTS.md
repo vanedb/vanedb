@@ -106,8 +106,8 @@ and toolchain for checks that cannot run locally.
   vector reachable (#299, `approx/spanning.rs` and
   `cpp/src/core/approx_index.h`): on layer 0 pruning never drops the edge
   between a node and its spanning-tree parent, and a node no neighbour kept
-  is chained to the node stored just before it. A node takes at most `M/8`
-  children, so high-norm DOT hubs keep their lists; do not raise that limit
+  is chained to the node stored just before it. A node takes at most
+  `max(1, M/8)` children, so high-norm DOT hubs keep their lists; do not raise that limit
   without DOT recall measurements. The tree is derived from the graph, never
   persisted. Keep the two implementations in step.
 - **Bounded top-k, not full sorts and not quickselect**: `SearchResult`'s

@@ -41,9 +41,15 @@ the exhaustive scan below will return it.
 
 Inserting into a graph loaded from an earlier release protects only the nodes
 that still have a mutual link to an earlier node. The first insert after any
-load derives the tree over the whole graph under the write lock: about 0.13 s
+load derives the tree over the whole graph under the write lock: about 0.03 s
 at 300,000 × 128 on an M4 Pro, growing linearly. A read-only index never pays
 it.
+
+The derived tree equals the writer's when the same distance kernel reads the
+file. A different kernel (another SIMD path, or the other engine) can order a
+near-tie differently and derive a different, equally valid tree; an index
+resumed that way stays connected but is no longer byte-identical to one that
+was never saved.
 
 When the effective beam reaches the **stored slot count**, search performs an
 exact scan with bounded top-k selection. This also works for disconnected
