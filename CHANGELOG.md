@@ -19,7 +19,8 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
   the existing degree cap and with the graph format unchanged (#299). Graphs
   built by this release differ from those built by earlier ones for the same
   input and seed. A file saved by an earlier release keeps its topology on
-  load; call `compact()` to rebuild it. The C++ reference engine is unchanged.
+  load; call `compact()` to rebuild it. The C++ reference engine carries the
+  same fix.
 
 ## [0.2.0-rc.2] - 2026-10-02
 

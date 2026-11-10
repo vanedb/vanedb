@@ -29,8 +29,8 @@
 //! farthest entry is not a tree edge, which is the ordinary case, the
 //! outcome is exactly the old truncation.
 //!
-//! A file written by an older release or by the C++ engine is loaded as it
-//! was saved. Nodes it already stranded have no mutual elder, stay outside
+//! A file written by an older release of either engine is loaded as it was
+//! saved. Nodes it already stranded have no mutual elder, stay outside
 //! the tree, and stay stranded until `compact()` rebuilds the graph.
 
 use super::storage::ChunkedVectors;

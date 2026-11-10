@@ -29,9 +29,8 @@ a limit are named beside it.
 
 A graph built by this release keeps every stored vector reachable: layer 0
 carries a spanning tree whose edges pruning never removes (#299). Releases up
-to 0.2.0-rc.2, and the C++ reference engine, could prune every inbound link
-to a DOT vector or cut off a tightly clustered cosine island. Files they wrote
-load with the topology they were saved with, stranded vectors included;
+to 0.2.0-rc.2, in both engines, could prune every inbound link to a DOT
+vector or cut off a tightly clustered cosine island. Files they wrote load with the topology they were saved with, stranded vectors included;
 `compact()` rebuilds the graph and reconnects them.
 
 Reachable is not the same as found. A bounded approximate search can still

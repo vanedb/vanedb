@@ -138,7 +138,11 @@ public:
       deleted_.resize(next, false);
       neighbors_.resize(next);
     }
+    // First insert since a load: the spanning tree is a function of the graph,
+    // so it is derived here rather than persisted. Searches never need it.
+    if (parent_.size() != count_.load()) derive_tree();
     size_t iid = count_++;
+    parent_.push_back(NO_PARENT);
     id_map_[id] = iid;
     ext_ids_[iid] = id;
     std::copy_n(vec, dim_, vectors_.begin() + iid * dim_);
@@ -197,10 +201,21 @@ public:
           for (size_t c : nc) cands.emplace_back(dist_(get_vec(nid), get_vec(c)), c);
           cands.emplace_back(d2new, iid);
           std::sort(cands.begin(), cands.end(), detail::DistanceIdLess{});
+          if (l == 0) {
+            // One over the cap. Drop the farthest entry that is not a
+            // spanning-tree edge, so the dropped node keeps a path to it
+            // (#299). The new node has no parent yet, so one always exists;
+            // it is the farthest outright unless that one is a tree edge.
+            size_t drop = cands.size() - 1;
+            for (size_t i = cands.size(); i-- > 0;)
+              if (!is_tree_edge(nid, cands[i].second)) { drop = i; break; }
+            cands.erase(cands.begin() + static_cast<std::ptrdiff_t>(drop));
+          }
           nc.clear();
           for (size_t i = 0; i < max_conn && i < cands.size(); ++i) nc.push_back(cands[i].second);
         }
       }
+      if (l == 0) adopt(iid);
       curr = next_entry;
     }
     if (level > cur_max_level) { ep_.store(iid); max_level_.store(level); }
@@ -540,6 +555,112 @@ private:
 
   const float* get_vec(size_t iid) const { return vectors_.data() + iid * dim_; }
 
+  // --- Layer-0 spanning tree (#299) ---------------------------------------
+  //
+  // Reverse-link pruning keeps the nearest entries of an overflowing list and
+  // nothing else, so it could drop the last edge leading to a node: under DOT,
+  // and under cosine on tightly clustered data, stored vectors became
+  // unreachable by any beam search.
+  //
+  // Call `p` a mutual elder of `x` when `p` was stored before `x` and each
+  // lists the other on layer 0. The parent of `x` is its nearest mutual elder,
+  // ties broken by slot, and pruning never evicts the edge between a node and
+  // its parent. Parents have the smaller slot, so these edges form a tree
+  // rooted at slot 0 that spans layer 0 in both directions.
+  //
+  // Mutual elders of `x` are created only while `x` is inserted and can only
+  // be evicted afterwards, and the nearest never is, so the parent is a
+  // function of the graph and the vectors. It is not persisted: the VNDB
+  // format is unchanged and a loaded graph keeps the topology it was saved
+  // with. Mirrors `vanedb/src/approx/spanning.rs`.
+  static constexpr uint32_t NO_PARENT = UINT32_MAX;
+
+  bool is_tree_edge(size_t a, size_t b) const {
+    return parent_[a] == b || parent_[b] == a;
+  }
+
+  size_t tree_degree(size_t node) const {
+    size_t n = 0;
+    for (size_t other : neighbors_[node][0]) n += is_tree_edge(node, other);
+    return n;
+  }
+
+  bool lists(size_t node, size_t other) const {
+    if (neighbors_[node].empty()) return false;
+    const auto& l0 = neighbors_[node][0];
+    return std::find(l0.begin(), l0.end(), other) != l0.end();
+  }
+
+  uint32_t nearest_mutual_elder(size_t node) const {
+    if (neighbors_[node].empty()) return NO_PARENT;
+    bool found = false;
+    DistanceId best{};
+    for (size_t elder : neighbors_[node][0]) {
+      if (elder >= node || !lists(elder, node)) continue;
+      DistanceId candidate{dist_(get_vec(elder), get_vec(node)), elder};
+      if (!found || detail::DistanceIdLess{}(candidate, best)) { best = candidate; found = true; }
+    }
+    return found ? static_cast<uint32_t>(best.second) : NO_PARENT;
+  }
+
+  void derive_tree() {
+    const size_t count = count_.load();
+    parent_.assign(count, NO_PARENT);
+    for (size_t node = 0; node < count; ++node) parent_[node] = nearest_mutual_elder(node);
+  }
+
+  // Gives the node just linked on layer 0 its parent. Normally a selected
+  // neighbour kept the reverse link. If pruning dropped the new node from
+  // every list, which is how nodes were stranded, it is put back into the
+  // nearest neighbour that can take it, in place of that neighbour's farthest
+  // non-tree entry.
+  void adopt(size_t iid) {
+    const uint32_t derived = nearest_mutual_elder(iid);
+    if (derived != NO_PARENT) { parent_[iid] = derived; return; }
+
+    std::vector<DistanceId> nearest_first;
+    for (size_t n : neighbors_[iid][0]) nearest_first.emplace_back(dist_(get_vec(n), get_vec(iid)), n);
+    std::sort(nearest_first.begin(), nearest_first.end(), detail::DistanceIdLess{});
+
+    // A host needs a free slot or a non-tree entry; prefer one whose list is
+    // not already mostly tree edges. A tree always has a leaf, so the scan
+    // over every slot cannot fail for a graph built by insertion.
+    size_t host = INVALID_ID;
+    for (const auto& c : nearest_first)
+      if (tree_degree(c.second) < M_) { host = c.second; break; }
+    const auto can_host = [&](size_t n) {
+      const size_t len = neighbors_[n][0].size();
+      return len < M_max0_ || tree_degree(n) < len;
+    };
+    for (size_t i = 0; host == INVALID_ID && i < nearest_first.size(); ++i)
+      if (can_host(nearest_first[i].second)) host = nearest_first[i].second;
+    for (size_t n = 0; host == INVALID_ID && n < iid; ++n)
+      if (can_host(n)) host = n;
+    if (host == INVALID_ID) return;  // LCOV_EXCL_LINE
+
+    auto& list = neighbors_[host][0];
+    if (!lists(host, iid)) {
+      if (list.size() < M_max0_) {
+        list.push_back(iid);
+      } else {
+        size_t victim = INVALID_ID;
+        DistanceId farthest{};
+        for (size_t i = 0; i < list.size(); ++i) {
+          if (is_tree_edge(host, list[i])) continue;
+          DistanceId candidate{dist_(get_vec(host), get_vec(list[i])), list[i]};
+          if (victim == INVALID_ID || detail::DistanceIdLess{}(farthest, candidate)) {
+            farthest = candidate;
+            victim = i;
+          }
+        }
+        if (victim == INVALID_ID) return;  // LCOV_EXCL_LINE
+        list[victim] = iid;
+      }
+    }
+    if (!lists(iid, host)) neighbors_[iid][0].push_back(host);
+    parent_[iid] = static_cast<uint32_t>(host);  // The only mutual elder, hence the nearest.
+  }
+
   template <bool LiveOnly = false>
   MaxHeap search_layer(const float* q, size_t ep, size_t ef, int level) const {
     // Versioned thread-local visited bitmap. vis[i] == vis_epoch means
@@ -640,6 +761,9 @@ private:
   std::unordered_map<uint64_t, size_t> id_map_;
   std::vector<int> levels_;
   std::vector<std::vector<std::vector<size_t>>> neighbors_;
+  // Layer-0 spanning-tree parent per slot. Derived, never persisted: empty
+  // after a load until the next insert.
+  std::vector<uint32_t> parent_;
   std::atomic<size_t> ep_{INVALID_ID};
   std::atomic<int> max_level_{-1};
   std::atomic<size_t> count_{0};
