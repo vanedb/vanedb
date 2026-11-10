@@ -229,7 +229,9 @@ jobs:
           )
           fill = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(fill)
-          sample = Path("bench/COMPARISON.md").read_text()
+          # A frozen all-Pending copy, not the live document: the live one
+          # stops being all-Pending as soon as a real table is published.
+          sample = Path("bench/compare/scripts/testdata/COMPARISON.pending.md").read_text()
           body = "### linux-avx2 (host) — metric `l2`\n\n| Engine |\n|---|\n| vanedb |\n"
           out = fill.replace_slot(
               sample,
@@ -255,8 +257,7 @@ jobs:
           except fill.SlotNotPending as e:
               assert "non-Pending" in str(e)
           # Dry-run path must not write.
-          before = Path("bench/COMPARISON.md").read_text()
-          assert before == sample
+          assert Path("bench/compare/scripts/testdata/COMPARISON.pending.md").read_text() == sample
           print("ok: fill_comparison_slot Pending-only replace")
           PY
       - name: fill_comparison_slot e2e via render gates
@@ -340,8 +341,10 @@ jobs:
               cos.write_text(json.dumps(report("cosine")))
               l2.write_text(json.dumps(report("l2")))
               cmp = td / "COMPARISON.md"
-              shutil.copy("bench/COMPARISON.md", cmp)
+              # Frozen all-Pending copy; see the step above.
+              shutil.copy("bench/compare/scripts/testdata/COMPARISON.pending.md", cmp)
               before = cmp.read_text()
+              live = Path("bench/COMPARISON.md").read_text()
               assert before.count("*Pending.*") == 6
               # Cosine then L2 — must not abort on nested ### machine titles.
               p = subprocess.run(
@@ -365,7 +368,8 @@ jobs:
               assert "*Pending.*" not in slot
               assert "metric `cosine`" in slot and "metric `l2`" in slot
               assert "sqlite-vec" in slot.split("#### Squared L2")[1]
-              assert Path("bench/COMPARISON.md").read_text() == before
+              assert Path("bench/COMPARISON.md").read_text() == live
+              assert Path("bench/compare/scripts/testdata/COMPARISON.pending.md").read_text() == before
               print("ok: fill_comparison_slot e2e cosine+l2 via render gates")
           finally:
               shutil.rmtree(td, ignore_errors=True)

@@ -1,6 +1,6 @@
 # RFC 0003: Competitor benchmark and demo
 
-- Status: accepted (2026-09-13)
+- Status: accepted (2026-09-13); hardware amendment accepted 2026-11-10 (below)
 - Milestone: 0.2.0
 - Tracking issue: #198
 - Supersedes / superseded by: none
@@ -59,7 +59,7 @@ compared separately in the WebAssembly arm (RFC 0006) once persistence exists.
 ### Hardware
 
 - One Apple Silicon laptop (dedicated, plugged in, other work stopped).
-- One Linux x86-64 box with AVX2.
+- One Linux x86-64 box with AVX2. Deferred past 0.2.0 by the amendment below.
 - One Android ARM64 device or, failing that, the ARM64 emulator with that fact
   stated in the results.
 
@@ -91,8 +91,9 @@ None. No engine change. The C++ engine is not part of this arm.
       engine on the fixture with one command.
 - [ ] Embedding fixture generated, checksummed, and documented with the model
       and corpus version.
-- [ ] `bench/COMPARISON.md` published with results from the three hardware
-      classes above, each run recorded (date, commit, engine versions).
+- [ ] `bench/COMPARISON.md` published with results from the Apple Silicon and
+      Android ARM64 classes above, each run recorded (date, commit, engine
+      versions). Linux x86-64 AVX2 is deferred by the amendment below.
 - [ ] Caveats section reviewed against `AGENTS.md`'s performance rules before
       publication.
 - [ ] `obsidian-vane-search` demo updated and linked from the README.
@@ -103,6 +104,36 @@ None. No engine change. The C++ engine is not part of this arm.
 
 Dedicated hardware, interleaved runs, recorded engine versions. A number that
 appeared once is not a result.
+
+## Amendment: Linux x86-64 AVX2 tables deferred (accepted 2026-11-10)
+
+The maintainer decided on 2026-11-10 that 0.2.0 ships without the Linux
+x86-64 AVX2 tables.
+
+No dedicated native x86-64 AVX2 machine is available to the project, and the
+repository has no self-hosted runner. The substitutes were examined and
+rejected rather than relabelled:
+
+- x86-64 Linux under Rosetta on the Apple Silicon host (OrbStack) reports
+  `sse4_2` and `fma` but not `avx` or `avx2`, so the engine would not select
+  its AVX2 kernels, and the fill helper refuses a Linux host without `avx2`.
+- Full software emulation can present AVX2, but its timings describe the
+  emulator, not the engine.
+- Hosted CI runners are shared. `AGENTS.md` rules out CI timings as results.
+
+What changes: the hardware list and the `bench/COMPARISON.md` criterion
+require Apple Silicon and Android ARM64 only. The Linux section of
+`bench/COMPARISON.md` says the tables were not measured and why. It is not
+left as *Pending*, and no table is published in its place.
+
+What does not change: every other rule in this RFC. The AVX2 kernels remain
+tested on hosted x86-64 Linux runners, which is functional coverage and not a
+performance claim. No statement about x86-64 performance relative to other
+engines may be made until native tables exist; the launch post must say the
+comparison covers Apple Silicon and an Android ARM64 emulator.
+
+The tables can be added in any later release by restoring the two *Pending*
+subsections and running the fill helper on a native machine.
 
 ## Out of scope
 
