@@ -167,13 +167,17 @@ not mix metrics in one table.
 
 ### Linux x86-64 AVX2 (dedicated box)
 
-#### Cosine
+*Not measured for 0.2.0.* No dedicated native x86-64 AVX2 machine was
+available, and an emulated one cannot stand in: x86-64 Linux under Rosetta on
+Apple Silicon does not expose AVX2, and software emulation does not produce
+meaningful timings. See the 2026-11-10 amendment to
+[RFC 0003](../docs/rfcs/0003-competitor-benchmark-and-demo.md). CI runs the
+test suite on hosted x86-64 Linux runners, where runtime detection selects
+the AVX2 kernels; that is functional coverage, and CI timings are not results.
 
-*Pending.*
-
-#### Squared L2
-
-*Pending.*
+To add these tables later, restore a `#### Cosine` and a `#### Squared L2`
+subsection here, each holding the pending marker the other slots use, and
+run the fill helper on a native machine.
 
 ### Android ARM64 (device or emulator)
 
@@ -198,5 +202,5 @@ and recall are excluded from the tables above by policy.
 - Demo application: [`obsidian-vane-search`](https://github.com/vanedb/obsidian-vane-search)
   (separate repository). Linked from the top-level README.
 - Launch post draft: [`docs/launch/0003-competitor-benchmark.md`](../docs/launch/0003-competitor-benchmark.md)
-  — publish only after maintainer review and after the three hardware classes
-  above are filled.
+  — publish only after maintainer review and after the Apple Silicon and
+  Android tables above are filled.

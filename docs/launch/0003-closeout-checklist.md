@@ -30,7 +30,7 @@ from the GitHub UI (not via merge keywords).
 |---|---|---|
 | Tip Required CI Gate green | **recheck current main** | Historical post-#212 gate passed; current merged-main gate must pass after every merge and COMPARISON update |
 | Hostable `embeddings.vnef` + `SHA256SUMS` | **done** | [compare-fixture-v1](https://github.com/vanedb/vanedb/releases/tag/compare-fixture-v1) |
-| Six dedicated-HW COMPARISON tables | **open** | `bench/COMPARISON.md` still has six `*Pending.*` — Apple / Linux AVX2 / Android × cosine+L2; never cloud/CI |
+| Four dedicated-HW COMPARISON tables | **open** | `bench/COMPARISON.md` still has four `*Pending.*` — Apple / Android × cosine+L2; never cloud/CI. Linux AVX2 is deferred past 0.2.0 by the RFC 0003 amendment of 2026-11-10 |
 | Official Obsidian demo `0.2.0` | **open** | Missing tag; [staging](https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging) ≠ AC5 |
 | ≥5 CTO→user→staff→senior→QA→AI PM rounds | **done** | ≥7 rounds posted on [#212](https://github.com/vanedb/vanedb/pull/212) (e.g. Rounds 23–34) |
 
@@ -57,16 +57,18 @@ dedicated HW `--markdown` runs.
 
 ## 2. Dedicated hardware tables (AC3) — **open (6× Pending)**
 
-`bench/COMPARISON.md` still has six `*Pending.*` cells (cosine+L2 × Apple /
-Linux AVX2 / Android). Cloud agents have **0** Cursor self-hosted workers and
+`bench/COMPARISON.md` still has four `*Pending.*` cells (cosine+L2 × Apple /
+Android). Linux AVX2 is deferred past 0.2.0 by the RFC 0003 amendment of
+2026-11-10; its section says so and holds no pending marker. Cloud agents have **0** Cursor self-hosted workers and
 must not paste timings from shared runners (`AGENTS.md`). Operator-owned
 **GitHub Actions self-hosted** runners are allowed (see below).
 
 September 24 Mac cosine/L2 runs and interleaved write/search diagnostics
 completed on an unreserved host. They do not fill these dedicated-hardware
-slots. Quiet Mac confirmation, Linux AVX2 and Android ARM64 evidence
-remain required; a labelled ARM64 Android emulator is allowed by RFC 0003.
-The ARM64 Linux VM does not substitute for Linux AVX2.
+slots. Quiet Mac confirmation and Android ARM64 evidence remain required; a
+labelled ARM64 Android emulator is allowed by RFC 0003. Neither the ARM64
+Linux VM nor x86-64 emulation substitutes for Linux AVX2, which is why it is
+deferred.
 
 ### Apple Silicon / Linux AVX2 (host binary)
 
