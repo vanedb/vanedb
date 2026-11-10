@@ -9,6 +9,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- `ApproxIndex` construction no longer strands stored vectors. Pruning an
+  overflowing neighbour list could drop the last edge leading to a node, so
+  under DOT, and under cosine on tightly clustered data, live vectors became
+  unreachable by any beam search while `contains` and `get` still reported
+  them. Layer 0 now carries a spanning tree that pruning never cuts, within
+  the existing degree cap and with the graph format unchanged (#299). Graphs
+  built by this release differ from those built by earlier ones for the same
+  input and seed. A file saved by an earlier release keeps its topology on
+  load; call `compact()` to rebuild it. The C++ reference engine is unchanged.
+
 ## [0.2.0-rc.2] - 2026-10-02
 
 Second release candidate. Fixes every defect found in rc.1 QA and adds

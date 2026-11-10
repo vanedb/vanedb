@@ -472,6 +472,8 @@ impl ApproxIndex {
                 count: data.count,
                 rng,
                 persisted_rng,
+                // Derived on the first insert; see `spanning`.
+                parent: Vec::new(),
             }),
         })
     }

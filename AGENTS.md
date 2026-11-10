@@ -102,6 +102,14 @@ and toolchain for checks that cannot run locally.
   `M` initial links (`2M` is only the level-0 reverse-link cap), and overflowing
   reverse lists use distance sort+truncate rather than the diversity heuristic.
   Change either only with cross-engine conformance and interleaved benchmarks.
+  The one exception to plain truncation is Rust-only: on layer 0 it never
+  drops the edge between a node and its spanning-tree parent, which is what
+  keeps every stored vector reachable (#299, `approx/spanning.rs`). The tree
+  is derived from the graph, never persisted; the C++ engine does not have it.
+  The one exception to plain truncation is Rust-only: on layer 0 it never
+  drops the edge between a node and its spanning-tree parent, which is what
+  keeps every stored vector reachable (#299, `approx/spanning.rs`). The tree
+  is derived from the graph, never persisted; the C++ engine does not have it.
 - **Bounded top-k, not full sorts and not quickselect**: `SearchResult`'s
   `Ord` tie-breaks on id, which makes full sorts slow — but `select_nth_unstable`
   over the whole candidate array is also wrong, because it swaps ~n 16-byte
