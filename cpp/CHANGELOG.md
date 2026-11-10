@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- `ApproxIndex` construction no longer strands stored vectors. Pruning an
+  overflowing neighbour list could drop the last edge leading to a node, most
+  visibly under `DOT` and clustered `COSINE`. Layer 0 now keeps a spanning
+  tree that pruning never cuts, within the existing degree cap; the tree is
+  derived from the graph, so the file format is unchanged. Matches Rust
+  (vanedb#299).
 - `DistanceComputer` recomputes non-finite `DOT` accumulation in double
   precision so cancelling products can recover a finite score; a final
   out-of-range score is `-inf`, matching Rust (vanedb#300).
