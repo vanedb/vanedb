@@ -9,6 +9,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+## [0.2.0-rc.4] - 2026-11-11
+
+Fourth release candidate. Corrects a recall regression RC3's reachability fix
+introduced for graphs built with `M < 16`. See the
+[RC testing notes](docs/release/0.2.0-rc.4-notes.md).
+
 ### Fixed
 
 - `ApproxIndex` graphs built with `M < 16` no longer chain every node to the
