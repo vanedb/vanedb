@@ -39,6 +39,35 @@ guarantee. In particular, a vector no neighbour kept a link to is chained to
 the vector stored just before it; it is on a path, but only a wide beam or
 the exhaustive scan below will return it.
 
+How often that happens depends on the data and on `M`. Measured on 20,000
+64-dimension vectors: Gaussian data under cosine chains about 4% of nodes at
+`M = 4` and almost none at `M = 8`; under L2 it chains 39% at `M = 4`, 9% at
+`M = 8` and 2% at `M = 12`. Under DOT with norms spread over two orders of
+magnitude the few high-norm vectors fill up and most nodes are chained, at
+every `M` including 16.
+
+Keeping every vector connected costs narrow-beam recall where 0.2.0-rc.2
+stranded vectors instead. Against rc.2, recall@10 on that synthetic data is
+lower by up to 3 to 4.5 points for Gaussian L2 at `M = 4`, 1 to 2 points at
+`M = 8`, about 1 point at `M = 12`; by 1 to 1.5 points for Gaussian cosine and
+DOT at `M = 4`; and by about 2 points for uneven-norm DOT at `M = 8`. On the
+768-dimension embedding fixture, recall at `M = 4`, 8 and 12 is within 0.2
+points of rc.2 or above it, except L2 at `M = 4` with a beam of 10, which is
+1.7 points lower. At `M = 16` the differences are within 0.6 points on all of
+it.
+
+0.2.0-rc.3 allowed one tree child per node when `M < 16`. That made the tree
+the insertion order for every metric: each node spent two links on its
+predecessor and successor, and narrow-beam recall fell against rc.2 by about
+one point at `M = 8` and five to eight at `M = 4` on the embedding fixture,
+and by 1 to 2.5 and 2 to 8.5 points on Gaussian data. From rc.4 the limit is
+at least two. That recovers the embedding fixture and Gaussian cosine, and
+Gaussian L2 partly. It does not help uneven-norm DOT, which did best with the
+chain: there rc.4 is below rc.3 by about 1 point at `M = 8` and 3 to 5 points
+at `M = 4`. Graphs built with `M >= 16` are byte-identical between rc.3 and
+rc.4. An rc.3 graph built with `M < 16` keeps its topology on load;
+`compact()` rebuilds it.
+
 Inserting into a graph loaded from an earlier release protects only the nodes
 that still have a mutual link to an earlier node. The first insert after any
 load derives the tree over the whole graph under the write lock: about 0.03 s

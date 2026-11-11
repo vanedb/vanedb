@@ -9,6 +9,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- `ApproxIndex` graphs built with `M < 16` no longer chain every node to the
+  one stored before it. 0.2.0-rc.3 let a node take `max(1, M/8)` spanning-tree
+  children; at one child the tree is the insertion order, each node gave two
+  links to its predecessor and successor, and recall at a narrow beam fell
+  against rc.2 (on the embedding fixture about one point at `M = 8`, five to
+  eight at `M = 4`). The limit is now `max(2, M/8)`. This is a trade, not a
+  full recovery: the embedding fixture and Gaussian cosine return to rc.2
+  levels, Gaussian L2 at small `M` stays 1 to 4.5 points below rc.2, and DOT
+  over very uneven norms at `M < 16` is 1 to 5 points below rc.3.
+  [`docs/LIMITS.md`](docs/LIMITS.md) has the measurements. Graphs built with
+  `M >= 16` are byte-identical to rc.3; an rc.3 graph built with a smaller
+  `M` keeps its topology until `compact()` rebuilds it. Found by independent
+  review of the rc.3 evidence.
+
 ## [0.2.0-rc.3] - 2026-11-10
 
 Third release candidate. Fixes the graph-reachability defect the earlier

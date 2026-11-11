@@ -1378,6 +1378,15 @@ TEST_CASE("ApproxIndex - reachability does not cost DOT recall", "[index][reacha
   REQUIRE(static_cast<double>(hit) / (100 * k) >= 0.97);
 }
 
+TEST_CASE("ApproxIndex - the child limit is an eighth of M and at least two", "[index][reachability]") {
+  // Same table as the Rust engine. A limit of one turns the tree into the
+  // insertion order and costs low-beam recall, as 0.2.0-rc.3 did for M < 16.
+  const size_t ms[] = {2, 4, 8, 12, 15, 16, 23, 24, 32, 64};
+  const uint16_t want[] = {2, 2, 2, 2, 2, 2, 2, 3, 4, 8};
+  for (size_t i = 0; i < std::size(ms); ++i)
+    REQUIRE(vanedb::ApproxIndex::child_limit_for(ms[i]) == want[i]);
+}
+
 TEST_CASE("ApproxIndex - duplicate vectors stay reachable", "[index][reachability]") {
   // Every node ties with every other, so pruning drops most new nodes from
   // every list and they take the chained path.

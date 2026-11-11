@@ -62,11 +62,17 @@ pub(super) fn is_tree_edge(parent: &[u32], a: usize, b: usize) -> bool {
     parent[a] == b as u32 || parent[b] == a as u32
 }
 
-/// How many children one node may take: an eighth of `m`, at least one.
+/// How many children one node may take: an eighth of `m`, at least two.
 /// Together with its own parent that is the most slots a node gives up to
 /// the tree.
+///
+/// The floor is two, not one. With a limit of one every node has at most
+/// one child, the tree is a path, and the only node still free to take a
+/// child is the one stored last: the "tree" becomes the insertion order,
+/// every node spends two slots on its predecessor and successor, and
+/// low-beam recall falls. 0.2.0-rc.3 shipped that for `m < 16`.
 pub(super) fn child_limit(m: usize) -> u16 {
-    (m / 8).clamp(1, u16::MAX as usize) as u16
+    (m / 8).clamp(2, u16::MAX as usize) as u16
 }
 
 /// Position of the entry an overflowing list should drop: the farthest one

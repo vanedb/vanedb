@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   visibly under `DOT` and clustered `COSINE`. Layer 0 now keeps a spanning
   tree that pruning never cuts, within the existing degree cap; the tree is
   derived from the graph, so the file format is unchanged. Matches Rust
-  (vanedb#299).
+  (vanedb#299). A node takes at most `max(2, M/8)` tree children; the floor
+  of two keeps the tree from degenerating into the insertion order when
+  `M < 16`.
 - `DistanceComputer` recomputes non-finite `DOT` accumulation in double
   precision so cancelling products can recover a finite score; a final
   out-of-range score is `-inf`, matching Rust (vanedb#300).
