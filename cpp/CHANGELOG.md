@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
+The frozen reference engine carries the Rust release version for
+cross-engine identity checks. Its Python package is not published.
+
 ### Fixed
 - `ApproxIndex` construction no longer strands stored vectors. Pruning an
   overflowing neighbour list could drop the last edge leading to a node, most
