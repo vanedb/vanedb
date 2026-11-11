@@ -1,7 +1,5 @@
 # VaneDB for Python
 
-This is the 0.2.0 release candidate for integration testing.
-
 VaneDB is an embeddable vector database backed by Rust. Store vectors and search
 for their nearest neighbors inside your Python process, without a database
 server. Supply your own embeddings; VaneDB does not generate them. It stores only
@@ -21,7 +19,7 @@ text end to end.
 Requires Python 3.11 or newer.
 
 ```sh
-python -m pip install vanedb==0.2.0rc4
+python -m pip install vanedb
 ```
 
 Python lists work without additional dependencies. NumPy is optional; its arrays
