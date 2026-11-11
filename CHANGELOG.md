@@ -9,6 +9,12 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+## [0.2.0-rc.3] - 2026-11-10
+
+Third release candidate. Fixes the graph-reachability defect the earlier
+candidates only worked around at query time, and a WebAssembly predicate
+defect found in rc.2. See the [RC testing notes](docs/release/0.2.0-rc.3-notes.md).
+
 ### Fixed
 
 - `ApproxIndex` construction no longer strands stored vectors. Pruning an
