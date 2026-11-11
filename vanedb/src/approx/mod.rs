@@ -1745,6 +1745,8 @@ mod tests {
         // protected edges crowd out real neighbours (0.2.0-rc.3, m < 16).
         // DOT over norms this uneven is left out: there the few high-norm
         // nodes fill up and chaining is the intended path for most nodes.
+        // The quarter is a margin for this data (at most 7.5% here), not a
+        // property of the engine: Gaussian L2 at 20k x 64, m = 4 chains 39%.
         let (n, dim) = (4_000, 16);
         for m in [4, 8, 12, 16] {
             for metric in [Metric::L2, Metric::Cosine] {
