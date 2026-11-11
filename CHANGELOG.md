@@ -11,8 +11,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [0.2.0] - 2026-11-11
 
-First stable 0.2 release. Its source differs from 0.2.0-rc.4 only in version
-metadata and the install lines of the packaged READMEs. The changes since
+First stable 0.2 release. Its engine and bindings are the code of
+0.2.0-rc.4; the source differs in version metadata and in the packaged
+READMEs, which drop the release-candidate wording and correct three
+statements. The changes since
 0.1.1 are listed under the four release candidates below; the
 [release notes](docs/release/0.2.0-notes.md) summarise them, and
 [`docs/LIMITS.md`](docs/LIMITS.md) records the known limits.
