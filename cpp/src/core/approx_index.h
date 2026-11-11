@@ -279,6 +279,12 @@ public:
   size_t get_ef_search() const { return ef_search_.load(std::memory_order_relaxed); }
   size_t size() const { std::shared_lock lk(global_mtx_); return id_map_.size(); }
   size_t dimension() const { return dim_; }
+
+  // Most spanning-tree children one node takes for a given M (#299). Public
+  // so a test can pin it to the Rust engine's `spanning::child_limit`.
+  static uint16_t child_limit_for(size_t M) {
+    return static_cast<uint16_t>(std::clamp<size_t>(M / 8, 2, UINT16_MAX));
+  }
   size_t capacity() const { return max_elements_; }
   bool contains(uint64_t id) const { std::shared_lock lk(global_mtx_); return id_map_.count(id); }
 
@@ -582,9 +588,10 @@ private:
   // saved with. Mirrors `vanedb/src/approx/spanning.rs`; keep them in step.
   static constexpr uint32_t NO_PARENT = UINT32_MAX;
 
-  uint16_t child_limit() const {
-    return static_cast<uint16_t>(std::clamp<size_t>(M_ / 8, 1, UINT16_MAX));
-  }
+  // An eighth of M, at least two. A limit of one makes the tree a path in
+  // insertion order: every node spends two slots on its predecessor and
+  // successor and low-beam recall falls (0.2.0-rc.3 did this for M < 16).
+  uint16_t child_limit() const { return child_limit_for(M_); }
 
   bool is_tree_edge(size_t a, size_t b) const {
     return parent_[a] == b || parent_[b] == a;

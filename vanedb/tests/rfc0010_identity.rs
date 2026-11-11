@@ -25,6 +25,12 @@
 //! comparing against them. The `ApproxIndex` bytes depend on `StdRng`'s level
 //! draws, so a `rand` upgrade that changes the stream needs a re-capture --
 //! the same review `conformance/graph/README.md` already asks for.
+//!
+//! The approximate-graph bytes have been re-captured twice since, both times
+//! because graph construction changed on purpose (#299): once when layer-0
+//! pruning began protecting spanning-tree edges, and once when the child
+//! limit's floor went from one to two. `expected_results.txt` and
+//! `expected_disk.vndb` are still the 51cb2d8 captures.
 
 use std::path::{Path, PathBuf};
 

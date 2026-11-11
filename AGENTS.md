@@ -107,9 +107,12 @@ and toolchain for checks that cannot run locally.
   `cpp/src/core/approx_index.h`): on layer 0 pruning never drops the edge
   between a node and its spanning-tree parent, and a node no neighbour kept
   is chained to the node stored just before it. A node takes at most
-  `max(1, M/8)` children, so high-norm DOT hubs keep their lists; do not raise that limit
+  `max(2, M/8)` children, so high-norm DOT hubs keep their lists; do not raise that limit
   without DOT recall measurements. The tree is derived from the graph, never
-  persisted. Keep the two implementations in step.
+  persisted. The floor is two because a limit of one makes the tree the
+  insertion order and costs low-beam recall, as 0.2.0-rc.3 did for `M < 16`;
+  both engines pin the same limit table in a test. Keep the two
+  implementations in step.
 - **Bounded top-k, not full sorts and not quickselect**: `SearchResult`'s
   `Ord` tie-breaks on id, which makes full sorts slow — but `select_nth_unstable`
   over the whole candidate array is also wrong, because it swaps ~n 16-byte

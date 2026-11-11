@@ -1659,24 +1659,28 @@ mod tests {
 
     #[test]
     fn deriving_never_leaves_a_node_with_a_mutual_elder_unprotected() {
-        // With m = 4 a node takes one child. Slots 1 and 2 both have slot 0
+        // With m = 4 a node takes two children. Slots 1 to 3 all have slot 0
         // as their only mutual elder, a shape insertion never produces but a
-        // file read with a different distance kernel can. Slot 2 must still
+        // file read with a different distance kernel can. Slot 3 must still
         // be protected, over the limit, rather than left with no parent.
         let idx = ApproxIndex::builder(2, Metric::L2).m(4).build().unwrap();
-        for (id, v) in [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]].iter().enumerate() {
+        for (id, v) in [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]
+            .iter()
+            .enumerate()
+        {
             idx.add(id as u64, v).unwrap();
         }
         let mut inner = idx.inner.write();
-        inner.neighbors[0][0] = vec![1, 2];
-        inner.neighbors[1][0] = vec![0];
-        inner.neighbors[2][0] = vec![0];
+        inner.neighbors[0][0] = vec![1, 2, 3];
+        for node in 1..4 {
+            inner.neighbors[node][0] = vec![0];
+        }
         let limit = spanning::child_limit(idx.m);
-        assert_eq!(limit, 1);
+        assert_eq!(limit, 2);
         let (parent, children) =
             spanning::derive(&inner.neighbors, &inner.vectors, idx.dist_fn, limit);
-        assert_eq!(parent, vec![spanning::NO_PARENT, 0, 0]);
-        assert_eq!(children, vec![2, 0, 0]);
+        assert_eq!(parent, vec![spanning::NO_PARENT, 0, 0, 0]);
+        assert_eq!(children, vec![3, 0, 0, 0]);
     }
 
     /// DOT vectors whose norms span two orders of magnitude: a few become
@@ -1722,6 +1726,47 @@ mod tests {
         }
         let recall = hit as f64 / want as f64;
         assert!(recall >= 0.97, "recall@{k} {recall:.3} at the default beam");
+    }
+
+    #[test]
+    fn the_child_limit_is_an_eighth_of_m_and_at_least_two() {
+        // The C++ engine pins the same table; keep them in step.
+        let limits: Vec<u16> = [2, 4, 8, 12, 15, 16, 23, 24, 32, 64]
+            .iter()
+            .map(|&m| spanning::child_limit(m))
+            .collect();
+        assert_eq!(limits, [2, 2, 2, 2, 2, 2, 2, 3, 4, 8]);
+    }
+
+    #[test]
+    fn a_small_m_tree_is_not_the_insertion_order() {
+        // With a child limit of one the only eligible parent is the node
+        // stored last, so every node's parent is its predecessor and the
+        // protected edges crowd out real neighbours (0.2.0-rc.3, m < 16).
+        // DOT over norms this uneven is left out: there the few high-norm
+        // nodes fill up and chaining is the intended path for most nodes.
+        let (n, dim) = (4_000, 16);
+        for m in [4, 8, 12, 16] {
+            for metric in [Metric::L2, Metric::Cosine] {
+                let idx = ApproxIndex::builder(dim, metric)
+                    .m(m)
+                    .ef_construction(100)
+                    .seed(5)
+                    .build()
+                    .unwrap();
+                let ids: Vec<u64> = (0..n as u64).collect();
+                idx.add_batch(&ids, &uneven_norms(5, n, dim)).unwrap();
+                assert_layer0_connected(&idx, "small m");
+                let inner = idx.inner.read();
+                let chained = (1..n)
+                    .filter(|&i| inner.parent[i] as usize == i - 1)
+                    .count();
+                assert!(
+                    chained * 4 < n,
+                    "m={m} {metric:?}: {chained} of {n} nodes hang off their predecessor"
+                );
+            }
+        }
     }
 
     #[test]

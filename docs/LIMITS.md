@@ -39,6 +39,22 @@ guarantee. In particular, a vector no neighbour kept a link to is chained to
 the vector stored just before it; it is on a path, but only a wide beam or
 the exhaustive scan below will return it.
 
+How often that happens depends on the data. On the 768-dimension embedding
+fixture and on Gaussian data under L2 or cosine it is a few percent of nodes
+or fewer. Under DOT with norms spread over two orders of magnitude the few
+high-norm vectors fill up, and most nodes are chained: in a 4,000-vector test
+about three in four. Those graphs stay connected, at a low-beam recall cost
+of roughly half a point to two points against 0.2.0-rc.2, which stranded
+vectors instead.
+
+0.2.0-rc.3 allowed one tree child per node when `M < 16`. That made the tree
+the insertion order for every metric: each node spent two links on its
+predecessor and successor, files grew about 2.5%, and recall at a narrow beam
+fell (about one point at `M = 8`, five to eight at `M = 4`). From rc.4 the
+limit is at least two and those graphs match rc.2 recall again. Graphs built
+with `M >= 16` are byte-identical between rc.3 and rc.4. An rc.3 graph built
+with `M < 16` keeps its topology on load; `compact()` rebuilds it.
+
 Inserting into a graph loaded from an earlier release protects only the nodes
 that still have a mutual link to an earlier node. The first insert after any
 load derives the tree over the whole graph under the write lock: about 0.03 s
