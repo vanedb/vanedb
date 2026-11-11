@@ -13,7 +13,7 @@ search results using that external metadata. Supply your own embeddings —
 VaneDB does not generate them.
 
 This is the 0.2.0 release candidate for integration testing.
-Add it with `cargo add vanedb@0.2.0-rc.3`. This complete program inserts two vectors and
+Add it with `cargo add vanedb@0.2.0-rc.4`. This complete program inserts two vectors and
 finds the nearest one:
 
 ```rust
