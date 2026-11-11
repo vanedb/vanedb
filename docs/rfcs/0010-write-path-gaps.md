@@ -1,6 +1,6 @@
 # RFC 0010: Write-path gaps
 
-- Status: accepted (2026-09-13)
+- Status: accepted (2026-09-13); amendment accepted 2026-11-11 (below)
 - Milestone: 0.2.0
 - Tracking issues: #77, #109 (milestone 0.2.0)
 - Supersedes / superseded by: none
@@ -66,7 +66,22 @@ asserts identical saved bytes before and after on the conformance fixtures.
 
 Interleaved runs on dedicated hardware, per `AGENTS.md`. Never a CI delta.
 
-## Out of scope
+## Amendment: released on screened, flagged measurements (accepted 2026-11-11)
+
+No machine available to the project passed the dedicated-host load screen:
+three interleaved runs on the maintainer's Apple M4 Pro on 10 and 11
+November 2026 each failed it on different macOS services. The maintainer
+decided on 2026-11-11 that 0.2.0 releases on the last of those runs with the
+failure disclosed.
+
+In that run, on the 0.2.0-rc.4 source, the Rust-to-C++ ratios were 0.80 for
+`store_add` and 1.02 for `disk_build`, and Rust `index_search` was 1.001
+against the baseline `51cb2d8` and 1.009 against rc.2. These are indicative
+figures, recorded with the screen outcome in
+[the rc.4 evidence](../release/0.2.0-rc.4-evidence.md). The two
+dedicated-machine criteria above therefore stay unticked: they are neither
+met nor claimed. The `bench/README.md` snapshot is not refreshed from this
+run for the same reason; it carries a note that it predates 0.2.0.
 
 Graph construction changes, parallel build, the streaming builder itself
 (RFC 0008).
