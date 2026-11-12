@@ -103,6 +103,9 @@ So "load it, or build it if absent" needs no message matching. Errors the
 binding raises before an argument reaches the engine keep the plain built-in:
 a negative or out-of-range integer is `ValueError`, a wrong type `TypeError`,
 and a predicate calling back into the index being searched `RuntimeError`.
+`add_batch` checks the shape of its input the same way, so a row of the wrong
+length, or ids and rows that disagree in number, is a plain `ValueError`
+there and not one of the classes above.
 
 `ApproxIndex.search` accepts a keyword-only `ef_search` that applies to that
 query alone, leaving the shared `ef_search` property untouched — searches

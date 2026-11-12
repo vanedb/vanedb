@@ -42,14 +42,16 @@ one is an error.
 All three indexes accept filters through `search_with`:
 
 ```rust
-# use vanedb::{FlatIndex, Filter, Metric, SearchParams};
-# fn main() -> vanedb::Result<()> {
-# let index = FlatIndex::new(3, Metric::Cosine)?;
-let allowed = [101, 202]; // strictly ascending, with no duplicates
-let options = SearchParams::new().filter(Filter::Allow(&allowed));
-let hits = index.search_with(&[1.0, 0.0, 0.0], 10, &options)?;
-# Ok(())
-# }
+use vanedb::{Filter, FlatIndex, Metric, SearchParams};
+
+fn main() -> vanedb::Result<()> {
+    let index = FlatIndex::new(3, Metric::Cosine)?;
+    let allowed = [101, 202]; // strictly ascending, with no duplicates
+    let options = SearchParams::new().filter(Filter::Allow(&allowed));
+    let hits = index.search_with(&[1.0, 0.0, 0.0], 10, &options)?;
+    println!("{} matches", hits.len());
+    Ok(())
+}
 ```
 
 An empty allow list matches nothing; an empty deny list matches everything.
