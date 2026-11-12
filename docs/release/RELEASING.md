@@ -63,6 +63,8 @@ authorize publication. [Draft notes](0.1.1-notes.md) describe the candidate.
 
 6. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
+   Keep the notes short, as [`AGENTS.md`](../../AGENTS.md#conventions)
+   describes: detail belongs in the changelog and the evidence file.
 
 ## Registry setup
 

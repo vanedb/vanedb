@@ -77,6 +77,13 @@ implementing a row, so a scope claim cannot drift from the code (#63).
 
 ## Headline snapshot (Apple M4 Pro, 2026-09, monorepo af05db0)
 
+> **This snapshot predates 0.2.0 and no longer describes the write rows.**
+> The id-map hasher it annotates with ‡ was replaced (RFC 0010), and bulk
+> disk writes landed after it. It has not been refreshed because no run since
+> has passed the dedicated-host load screen. The most recent interleaved
+> run, with its screen failure, is in
+> [the 0.2.0-rc.4 evidence](../docs/release/0.2.0-rc.4-evidence.md).
+
 Criterion medians of three passes, both engines interleaved in one process.
 Inter-pass spread 0.1–8.3%, median 1.5%.
 
