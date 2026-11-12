@@ -52,6 +52,14 @@ iPhone and Android runs are an acceptance criterion of
 [RFC 0007](rfcs/0007-mobile-sdks.md) and must be recorded before any
 device-support claim.
 
+## Python 3.15 and 3.16
+
+The Python wheels cover CPython 3.11 to 3.14. Support for 3.15, then 3.16,
+is tracked in [#370](https://github.com/vanedb/vanedb/issues/370), milestone
+0.3.0. Wheels are built per interpreter version, so each one needs a PyO3
+release that supports it, a column in the wheel matrix and an
+installed-wheel test run before it is claimed.
+
 ## Settled for 0.2: the API vocabulary
 
 `get` returns `None` (`Ok(None)` in Rust, `undefined` in JavaScript) instead
