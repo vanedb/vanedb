@@ -6,6 +6,11 @@
 # android-* labels so host timings cannot be mislabelled.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+# Match maintainer_fill_host_comparison.sh: dependency C/C++ builds follow CC/CXX.
+if [[ "$(uname -s)" == "Linux" && -z "${CXX:-}" && -x /usr/bin/g++ && -x /usr/bin/gcc ]]; then
+  export CC=/usr/bin/gcc
+  export CXX=/usr/bin/g++
+fi
 HW="${1:?hw label required (apple-* or linux-avx2*)}"
 METRIC="${2:?metric required (cosine|l2)}"
 shift 2
@@ -72,6 +77,10 @@ case "$HW" in
     ;;
 esac
 
+# shellcheck source=pin_apple_machine_state.sh
+source "$(cd "$(dirname "$0")" && pwd)/pin_apple_machine_state.sh"
+compare_pin_apple_machine_state "$HW" || exit 1
+
 OUT_DIR="$ROOT/bench/compare/runs"
 mkdir -p "$OUT_DIR"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -94,7 +103,8 @@ for arg in "$@"; do
 done
 cd "$ROOT"
 # Fixed flags after "$@" so clap last-wins cannot replace fixture/metric/rounds/markdown.
-cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
+# caffeinate -i on Darwin holds the machine awake for the timed section.
+compare_run_awake cargo run --release --locked --manifest-path bench/compare/Cargo.toml -- run \
   "$@" \
   --fixture "$FIX" \
   --metric "$METRIC" \
