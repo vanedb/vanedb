@@ -1672,8 +1672,8 @@ mod tests {
         }
         let mut inner = idx.inner.write();
         inner.neighbors[0][0] = vec![1, 2, 3];
-        for node in 1..4 {
-            inner.neighbors[node][0] = vec![0];
+        for layers in &mut inner.neighbors[1..4] {
+            layers[0] = vec![0];
         }
         let limit = spanning::child_limit(idx.m);
         assert_eq!(limit, 2);
