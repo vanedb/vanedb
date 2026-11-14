@@ -171,6 +171,14 @@ already paid: vanedb#32, #77, #109 and #110 all exist because of it.
 - Keep pull requests small and focused: one RFC, one fix, one feature slice,
   or one document per PR, reviewable in one sitting. Split before opening
   rather than after. Docs-only and code changes go in separate PRs.
+- Release notes (`docs/release/<version>-notes.md`) are for users and must
+  read in about a minute: one line on what the release is, the install
+  commands, then New, Breaking changes, Fixed and Known limits, one short
+  bullet each, about 70 lines in all. Every breaking change gets a bullet
+  with the fix. Workflow names, asset inventories, verification steps,
+  internal refactors and release-process status do not belong there; link
+  the changelog, the guides and the evidence file for them.
+  [`0.2.0-notes.md`](docs/release/0.2.0-notes.md) is the model.
 - Conventional commits: `feat(scope):`, `fix:`, `perf(scope):`, `chore(deps):`.
 - Run `cargo fmt --all` before committing. Don't chain fmt-check and commit with
   `;` — a failed check won't stop the commit.

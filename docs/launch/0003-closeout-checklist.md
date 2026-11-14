@@ -1,9 +1,8 @@
 # Closing #198 / residual tracking — maintainer closeout
 
-Status / benchmark-fill driver:
-`bash docs/launch/maintainer_closeout_226.sh` (status or `--fill`).
-For the demo, use the reviewed-PR sequence in §3; the historical cut path
-applies an older patch and is not the current release candidate.
+Benchmark fill on a dedicated Apple Silicon host:
+`bash bench/compare/scripts/maintainer_fill_host_comparison.sh`.
+For the demo, use the reviewed-PR sequence in §3.
 
 Harness + fixture landed on **main** via
 [#212](https://github.com/vanedb/vanedb/pull/212) (`bead8c0`). ARM64 proptest
@@ -30,7 +29,7 @@ from the GitHub UI (not via merge keywords).
 |---|---|---|
 | Tip Required CI Gate green | **recheck current main** | Historical post-#212 gate passed; current merged-main gate must pass after every merge and COMPARISON update |
 | Hostable `embeddings.vnef` + `SHA256SUMS` | **done** | [compare-fixture-v1](https://github.com/vanedb/vanedb/releases/tag/compare-fixture-v1) |
-| Four dedicated-HW COMPARISON tables | **open** | `bench/COMPARISON.md` still has four `*Pending.*` — Apple / Android × cosine+L2; never cloud/CI. Linux AVX2 is deferred past 0.2.0 by the RFC 0003 amendment of 2026-11-10 |
+| Apple Silicon COMPARISON tables | **open** | `bench/COMPARISON.md` still has two `*Pending.*` — Apple cosine+L2; never cloud/CI. Linux AVX2 is deferred past 0.2.0 (RFC 0003, 2026-11-10). Android ARM64 is not measured for 0.2.0 |
 | Official Obsidian demo `0.2.0` | **open** | Missing tag; [staging](https://github.com/vanedb/vanedb/releases/tag/demo-0.2.0-staging) ≠ AC5 |
 | ≥5 CTO→user→staff→senior→QA→AI PM rounds | **done** | ≥7 rounds posted on [#212](https://github.com/vanedb/vanedb/pull/212) (e.g. Rounds 23–34) |
 
@@ -55,18 +54,18 @@ VANEDB_COMPARE_FIXTURE_URL=https://github.com/vanedb/vanedb/releases/download/co
 Rebuild `compare` after pull so the compile-time SUMS pin matches before
 dedicated HW `--markdown` runs.
 
-## 2. Dedicated hardware tables (AC3) — **open (6× Pending)**
+## 2. Dedicated hardware tables (AC3) — **open (Apple Silicon pending)**
 
-`bench/COMPARISON.md` still has four `*Pending.*` cells (cosine+L2 × Apple /
-Android). Linux AVX2 is deferred past 0.2.0 by the RFC 0003 amendment of
-2026-11-10; its section says so and holds no pending marker. Cloud agents have **0** Cursor self-hosted workers and
+`bench/COMPARISON.md` still has two `*Pending.*` cells (Apple cosine and
+squared L2). Linux AVX2 is deferred past 0.2.0 by the RFC 0003 amendment of
+2026-11-10, and Android ARM64 is not measured for 0.2.0; those sections say
+so and hold no pending marker. Cloud agents have **0** Cursor self-hosted workers and
 must not paste timings from shared runners (`AGENTS.md`). Operator-owned
 **GitHub Actions self-hosted** runners are allowed (see below).
 
 September 24 Mac cosine/L2 runs and interleaved write/search diagnostics
 completed on an unreserved host. They do not fill these dedicated-hardware
-slots. Quiet Mac confirmation and Android ARM64 evidence remain required; a
-labelled ARM64 Android emulator is allowed by RFC 0003. Neither the ARM64
+slots. Quiet Mac confirmation remains required. Neither the ARM64
 Linux VM nor x86-64 emulation substitutes for Linux AVX2, which is why it is
 deferred.
 
@@ -102,7 +101,9 @@ filesystem), so skipping the helper does not reopen cross-class labels.
 
 ### Android ARM64
 
-Follow [`../../bench/compare/ANDROID.md`](../../bench/compare/ANDROID.md) (NDK/adb on
+Not measured for 0.2.0. To add the tables later, restore the cosine and
+squared-L2 subsections in `bench/COMPARISON.md`, then follow
+[`../../bench/compare/ANDROID.md`](../../bench/compare/ANDROID.md) (NDK/adb on
 device, or labelled emulator). Pass `--out-dir` under a writable on-device path
 (e.g. `/data/local/tmp/compare-out`) — the default build-host
 `target/compare-out` is not writable after cross-compile push. Do **not** use
@@ -138,10 +139,9 @@ reviewed commit and bundle identity, then create its annotated release tag
 when publication is approved. The official tag and release remain
 missing; automated tests and historical staging artifacts do not prove them.
 After those gates and publication approval, the annotated-tag helper is
-`bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
+`bash docs/launch/maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`
 (or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN`). Record both evidence
-links on [#242](https://github.com/vanedb/vanedb/issues/242). Historical `--cut`
-instructions do not apply to this candidate.
+links on [#242](https://github.com/vanedb/vanedb/issues/242).
 
 ## 4. Launch (AC6)
 
@@ -152,6 +152,6 @@ provisional tense to past tense with the real numbers.
 ## 5. Gate — **Required CI Gate green on main**
 
 Re-check **Required CI Gate** on `main` after every COMPARISON paste. Leave
-[#242](https://github.com/vanedb/vanedb/issues/242) (and #198 / #226 if
-reopened) open while six `*Pending.*` cells remain or while the official demo
-`0.2.0` release URL is missing (staging on vanedb is not AC5).
+[#242](https://github.com/vanedb/vanedb/issues/242) open while the Apple
+Silicon `*Pending.*` cells remain or while the official demo `0.2.0` release
+URL is missing (staging on vanedb is not AC5).

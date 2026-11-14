@@ -1,7 +1,7 @@
 # Limits and capacity
 
 What each index can hold, what it costs in memory and on disk, and what it
-does not do, as of 0.1.1 plus the unreleased 0.2.0 filtered-search API.
+does not do, as of 0.2.0.
 Formulas are derived from the source and the format specifications and are
 marked **computed**; a figure marked **measured** names
 the run it came from. Nothing here is a benchmark. The roadmap RFCs that change
@@ -18,7 +18,7 @@ a limit are named beside it.
 | Vector components | finite `f32` | validation on add, search and disk build | RFC 0005 adds int8 and binary storage |
 | `k` | at least 1; the graph's effective beam is at least `k` | validation | none planned |
 | Payload | none stored | | RFC 0009 |
-| Metadata filtering | external ID allow/deny lists and predicates (0.2.0, unreleased); no metadata is stored | `SearchParams::filter` on every index (RFC 0004) | RFC 0009 adds stored payload |
+| Metadata filtering | external ID allow/deny lists and predicates (since 0.2.0); no metadata is stored | `SearchParams::filter` on every index (RFC 0004) | RFC 0009 adds stored payload |
 | Filtered graph beam cap (`max_ef_search`) | default 4 × the effective initial beam; raised to at least that beam and capped at the stored slot count, tombstones included; one 20k-vector L2 experiment at 0.2% selectivity and `k = 10` under-filled 180/200 queries; tune on the actual workload, since no universal selectivity floor is established (#304) | `ApproxIndex::search_with`; bounds the beam width alone, not the visited nodes or distance evaluations, and widening runs pass after pass up to it until `k` matches are found or every stored slot has been scored (PR #263) | none planned |
 | Allow/deny list length | no limit beyond address space (the C ABI rejects a length above `isize::MAX / 8`); entries must be strictly ascending with no duplicates | validation on every search | none planned |
 | Filter predicates | synchronous, called on the searching thread, possibly more than once per id on the graph; run under the index's read lock (`FlatIndex`, `ApproxIndex`) so they must not touch the searched index, though they may consult other indexes; a C callback must not unwind a foreign exception or `longjmp` | `Filter::Predicate`; C `vanedb_rs_filter_fn` | none planned |
@@ -30,8 +30,19 @@ a limit are named beside it.
 A graph built by this release keeps every stored vector reachable: layer 0
 carries a spanning tree whose edges pruning never removes (#299). Releases up
 to 0.2.0-rc.2, in both engines, could prune every inbound link to a DOT
-vector or cut off a tightly clustered cosine island. Files they wrote load with the topology they were saved with, stranded vectors included;
+vector or cut off a tightly clustered cosine island. Files they wrote load
+with the topology they were saved with, stranded vectors included;
 `compact()` rebuilds the graph and reconnects them.
+
+No accessor reports whether a loaded graph has stranded vectors. To check a
+file written by an earlier release, run a sample of queries twice, once
+normally and once with a beam of at least `len() + tombstones()`, which
+falls back to the exhaustive scan described below. An id that only the
+second search returns, and that should have ranked in the first, is
+stranded. DOT data, tightly clustered cosine data and graphs built with a
+small `M` are the ones at risk. `compact()` is the recovery: it rebuilds the
+whole graph under the write lock, so it costs a full build, and because the
+topology changes, approximate results can differ afterwards.
 
 Reachable is not the same as found. A bounded approximate search can still
 miss a stored vector its beam never gets near, so it is not a completeness
@@ -90,8 +101,9 @@ a cap alone does not force exhaustive search if an earlier pass already fills
 
 Loading, searching and saving still preserve the original graph topology.
 This query fallback does not repair connectivity or claim improved recall
-for smaller beams. `compact()` reclaims tombstones, not a guaranteed graph
-connectivity repair. Use exact indexes when every query needs completeness.
+for smaller beams. `compact()` rebuilds the graph, which reconnects every
+live vector, but a connected graph is still not a recall guarantee. Use
+exact indexes when every query needs completeness.
 
 ## Memory, computed
 
@@ -158,7 +170,7 @@ These are the reason RFC 0005 (quantized storage: int8 is 4× smaller, binary
 
 ## What is not supported
 
-- Payload or metadata storage (RFC 0009). Filtered search (0.2.0, unreleased)
+- Payload or metadata storage (RFC 0009). Filtered search (since 0.2.0)
   works through external ID lists or predicates (RFC 0004): exact indexes
   scan once; approximate filtering can return fewer than `k` matches at its
   beam cap. Predicates must not access the index being searched.

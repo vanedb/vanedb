@@ -309,7 +309,13 @@ fn parse_filter_options(options: &JsValue) -> Result<Option<ParsedFilter>, JsVal
     if usize::from(allow.is_some()) + usize::from(deny.is_some()) + usize::from(predicate.is_some())
         > 1
     {
-        return Err(JsError::new("specify at most one of allow, deny, or predicate").into());
+        let error = js_sys::Error::new("specify at most one of allow, deny, or predicate");
+        let _ = Reflect::set(
+            &error,
+            &JsValue::from_str("code"),
+            &JsValue::from_str("ERR_INVALID_PARAMETER"),
+        );
+        return Err(error.into());
     }
 
     if allow.is_none() && deny.is_none() && predicate.is_none() {
@@ -352,8 +358,8 @@ export interface ApproxSearchOptions extends SearchFilterOptions {
     maxEfSearch?: number;
 }
 /** The `code` property of an `Error` thrown for an engine failure. Mirrors
- * the C ABI's status names. Errors thrown for an argument the binding rejects
- * before it reaches the engine carry no code. */
+ * the C ABI's status names. A wrong type, a null, or an out-of-range number
+ * or id throws with no code. */
 export type VaneErrorCode =
     | "ERR_DIMENSION_MISMATCH"
     | "ERR_BATCH_LENGTH_MISMATCH"

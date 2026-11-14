@@ -1,6 +1,6 @@
 # RFC 0003: Competitor benchmark and demo
 
-- Status: accepted (2026-09-13); hardware amendment accepted 2026-11-10 (below)
+- Status: accepted (2026-09-13); amendments accepted 2026-11-10 and 2026-11-11 (below)
 - Milestone: 0.2.0
 - Tracking issue: #198
 - Supersedes / superseded by: none
@@ -134,6 +134,21 @@ comparison covers Apple Silicon and an Android ARM64 emulator.
 
 The tables can be added in any later release by restoring the two *Pending*
 subsections and running the fill helper on a native machine.
+
+## Amendment: no dedicated-hardware tables in 0.2.0 (accepted 2026-11-11)
+
+The Apple Silicon and Android ARM64 runs were made, on the 0.2.0-rc.4
+source, but the host failed the load screen in each of three attempts and
+the Android run used an emulator on that same host. The maintainer decided
+on 2026-11-11 that 0.2.0 releases without filling the `bench/COMPARISON.md`
+slots. The measurements and their limits are recorded in
+[the rc.4 evidence](../release/0.2.0-rc.4-evidence.md); they are not
+published as results, and the launch post may not quote them as such. The
+first acceptance criterion stays unticked.
+
+The demo was rebuilt against `@vanedb/wasm@0.2.0-rc.4` and accepted on the
+desktop on 2026-11-11. Its release and the launch post are separate
+maintainer decisions, tracked in #242.
 
 ## Out of scope
 

@@ -63,6 +63,8 @@ authorize publication. [Draft notes](0.1.1-notes.md) describe the candidate.
 
 6. Record the candidate commit, run URLs, artifact checksums, resolved findings
    and final role verdicts. Finalize release notes and compatibility language.
+   Keep the notes short, as [`AGENTS.md`](../../AGENTS.md#conventions)
+   describes: detail belongs in the changelog and the evidence file.
 
 ## Registry setup
 
@@ -234,7 +236,7 @@ complete five-platform inventory.
 A branch signature cannot satisfy the tag-identity check after release.
 
 The workflow builds natively on Linux x86-64/ARM64, macOS ARM64/x86-64 and
-Windows x64 with the `capi` profile and Rust 1.94.0. Each job runs C ABI tests,
+Windows x64 with the `capi` profile and Rust 1.100.0. Each job runs C ABI tests,
 header checks, and `package_capi.py`'s extracted static/shared CMake and
 pkg-config acceptance before upload. Cargo CycloneDX 0.5.9 generates a separate
 CycloneDX 1.5 JSON file for each target using the same lockfile and default C

@@ -42,6 +42,8 @@ fn main() {
         .include(&hnsw_dir)
         .flag_if_supported("-Wno-unused-parameter")
         .flag_if_supported("-Wno-sign-compare")
+        .flag_if_supported("-Wno-type-limits")
+        .flag_if_supported("-Wno-unused-function")
         .compile("hnsw_bridge");
 
     // --- sqlite-vec amalgamation (static, against rusqlite's bundled SQLite)
@@ -58,6 +60,8 @@ fn main() {
         .define("SQLITE_VEC_STATIC", None)
         .flag_if_supported("-Wno-unused-parameter")
         .flag_if_supported("-Wno-sign-compare")
+        .flag_if_supported("-Wno-type-limits")
+        .flag_if_supported("-Wno-maybe-uninitialized")
         .flag_if_supported("-std=c11");
 
     if let Ok(include) = env::var("DEP_SQLITE3_INCLUDE") {

@@ -422,7 +422,7 @@ enum PyFilterHolder<'a> {
 }
 
 fn extract_py_filter<'a>(
-    _py: Python<'a>,
+    py: Python<'a>,
     filter: Option<&Bound<'a, PyAny>>,
     allow_ids: Option<&Bound<'a, PyAny>>,
     deny_ids: Option<&Bound<'a, PyAny>>,
@@ -438,7 +438,9 @@ fn extract_py_filter<'a>(
         count += 1;
     }
     if count > 1 {
-        return Err(PyValueError::new_err(
+        let classes = error_classes(py)?;
+        return Err(PyErr::from_type(
+            classes.subclasses[INVALID_PARAMETER].bind(py).clone(),
             "specify at most one of filter, allow_ids, or deny_ids",
         ));
     }
