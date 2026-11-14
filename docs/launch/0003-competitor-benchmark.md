@@ -64,10 +64,15 @@ Use the reviewed-PR sequence in
 candidate from [demo PR #20](https://github.com/vanedb/obsidian-vane-search/pull/20)
 merged as `5f98bfec` after all ten independent reviews and four PR CI checks.
 The updated real Obsidian/Ollama walkthrough passed, and the merged build
-matches its recorded accepted bundle. Merged-main CI and the tag-helper dry
-run passed; official publication approval remains pending. Publish the
-approved merged candidate via
-`maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`. The recorded
+matches its recorded accepted bundle. Merged-main CI passed. In
+`obsidian-vane-search`, tag `f52c022`
+(`f52c022c72d1da1dcdd59f5bd16203f98b65715b`) and push it:
+
+```bash
+git tag -a 0.2.0 f52c022 -m "Vane Search 0.2.0" && git push origin 0.2.0
+```
+
+Pushing the tag publishes the GitHub release. The recorded
 walkthrough covers its identified bundle; later bundle changes require renewed
 validation. Record the official release URL and walkthrough evidence on
 [#242](https://github.com/vanedb/vanedb/issues/242). The historical staging

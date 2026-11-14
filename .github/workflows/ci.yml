@@ -97,10 +97,8 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/cpp-ci.yml'
             integration:
-              # The tag script and the other launch docs this workflow still
-              # greps. The nudge, sync, and historical cut workflows are gone.
+              # Launch checklists. The tag workflow and its gate test are gone.
               - 'docs/launch/**'
-              - 'scripts/test_demo_tag_gate.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'vanedb/**'
@@ -111,7 +109,6 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/integration-ci.yml'
               - '.github/workflows/fill-comparison-self-hosted.yml'
-              - '.github/workflows/tag-demo-0.2.0.yml'
 
   workflow-lint:
     name: Workflow lint
