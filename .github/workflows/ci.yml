@@ -72,11 +72,24 @@ jobs:
               # for a one-file pin: rust-cache #349 was 52 jobs / 69 job-min /
               # 40 min wall, against a Rust-only run at 26 jobs / 35 job-min /
               # 10 min. Claude-action #354 (two Claude workflows) was 35 min.
-              # Publish workflows are checked by workflow-lint, which always
-              # runs. requirements-release.txt is the publish/lint constraint,
-              # not an input of these jobs.
+              #
+              # The release workflows do not run on a pull request. The jobs
+              # that build the crate, wheels, @vanedb/wasm, and C ABI on a PR
+              # are in rust-ci.yml, so an edit to a release workflow or to the
+              # scripts and constraint it uses to package those artifacts
+              # selects this component. C++ does not publish those artifacts.
               - '.github/workflows/ci.yml'
               - '.github/workflows/rust-ci.yml'
+              - '.github/workflows/publish-crate.yml'
+              - '.github/workflows/publish-rust.yml'
+              - '.github/workflows/publish-wasm.yml'
+              - '.github/workflows/publish-capi.yml'
+              - '.github/requirements-release.txt'
+              - '.github/scripts/validate_python_release.py'
+              - '.github/scripts/check_wheel_matrix.py'
+              - 'scripts/check_crate_package.py'
+              - 'scripts/capi_release.py'
+              - 'scripts/check_release_readmes.py'
             cpp:
               - 'conformance/**'
               - 'vanedb/tests/fixtures/**'

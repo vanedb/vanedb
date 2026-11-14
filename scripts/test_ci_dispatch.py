@@ -83,26 +83,71 @@ class CiDispatchTests(unittest.TestCase):
                     with self.subTest(selected=selected, upstream=upstream, outcome=outcome):
                         self.assertNotEqual(self.gate(selected, **{upstream: outcome}).returncode, 0)
 
+    def test_unselected_components_must_be_skipped_for_the_gate_to_pass(self):
+        # Docs-only and other empty selections: every component job is skipped
+        # and the gate passes. A selected component that did not run, or an
+        # unselected one that did, is a hole.
+        self.assertEqual(self.gate((False, False, False)).returncode, 0)
+        self.assertNotEqual(
+            self.gate((True, False, False), {"rust": "skipped"}).returncode, 0)
+        self.assertNotEqual(
+            self.gate((False, False, False), {"rust": "success"}).returncode, 0)
+        self.assertNotEqual(
+            self.gate((False, True, False), {"cpp": "skipped"}).returncode, 0)
+        self.assertNotEqual(
+            self.gate((False, False, True), {"integration": "failure"}).returncode, 0)
+
     def test_path_filters_name_the_files_each_component_actually_reads(self):
         # A blanket `.github/workflows/**` made a one-file action pin rebuild
-        # every component. Publish workflows are syntax-checked by the always-on
-        # workflow-lint job; they are not an input of the component suites.
+        # every component. workflow-lint has no path filter, so actionlint and
+        # the release-script unit tests still run for every pull request.
+        self.assertNotIn("paths", WORKFLOW["on"]["pull_request"])
+        self.assertNotIn("if", JOBS["workflow-lint"])
+
         path_filter = next(s for s in JOBS["changes"]["steps"] if s.get("id") == "filter")
         filters = yaml.load(path_filter["with"]["filters"], Loader=yaml.BaseLoader)
         self.assertEqual(set(filters), set(COMPONENTS))
 
         for patterns in filters.values():
             self.assertNotIn(".github/workflows/**", patterns)
-            self.assertNotIn(".github/requirements-release.txt", patterns)
+
+        # Sources and release workflows for the artifacts that ship. The PR
+        # jobs that build them are the Rust component. C++ does not publish
+        # them, so a release-workflow edit must not drag that matrix in, and
+        # must not skip Rust.
+        release_inputs = [
+            "vanedb/**",
+            "vanedb-py/**",
+            "vanedb-wasm/**",
+            "vanedb-capi/**",
+            "Cargo.toml",
+            "Cargo.lock",
+            ".github/workflows/publish-crate.yml",
+            ".github/workflows/publish-rust.yml",
+            ".github/workflows/publish-wasm.yml",
+            ".github/workflows/publish-capi.yml",
+            ".github/requirements-release.txt",
+            ".github/scripts/validate_python_release.py",
+            ".github/scripts/check_wheel_matrix.py",
+            "scripts/check_crate_package.py",
+            "scripts/capi_release.py",
+            "scripts/check_release_readmes.py",
+            "scripts/check_wheel_install.py",
+            "scripts/package_capi.py",
+            "scripts/package_wasm.py",
+            "scripts/build_npm_package.py",
+            "scripts/check_npm_package.py",
+        ]
+        for path in release_inputs:
+            self.assertTrue(covers(path, filters["rust"]), path)
+            self.assertFalse(covers(path, filters["cpp"]), path)
 
         self.assertIn(".github/workflows/ci.yml", filters["rust"])
         self.assertIn(".github/workflows/rust-ci.yml", filters["rust"])
-        self.assertIn("vanedb/**", filters["rust"])
-        self.assertIn("scripts/check_wheel_install.py", filters["rust"])
-
         self.assertIn(".github/workflows/cpp-ci.yml", filters["cpp"])
         self.assertIn("cpp/**", filters["cpp"])
         self.assertNotIn(".github/workflows/rust-ci.yml", filters["cpp"])
+        self.assertNotIn(".github/requirements-release.txt", filters["cpp"])
 
         self.assertIn("docs/launch/**", filters["integration"])
         self.assertIn(".github/workflows/integration-ci.yml", filters["integration"])
@@ -112,10 +157,6 @@ class CiDispatchTests(unittest.TestCase):
             ".github/workflows/claude.yml",
             ".github/workflows/claude-code-review.yml",
             ".github/workflows/bench.yml",
-            ".github/workflows/publish-rust.yml",
-            ".github/workflows/publish-crate.yml",
-            ".github/workflows/publish-wasm.yml",
-            ".github/workflows/publish-capi.yml",
             ".github/workflows/cut-demo-0.2.0.yml",
         ]
         for path in untouched:
@@ -126,6 +167,14 @@ class CiDispatchTests(unittest.TestCase):
         self.assertTrue(rust_refs, "rust-ci.yml should reference scripts/")
         for ref in rust_refs:
             self.assertTrue(covers(ref, filters["rust"]), ref)
+        for name in (
+            "publish-crate.yml",
+            "publish-rust.yml",
+            "publish-wasm.yml",
+            "publish-capi.yml",
+        ):
+            for ref in script_refs(ROOT / ".github/workflows" / name):
+                self.assertTrue(covers(ref, filters["rust"]), f"{name} {ref}")
 
         integration_text = (ROOT / ".github/workflows/integration-ci.yml").read_text()
         for ref in script_refs(ROOT / ".github/workflows/integration-ci.yml"):
