@@ -5,20 +5,22 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
 
+# Some Linux images select a clang as `cc`/`c++` that cannot see libstdc++
+# headers. The compare build.rs already prefers /usr/bin/g++ for the vendored
+# C++; dependency crates (usearch, numkong) honor CC/CXX from the environment.
+if [[ "$(uname -s)" == "Linux" && -z "${CXX:-}" && -x /usr/bin/g++ && -x /usr/bin/gcc ]]; then
+  export CC=/usr/bin/gcc
+  export CXX=/usr/bin/g++
+fi
+
 # Matches publish.rs::shared_runner_signals — GHA self-hosted without
 # /opt/hostedtoolcache is operator-owned dedicated hardware (AC3 path).
 # shellcheck source=refuse_shared_runner.sh
 source "$(cd "$(dirname "$0")" && pwd)/refuse_shared_runner.sh"
 compare_refuse_if_shared_runner || exit 1
 
-URL="${VANEDB_COMPARE_FIXTURE_URL:-https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef}"
-if [[ ! -f bench/compare/fixtures/embeddings.vnef ]]; then
-  echo "fetching publish fixture…"
-  VANEDB_COMPARE_FIXTURE_URL="$URL" bash bench/compare/scripts/fetch_fixture.sh
-fi
-
-echo "rebuilding compare (compile-time SHA256SUMS pin)…"
-cargo build --release --locked --manifest-path bench/compare/Cargo.toml
+# shellcheck source=pin_apple_machine_state.sh
+source "$(cd "$(dirname "$0")" && pwd)/pin_apple_machine_state.sh"
 
 HW=""
 case "$(uname -s)/$(uname -m)" in
@@ -36,6 +38,16 @@ case "$(uname -s)/$(uname -m)" in
     exit 1
     ;;
 esac
+compare_pin_apple_machine_state "$HW" || exit 1
+
+URL="${VANEDB_COMPARE_FIXTURE_URL:-https://github.com/vanedb/vanedb/releases/download/compare-fixture-v1/embeddings.vnef}"
+if [[ ! -f bench/compare/fixtures/embeddings.vnef ]]; then
+  echo "fetching publish fixture…"
+  VANEDB_COMPARE_FIXTURE_URL="$URL" bash bench/compare/scripts/fetch_fixture.sh
+fi
+
+echo "rebuilding compare (compile-time SHA256SUMS pin, --release --locked)…"
+compare_run_awake cargo build --release --locked --manifest-path bench/compare/Cargo.toml
 
 echo "recording $HW cosine + l2…"
 bash bench/compare/scripts/record_both_metrics.sh "$HW"
