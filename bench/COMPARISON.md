@@ -181,15 +181,14 @@ run the fill helper on a native machine.
 
 ### Android ARM64 (device or emulator)
 
-Label device vs emulator in `VANEDB_COMPARE_HW`. Physical device preferred.
+*Not measured for 0.2.0.* Android is out of this release. See the
+2026-11-11 amendment to
+[RFC 0003](../docs/rfcs/0003-competitor-benchmark-and-demo.md). The recorded
+emulator run is not a published result.
 
-#### Cosine
-
-*Pending.*
-
-#### Squared L2
-
-*Pending.*
+To add these tables later, restore a `#### Cosine` and a `#### Squared L2`
+subsection here, each holding the pending marker the other slots use, and
+run the fill helper on a native machine.
 
 ## Smoke verification (not a result)
 
@@ -202,5 +201,5 @@ and recall are excluded from the tables above by policy.
 - Demo application: [`obsidian-vane-search`](https://github.com/vanedb/obsidian-vane-search)
   (separate repository). Linked from the top-level README.
 - Launch post draft: [`docs/launch/0003-competitor-benchmark.md`](../docs/launch/0003-competitor-benchmark.md)
-  — publish only after maintainer review and after the Apple Silicon and
-  Android tables above are filled.
+  — publish only after maintainer review and after the Apple Silicon
+  tables above are filled. Android is not measured for 0.2.0.

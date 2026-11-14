@@ -64,12 +64,8 @@ jobs:
               - '.github/requirements-release.txt'
               - '.github/workflows/**'
             integration:
-              # Validate closeout automation before its next live main-push run.
-              - 'docs/launch/nudge_242_closeout.sh'
-              - 'scripts/test_nudge_closeout.py'
-              - 'docs/launch/sync_242_how.sh'
-              - 'scripts/sync_242_how.py'
-              - 'scripts/test_sync_242_how.py'
+              - 'docs/launch/maintainer_tag_demo_0.2.0.sh'
+              - 'scripts/test_demo_tag_gate.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'vanedb/**'
