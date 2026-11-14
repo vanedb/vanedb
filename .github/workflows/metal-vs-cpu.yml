@@ -1,0 +1,93 @@
+# Manual Metal-versus-CPU measurement. Not part of pull-request CI.
+#
+# `gpu-metal` is a standalone scan. This job runs the example that times it
+# against FlatIndex::search, including device setup and copies. A hosted
+# macos-15 runner is arm64 (M1, 7 GiB RAM) and may not expose a Metal device,
+# so the first step prints availability before any compile. Rows that do not
+# fit in RAM are skipped by the example. Nothing here is a pass/fail gate on
+# speed: hosted-runner timings are not evidence. The Required CI Gate does
+# not wait on this workflow.
+
+name: Metal vs CPU
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "quick smokes the harness; full is 10k/100k/1M by 384/768/1536"
+        type: choice
+        options:
+          - full
+          - quick
+        default: full
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  metal-vs-cpu:
+    name: Metal vs CPU (macOS arm64)
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - name: Print whether a Metal device is available
+        run: |
+          set -euo pipefail
+          arch="$(uname -m)"
+          echo "uname_m=${arch}"
+          if [[ "${arch}" != "arm64" ]]; then
+            echo "::error::this workflow needs an arm64 macOS runner, got ${arch}"
+            exit 1
+          fi
+          sysctl -n hw.memsize
+          sysctl -n hw.ncpu
+          cat > "${RUNNER_TEMP}/metal_probe.swift" << 'EOF'
+          import Metal
+          if let device = MTLCreateSystemDefaultDevice() {
+              print("metal_device: available name=\(device.name) headless=\(device.isHeadless) lowPower=\(device.isLowPower) unified=\(device.hasUnifiedMemory) recommendedWorkingSet=\(device.recommendedMaxWorkingSetSize)")
+          } else {
+              print("metal_device: unavailable")
+          }
+          EOF
+          # A missing device is a result. The benchmark still records the CPU path.
+          swift "${RUNNER_TEMP}/metal_probe.swift" || echo "metal_device: probe_failed"
+          {
+            echo "## Metal device"
+            echo '```'
+            echo "uname_m=${arch}"
+            sysctl -n hw.memsize
+            sysctl -n hw.ncpu
+            swift "${RUNNER_TEMP}/metal_probe.swift" || echo "metal_device: probe_failed"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Benchmark MetalCompute against FlatIndex
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          set -euo pipefail
+          # macOS /bin/bash is 3.2, where an empty array under `set -u` aborts.
+          if [[ "${PROFILE}" == "quick" ]]; then
+            echo "command: cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu -- --quick"
+            cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu -- --quick \
+              | tee "${RUNNER_TEMP}/metal-vs-cpu.txt"
+          else
+            echo "command: cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu"
+            cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu \
+              | tee "${RUNNER_TEMP}/metal-vs-cpu.txt"
+          fi
+          {
+            echo "## Benchmark"
+            echo '```'
+            cat "${RUNNER_TEMP}/metal-vs-cpu.txt"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
