@@ -97,13 +97,9 @@ jobs:
               - '.github/workflows/ci.yml'
               - '.github/workflows/cpp-ci.yml'
             integration:
-              # Every docs/launch file and launch script this workflow greps
-              # or executes. Listing four of them left a tag-script edit with
-              # no job running the checks.
+              # The tag script and the other launch docs this workflow still
+              # greps. The nudge, sync, and historical cut workflows are gone.
               - 'docs/launch/**'
-              - 'scripts/sync_242_how.py'
-              - 'scripts/test_sync_242_how.py'
-              - 'scripts/test_nudge_closeout.py'
               - 'scripts/test_demo_tag_gate.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -116,8 +112,6 @@ jobs:
               - '.github/workflows/integration-ci.yml'
               - '.github/workflows/fill-comparison-self-hosted.yml'
               - '.github/workflows/tag-demo-0.2.0.yml'
-              - '.github/workflows/nudge-242-closeout.yml'
-              - '.github/workflows/sync-242-how.yml'
 
   workflow-lint:
     name: Workflow lint

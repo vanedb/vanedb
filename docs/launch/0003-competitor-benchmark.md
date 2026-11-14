@@ -67,7 +67,7 @@ The updated real Obsidian/Ollama walkthrough passed, and the merged build
 matches its recorded accepted bundle. Merged-main CI and the tag-helper dry
 run passed; official publication approval remains pending. Publish the
 approved merged candidate via
-`maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`. The recorded
+`maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`. The recorded
 walkthrough covers its identified bundle; later bundle changes require renewed
 validation. Record the official release URL and walkthrough evidence on
 [#242](https://github.com/vanedb/vanedb/issues/242). The historical staging

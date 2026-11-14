@@ -5,8 +5,6 @@
 # when the PR is still OPEN with vault acceptance recorded. Tagging then requires
 # green merged-commit CI and an exact rebuild/desktop-acceptance checksum match;
 # rerun after CI completes if the first dispatch only merges.
-# The historical patch-cut workflow is gone. The local script
-# docs/launch/maintainer_cut_demo_0.2.0.sh remains for the bare-remote test.
 # Does not run on push/PR.
 name: Tag demo 0.2.0
 
