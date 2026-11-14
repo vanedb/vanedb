@@ -39,7 +39,8 @@ impl Engine for HnswRsEngine {
     }
 
     fn version(&self) -> String {
-        "0.3.4".into()
+        // Exact `hnsw_rs` pin in Cargo.toml. The crate does not export its version.
+        "0.3.5".into()
     }
 
     fn supports_delete(&self) -> bool {
