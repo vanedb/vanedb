@@ -27,7 +27,7 @@ disk = ["dep:memmap2"]
 gpu-metal = ["dep:metal", "dep:objc"]
 
 [dependencies]
-parking_lot = "0.12"
+parking_lot = "0.13"
 memmap2 = { version = "0.9", optional = true }
 metal = { version = "0.33", optional = true }
 objc = { version = "0.2", optional = true }
