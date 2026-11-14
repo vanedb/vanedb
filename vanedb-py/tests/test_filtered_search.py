@@ -38,6 +38,26 @@ def test_filter_list_validation(index, field, invalid):
         index.search([0.], 4, **{field: invalid})
 
 
+def _keep(_id):
+    return True
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"allow_ids": [1], "deny_ids": [2]},
+        {"allow_ids": [1], "filter": _keep},
+        {"deny_ids": [2], "filter": _keep},
+        {"allow_ids": [1], "deny_ids": [2], "filter": _keep},
+    ],
+    ids=["allow+deny", "allow+filter", "deny+filter", "allow+deny+filter"],
+)
+def test_conflicting_filters_raise_invalid_parameter_error(index, kwargs):
+    with pytest.raises(vanedb.InvalidParameterError) as raised:
+        index.search([0.], 1, **kwargs)
+    assert isinstance(raised.value, ValueError)
+
+
 @pytest.mark.parametrize("truth_conversion", [False, True])
 def test_predicate_errors_propagate_original_exception(index, truth_conversion):
     error = RuntimeError("metadata lookup failed")

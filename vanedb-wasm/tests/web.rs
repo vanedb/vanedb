@@ -216,6 +216,73 @@ fn test_wasm_filtered_search() {
         .is_err());
 }
 
+fn conflicting_options(allow: bool, deny: bool, predicate: bool) -> JsValue {
+    let opts = js_sys::Object::new();
+    if allow {
+        let ids = js_sys::Array::new();
+        ids.push(&JsValue::from(1));
+        js_sys::Reflect::set(&opts, &JsValue::from_str("allow"), &ids).unwrap();
+    }
+    if deny {
+        let ids = js_sys::Array::new();
+        ids.push(&JsValue::from(2));
+        js_sys::Reflect::set(&opts, &JsValue::from_str("deny"), &ids).unwrap();
+    }
+    if predicate {
+        let pred = js_sys::Function::new_no_args("return true;");
+        js_sys::Reflect::set(&opts, &JsValue::from_str("predicate"), &pred).unwrap();
+    }
+    opts.into()
+}
+
+#[wasm_bindgen_test]
+fn conflicting_filters_carry_err_invalid_parameter() {
+    fn code(error: &JsValue) -> Option<String> {
+        js_sys::Reflect::get(error, &JsValue::from_str("code"))
+            .unwrap()
+            .as_string()
+    }
+
+    let store = WasmStore::new(&JsValue::from(3.0), &JsValue::from_str("l2")).unwrap();
+    store
+        .add(&JsValue::from(1u64), &v(&[1.0, 0.0, 0.0]))
+        .unwrap();
+    let index = WasmIndex::new(
+        &JsValue::from(3.0),
+        &JsValue::from_str("l2"),
+        &JsValue::from(16.0),
+        &JsValue::from(4.0),
+        &JsValue::from(16.0),
+        None,
+    )
+    .unwrap();
+    index
+        .add(&JsValue::from(1u64), &v(&[1.0, 0.0, 0.0]))
+        .unwrap();
+
+    for (allow, deny, predicate) in [
+        (true, true, false),
+        (true, false, true),
+        (false, true, true),
+        (true, true, true),
+    ] {
+        let options = conflicting_options(allow, deny, predicate);
+        let query = v(&[1.0, 0.0, 0.0]);
+        let k = JsValue::from(1.0);
+        for result in [
+            store.search(&query, &k, Some(options.clone())),
+            index.search(&query, &k, Some(options)),
+        ] {
+            match result {
+                Err(error) => {
+                    assert_eq!(code(&error).as_deref(), Some("ERR_INVALID_PARAMETER"))
+                }
+                Ok(_) => panic!("conflicting filters must throw"),
+            }
+        }
+    }
+}
+
 // --- #39: ids must survive the JS boundary without f32 narrowing ---
 
 const PRECISION_IDS: [u64; 4] = [1 << 24, (1 << 24) + 1, 1 << 53, u64::MAX];
