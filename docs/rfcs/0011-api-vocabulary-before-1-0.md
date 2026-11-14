@@ -1,6 +1,6 @@
 # RFC 0011: API vocabulary before 1.0
 
-- Status: implemented (0.2.0, unreleased)
+- Status: implemented (0.2.0)
 - Milestone: 0.2.0
 - Tracking issue: #206; folds #85 and #86
 - Supersedes / superseded by: none
