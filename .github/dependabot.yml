@@ -4,6 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # One weekly PR instead of a burst. On 2026-11-14 five action bumps each
+    # matched `.github/workflows/**` and ran the full 52-job CI (about 70
+    # job-minutes and 24–40 min wall apiece) at the same time.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
