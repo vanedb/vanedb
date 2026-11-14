@@ -39,7 +39,7 @@ bash docs/launch/maintainer_closeout_226.sh --fill   # Apple/Linux on dedicated 
 bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough
 ```
 
-Or Actions → **Fill COMPARISON (self-hosted)** / **Tag demo 0.2.0** (not historical **Cut demo 0.2.0**).
+Or Actions → **Fill COMPARISON (self-hosted)** / **Tag demo 0.2.0**.
 
 Demo PR: https://github.com/vanedb/obsidian-vane-search/pull/20
 

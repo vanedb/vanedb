@@ -40,9 +40,22 @@ jobs:
         with:
           filters: |
             rust:
-              # scripts/check_wheel_install.py is the guard the wheel job
-              # runs, so a change to it must trigger the jobs that run it.
-              - 'scripts/**'
+              # Only scripts rust-ci.yml executes. A blanket scripts/** also
+              # rebuilt the engine for launch-script edits. test_ci_dispatch.py
+              # fails if rust-ci.yml gains a scripts/ reference that is missing
+              # here. check_wheel_install.py is the guard the wheel job runs.
+              - 'scripts/capi_exports.py'
+              - 'scripts/capi_abidiff.py'
+              - 'scripts/check_wheel_install.py'
+              - 'scripts/check_capi_header.py'
+              - 'scripts/package_capi.py'
+              - 'scripts/package_wasm.py'
+              - 'scripts/test_web_package.py'
+              - 'scripts/build_npm_package.py'
+              - 'scripts/check_npm_package.py'
+              - 'scripts/test_ios.py'
+              - 'scripts/check_android_elf.py'
+              - 'scripts/test_android.sh'
               - 'conformance/**'
               - 'README.md'
               # vanedb/tests/platforms.rs holds these two pages to the README.
@@ -55,21 +68,30 @@ jobs:
               - 'vanedb-capi/**'
               - 'vanedb-py/**'
               - 'vanedb-wasm/**'
-              - '.github/requirements-release.txt'
-              - '.github/workflows/**'
+              # Not `.github/workflows/**`. That glob rebuilt every component
+              # for a one-file pin: rust-cache #349 was 52 jobs / 69 job-min /
+              # 40 min wall, against a Rust-only run at 26 jobs / 35 job-min /
+              # 10 min. Claude-action #354 (two Claude workflows) was 35 min.
+              # Publish workflows are checked by workflow-lint, which always
+              # runs. requirements-release.txt is the publish/lint constraint,
+              # not an input of these jobs.
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/rust-ci.yml'
             cpp:
               - 'conformance/**'
               - 'vanedb/tests/fixtures/**'
               - 'cpp/**'
-              - '.github/requirements-release.txt'
-              - '.github/workflows/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cpp-ci.yml'
             integration:
-              # Validate closeout automation before its next live main-push run.
-              - 'docs/launch/nudge_242_closeout.sh'
-              - 'scripts/test_nudge_closeout.py'
-              - 'docs/launch/sync_242_how.sh'
+              # Every docs/launch file and launch script this workflow greps
+              # or executes. Listing four of them left a tag-script edit with
+              # no job running the checks.
+              - 'docs/launch/**'
               - 'scripts/sync_242_how.py'
               - 'scripts/test_sync_242_how.py'
+              - 'scripts/test_nudge_closeout.py'
+              - 'scripts/test_demo_tag_gate.py'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'vanedb/**'
@@ -77,7 +99,12 @@ jobs:
               - 'cpp/**'
               - 'bench/**'
               - 'conformance/**'
-              - '.github/workflows/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/integration-ci.yml'
+              - '.github/workflows/fill-comparison-self-hosted.yml'
+              - '.github/workflows/tag-demo-0.2.0.yml'
+              - '.github/workflows/nudge-242-closeout.yml'
+              - '.github/workflows/sync-242-how.yml'
 
   workflow-lint:
     name: Workflow lint

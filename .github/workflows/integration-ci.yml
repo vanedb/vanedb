@@ -524,21 +524,6 @@ jobs:
             exit 1
           fi
           echo "ok: fill-comparison force-adds runs/*.json"
-      - name: cut-demo-0.2.0.yml is dispatch-only with secret + concurrency
-        run: |
-          set -euo pipefail
-          WF=.github/workflows/cut-demo-0.2.0.yml
-          grep -q 'workflow_dispatch' "$WF"
-          grep -q 'DEMO_REPO_TOKEN' "$WF"
-          grep -q 'concurrency:' "$WF"
-          grep -q 'cut-demo-0.2.0' "$WF"
-          grep -q 'maintainer_cut_demo_0.2.0.sh --skip-tests' "$WF"
-          grep -qi 'Historical' "$WF"
-          if grep -qE '^\s*(push|pull_request):' "$WF"; then
-            echo "::error::$WF must not run on tip push/PR" >&2
-            exit 1
-          fi
-          echo "ok: cut-demo workflow is dispatch-only with concurrency (historical)"
       - name: tag-demo-0.2.0.yml is dispatch-only with vault confirm + secret
         run: |
           set -euo pipefail

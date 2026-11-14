@@ -10,8 +10,8 @@
 #     --confirm-vault-walkthrough [--dry-run]             # + AC5 annotated tag
 #
 # AC5 for the current candidate is NOT `--cut`. Historical
-# `maintainer_cut_demo_0.2.0.sh` / Actions → Cut demo 0.2.0 apply an older
-# patch. Use the reviewed-PR sequence instead:
+# `maintainer_cut_demo_0.2.0.sh` applies an older patch. The Actions
+# workflow for that path was removed. Use the reviewed-PR sequence instead:
 #   https://github.com/vanedb/obsidian-vane-search/pull/20
 #   docs/launch/0003-demo-update-checklist.md
 # (independent review + CI → real Obsidian/Ollama vault walkthrough → merge →
@@ -257,7 +257,7 @@ if [[ -z "$demo_tag" ]]; then
   echo "         # Android: bench/compare/ANDROID.md"
   echo "         # After demo PR #20 merge + vault confirm:"
   echo "         bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough"
-  echo "         # or Actions → Tag demo 0.2.0 (not historical Cut demo 0.2.0)"
+  echo "         # or Actions → Tag demo 0.2.0"
 fi
 
 exit "$exit_code"

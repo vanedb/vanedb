@@ -19,7 +19,7 @@
 #   bash docs/launch/maintainer_cut_demo_0.2.0.sh --dry-run
 #   DEMO_REPO_TOKEN=ghp_... bash docs/launch/maintainer_cut_demo_0.2.0.sh --skip-tests
 #
-# Or: Actions → "Cut demo 0.2.0" → Run workflow (needs repo secret DEMO_REPO_TOKEN).
+# There is no Actions workflow for this historical path. Run the script locally.
 set -euo pipefail
 
 SKIP_TESTS=0

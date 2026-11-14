@@ -30,7 +30,7 @@ Publication approval remains pending.
 4. Verify the official release contains `main.js`, `manifest.json`, and `LICENSE`, and that its README includes the observed walkthrough.
 5. Record the official release URL and walkthrough evidence on [vanedb#242](https://github.com/vanedb/vanedb/issues/242).
 
-The historical `maintainer_cut_demo_0.2.0.sh`, `maintainer_closeout_226.sh --cut` and **Cut demo 0.2.0** workflow apply the older patch and publish a tag. They are not the reviewed-PR route above; do not run them for this candidate. A staging artifact on the engine repository is not the official demo release.
+The historical `maintainer_cut_demo_0.2.0.sh` and `maintainer_closeout_226.sh --cut` apply the older patch and publish a tag. The Actions workflow for that path was removed. They are not the reviewed-PR route above; do not run them for this candidate. A staging artifact on the engine repository is not the official demo release.
 
 If the engine dependency is upgraded before release, use the demo checklist's disposable candidate-package test first, then pin the actually published package and repeat validation and the real walkthrough. Do not commit an unpublished dependency or local tarball path.
 
