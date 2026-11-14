@@ -1,6 +1,6 @@
 # RFC 0004: Filtered search
 
-- Status: implemented (0.2.0, unreleased)
+- Status: implemented (0.2.0)
 - Milestone: 0.2.0
 - Tracking issue: #199
 - Supersedes / superseded by: none

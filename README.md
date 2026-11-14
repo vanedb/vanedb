@@ -64,6 +64,17 @@ all-or-nothing and releases the GIL while the index builds. The same batch
 API is exposed in the wasm bindings (`Float32Array`/`BigUint64Array`) and
 the C ABI (`vanedb_rs_*_add_batch`).
 
+### JavaScript
+
+Node and the browser share one package.
+
+```sh
+npm install @vanedb/wasm
+```
+
+The [JavaScript guide](vanedb-wasm/README.md) has runnable examples for both.
+Building that package from source is covered with the other bindings below.
+
 ## Demo
 
 [Vane Search](https://github.com/vanedb/obsidian-vane-search) is a local-first
@@ -209,15 +220,22 @@ filesystem in Node) on `ApproxIndex`. Approximate search accepts a
 per-query beam override as `search(query, k, efSearch)`, leaving the
 `efSearch` property unchanged. A single id is a
 JavaScript `bigint`; batch ids are a `BigUint64Array` and vectors a row-major
-`Float32Array`. Build a browser package from the repository root with
-`wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked`
-after installing `wasm-pack` and the `wasm32-unknown-unknown` Rust target. The
-`--out-dir` matters: the Node target also defaults to `pkg/`, and whichever
+`Float32Array`. Install the published package with
+`npm install @vanedb/wasm`; one package serves Node and the browser. The
+[JavaScript guide](vanedb-wasm/README.md) includes runnable examples for both.
+Initialize that module before constructing an index. For example, the approximate
+constructor takes `(3, "cosine", 100, 16, 200)`.
+
+To build a browser package from the repository, install `wasm-pack` and the
+`wasm32-unknown-unknown` Rust target, then run this from the repository root:
+
+```sh
+wasm-pack build vanedb-wasm --target web --release --out-dir pkg-web --locked
+```
+
+The `--out-dir` matters: the Node target also defaults to `pkg/`, and whichever
 build runs second silently overwrites the first. The generated directory
 includes JavaScript, TypeScript declarations, and the wasm module.
-The [JavaScript guide](vanedb-wasm/README.md) includes runnable Node and browser
-examples. Initialize that module before constructing an index. For example, the approximate
-constructor takes `(3, "cosine", 100, 16, 200)`.
 
 Build the native C library with `cargo build -p vanedb-capi --profile capi --locked`
 (the shipped profile: fat LTO, one codegen unit; a plain `--release` build
@@ -299,7 +317,7 @@ This does not guarantee identical future graph topology after insertions.
 |---|---|
 | [`vanedb/`](vanedb) | Rust engine; canonical crate and `vanedb` PyPI implementation |
 | [`vanedb-py/`](vanedb-py) | PyO3 bindings for `pip install vanedb` |
-| [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings |
+| [`vanedb-wasm/`](vanedb-wasm) | wasm-bindgen bindings for `npm install @vanedb/wasm` |
 | [`vanedb-capi/`](vanedb-capi) | Rust engine C ABI |
 | [`cpp/`](cpp) | Frozen C++ reference engine and local Python bindings |
 | [`bench/`](bench) | Cross-engine (C++/Rust) harness and [`competitor comparison`](bench/COMPARISON.md) |
