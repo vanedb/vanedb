@@ -9,6 +9,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Fixed
+
+- Conflicting search filters now raise Python `InvalidParameterError` and a
+  WebAssembly `Error` whose `code` is `ERR_INVALID_PARAMETER`.
+  `InvalidParameterError` is still a `ValueError`, so `except ValueError`
+  keeps catching the failure.
+
 ## [0.2.0] - 2026-11-11
 
 First stable 0.2 release. Its engine and bindings are the code of
