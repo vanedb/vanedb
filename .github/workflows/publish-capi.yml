@@ -75,7 +75,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable action
         with:
-          toolchain: '1.94.0'
+          toolchain: '1.100.0'
           components: llvm-tools-preview
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
