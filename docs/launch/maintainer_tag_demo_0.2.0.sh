@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Tag the official obsidian-vane-search 0.2.0 release for vanedb#242 / AC5.
 #
-# This is the current-candidate path (demo PR #20), not the historical patch
-# cut in maintainer_cut_demo_0.2.0.sh. Sequence required by the demo checklist:
+# This is the current-candidate path (demo PR #20). Sequence required by the
+# demo checklist:
 #   1. Independent review + CI on the candidate
 #   2. Real Obsidian/Ollama vault walkthrough (human; record evidence)
 #   3. Merge https://github.com/vanedb/obsidian-vane-search/pull/20
@@ -60,7 +60,7 @@ done
 if [[ "$CONFIRM_VAULT" -ne 1 ]]; then
   echo "refused: real vault walkthrough must be recorded before tagging" >&2
   echo "  Pass --confirm-vault-walkthrough after completing docs/releases/0.2.0.md" >&2
-  echo "  on $DEMO_REPO (PR #$DEMO_PR). Do not use historical maintainer_cut_demo_0.2.0.sh." >&2
+  echo "  on $DEMO_REPO (PR #$DEMO_PR)." >&2
   exit 2
 fi
 

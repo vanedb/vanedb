@@ -193,7 +193,15 @@ for (const create of [() => new FlatIndex(1, 'l2'), () => new ApproxIndex(1, 'l2
             { allow: [], deny: [] },
             { allow: [0n], predicate: () => true },
             { deny: [0n], predicate: () => true },
-        ]) assert.throws(() => searchIds(options), /at most one/);
+            { allow: [0n], deny: [1n], predicate: () => true },
+        ]) {
+            assert.throws(
+                () => searchIds(options),
+                error => error instanceof Error
+                    && error.code === 'ERR_INVALID_PARAMETER'
+                    && /at most one/.test(error.message),
+            );
+        }
         for (const invalid of [{}, new Set(), '0', 0, { length: 0 }]) {
             assert.throws(() => searchIds({ allow: invalid }), /array/);
             assert.throws(() => searchIds({ deny: invalid }), /array/);

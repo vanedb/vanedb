@@ -128,3 +128,73 @@ impl EngineKind {
         }
     }
 }
+
+#[cfg(test)]
+mod version_pin_tests {
+    use super::*;
+
+    fn exact_dep(cargo: &str, name: &str) -> String {
+        let prefix = format!("{name} = \"=");
+        for line in cargo.lines() {
+            let line = line.trim();
+            if let Some(rest) = line.strip_prefix(&prefix) {
+                return rest.trim_end_matches('"').to_string();
+            }
+        }
+        panic!("Cargo.toml missing exact pin for {name}");
+    }
+
+    #[test]
+    fn competitor_versions_match_cargo_vendor_and_comparison() {
+        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let cargo = std::fs::read_to_string(dir.join("Cargo.toml")).unwrap();
+        let comparison = std::fs::read_to_string(dir.join("../COMPARISON.md")).unwrap();
+        let vendor = std::fs::read_to_string(dir.join("vendor/README.md")).unwrap();
+        let sqlite_h = std::fs::read_to_string(dir.join("vendor/sqlite-vec.h")).unwrap();
+        let pending =
+            std::fs::read_to_string(dir.join("scripts/testdata/COMPARISON.pending.md")).unwrap();
+
+        let usearch = exact_dep(&cargo, "usearch");
+        let instant = exact_dep(&cargo, "instant-distance");
+        let hnsw_rs_v = exact_dep(&cargo, "hnsw_rs");
+        assert_eq!(UsearchEngine::new().version(), usearch);
+        assert_eq!(InstantDistanceEngine::new().version(), instant);
+        assert_eq!(HnswRsEngine::new().version(), hnsw_rs_v);
+
+        let hnswlib_v = HnswlibEngine::new().version();
+        assert!(
+            vendor.contains(&format!("| v{hnswlib_v} |")),
+            "vendor README missing hnswlib v{hnswlib_v}"
+        );
+        let sqlite_v = SqliteVecEngine::new().version();
+        assert!(
+            sqlite_h.contains(&format!("#define SQLITE_VEC_VERSION \"v{sqlite_v}\"")),
+            "sqlite-vec.h version != engine {sqlite_v}"
+        );
+        assert!(
+            vendor.contains(&format!("| v{sqlite_v} |")),
+            "vendor README missing sqlite-vec v{sqlite_v}"
+        );
+
+        let engines_row = format!(
+            "vanedb, usearch {usearch}, hnswlib {hnswlib_v}, instant-distance {instant}, hnsw_rs {hnsw_rs_v}, sqlite-vec {sqlite_v} (L2)"
+        );
+        for doc in [&comparison, &pending] {
+            assert!(
+                doc.contains(&engines_row),
+                "missing methodology engines row:\n{engines_row}"
+            );
+            assert!(doc.contains(&format!("| USearch | `usearch` crate | {usearch} |")));
+            assert!(doc.contains(&format!(
+                "| hnswlib | vendored C++ + thin FFI | {hnswlib_v} |"
+            )));
+            assert!(doc.contains(&format!(
+                "| instant-distance | crate | {instant} (`M=32` fixed) |"
+            )));
+            assert!(doc.contains(&format!("| hnsw_rs | crate | {hnsw_rs_v} |")));
+            assert!(doc.contains(&format!(
+                "| sqlite-vec | vendored amalgamation via rusqlite | {sqlite_v} |"
+            )));
+        }
+    }
+}
