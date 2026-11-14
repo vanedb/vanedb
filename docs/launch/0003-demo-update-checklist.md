@@ -24,13 +24,13 @@ Publication approval remains pending.
 
 1. Preserve the completed independent review, PR CI and merged-main CI evidence for `5f98bfec`, including the real test job. A later commit requires renewed checks.
 2. Preserve the completed real Obsidian/Ollama walkthrough and synthetic-vault screenshot in [the merged demo acceptance record](https://github.com/vanedb/obsidian-vane-search/blob/5f98bfec5fc16dcef171bcde7dee4f669bbe55f9/docs/releases/0.2.0-desktop-acceptance.md). The unchanged accepted bundle needs no new walkthrough or screenshot. If its bundle changes, repeat the documented checks in a separate test vault and record the new source, checksum, environment and observations before release; do not modify a personal vault.
-3. PR #20 is merged and its rebuilt bundle matches the acceptance record. Merged-main CI and the tag-helper dry run passed. Create an annotated `0.2.0` tag on the reviewed merged commit and push that tag explicitly only when publication is approved. Use `bash docs/launch/maintainer_closeout_226.sh --tag --confirm-vault-walkthrough`
+3. PR #20 is merged and its rebuilt bundle matches the acceptance record. Merged-main CI and the tag-helper dry run passed. Create an annotated `0.2.0` tag on the reviewed merged commit and push that tag explicitly only when publication is approved. Use `bash docs/launch/maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`
    or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN` after those gates.
    The demo README contains the exact commands; pushing the tag publishes the release.
 4. Verify the official release contains `main.js`, `manifest.json`, and `LICENSE`, and that its README includes the observed walkthrough.
 5. Record the official release URL and walkthrough evidence on [vanedb#242](https://github.com/vanedb/vanedb/issues/242).
 
-The historical `maintainer_cut_demo_0.2.0.sh`, `maintainer_closeout_226.sh --cut` and **Cut demo 0.2.0** workflow apply the older patch and publish a tag. They are not the reviewed-PR route above; do not run them for this candidate. A staging artifact on the engine repository is not the official demo release.
+The historical patch cut is not the reviewed-PR route above. A staging artifact on the engine repository is not the official demo release.
 
 If the engine dependency is upgraded before release, use the demo checklist's disposable candidate-package test first, then pin the actually published package and repeat validation and the real walkthrough. Do not commit an unpublished dependency or local tarball path.
 
