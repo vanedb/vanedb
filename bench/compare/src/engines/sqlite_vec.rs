@@ -64,7 +64,8 @@ impl Engine for SqliteVecEngine {
     }
 
     fn version(&self) -> String {
-        "0.1.6".into()
+        // Matches `SQLITE_VEC_VERSION` in vendor/sqlite-vec.h, without the `v` prefix.
+        "0.1.9".into()
     }
 
     fn supports_delete(&self) -> bool {
