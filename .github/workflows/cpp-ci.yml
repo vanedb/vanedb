@@ -102,7 +102,7 @@ jobs:
         }
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: benchmarks-${{ matrix.os }}-${{ matrix.compiler }}
         path: cpp/build/bench_*.json
@@ -138,7 +138,7 @@ jobs:
       run: test -s docs/html/index.html
 
     - name: Upload documentation artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: cpp-documentation
         path: cpp/docs/html
@@ -335,7 +335,7 @@ jobs:
         lcov --list coverage.info
 
     - name: Upload coverage artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: cpp-coverage
         path: cpp/coverage.info
