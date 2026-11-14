@@ -304,22 +304,31 @@ fn parse_fixture(bytes: &[u8]) -> Result<ParsedFixture, String> {
 
 fn read_f32_slice(bytes: &[u8]) -> Vec<f32> {
     bytes
-        .chunks_exact(4)
-        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|c| f32::from_le_bytes(*c))
         .collect()
 }
 
 fn read_u64_slice(bytes: &[u8]) -> Vec<u64> {
     bytes
-        .chunks_exact(8)
-        .map(|c| u64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]))
+        .as_chunks::<8>()
+        .0
+        .iter()
+        .map(|c| u64::from_le_bytes(*c))
         .collect()
 }
 
 fn hex_sha256(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    // sha2 0.11's digest output no longer implements LowerHex.
+    hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>()
 }
 
 fn load_meta_beside(path: &Path) -> Result<FixtureMeta, String> {
@@ -359,6 +368,15 @@ pub fn default_fixture_dir() -> PathBuf {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn sha256_hex_matches_known_digest() {
+        // SHA256("abc") from FIPS 180-4.
+        assert_eq!(
+            hex_sha256(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
 
     #[test]
     fn smoke_roundtrip() {
