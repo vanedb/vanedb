@@ -1,6 +1,6 @@
 # RFC 0012: Platform support policy
 
-- Status: implemented (0.2.0, unreleased)
+- Status: implemented (0.2.0)
 - Milestone: 0.2.0
 - Tracking issue: #207; resolves #47
 - Supersedes / superseded by: none

@@ -61,15 +61,23 @@ the existing `bench/README.md` discipline.
 | k | 10 |
 | ef sweep | 16, 32, 50, 100 (instant-distance: construction ef only) |
 | Rounds | interleaved, ≥2 on dedicated hardware |
-| Engines | vanedb, usearch 2.21.0, hnswlib 0.8.0, instant-distance 0.6.1, hnsw_rs 0.3.4, sqlite-vec 0.1.6 (L2) |
+| Engines | vanedb, usearch 2.26.6, hnswlib 0.9.0, instant-distance 0.6.1, hnsw_rs 0.3.5, sqlite-vec 0.1.9 (L2) |
 
-Preferred command (binds HW label to the host OS/arch/CPU):
+Preferred command (binds HW label to the host OS/arch/CPU). On Apple
+Silicon this is the one command: it checks AC power and Low Power Mode
+(`pmset`), downloads `embeddings.vnef` and checks sha256
+`4676911521f13dc6592d102cf3b4fcace85c6b62b3011e9bd57557dfc9c01f2d`, builds
+with `--release --locked`, and pastes into `#### Cosine` and
+`#### Squared L2` under `### Apple Silicon (dedicated laptop)`. Stop other
+work first. Checklist: [`compare/README.md`](compare/README.md).
 
 ```bash
-# One-shot Apple Silicon / Linux AVX2 (fetch + rebuild + both metrics + slot fill):
+# One-shot Apple Silicon (or native Linux AVX2) — fetch, checksum, rebuild, both metrics, slot fill:
 bash bench/compare/scripts/maintainer_fill_host_comparison.sh
 
-# Or per metric:
+# Or per metric (Apple Silicon, then a native AVX2 box):
+bash bench/compare/scripts/record_publish_run.sh apple-silicon cosine
+bash bench/compare/scripts/record_publish_run.sh apple-silicon l2
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 cosine
 bash bench/compare/scripts/record_publish_run.sh linux-avx2 l2
 python3 bench/compare/scripts/fill_comparison_slot.py \
@@ -141,11 +149,11 @@ Dedicated-machine helper (Apple/Linux only):
 | Engine | Access | Version pinned in harness |
 |---|---|---|
 | VaneDB | `vanedb` path dep | workspace crate version |
-| USearch | `usearch` crate | 2.21.0 |
-| hnswlib | vendored C++ + thin FFI | 0.8.0 |
+| USearch | `usearch` crate | 2.26.6 |
+| hnswlib | vendored C++ + thin FFI | 0.9.0 |
 | instant-distance | crate | 0.6.1 (`M=32` fixed) |
-| hnsw_rs | crate | 0.3.4 |
-| sqlite-vec | vendored amalgamation via rusqlite | 0.1.6 |
+| hnsw_rs | crate | 0.3.5 |
+| sqlite-vec | vendored amalgamation via rusqlite | 0.1.9 |
 
 ## Results
 
@@ -181,15 +189,14 @@ run the fill helper on a native machine.
 
 ### Android ARM64 (device or emulator)
 
-Label device vs emulator in `VANEDB_COMPARE_HW`. Physical device preferred.
+*Not measured for 0.2.0.* Android is out of this release. See the
+2026-11-11 amendment to
+[RFC 0003](../docs/rfcs/0003-competitor-benchmark-and-demo.md). The recorded
+emulator run is not a published result.
 
-#### Cosine
-
-*Pending.*
-
-#### Squared L2
-
-*Pending.*
+To add these tables later, restore a `#### Cosine` and a `#### Squared L2`
+subsection here, each holding the pending marker the other slots use, and
+run the fill helper on a native machine.
 
 ## Smoke verification (not a result)
 
@@ -202,5 +209,5 @@ and recall are excluded from the tables above by policy.
 - Demo application: [`obsidian-vane-search`](https://github.com/vanedb/obsidian-vane-search)
   (separate repository). Linked from the top-level README.
 - Launch post draft: [`docs/launch/0003-competitor-benchmark.md`](../docs/launch/0003-competitor-benchmark.md)
-  — publish only after maintainer review and after the Apple Silicon and
-  Android tables above are filled.
+  — publish only after maintainer review and after the Apple Silicon
+  tables above are filled. Android is not measured for 0.2.0.

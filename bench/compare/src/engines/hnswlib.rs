@@ -60,13 +60,16 @@ impl Drop for HnswlibEngine {
     }
 }
 
+/// Vendored nmslib/hnswlib tag. No version macro in the headers.
+const HNSWLIB_VERSION: &str = "0.9.0";
+
 impl Engine for HnswlibEngine {
     fn name(&self) -> &'static str {
         "hnswlib"
     }
 
     fn version(&self) -> String {
-        "0.8.0".to_string()
+        HNSWLIB_VERSION.to_string()
     }
 
     fn supports_delete(&self) -> bool {
@@ -122,7 +125,7 @@ impl Engine for HnswlibEngine {
         self.ptr = ptr;
         self.dim = dim;
         let mut notes = vec![format!(
-            "vendored hnswlib v0.8.0; M={} efC={} seed={}",
+            "vendored hnswlib v{HNSWLIB_VERSION}; M={} efC={} seed={}",
             params.m, params.ef_construction, params.seed
         )];
         if metric == MetricKind::Cosine {

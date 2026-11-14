@@ -105,5 +105,5 @@ cross-compiled binary pushed via `adb`.
 - x86_64 Android emulator without an ARM64 label
 - Smoke fixture numbers
 
-Until a recorded Android run exists, the Android section of COMPARISON.md
-stays `*Pending.*`.
+The Android section of COMPARISON.md is not measured for 0.2.0. Restore the
+cosine and squared-L2 subsections before a later fill.
