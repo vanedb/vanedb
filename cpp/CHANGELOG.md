@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Unwired CUDA stub: `cuda_distance.cuh`, the no-op `VANEDB_BUILD_CUDA`
+  option, and `gpu_distance.h`, which nothing included and which advertised
+  a CUDA backend. CUDA is not implemented.
+
 ## [0.2.0] - 2026-11-11
 
 The frozen reference engine carries the Rust release version for
@@ -128,8 +133,7 @@ them to match, not because this package is published — it is not.
   - Cosine similarity/distance
   - Dot product
 - GPU acceleration: Metal (Apple Silicon). CUDA is not included — see the
-  roadmap; kernel source in the tree is not wired into the build and is not
-  a supported backend
+  roadmap
   - Persistent buffer API for zero-copy repeated queries
 - In-memory FlatIndex with k-NN brute-force search
 - HNSW index for approximate nearest neighbor search

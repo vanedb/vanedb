@@ -21,7 +21,7 @@ vectors and disk fixtures live in `../vanedb/tests/fixtures/conformance/`, with
 their contract in `../conformance/`, and those must keep
 passing, but that is a constraint on changes rather than a sync obligation.
 
-## Current Status: v0.1.1, frozen
+## Current Status: frozen
 
 ### Features
 | Feature | Status |
@@ -30,7 +30,7 @@ passing, but that is a constraint on changes rather than a sync obligation.
 | FlatIndex | In-memory k-NN, thread-safe |
 | ApproxIndex | Approximate NN with save/load |
 | DiskIndex | Memory-mapped zero-copy |
-| GPU Acceleration | Metal (Apple Silicon). CUDA experimental — unwired, untested |
+| GPU Acceleration | Metal distance scans on Apple Silicon, manual test only. CUDA is not implemented |
 | Python Bindings | pybind11 + NumPy |
 | Mobile | iOS arm64, Android arm64-v8a/x86_64 |
 

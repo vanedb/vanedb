@@ -1,12 +1,12 @@
 # VaneDB roadmap
 
-The 0.1.1 scope is the Rust engine and its Python, C and WebAssembly bindings,
-with CPU search. The experimental macOS `gpu-metal` feature exposes distance
-scans, accelerates no index and no binding exposes it (#208);
+The shipping release is the Rust engine and its Python, C and WebAssembly
+bindings, with CPU search. The experimental macOS `gpu-metal` feature exposes
+distance scans, accelerates no index and no binding exposes it (#208);
 finish-versus-delete is decided after 0.3.0 (#257). The C++ engine remains
-frozen reference code.
+frozen reference code. CUDA is not implemented.
 
-[`LIMITS.md`](LIMITS.md) records what 0.1.1 can hold and what it does not do.
+[`LIMITS.md`](LIMITS.md) records what 0.2.0 can hold and what it does not do.
 
 This page is an index. Designs live in [`docs/rfcs/`](rfcs/README.md), work
 lives in GitHub issues assigned to a milestone, and each release's evidence
