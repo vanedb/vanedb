@@ -101,7 +101,8 @@ CPU-only compile, never a CI timing.
 
 ## Out of scope
 
-Metal. The existing `gpu-metal` feature exposes distance scans without
-accelerating an index. Decision 14 (2026-09-13): the README claim is removed
-now (#208), the feature flag stays, and finish-versus-delete is decided after
-0.3.0.
+Metal. The `gpu-metal` feature was removed (#257). On an Apple M4 Pro
+(14 threads) its scan was slower than a 14-thread CPU exact scan in every
+measured row (`metal/cpu_mt` 1.09 to 3.05). It never accelerated an index.
+Decision 14 (2026-09-13, #208) had left the flag in place until this
+measurement.

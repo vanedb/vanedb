@@ -50,10 +50,6 @@ pub mod disk;
 pub mod distance;
 pub mod error;
 pub mod flat;
-/// Experimental standalone Metal distance scans, behind `gpu-metal`. No index uses them.
-#[cfg(feature = "gpu-metal")]
-#[cfg_attr(docsrs, doc(cfg(feature = "gpu-metal")))]
-pub mod gpu;
 mod id_hash;
 mod validation;
 

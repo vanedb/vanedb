@@ -9,6 +9,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Removed
+
+- The optional `gpu-metal` Cargo feature, `vanedb::gpu`, and the `metal` and
+  `objc` dependencies (#257). A build that passes `--features gpu-metal` no
+  longer compiles. No index or binding used the feature. On an Apple M4 Pro
+  (14 threads) the Metal scan was slower than a 14-thread CPU exact scan in
+  every measured row: `metal/cpu_mt` from 1.09 to 3.05, including 1M×768 L2
+  at 16.0 ms versus 13.1 ms and 1M×1536 cosine at 30.2 ms versus 27.3 ms.
+
 ### Fixed
 
 - Conflicting search filters now raise Python `InvalidParameterError` and a
