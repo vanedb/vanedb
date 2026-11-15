@@ -37,7 +37,7 @@ makes no claim here.
 |---|---|---|---|---|
 | Linux x86-64 | `x86_64-unknown-linux-gnu` | `ubuntu-24.04` | C archive; wheels (glibc and musl) | glibc 2.34 floor for the archive; AddressSanitizer job covers the AVX2 kernels and the C ABI on this platform only |
 | Linux ARM64 | `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | C archive; wheels (glibc and musl) | NEON kernels tested here, unsanitized |
-| macOS ARM64 | `aarch64-apple-darwin` | `macos-latest` | C archive; wheels | tested with `disk,gpu-metal`; deployment target 11.0 |
+| macOS ARM64 | `aarch64-apple-darwin` | `macos-latest` | C archive; wheels | tested with `disk`; deployment target 11.0 |
 | macOS Intel (x86-64) | `x86_64-apple-darwin` | `macos-15-intel` | C archive; wheels | deployment target 10.12; **until August 2027**, see below |
 | Windows x64 | `x86_64-pc-windows-msvc` | `windows-latest` | C archive; wheels | MSVC toolchain, Universal CRT |
 | WebAssembly | `wasm32-unknown-unknown` | `ubuntu-latest` | npm package (Node and browser halves) | tested in Node.js and headless Chrome (`wasm-pack test`); the packaged web artifact and the merged npm package run in Chrome, Firefox and WebKit through Playwright |
@@ -80,14 +80,14 @@ runs in CI.
 - Intel macOS from August 2027: the sdist and `cargo build`.
 
 Not supported: CUDA is not implemented and is not claimable without the
-evidence in [RFC 0001](rfcs/0001-cuda-after-initial-release.md). `gpu-metal`
-builds and is tested only on macOS ARM64.
+evidence in [RFC 0001](rfcs/0001-cuda-after-initial-release.md). The
+experimental `gpu-metal` feature was removed (#257).
 
 ## Floors
 
 | Floor | Value | How it is held |
 |---|---|---|
-| Rust | MSRV 1.85 | `rust-version` in every published crate (`vanedb`, `vanedb-capi`, `vanedb-py`, `vanedb-wasm`; the unpublished `bench` workspace declares none); the `msrv` job runs `cargo check` on the 1.85.0 toolchain on Linux and macOS, including `wasm32-unknown-unknown` and `gpu-metal`. Tests run on stable. Raised only in a minor release with a changelog entry |
+| Rust | MSRV 1.85 | `rust-version` in every published crate (`vanedb`, `vanedb-capi`, `vanedb-py`, `vanedb-wasm`; the unpublished `bench` workspace declares none); the `msrv` job runs `cargo check` on the 1.85.0 toolchain on Linux and macOS, including `wasm32-unknown-unknown`. Tests run on stable. Raised only in a minor release with a changelog entry |
 | glibc, C archives | 2.34 | `scripts/package_capi.py` reads the packaged library's `GLIBC_*` symbol versions, records the minimum in `compatibility.json` and fails the build above 2.34 |
 | glibc, Python wheels | `manylinux_2_17` tag (glibc 2.17) | maturin builds and audits the wheel against that tag; musl wheels carry `musllinux_1_2`. The suite runs on the runner's own glibc, not on a 2.17 system |
 | macOS, C archives | 11.0 on ARM64, 10.12 on x86-64 | `package_capi.py` inspects the Mach-O `minos` and rejects any other value; `MACOSX_DEPLOYMENT_TARGET` is set per leg in `test-native` |

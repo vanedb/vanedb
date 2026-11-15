@@ -100,21 +100,6 @@ independent vector.
 
 - `disk` — `DiskIndex` and `DiskIndexBuilder`, the exact index over a
   memory-mapped file.
-- `gpu-metal` — experimental; builds only on macOS 10.14 or newer and needs a
-  usable Metal device. It does **not** accelerate any index: `FlatIndex`,
-  `ApproxIndex` and `DiskIndex` build and search on the CPU whether or not it
-  is enabled, and no binding exposes it. What it adds is the standalone
-  `vanedb::gpu::MetalCompute` API, which uploads a row-major `n * dim` matrix
-  of finite floats to a Metal buffer (`upload`) and runs L2, cosine or
-  dot-product distance scans against that buffer (`distances`, `search`) with
-  the same distance definitions as the indexes. Dimensions must be nonzero and
-  divisible by four, inputs stay within the device's buffer and shader limits,
-  very small nonzero components are routed to the CPU kernels to preserve
-  rankings, and every initialization or execution failure returns `VaneError`
-  with no automatic CPU fallback. Its parameters and errors are documented on
-  its methods. Whether the feature is finished into index acceleration or
-  removed is decided after 0.3.0 (#257); the current state is recorded in the
-  [limits page](https://github.com/vanedb/vanedb/blob/main/docs/LIMITS.md).
 
 See the [repository guide](https://github.com/vanedb/vanedb) for bindings,
 platform verification scope, persistence details, and source builds. The

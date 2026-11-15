@@ -12,7 +12,6 @@ version = 2
 yanked = "deny"
 ignore = [
     { id = "RUSTSEC-2025-0141", reason = "bincode unmaintained. Not a vulnerability. It no longer carries the current graph format — VNDB v2 is hand-rolled — but it is still required to read legacy HNSW v1/v2 files, so this ignore is permanent for as long as that compatibility is offered, not transitional. Removing it means hand-rolling the legacy reader too, or dropping legacy load in a major release." },
-  { id = "RUSTSEC-2024-0436", reason = "paste unmaintained, via metal, reachable only through the optional gpu-metal feature and never in a default build. No safe upgrade exists. Not a vulnerability. Revisit if gpu-metal moves toward being a shipped default." },
 ]
 
 [licenses]
