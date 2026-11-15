@@ -19,6 +19,10 @@
 //! drawn from `[0.1, 1.1)` so the run does not trip Metal's scalar fallback
 //! for tiny components.
 //!
+//! `cpu_mt_ms` is not `FlatIndex`. It splits the same matrix into one rayon
+//! chunk per thread, runs `distance_fn` (the SIMD kernels the index uses),
+//! and merges a k-heap from each chunk. The single-thread column stays.
+//!
 //! ```text
 //! cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu
 //! ```
@@ -27,14 +31,16 @@
 //! says the Metal code was not compiled. Shapes whose two resident copies
 //! would not fit in available RAM are skipped. `--force` runs them anyway.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BinaryHeap};
 use std::env;
 use std::hint::black_box;
 use std::io::{self, Write};
 #[cfg(target_os = "macos")]
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Instant;
 
+use rayon::prelude::*;
 use vanedb::distance::Metric;
 use vanedb::{FlatIndex, SearchResult};
 
@@ -227,7 +233,7 @@ impl Config {
 fn print_help() {
     println!(
         "\
-Compare MetalCompute::search with FlatIndex::search.
+Compare MetalCompute::search with FlatIndex::search and a rayon exact scan.
 
   cargo run -p vanedb --release --locked --features gpu-metal --example metal_vs_cpu
 
@@ -454,8 +460,11 @@ struct CpuBatch {
     batch: usize,
     first_ns: u128,
     batch_ns: u128,
-    /// Kept for the Metal top-k comparison. Unread when that feature is off.
-    #[cfg_attr(not(feature = "gpu-metal"), allow(dead_code))]
+    mt_first_ns: u128,
+    mt_batch_ns: u128,
+    /// False when the rayon top-k disagreed with `FlatIndex::search`.
+    mt_ok: bool,
+    /// Kept for the Metal and multithreaded comparisons.
     hits: Vec<Vec<SearchResult>>,
 }
 
@@ -505,8 +514,124 @@ fn measure_cpu(
         batch,
         first_ns,
         batch_ns,
+        mt_first_ns: 0,
+        mt_batch_ns: 0,
+        mt_ok: false,
         hits,
     })
+}
+
+/// Threads in the global rayon pool. `current_num_threads` is 1 outside a job,
+/// so ask the pool itself. The same count sizes the chunks.
+fn cpu_mt_threads() -> usize {
+    static THREADS: OnceLock<usize> = OnceLock::new();
+    *THREADS.get_or_init(|| rayon::broadcast(|_| ()).len().max(1))
+}
+
+/// Same bounded heap as `flat/topk.rs`: the worst of the current best sits at
+/// the top, and a candidate replaces it only when it compares strictly less.
+fn consider(heap: &mut BinaryHeap<SearchResult>, candidate: SearchResult, k: usize) {
+    if heap.len() < k {
+        heap.push(candidate);
+    } else if let Some(worst) = heap.peek() {
+        if candidate < *worst {
+            heap.pop();
+            heap.push(candidate);
+        }
+    }
+}
+
+fn select_k(candidates: impl IntoIterator<Item = SearchResult>, k: usize) -> Vec<SearchResult> {
+    let mut heap = BinaryHeap::new();
+    for candidate in candidates {
+        consider(&mut heap, candidate, k);
+    }
+    let mut out = heap.into_vec();
+    out.sort_unstable();
+    out
+}
+
+/// Exact scan outside `FlatIndex`: one contiguous chunk per rayon thread, the
+/// public SIMD `distance_fn`, then one merged k-heap.
+fn search_cpu_mt(
+    corpus: &[f32],
+    dim: usize,
+    query: &[f32],
+    k: usize,
+    metric: Metric,
+) -> Vec<SearchResult> {
+    let n = corpus.len() / dim;
+    if n == 0 || k == 0 {
+        return Vec::new();
+    }
+    let distance = vanedb::distance::distance_fn(metric);
+    let chunk_n = n.div_ceil(cpu_mt_threads());
+    let chunk_floats = chunk_n * dim;
+    let locals: Vec<Vec<SearchResult>> = corpus
+        .par_chunks(chunk_floats)
+        .enumerate()
+        .map(|(chunk_index, rows)| {
+            let base = chunk_index * chunk_n;
+            let mut heap = BinaryHeap::new();
+            for (offset, vector) in rows.chunks_exact(dim).enumerate() {
+                consider(
+                    &mut heap,
+                    SearchResult::new((base + offset) as u64, distance(query, vector)),
+                    k,
+                );
+            }
+            heap.into_vec()
+        })
+        .collect();
+    select_k(locals.into_iter().flatten(), k)
+}
+
+fn same_ranking(cpu: &[SearchResult], other: &[SearchResult]) -> bool {
+    cpu.len() == other.len() && cpu.iter().zip(other).all(|(left, right)| left == right)
+}
+
+fn measure_cpu_mt(
+    corpus: &[f32],
+    dim: usize,
+    queries: &[Vec<f32>],
+    expected: &[Vec<SearchResult>],
+    k: usize,
+    repeats: usize,
+    metric: Metric,
+) -> Result<(u128, u128, bool), String> {
+    let first_ns = time_once(|| {
+        drop(black_box(search_cpu_mt(
+            corpus,
+            dim,
+            &queries[0],
+            k,
+            metric,
+        )));
+        Ok(())
+    })?;
+    let batch_ns = repeats_median(repeats, || {
+        for query in queries {
+            drop(black_box(search_cpu_mt(corpus, dim, query, k, metric)));
+        }
+        Ok(())
+    })?;
+    let slots = checked_slots(queries.len(), corpus.len() / dim);
+    if slots.len() != expected.len() {
+        return Err("multithreaded check slots drifted from the single-thread hits".into());
+    }
+    let mut ok = true;
+    for (ordinal, slot) in slots.iter().copied().enumerate() {
+        let got = search_cpu_mt(corpus, dim, &queries[slot], k, metric);
+        if !same_ranking(&expected[ordinal], &got) {
+            ok = false;
+            emit!(
+                "mt_mismatch query={slot} cpu={} mt={}",
+                format_hits(&expected[ordinal]),
+                format_hits(&got),
+            );
+        }
+    }
+    Ok((first_ns, batch_ns, ok))
 }
 
 fn check_cpu_hits(hits: &[SearchResult], k: usize) -> Result<(), String> {
@@ -589,6 +714,8 @@ struct Row {
     cpu_first_ns: u128,
     cpu_batch_ns: u128,
     build_ns: u128,
+    mt_first_ns: u128,
+    mt_batch_ns: u128,
     metal_first_ns: Option<u128>,
     metal_batch_ns: Option<u128>,
     upload_ns: Option<u128>,
@@ -602,6 +729,10 @@ struct Row {
 impl Row {
     fn cpu_per_query(&self) -> u128 {
         self.cpu_batch_ns / self.batch as u128
+    }
+
+    fn cpu_mt_per_query(&self) -> u128 {
+        self.mt_batch_ns / self.batch as u128
     }
 
     fn metal_per_query(&self) -> Option<u128> {
@@ -622,6 +753,15 @@ impl Row {
                 .saturating_add(self.upload_ns?)
                 .saturating_add(self.metal_first_ns?),
         )
+    }
+}
+
+fn row_note(metal_ok: Option<bool>, mt_ok: bool) -> &'static str {
+    match (metal_ok, mt_ok) {
+        (Some(false), _) => "mismatch",
+        (_, false) => "mt_mismatch",
+        (None, true) => "no_metal",
+        (Some(true), true) => "ok",
     }
 }
 
@@ -654,14 +794,16 @@ fn print_row(row: &Row) {
     let steady = row.metal_per_query();
     let with_setup = row.with_setup_per_query();
     emit!(
-        "csv,{n},{dim},{metric},{batch},{repeats},{cpu_ns},{cpu_first_ns},{build_ns},{metal_ns},{metal_first_ns},{upload_ns},{setup_ns},{with_setup_ns},{cold_ns},{max_abs},{max_rel},{topk_ok},{note}",
+        "csv,{n},{dim},{metric},{batch},{repeats},{cpu_ns},{cpu_mt_ns},{cpu_first_ns},{cpu_mt_first_ns},{build_ns},{metal_ns},{metal_first_ns},{upload_ns},{setup_ns},{with_setup_ns},{cold_ns},{metal_over_cpu_mt},{max_abs},{max_rel},{topk_ok},{note}",
         n = row.n,
         dim = row.dim,
         metric = row.metric,
         batch = row.batch,
         repeats = row.repeats,
         cpu_ns = row.cpu_per_query(),
+        cpu_mt_ns = row.cpu_mt_per_query(),
         cpu_first_ns = row.cpu_first_ns,
+        cpu_mt_first_ns = row.mt_first_ns,
         build_ns = row.build_ns,
         metal_ns = option_ns(steady),
         metal_first_ns = option_ns(row.metal_first_ns),
@@ -669,6 +811,7 @@ fn print_row(row: &Row) {
         setup_ns = option_ns(row.setup_ns),
         with_setup_ns = option_ns(with_setup),
         cold_ns = option_ns(row.cold_ns()),
+        metal_over_cpu_mt = fmt_ratio(steady, row.cpu_mt_per_query()),
         max_abs = fmt_opt_f(row.max_abs),
         max_rel = fmt_opt_f(row.max_rel),
         topk_ok = match row.topk_ok {
@@ -688,21 +831,23 @@ fn option_ns(value: Option<u128>) -> String {
 }
 
 fn print_table(rows: &[Row]) {
-    emit!("table_header n dim metric batch cpu_ms metal_ms with_setup_ms cold_ms upload_ms steady/cpu with_setup/cpu max_rel topk note");
+    emit!("table_header n dim metric batch cpu_ms cpu_mt_ms metal_ms with_setup_ms cold_ms upload_ms steady/cpu metal/cpu_mt with_setup/cpu max_rel topk note");
     for row in rows {
         let steady = row.metal_per_query();
         emit!(
-            "table {n:>8} {dim:>4} {metric:<6} {batch:>5} {cpu:>10} {metal:>10} {with_setup:>14} {cold:>10} {upload:>10} {ratio:>10} {setup_ratio:>14} {max_rel:>10} {topk:>4} {note}",
+            "table {n:>8} {dim:>4} {metric:<6} {batch:>5} {cpu:>10} {cpu_mt:>10} {metal:>10} {with_setup:>14} {cold:>10} {upload:>10} {ratio:>10} {mt_ratio:>12} {setup_ratio:>14} {max_rel:>10} {topk:>4} {note}",
             n = row.n,
             dim = row.dim,
             metric = row.metric,
             batch = row.batch,
             cpu = format!("{:.3}", ns_ms(row.cpu_per_query())),
+            cpu_mt = format!("{:.3}", ns_ms(row.cpu_mt_per_query())),
             metal = fmt_opt_ms(steady),
             with_setup = fmt_opt_ms(row.with_setup_per_query()),
             cold = fmt_opt_ms(row.cold_ns()),
             upload = fmt_opt_ms(row.upload_ns),
             ratio = fmt_ratio(steady, row.cpu_per_query()),
+            mt_ratio = fmt_ratio(steady, row.cpu_mt_per_query()),
             setup_ratio = fmt_ratio(row.with_setup_per_query(), row.cpu_per_query()),
             max_rel = fmt_opt_f(row.max_rel),
             topk = match row.topk_ok {
@@ -771,7 +916,7 @@ fn open_session() -> Result<Session, String> {
 fn run(cfg: &Config) -> Result<(), String> {
     emit!("metal_vs_cpu");
     emit!(
-        "level: MetalCompute::search versus FlatIndex::search; no index calls Metal, and a batch is one scan per query"
+        "level: MetalCompute::search versus single-thread FlatIndex::search and a rayon exact scan; no index calls Metal, and a batch is one scan per query"
     );
     let session = open_session()?;
     let ram = available_ram();
@@ -783,6 +928,7 @@ fn run(cfg: &Config) -> Result<(), String> {
             .map(|n| n.get())
             .unwrap_or(1)
     );
+    emit!("cpu_mt_threads: {}", cpu_mt_threads());
     emit!(
         "ram_available_bytes: {}",
         ram.map(|bytes| bytes.to_string())
@@ -790,10 +936,13 @@ fn run(cfg: &Config) -> Result<(), String> {
     );
     emit!("cpu_search: single-threaded FlatIndex::search (SIMD kernels, k-element heap)");
     emit!(
-        "legend: cpu_ms and metal_ms are steady per-query times; metal_ms includes the query copy, dispatch, wait, full distance readback and top-k; with_setup_ms adds MetalCompute::new and the corpus upload spread across this batch; cold_ms is setup + upload + the first dispatch; a steady/cpu ratio below 1 means Metal was faster; index build is not in cpu_ms; ratios inside a few percent are noise, and a hosted runner is not evidence"
+        "cpu_mt: rayon exact scan of the same distance_fn, one chunk per cpu_mt_threads thread, local k-heaps merged; metal/cpu_mt below 1 means Metal beat that parallel scan"
     );
     emit!(
-        "csv,n,dim,metric,batch,repeats,cpu_ns,cpu_first_ns,build_ns,metal_ns,metal_first_ns,upload_ns,setup_ns,with_setup_ns,cold_ns,max_abs,max_rel,topk_ok,note"
+        "legend: cpu_ms, cpu_mt_ms and metal_ms are steady per-query times; metal_ms includes the query copy, dispatch, wait, full distance readback and top-k; with_setup_ms adds MetalCompute::new and the corpus upload spread across this batch; cold_ms is setup + upload + the first dispatch; a steady/cpu ratio below 1 means Metal was faster than FlatIndex; index build is not in cpu_ms or cpu_mt_ms; ratios inside a few percent are noise, and a hosted runner is not evidence"
+    );
+    emit!(
+        "csv,n,dim,metric,batch,repeats,cpu_ns,cpu_mt_ns,cpu_first_ns,cpu_mt_first_ns,build_ns,metal_ns,metal_first_ns,upload_ns,setup_ns,with_setup_ns,cold_ns,metal_over_cpu_mt,max_abs,max_rel,topk_ok,note"
     );
 
     let mut rows = Vec::new();
@@ -811,7 +960,7 @@ fn run(cfg: &Config) -> Result<(), String> {
                 }
                 ShapeOutcome::Rows(shape_rows) => {
                     for row in &shape_rows {
-                        if row.note == "mismatch" {
+                        if row.note == "mismatch" || row.note == "mt_mismatch" {
                             mismatched += 1;
                         }
                         print_row(row);
@@ -829,12 +978,15 @@ fn run(cfg: &Config) -> Result<(), String> {
     if rows.is_empty() {
         return Err("no shape fit in available RAM".into());
     }
-    if rows.iter().any(|row| row.cpu_per_query() == 0) {
+    if rows
+        .iter()
+        .any(|row| row.cpu_per_query() == 0 || row.cpu_mt_per_query() == 0)
+    {
         return Err("CPU search measured 0 ns; the timed call was optimized away".into());
     }
     if mismatched > 0 {
         return Err(format!(
-            "{mismatched} Metal result sets did not match the CPU path"
+            "{mismatched} result sets did not match the single-thread CPU path"
         ));
     }
     Ok(())
@@ -895,6 +1047,21 @@ fn bench_shape(
             let measured = measure_cpu(&index, &queries[..batch], &slots, cfg.k, repeats)?;
             batches.push(measured);
         }
+        drop(index);
+        for batch in &mut batches {
+            let (mt_first_ns, mt_batch_ns, mt_ok) = measure_cpu_mt(
+                &corpus,
+                dim,
+                &queries[..batch.batch],
+                &batch.hits,
+                cfg.k,
+                repeats,
+                kind.metric(),
+            )?;
+            batch.mt_first_ns = mt_first_ns;
+            batch.mt_batch_ns = mt_batch_ns;
+            batch.mt_ok = mt_ok;
+        }
         cpu_metrics.push(CpuMetric {
             kind,
             build_ns,
@@ -924,6 +1091,8 @@ fn bench_shape(
                     cpu_first_ns: batch.first_ns,
                     cpu_batch_ns: batch.batch_ns,
                     build_ns: cpu.build_ns,
+                    mt_first_ns: batch.mt_first_ns,
+                    mt_batch_ns: batch.mt_batch_ns,
                     metal_first_ns: None,
                     metal_batch_ns: None,
                     upload_ns: None,
@@ -931,7 +1100,7 @@ fn bench_shape(
                     max_abs: None,
                     max_rel: None,
                     topk_ok: None,
-                    note: "no_metal",
+                    note: row_note(None, batch.mt_ok),
                 });
             }
         }
@@ -1074,6 +1243,8 @@ fn measure_metal_metric(
             cpu_first_ns: batch.first_ns,
             cpu_batch_ns: batch.batch_ns,
             build_ns: cpu_metric.build_ns,
+            mt_first_ns: batch.mt_first_ns,
+            mt_batch_ns: batch.mt_batch_ns,
             metal_first_ns: Some(metal_first_ns),
             metal_batch_ns: Some(metal_batch_ns),
             upload_ns: Some(cost.upload_ns),
@@ -1081,11 +1252,7 @@ fn measure_metal_metric(
             max_abs: Some(max_abs),
             max_rel: Some(max_rel),
             topk_ok: Some(topk_ok),
-            note: if distances_ok && topk_ok {
-                "ok"
-            } else {
-                "mismatch"
-            },
+            note: row_note(Some(distances_ok && topk_ok), batch.mt_ok),
         });
     }
     Ok(rows)
@@ -1121,7 +1288,6 @@ fn distance_error(
     Ok((max_abs, max_rel))
 }
 
-#[cfg(feature = "gpu-metal")]
 fn format_hits(hits: &[SearchResult]) -> String {
     hits.iter()
         .map(|hit| format!("{}:{:.6}", hit.id, hit.distance))

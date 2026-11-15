@@ -38,6 +38,8 @@ bincode = { version = "2.0", features = ["serde"] }
 [dev-dependencies]
 proptest = "1.6"
 criterion = { version = "0.8", features = ["html_reports"] }
+# Example-only. Not a library dependency: FlatIndex stays single-threaded.
+rayon = "1.12.0"
 
 [lib]
 # Skip the libtest harness under `cargo bench`; it doesn't accept criterion
