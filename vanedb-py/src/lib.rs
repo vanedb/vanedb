@@ -153,9 +153,9 @@ fn to_pyerr(e: VaneError) -> PyErr {
         //
         // `Backend` means a compute backend is unavailable, which is an
         // environment condition a caller should fall back from, not a bad
-        // argument they should fix: a `RuntimeError`. It cannot reach here
-        // today (constructed only behind `gpu-metal`, which Python does not
-        // build) but must not inherit `ValueError` by falling through.
+        // argument they should fix: a `RuntimeError`. Nothing constructs it
+        // after `gpu-metal` was removed (#257), but the mapping must not
+        // inherit `ValueError` by falling through.
         //
         // `VaneError` is `#[non_exhaustive]`; a variant this binding predates
         // is reported as the validation bucket, as it always was.

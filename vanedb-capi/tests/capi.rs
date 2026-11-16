@@ -1319,8 +1319,8 @@ fn a_failing_abi_call_from_a_thread_local_destructor_does_not_abort() {
 /// `DIMENSION_MISMATCH` and `BATCH_LENGTH_MISMATCH` are unreachable because
 /// the ABI derives a batch's vector count as `n * dim` rather than accepting a
 /// length, so a caller cannot present a mismatched batch or a wrong-width
-/// vector. `BACKEND` is unreachable because `VaneError::backend` is only
-/// constructed under `gpu-metal`, which `vanedb-capi` does not enable. They
+/// vector. `BACKEND` is unreachable because nothing constructs
+/// `VaneError::Backend` after `gpu-metal` was removed (#257). They
 /// exist because `code_for` maps every `VaneError` variant.
 ///
 /// An earlier version of this comment said "two", omitted `BACKEND`, and
