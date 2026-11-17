@@ -138,10 +138,16 @@ clean clone with 140 tests and the same bundle checksum. Follow
 reviewed commit and bundle identity, then create its annotated release tag
 when publication is approved. The official tag and release remain
 missing; automated tests and historical staging artifacts do not prove them.
-After those gates and publication approval, the annotated-tag helper is
-`bash docs/launch/maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`
-(or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN`). Record both evidence
-links on [#242](https://github.com/vanedb/vanedb/issues/242).
+In `obsidian-vane-search`, tag `f52c022`
+(`f52c022c72d1da1dcdd59f5bd16203f98b65715b`) and push it. Pushing the tag
+publishes the GitHub release:
+
+```bash
+git tag -a 0.2.0 f52c022 -m "Vane Search 0.2.0" && git push origin 0.2.0
+```
+
+Record the release URL and walkthrough evidence on
+[#242](https://github.com/vanedb/vanedb/issues/242).
 
 ## 4. Launch (AC6)
 
