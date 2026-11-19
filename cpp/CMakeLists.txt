@@ -258,9 +258,8 @@ target_compile_options(semantic_search_example PRIVATE
 )
 endif() # VANEDB_BUILD_EXAMPLES
 
-# GPU support (optional)
+# GPU support (optional). CUDA is not implemented.
 option(VANEDB_BUILD_METAL "Build Metal GPU tests (macOS only)" OFF)
-option(VANEDB_BUILD_CUDA "Build CUDA GPU support" OFF)
 
 # Metal GPU test (macOS only)
 if(VANEDB_BUILD_METAL AND APPLE)
@@ -272,14 +271,6 @@ if(VANEDB_BUILD_METAL AND APPLE)
     MACOSX_BUNDLE FALSE
     CXX_STANDARD 20
   )
-endif()
-
-# CUDA GPU support
-if(VANEDB_BUILD_CUDA)
-  enable_language(CUDA)
-  # EXPERIMENTAL: cuda_distance.cuh contains kernel source but is intentionally
-  # not yet wired into a build target. It is unverified — there is no NVIDIA
-  # hardware in CI. Metal is the supported GPU path.
 endif()
 
 # C API (shippable extern "C" surface; consumed by vanedb-bench)
@@ -313,10 +304,6 @@ endif()
 
 # Install
 install(TARGETS vanedb EXPORT vanedb-targets)
-# `*.cuh` is deliberately not installed: cuda_distance.cuh is unwired and
-# untested (see the EXPERIMENTAL note above), and installing it advertises a
-# capability that does not exist. The Rust engine deleted its CUDA stub before
-# 0.1.1 on the same reasoning — shipping a stub spends the option permanently.
 install(DIRECTORY src/core/ DESTINATION include/vanedb FILES_MATCHING PATTERN "*.h")
 install(EXPORT vanedb-targets FILE vanedb-config.cmake DESTINATION lib/cmake/vanedb)
 

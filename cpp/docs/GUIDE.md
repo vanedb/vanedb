@@ -205,8 +205,7 @@ ctest --output-on-failure
 | `VANEDB_BUILD_BENCHMARKS` | ON | Build benchmarks |
 | `VANEDB_BUILD_PYTHON` | ON | Build Python bindings |
 | `VANEDB_BUILD_EXAMPLES` | ON | Build examples |
-| `VANEDB_BUILD_METAL` | OFF | Build Metal GPU support (macOS) |
-| `VANEDB_BUILD_CUDA` | OFF | Enable CUDA language (experimental — kernel source is not yet wired into a build target) |
+| `VANEDB_BUILD_METAL` | OFF | Build the Metal distance test (macOS) |
 
 ---
 
@@ -274,8 +273,7 @@ Supported ABIs: `arm64-v8a` (ARM NEON), `x86_64` (AVX2).
 - **Brute-force search**: FlatIndex uses O(n) search; use ApproxIndex for large datasets
 - **No deletion in HNSW**: Removing vectors requires rebuilding the index
 - **Single-file persistence**: No sharding for very large datasets
-- **GPU dimensions**: Metal requires dimensions divisible by 4 (the experimental CUDA kernels assume the same)
-- **CUDA is experimental**: `cuda_distance.cuh` contains kernel source but is not compiled into any build target, is untested, and requires NVIDIA hardware. Metal is the supported GPU path.
+- **GPU dimensions**: Metal requires dimensions divisible by 4. CUDA is not implemented.
 
 ---
 

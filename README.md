@@ -78,16 +78,12 @@ Building that package from source is covered with the other bindings below.
 ## Demo
 
 [Vane Search](https://github.com/vanedb/obsidian-vane-search) is a local-first
-Obsidian plugin that indexes a vault with VaneDB's WASM build and searches by
-meaning. Pair it with Ollama + `nomic-embed-text` (or any OpenAI-compatible
-embeddings endpoint) once you follow the plugin README. The residual #242
-“Try it on a real vault” walkthrough / official 0.2.0 demo slice is still
-maintainer-tracked (see
-[`docs/launch/0003-demo-update-checklist.md`](docs/launch/0003-demo-update-checklist.md)).
-Full #198/#242 closeout (fixture host + dedicated HW tables + demo release):
-[`docs/launch/0003-closeout-checklist.md`](docs/launch/0003-closeout-checklist.md).
-Competitor methodology (and dedicated-hardware results, when filled) live in
-[`bench/COMPARISON.md`](bench/COMPARISON.md).
+Obsidian plugin that indexes a vault with VaneDB's WebAssembly build. Pair it
+with Ollama and `nomic-embed-text`, or any OpenAI-compatible embeddings
+endpoint, and follow the plugin README. The 0.2.0 plugin tag is still open:
+[demo checklist](docs/launch/0003-demo-update-checklist.md),
+[closeout](docs/launch/0003-closeout-checklist.md).
+Competitor results live in [`bench/COMPARISON.md`](bench/COMPARISON.md).
 
 ## API
 
