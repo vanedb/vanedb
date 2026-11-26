@@ -4,5 +4,5 @@
 build==1.6.1
 packaging==26.3
 pip==26.3
-PyYAML==6.0.3
+PyYAML==6.0.4
 twine==7.0.0
