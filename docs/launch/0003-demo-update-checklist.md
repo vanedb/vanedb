@@ -24,9 +24,11 @@ Publication approval remains pending.
 
 1. Preserve the completed independent review, PR CI and merged-main CI evidence for `5f98bfec`, including the real test job. A later commit requires renewed checks.
 2. Preserve the completed real Obsidian/Ollama walkthrough and synthetic-vault screenshot in [the merged demo acceptance record](https://github.com/vanedb/obsidian-vane-search/blob/5f98bfec5fc16dcef171bcde7dee4f669bbe55f9/docs/releases/0.2.0-desktop-acceptance.md). The unchanged accepted bundle needs no new walkthrough or screenshot. If its bundle changes, repeat the documented checks in a separate test vault and record the new source, checksum, environment and observations before release; do not modify a personal vault.
-3. PR #20 is merged and its rebuilt bundle matches the acceptance record. Merged-main CI and the tag-helper dry run passed. Create an annotated `0.2.0` tag on the reviewed merged commit and push that tag explicitly only when publication is approved. Use `bash docs/launch/maintainer_tag_demo_0.2.0.sh --confirm-vault-walkthrough`
-   or Actions → **Tag demo 0.2.0** with `DEMO_REPO_TOKEN` after those gates.
-   The demo README contains the exact commands; pushing the tag publishes the release.
+3. In `obsidian-vane-search`, create the annotated tag only on a commit whose rebuilt `main.js` checksum matches recorded, reviewed evidence, and push it. Today that commit is `5f98bfec` (`5f98bfec5fc16dcef171bcde7dee4f669bbe55f9`). Pushing the tag publishes the GitHub release. Tagging any later commit (such as the current head) first requires the renewed checks and real walkthrough from step 2, with the new source commit, checksum, environment and observations recorded, and then this doc updated to name that commit.
+
+   ```bash
+   git tag -a 0.2.0 5f98bfec -m "Vane Search 0.2.0" && git push origin 0.2.0
+   ```
 4. Verify the official release contains `main.js`, `manifest.json`, and `LICENSE`, and that its README includes the observed walkthrough.
 5. Record the official release URL and walkthrough evidence on [vanedb#242](https://github.com/vanedb/vanedb/issues/242).
 

@@ -23,7 +23,7 @@ the `vanedb-cpp` Python package is not published.
 
 - **SIMD-optimized**: ARM NEON, x86 AVX2 (figures in [`bench/README.md`](../bench/README.md))
 - **Multiple indexes**: Brute-force, HNSW, Memory-mapped
-- **GPU acceleration**: Metal (Apple Silicon). CUDA (NVIDIA) is experimental — kernel source only, not yet wired into the build
+- **GPU**: Metal distance scans on Apple Silicon. They are not used by the indexes. CUDA is not implemented
 - **Thread-safe**: Concurrent reads with `std::shared_mutex`
 - **Python bindings**: NumPy integration, GIL-safe
 
