@@ -16,7 +16,7 @@ text end to end.
 
 ## Installation
 
-Requires Python 3.11 or newer.
+Requires Python 3.11 or newer. Published wheels cover CPython 3.11 through 3.15.
 
 ```sh
 python -m pip install vanedb

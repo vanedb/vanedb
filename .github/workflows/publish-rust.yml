@@ -92,7 +92,7 @@ jobs:
     # "Edge" is mostly ARM Linux — Raspberry Pi, Jetson, Graviton, and Docker
     # on Apple Silicon, which defaults to linux/arm64. musl covers Alpine.
     # Each leg builds natively; no emulation.
-    name: Linux wheels (${{ matrix.libc }} ${{ matrix.arch }}, Python 3.11–3.14)
+    name: Linux wheels (${{ matrix.libc }} ${{ matrix.arch }}, Python 3.11–3.15)
     needs: validate-version
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
@@ -129,7 +129,7 @@ jobs:
           args: >-
             --release --locked --compatibility pypi --out dist
             --manifest-path vanedb-py/Cargo.toml
-            -i python3.11 -i python3.12 -i python3.13 -i python3.14
+            -i python3.11 -i python3.12 -i python3.13 -i python3.14 -i python3.15
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vanedb-linux-${{ matrix.libc }}-${{ matrix.arch }}
@@ -147,7 +147,7 @@ jobs:
         # arch is a real matrix axis so it crosses with python-version;
         # include only supplies the runner for each arch. Putting arch solely
         # in include would overwrite rather than cross-product.
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
         arch: [x86_64, aarch64]
         include:
           - arch: x86_64
@@ -185,7 +185,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
         arch: [x86_64, aarch64]
         include:
           - arch: x86_64
@@ -238,7 +238,7 @@ jobs:
         target:
           - x86_64
           - aarch64
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
         include:
           - target: x86_64
             runner: macos-15-intel
@@ -277,7 +277,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12', '3.13', '3.14']
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -367,8 +367,8 @@ jobs:
           python -m pip install --upgrade --constraint "${{ github.workspace }}/.github/requirements-release.txt" pip
           python -m pip install --constraint "${{ github.workspace }}/.github/requirements-release.txt" packaging twine
           python -m twine check --strict dist/*
-          # Matrix contract: Linux (2 libc x 2 arch x 4 Python) = 16,
-          # macOS (2 arch x 4) = 8, Windows 4. Total 28, and each cpXXX tag
+          # Matrix contract: Linux (2 libc x 2 arch x 5 Python) = 20,
+          # macOS (2 arch x 5) = 10, Windows 5. Total 35, and each cpXXX tag
           # appears 7 times (4 Linux legs + 2 macOS + 1 Windows).
           # check_wheel_matrix.py derives these from the matrices above and
           # fails if they disagree.
@@ -376,16 +376,17 @@ jobs:
             --directory dist \
             --distribution vanedb \
             --pyproject vanedb-py/pyproject.toml \
-            --wheel-count 28 \
+            --wheel-count 35 \
             --sdist-count 1 \
             --python-tag cp311=7 \
             --python-tag cp312=7 \
             --python-tag cp313=7 \
             --python-tag cp314=7 \
-            --platform-prefix manylinux=8 \
-            --platform-prefix musllinux=8 \
-            --platform-prefix macosx=8 \
-            --platform-prefix win=4
+            --python-tag cp315=7 \
+            --platform-prefix manylinux=10 \
+            --platform-prefix musllinux=10 \
+            --platform-prefix macosx=10 \
+            --platform-prefix win=5
 
   publish-testpypi:
     name: Publish vanedb to TestPyPI

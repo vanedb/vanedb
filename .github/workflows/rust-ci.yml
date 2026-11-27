@@ -134,7 +134,7 @@ jobs:
       - run: cargo check -p vanedb-py --locked
 
   wheel-py:
-    name: Python wheel (maturin ${{ matrix.maturin-label }})
+    name: Python wheel (maturin ${{ matrix.maturin-label }}, ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -143,8 +143,16 @@ jobs:
         include:
           - maturin-label: latest
             maturin-version: ''
+            python-version: '3.11'
           - maturin-label: minimum
             maturin-version: v1.9.3
+            python-version: '3.11'
+          - maturin-label: latest
+            maturin-version: ''
+            python-version: '3.15'
+          - maturin-label: minimum
+            maturin-version: v1.9.3
+            python-version: '3.15'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -153,7 +161,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
       # Use the release action and explicit manylinux target. Older maturin
       # cannot combine this target with the redundant `--compatibility pypi`.
       # maturin-action fetches GitHub release tarballs; those occasionally 504
@@ -169,7 +177,7 @@ jobs:
           manylinux: '2_17'
           args: >-
             --release --locked --out dist
-            --manifest-path vanedb-py/Cargo.toml -i python3.11
+            --manifest-path vanedb-py/Cargo.toml -i python${{ matrix.python-version }}
       - name: Build the wheel (retry)
         if: steps.build-wheel.outcome == 'failure'
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
@@ -179,7 +187,7 @@ jobs:
           manylinux: '2_17'
           args: >-
             --release --locked --out dist
-            --manifest-path vanedb-py/Cargo.toml -i python3.11
+            --manifest-path vanedb-py/Cargo.toml -i python${{ matrix.python-version }}
       - name: Install from the wheel alone
         run: |
           python -m pip install --no-index --no-deps --find-links dist --force-reinstall vanedb
@@ -191,6 +199,41 @@ jobs:
       - name: The import must resolve to the wheel
         run: python scripts/check_wheel_install.py vanedb
       # Run from outside the checkout for the same reason.
+      - name: Run the Python suite against the installed wheel
+        run: |
+          cp -R vanedb-py/tests "$RUNNER_TEMP/wheel-tests"
+          cd "$RUNNER_TEMP"
+          python -m pytest wheel-tests -v
+
+  wheel-py-3-16:
+    name: Python wheel (CPython 3.16 pre-release)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.16'
+          allow-prereleases: true
+      - name: Build the wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          container: 'off'
+          args: >-
+            --release --locked --out dist
+            --manifest-path vanedb-py/Cargo.toml -i python
+      - name: Install from the wheel alone
+        run: |
+          python -m pip install --no-index --no-deps --find-links dist --force-reinstall vanedb
+          python -m pip install pytest numpy
+          python -m pip check
+      - name: The import must resolve to the wheel
+        run: python scripts/check_wheel_install.py vanedb
       - name: Run the Python suite against the installed wheel
         run: |
           cp -R vanedb-py/tests "$RUNNER_TEMP/wheel-tests"

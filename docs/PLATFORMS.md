@@ -44,12 +44,13 @@ makes no claim here.
 
 Python wheels are in this tier with one qualification. The full matrix (Linux
 x86-64 and ARM64 as `manylinux_2_17` and `musllinux_1_2`, macOS ARM64 and
-macOS Intel, Windows x64, each for Python 3.11, 3.12, 3.13 and 3.14: 28 wheels) is
+macOS Intel, Windows x64, each for Python 3.11, 3.12, 3.13, 3.14 and 3.15: 35 wheels) is
 built, installed and run through the test suite by the release workflow
 (`publish-rust.yml`) on every tag and rehearsal, with the musl wheels tested in
-`python:<version>-alpine` containers. A pull request tests one Linux x86-64
-wheel on Python 3.11, on the newest and the minimum supported maturin, plus
-`cargo check` of the bindings crate. The Python floor is `requires-python
+`python:<version>-alpine` containers. A pull request tests Linux x86-64
+wheels on Python 3.11 and 3.15, each on the newest and the minimum supported maturin, plus
+`cargo check` of the bindings crate. A separate job tries CPython 3.16 when
+`setup-python` provides it and does not gate the pull request. The Python floor is `requires-python
 >= 3.11`.
 
 ### Built and verified on emulation
@@ -95,7 +96,7 @@ experimental `gpu-metal` feature was removed (#257).
 | Android | API 21 | the C ABI acceptance is compiled with the NDK's `*-android21-clang`; every Android library is linked with `max-page-size=16384` and rejected by `check_android_elf.py` otherwise (a 4 KiB probe library is checked to fail). Emulator acceptance per pull request runs on API 29; the 16 KiB-page runtime evidence is the recorded Android 15 run above |
 | iOS | 13 for the C ABI | the deployment target [RFC 0002](rfcs/0002-c-abi-distribution.md) declares. CI evidence is the simulator run on the newest installed runtime; no run on iOS 13 itself is recorded. The Swift package of RFC 0007, not yet shipped, will target iOS 15 |
 | Windows | MSVC toolchain, Universal CRT | the C archive imports `VCRUNTIME140` and the Universal CRT, as [`vanedb-capi/README.md`](../vanedb-capi/README.md) records from the archive's `compatibility.json`. **A minimum Windows version is not verified**: consumer acceptance runs on `windows-latest`, and the PE subsystem version does not establish one |
-| Python | 3.11 to 3.14 | `requires-python >= 3.11` in `vanedb-py/pyproject.toml`; the release matrix builds and tests each of the four versions on every tested platform |
+| Python | 3.11 to 3.15 | `requires-python >= 3.11` in `vanedb-py/pyproject.toml`; the release matrix builds and tests each of the five versions on every tested platform |
 | Node.js | 22 tested; package declares `engines.node >= 18` | the publish workflow builds and tests on Node 22; pull requests use the runner's default Node. Nothing runs on Node 18 or 20, so the `engines` range is a declaration, not a tested floor |
 | Browsers | current Chrome, Firefox and WebKit | the versions Playwright and `wasm-pack` install at run time; no minimum browser version is verified |
 | Page size | 16 KiB alignment on Android; Linux not asserted | `DiskIndex` maps files and Android loads the C ABI as a shared library, so page size matters. The Linux runners' page size is the runner-image default (4 KiB is expected) and no CI step asserts it; the Android libraries are 16 KiB-aligned and were run once on 16 KiB pages (above). Linux kernels with 64 KiB pages are untested |
@@ -109,7 +110,7 @@ Decision, recorded by RFC 0012 on 2026-09-15 and taking #47's rule that both
 publish workflows change together:
 
 - From that date there are no `macosx_*_x86_64` wheels and no `macos-x86_64`
-  C archive. The wheel matrix drops from 28 to 24 wheels, `macosx` from 8 to 4
+  C archive. The wheel matrix drops from 35 to 30 wheels, `macosx` from 10 to 5
   and each `cp3xx` tag from 7 to 6; the C archives drop from five to four.
 - The sdist and `cargo build` keep working on Intel Macs, which move to the
   source tier. After that date `pip install vanedb` on an Intel Mac finds no
@@ -148,6 +149,9 @@ still runs the full suite and the C consumer acceptance on `macos-15-intel`.
 Dated; newest first. Tier moves and floor changes are recorded here and in
 [`CHANGELOG.md`](../CHANGELOG.md).
 
+- **2026-11-27** — CPython 3.15 joins the wheel matrix (35 wheels, five
+  versions on each tested platform). CPython 3.16 has no wheel. A
+  pre-release CI job tries it and does not gate pull requests. #370.
 - **2026-09-20** — First publication, implementing RFC 0012 (accepted
   2026-09-15). Tiers and floors record what CI already proved; no platform
   changed tier. Records the Intel macOS exit: native x86-64 macOS wheels and

@@ -56,11 +56,11 @@ device-support claim.
 
 All three are in milestone 0.3.0, and none is claimed before CI proves it.
 
-- **Python 3.15, then 3.16**
-  ([#370](https://github.com/vanedb/vanedb/issues/370)). The wheels cover
-  CPython 3.11 to 3.14 and are built per interpreter version, so each new
-  one needs a PyO3 release that supports it, a column in the wheel matrix
-  and an installed-wheel test run.
+- **Python 3.16**
+  ([#370](https://github.com/vanedb/vanedb/issues/370)). Wheels cover
+  CPython 3.11 to 3.15 and are built per interpreter version. 3.16 has no
+  wheel. A pre-release CI job tries a build when the image provides it
+  and does not gate pull requests.
 - **Node.js 24 and 26**
   ([#372](https://github.com/vanedb/vanedb/issues/372)). Only Node 22 is
   tested today; the declared floor of 18 is to be raised to a tested

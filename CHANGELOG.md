@@ -9,6 +9,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html); until
 
 ## [Unreleased]
 
+### Added
+
+- Python wheels for CPython 3.15 on the existing release targets, and
+  installed-wheel CI on 3.15. CPython 3.16 has no wheel. A pre-release CI
+  job tries a build when the interpreter is available and does not gate
+  pull requests (#370).
+
 ### Removed
 
 - The optional `gpu-metal` Cargo feature, `vanedb::gpu`, and the `metal` and
