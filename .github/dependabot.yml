@@ -20,10 +20,17 @@ updates:
     ignore:
       - dependency-name: "bincode"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "parking_lot"
+        # parking_lot 0.13 / lock_api 0.5 / parking_lot_core 0.10 require Rust 1.95; repo MSRV is 1.85.
+        versions: [">=0.13"]
   - package-ecosystem: "cargo"
     directory: "/bench"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "parking_lot"
+        # parking_lot 0.13 / lock_api 0.5 / parking_lot_core 0.10 require Rust 1.95; repo MSRV is 1.85.
+        versions: [">=0.13"]
   - package-ecosystem: "cargo"
     directory: "/bench/compare"
     schedule:
@@ -38,6 +45,9 @@ updates:
       - dependency-name: "instant-distance"
       - dependency-name: "hnsw_rs"
       - dependency-name: "rusqlite"
+      - dependency-name: "parking_lot"
+        # parking_lot 0.13 / lock_api 0.5 / parking_lot_core 0.10 require Rust 1.95; repo MSRV is 1.85.
+        versions: [">=0.13"]
   - package-ecosystem: "pip"
     directory: "/cpp"
     schedule:
